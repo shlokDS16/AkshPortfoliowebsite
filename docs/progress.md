@@ -16,12 +16,12 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
 - [x] Folder structure, pitfalls, reference sites, tool inventory → `docs/research/`
 - [x] Architecture options A/B/C → `docs/architecture/options/`
 - [x] ADR-001 drafted → `docs/architecture/ADR-001-stack.md`
-- [~] Red-team pass on ADR-001 → `docs/architecture/ADR-001-red-team.md`
+- [x] Red-team pass on ADR-001 → `docs/architecture/ADR-001-red-team.md`; 10 amendments folded into ADR-001 s8
 - [x] Project OS scaffold (`CLAUDE.md`, `claude/`, `docs/project-memory/`)
 - [x] Agents: `.claude/agents/desk-architect.md`, `desk-ui.md`, `desk-backend.md`
 - [x] `.env.example` with phase labels
 - [x] `docs/compliance/publishing-rules.md`, `docs/rubrics.md`
-- [ ] Phase 1 spec → `docs/specs/2026-10-04-phase-1-core-design.md`
+- [x] Phase 1 spec drafted → `docs/specs/2026-10-04-phase-1-core-design.md`
 - [ ] Shlok approves ADR-001 + Phase 1 spec
 - [ ] Phase 1 implementation plan (`superpowers:writing-plans`) → `docs/plans/`
 - [ ] Download official SEBI circular PDFs into `docs/compliance/`
@@ -37,7 +37,7 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 - [ ] 1.7 Quick capture (`t:` `l:` `$SYM` `#theme` grammar) + daily capture log
 - [ ] 1.8 UI segments 1-3 decided with Shlok (reading, navigation, data display) → `docs/design/decisions.md`
 - [ ] 1.9 Public pages: desk home, company page (thesis + revisions + sources), learning note, about/process, disclosures
-- [ ] 1.10 Daily cron skeleton: heartbeat + alert email on silence
+- [ ] 1.10 Three clocks: `/api/cron/daily` heartbeat, `/api/jobs/run` pump via `.github/workflows/pump.yml` (15 min), `/api/health` + external uptime monitor emailing Shlok + Aksh
 - [ ] 1.11 Seed with 2 real companies from Aksh's notepad/Excel; 3-day usage trial; fix friction
 - [ ] Phase 1 review vs rubrics R1/R2/R3; timeline entry; ADR updates
 
@@ -48,7 +48,8 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 - [ ] 2.4 Signed-URL upload → job creation → `after()` pump → admin inbox loop → cron sweep
 - [ ] 2.5 Pipelines: PDF (unpdf → Azure DI fallback → statement-page locator → extract), image (qwen vision), voice (Whisper), URL (oEmbed), text paste
 - [ ] 2.6 Review screen (page text beside editable JSON; approve files under company/theme)
-- [ ] 2.7 XLSX → SheetJS → HyperFormula → assumption confirmation → interactive valuation page
+- [ ] 2.7 XLSX → SheetJS → HyperFormula → assumption confirmation → interactive valuation page (PRIVATE only; public gets a lagged static scenario table)
+- [ ] 2.10 Page selector: statement/commentary pages only go to the LLM; page budget + ETA per document; `needs_attention` terminal state with "enter manually"
 - [ ] 2.8 UI segment 4 (capture + review) decided and built
 - [ ] 2.9 Owner alerting: paused/quota states, one email per incident
 

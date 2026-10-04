@@ -12,7 +12,7 @@ The system enforces these rules in code, so a tired 11 pm publish cannot break t
 
 | Tier | Who sees it | What is allowed |
 |---|---|---|
-| **Private** (`visibility = private`) | Aksh; invited "client" logins | Everything: live idea ledger, scores vs Nifty, target ranges, position sizing, mistakes with live numbers. |
+| **Private** (`visibility = private`) | Aksh only in v1 (no client accounts until Q1 is answered; `clients` exists in the schema only) | Everything: live idea ledger, scores vs Nifty, target ranges, position sizing, interactive valuation models, mistakes with live numbers. |
 | **Public** (`visibility = public`) | Anyone | Process, frameworks, learning notes, company **case studies** with >=30-day-old data, management-claim trackers, document summaries, mistakes journal entries (lagged). |
 
 Default for every new object is `private`. Promotion to `public` runs the **Publish Gate** below.
@@ -26,7 +26,13 @@ Default for every new object is `private`. Promotion to `public` runs the **Publ
 5. **Disclosure block is mandatory.** Every public page ending with a named security renders the standard disclosure (below) with `holds_position: yes | no | not disclosed` taken from the ledger at publish time.
 6. **Educational framing field.** Every public piece has a required `learning_objective` field (one sentence). It renders as the page's standfirst and is what makes the content "education" rather than "a view on a stock".
 
-A gate failure shows the exact sentence and the rule number in the review UI; Aksh edits and re-runs. Overrides are not possible from the UI; a developer may add a reviewed allowlist entry in `src/modules/compliance/allowlist.ts` with a reason and date.
+7. **Every revision is gated, not just the first publish.** A new revision of a public item stays invisible until it passes rules 1-6 again. Rule 4 is evaluated per revision, so a stub cannot be published and then filled in.
+8. **Whole public surface is linted:** title, slug, learning objective, body, structured data, OpenGraph text, newsletter drafts, video transcripts and any text extracted from images shown publicly.
+9. **Interactive valuation models are never public** while Aksh is unregistered: a DCF output is a price target by another name. Public pages may show a static scenario table (lagged, labelled as scenario outputs) that itself passes the gate.
+
+A gate failure shows the exact sentence and the rule number in the review UI; Aksh edits and re-runs. Two different things: a **rule override is impossible**; a **sentence allowance** is possible. Aksh may mark a specific flagged sentence as educational usage ("why I avoid target prices") with a reason; it is stored in `lint_allowances` and shown in the gate decision. Allowances never apply to rules 3, 4 or 9.
+
+Retraction: `unpublish_item()` makes the item private, revalidates and purges our cache. Third-party caches (search engines, social previews) cannot be purged by us; this is a known limitation.
 
 ## Standard disclosure (rendered, not typed)
 
