@@ -5,10 +5,10 @@
 Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked (say why) · `[-]` dropped (say why)
 
 ## Status snapshot
-- **Phase:** 0 (kickoff) complete pending approvals; Phase 1 not started
-- **Last session:** 2026-10-04 - kickoff, research, ADR-001, agents, env template, rubrics
-- **Next highest-value task:** get Shlok's approval on ADR-001 + Phase 1 spec, then `superpowers:writing-plans` for Phase 1
-- **Blocked on:** credentials in `.env.local` (see `.env.example` labels REQUIRED-P1); SEBI Q1 (client logins) can wait until Phase 3
+- **Phase:** 0 complete (ADR-001 accepted, Phase 1 spec approved, Plan 1A written). Phase 1 not started.
+- **Last session:** 2026-10-04 - kickoff, research, ADR-001 + red team, agents, env template, rubrics, Plan 1A (7,007 lines), UI segment 1 comparison
+- **Next highest-value task:** Shlok opens `docs/design/comparisons/01-reading-experience.html` and picks direction A/B/C (or a mix) for the reading experience; record in `docs/design/decisions.md`. WHY: Plan 1B (public pages) cannot be written until this is chosen, and it is the one segment that defines how every thesis page reads. Then: Task 0 prerequisites by hand, then `superpowers:subagent-driven-development` on Plan 1A from Task 1.
+- **Blocked on:** credentials in `.env.local` (REQUIRED-P1 in `.env.example`); Mobbin MCP needs a paid plan (Q7)
 
 ## Phase 0 - Kickoff and planning
 - [x] Brainstorm: goal, user, workflow, maintainer, budget (2026-10-04)
@@ -23,7 +23,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
 - [x] `docs/compliance/publishing-rules.md`, `docs/rubrics.md`
 - [x] Phase 1 spec drafted → `docs/specs/2026-10-04-phase-1-core-design.md`
 - [x] Shlok approves ADR-001 + Phase 1 spec (2026-10-04)
-- [ ] Phase 1 implementation plan (`superpowers:writing-plans`) → `docs/plans/`
+- [x] Plan 1A written (tasks 1.1-1.7, 1.10) → `docs/plans/2026-10-04-phase-1a-core.md` (not yet executed)
+- [ ] Plan 1B (tasks 1.8, 1.9, 1.11) after UI segments 1-3 are chosen
 - [ ] Download official SEBI circular PDFs into `docs/compliance/`
 
 ## Phase 1 - Core: data model, capture, public desk
@@ -35,7 +36,7 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 - [ ] 1.5 `research` module: items + revisions service, TDD
 - [ ] 1.6 `compliance` module: lint + `publish_item()` + `gate_decisions`, adversarial tests
 - [ ] 1.7 Quick capture (`t:` `l:` `$SYM` `#theme` grammar) + daily capture log
-- [ ] 1.8 UI segments 1-3 decided with Shlok (reading, navigation, data display) → `docs/design/decisions.md`
+- [~] 1.8 UI segments 1-3 decided with Shlok → `docs/design/decisions.md`. Segment 1 comparison READY for choice: `docs/design/comparisons/01-reading-experience.html` (A Margin Ledger / B Labelled Blocks / C Letter and Exhibits); segments 2-3 not started
 - [ ] 1.9 Public pages: desk home, company page (thesis + revisions + sources), learning note, about/process, disclosures
 - [ ] 1.10 Three clocks: `/api/cron/daily` heartbeat, `/api/jobs/run` pump via `.github/workflows/pump.yml` (15 min), `/api/health` + external uptime monitor emailing Shlok + Aksh
 - [ ] 1.11 Seed with 2 real companies from Aksh's notepad/Excel; 3-day usage trial; fix friction

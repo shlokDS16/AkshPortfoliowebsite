@@ -10,7 +10,7 @@ Personal equity-research system for Aksh Agrawal (student investor, India) with 
 5. Standards: `claude/engineering.md`, `claude/architecture.md`, `claude/documentation.md`, `claude/project-memory.md`, `claude/routines.md`.
 
 ## Hard rules
-- Compliance is a domain rule: `docs/compliance/publishing-rules.md`. The only publish path is the DB `publish_item()` function. Never add a UI override.
+- Compliance is a domain rule: `docs/compliance/publishing-rules.md`. The only publish path is the DB `publish_revision()` function (runs on every revision of a public item). Never add a UI override.
 - Quotas are facts, not guesses: `docs/research/2026-10-04-tooling-landscape.md` and `docs/research/2026-10-04-pitfalls.md`. Re-verify before changing a limit.
 - The AI organises, Aksh thinks: machine-extracted facts and his words never share a field.
 - Migrations in `supabase/migrations/` are the only schema source; commit the file even when applying via MCP.

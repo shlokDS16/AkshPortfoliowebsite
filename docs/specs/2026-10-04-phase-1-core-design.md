@@ -47,7 +47,11 @@ Indexes: `items(company_id)`, `items(theme_id)`, `items(visibility, status, publ
 - `lint_allowances(item_id fk, sentence_hash text, reason text, created_at)`: admin-editable sentence allowlist (educational usage of a flagged phrase). The lint reports allowed sentences as `allowed_by` in the gate decision. There is no rule-level override.
 - All RPC functions: `REVOKE EXECUTE ... FROM anon, authenticated` by default; grant only what the public views need (none in Phase 1). Supabase Auth signups disabled; the admin user is created once by Shlok.
 
-**RLS summary:** admin: all on all tables. anon/authenticated non-admin: nothing directly; views only. `captures`, `gate_decisions`, `heartbeats`: admin only.
+**RLS summary:** admin: all on all tables. anon/authenticated non-admin: SELECT on `companies`, `themes`, `items`, `item_revisions` limited by RLS to exactly the rows the public views expose (security_invoker views require base-table privileges; the policies repeat the view predicates, including the 30-day lag). `captures`, `gate_decisions`, `heartbeats`, `lint_allowances`: admin only. `publish_revision`/`unpublish_item` are granted to `authenticated` (Aksh's session role) and check `is_admin()` inside; every other function has EXECUTE revoked from anon/authenticated.
+
+**Gate failure semantics:** `publish_revision` records a `verdict = 'fail'` row in `gate_decisions` and returns it (raising would roll back the audit record); the server action surfaces `reasons` to the editor. Rule 4 (named-security recency) is enforced from Phase 3 when the ledger exists. The lint excludes the rendered standard disclosure block, which legitimately contains "buy or sell".
+
+**Plan 1A resolutions (2026-10-04):** admin email lives in `private.settings`, not in the migration; a public item's title and slug are frozen until unpublished; a `t:` capture appends a revision to the existing thesis; the single migration file and generated types are exempt from the 300-line rule.
 
 ## 4. Modules (Phase 1 subset of ADR-001)
 ```

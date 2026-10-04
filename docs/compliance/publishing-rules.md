@@ -26,6 +26,8 @@ Default for every new object is `private`. Promotion to `public` runs the **Publ
 5. **Disclosure block is mandatory.** Every public page ending with a named security renders the standard disclosure (below) with `holds_position: yes | no | not disclosed` taken from the ledger at publish time.
 6. **Educational framing field.** Every public piece has a required `learning_objective` field (one sentence). It renders as the page's standfirst and is what makes the content "education" rather than "a view on a stock".
 
+Note: rule 4 is enforced in code from Phase 3 (it needs the ledger); until then Aksh applies it by hand. The rendered standard disclosure block is excluded from rule 1's scan.
+
 7. **Every revision is gated, not just the first publish.** A new revision of a public item stays invisible until it passes rules 1-6 again. Rule 4 is evaluated per revision, so a stub cannot be published and then filled in.
 8. **Whole public surface is linted:** title, slug, learning objective, body, structured data, OpenGraph text, newsletter drafts, video transcripts and any text extracted from images shown publicly.
 9. **Interactive valuation models are never public** while Aksh is unregistered: a DCF output is a price target by another name. Public pages may show a static scenario table (lagged, labelled as scenario outputs) that itself passes the gate.

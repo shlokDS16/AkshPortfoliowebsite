@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading experience: three directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ---------- comparison shell (neutral, not a design proposal) ---------- */
+:root{--s-bg:#EFEFEC;--s-ink:#191919;--s-muted:#575757;--s-rule:#D2D2CD;--s-card:#FFFFFF;--s-hi:#191919;--s-on-hi:#FFFFFF}
+:root[data-theme=dark]{--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--s-bg);color:var(--s-ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+a{color:inherit}
+.shell{max-width:1480px;margin:0 auto;padding:28px 32px 8px}
+.shell h1{font-size:22px;margin:0 0 6px;font-weight:650;letter-spacing:-.01em}
+.shell p{margin:0 0 8px;color:var(--s-muted);max-width:980px}
+.controls{display:flex;flex-wrap:wrap;gap:18px;margin:16px 0 4px;align-items:center}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--s-rule);border-radius:8px;overflow:hidden;background:var(--s-card)}
+.seg span{padding:7px 10px;font-size:12px;color:var(--s-muted);border-right:1px solid var(--s-rule);align-self:center}
+.seg button{font:inherit;font-size:13px;padding:7px 12px;border:0;background:transparent;color:var(--s-ink);cursor:pointer;min-height:36px}
+.seg button+button{border-left:1px solid var(--s-rule)}
+.seg button[aria-pressed=true]{background:var(--s-hi);color:var(--s-on-hi)}
+.seg button:focus-visible{outline:2px solid var(--s-ink);outline-offset:-3px}
+.dirs{max-width:1480px;margin:0 auto;padding:0 20px}
+.dir{margin:36px 0 56px}
+.dir-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;max-width:1000px}
+.dir-letter{flex:none;width:38px;height:38px;display:grid;place-items:center;border:1.5px solid var(--s-ink);border-radius:6px;font-weight:700;font-size:18px}
+.dir-head h2{margin:0;font-size:19px;font-weight:650}
+.dir-head p{margin:2px 0 0;color:var(--s-muted)}
+.stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+figure{margin:0}
+figcaption{font-size:12px;color:var(--s-muted);margin-top:8px}
+.browser{width:960px;max-width:100%;border:1px solid var(--s-rule);border-radius:10px;overflow:hidden;background:var(--s-card)}
+.chrome{height:36px;display:flex;align-items:center;gap:7px;padding:0 12px;border-bottom:1px solid var(--s-rule);font-size:12px;color:var(--s-muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--s-rule)}
+.url{margin-left:10px;padding:3px 12px;border-radius:6px;background:var(--s-bg)}
+.vp{overflow-y:auto;container-type:inline-size;overscroll-behavior:contain}
+.vp:focus-visible{outline:2px solid var(--s-ink);outline-offset:2px}
+.browser .vp{height:820px}
+.bezel{width:391px;height:800px;border:8px solid #0A0A0A;border-radius:46px;overflow:hidden;background:#0A0A0A}
+.bezel .vp{width:375px;height:100%;scrollbar-width:none}
+.bezel .vp::-webkit-scrollbar{display:none}
+body.phones .browser{display:none}
+body.phones .dirs{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+body.phones .dir{margin:24px 0 40px;width:391px}
+body.phones .dir-head{min-height:124px}
+.matrix-wrap{max-width:1480px;margin:0 auto;padding:0 32px 64px}
+.matrix-wrap h2{font-size:19px;margin:0 0 10px}
+.matrix-scroll{overflow-x:auto}
+.matrix{border-collapse:collapse;width:100%;min-width:760px;background:var(--s-card);border:1px solid var(--s-rule);font-size:13.5px}
+.matrix th,.matrix td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--s-rule)}
+.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--s-muted)}
+.matrix tbody th{width:170px;font-weight:600}
+.ask{margin-top:14px;color:var(--s-muted)}
+@media (max-width:640px){.shell,.dirs,.matrix-wrap{padding-left:16px;padding-right:16px}.bezel{transform-origin:top left}}
+
+/* ================= Direction A: Margin Ledger ================= */
+.ma{--bg:#FBFAF7;--ink:#1B1A17;--muted:#5A554C;--rule:#D9D3C7;--acc:#7A4A26;--tint:#F2EEE5}
+:root[data-theme=dark] .ma{--bg:#151412;--ink:#ECE8E0;--muted:#ABA598;--rule:#3A3731;--acc:#E2AE83;--tint:#1F1D1A}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .ma{--bg:#151412;--ink:#ECE8E0;--muted:#ABA598;--rule:#3A3731;--acc:#E2AE83;--tint:#1F1D1A}}
+.ma{min-height:100%;background:var(--bg);color:var(--ink);font-family:"Source Serif 4",Georgia,serif;font-size:18px;line-height:1.6;padding:18px 20px 56px;font-variant-numeric:lining-nums tabular-nums}
+.ma-top,.ma-kicker,.ma-meta,.ma-cond,.ma .notes,.ma-check,.ma-facts,.ma-src,.ma-hist,.ma-links,.ma sup.r{font-family:"Source Sans 3",system-ui,sans-serif}
+.ma-top{font-size:13px;color:var(--muted);margin-bottom:26px}
+.ma-kicker{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0}
+.ma h1{font-size:34px;line-height:1.1;font-weight:600;letter-spacing:-.012em;margin:8px 0 10px}
+.ma-one{margin:0 0 14px}
+.ma-stand{font-style:italic;font-size:19px;line-height:1.45;margin:0 0 16px}
+.ma-stand b{display:block;font-style:normal;font-family:"Source Sans 3",sans-serif;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:2px}
+.ma-meta{display:grid;grid-template-columns:repeat(3,auto);justify-content:start;gap:4px 22px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:9px 0;margin:0 0 10px}
+.ma-meta dt{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.ma-meta dd{margin:0;font-size:14.5px;font-weight:600}
+.ma-cond{font-size:13.5px;color:var(--muted);margin:0 0 6px}
+.ma h2{font-weight:400;font-style:italic;font-size:25px;line-height:1.2;margin:42px 0 14px}
+.ma h2 small{display:block;font-style:normal;font-family:"Source Sans 3",sans-serif;font-size:12.5px;color:var(--muted);margin-top:4px}
+.ma .u{margin:0 0 6px}
+.ma .u>p{margin:0 0 12px}
+.ma .u.changed>p{margin-left:-13px;padding-left:10px;border-left:3px solid var(--acc)}
+.ma sup.r{font-size:11.5px;font-weight:600;color:var(--acc);line-height:0;padding-left:1px}
+.ma .notes{margin:-4px 0 16px;padding-left:11px;border-left:1px solid var(--rule);font-size:13.5px;line-height:1.45;color:var(--muted)}
+.ma .sn{margin:0 0 5px}
+.ma .sn b{color:var(--acc);margin-right:5px}
+.ma .sn em{font-style:normal;color:var(--ink)}
+.ma-revmini{margin:0;padding:0;list-style:none}
+.ma-revmini li{margin-bottom:4px}
+.ma ol.ma-wrong{list-style:none;padding:0;margin:0;counter-reset:w}
+.ma-wrong>li{counter-increment:w;position:relative;padding:0 0 14px 34px;margin-bottom:14px;border-bottom:1px solid var(--rule)}
+.ma-wrong>li::before{content:counter(w);position:absolute;left:0;top:3px;font-family:"Source Sans 3",sans-serif;font-weight:600;font-size:13px;width:22px;height:22px;border:1px solid var(--ink);border-radius:50%;display:grid;place-items:center;line-height:1}
+.ma-wrong p{margin:0 0 6px}
+.ma-check{font-size:13.5px;color:var(--muted);line-height:1.5}
+.ma-check strong{color:var(--ink);text-transform:uppercase;letter-spacing:.06em;font-size:11px;border:1px solid var(--ink);padding:1px 6px;border-radius:2px;margin-left:4px;white-space:nowrap}
+.ma-check .new{font-style:italic}
+.ma-facts{background:var(--tint);padding:14px 16px 6px;border-top:2px solid var(--ink)}
+.ma-facts-lede{font-size:13px;color:var(--muted);margin:0 0 4px}
+.ma .fr{display:grid;grid-template-columns:1fr auto;gap:0 16px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.ma .fr:last-child{border-bottom:0}
+.ma .fk{font-size:15px}
+.ma .fv{font-size:20px;font-weight:600;text-align:right;line-height:1.25}
+.ma .fs{font-size:12.5px;color:var(--muted)}
+.ma .fp{font-size:12.5px;color:var(--muted);text-align:right}
+.ma-src{font-size:14.5px;padding-left:0;list-style:none;margin:14px 0 0}
+.ma-src li{margin-bottom:8px}
+.ma-src b{display:inline-block;min-width:28px}
+.ma-hist{list-style:none;padding:0;margin:0;font-size:15px}
+.ma-hist li{display:grid;grid-template-columns:104px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--rule)}
+.ma-hist time{font-weight:600}
+.ma-links{font-size:15px;margin:0;padding-left:18px}
+.ma-colo{margin-top:46px;border-top:3px double var(--rule);padding-top:6px}
+.ma-colo p{font-size:16.5px;line-height:1.6;margin:0 0 10px}
+.ma-colo .pos{font-family:"Source Sans 3",sans-serif;font-size:14px;font-weight:600;border:1px solid var(--ink);display:inline-block;padding:3px 10px;margin:4px 0 12px}
+@container (min-width:760px){
+ .ma{padding:30px 56px 90px;font-size:19.5px}
+ .ma-top{margin-bottom:42px}
+ .ma h1{font-size:48px}
+ .ma .u{display:grid;grid-template-columns:minmax(0,1fr) 200px;column-gap:40px}
+ .ma .notes{margin:4px 0 0;padding:0;border:0;font-size:13px}
+ .ma .w{max-width:calc(100% - 240px)}
+ .ma .u.changed>p{margin-left:-17px;padding-left:14px}
+}
+
+/* ================= Direction B: Labelled Blocks ================= */
+.mb{--bg:#FFFFFF;--ink:#15171A;--muted:#585F69;--rule:#E0E3E7;--surf:#F3F5F7;--acc:#245789}
+:root[data-theme=dark] .mb{--bg:#0F1114;--ink:#E5E8EC;--muted:#9EA6B1;--rule:#2A2F36;--surf:#181B20;--acc:#93BBE4}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .mb{--bg:#0F1114;--ink:#E5E8EC;--muted:#9EA6B1;--rule:#2A2F36;--surf:#181B20;--acc:#93BBE4}}
+.mb{min-height:100%;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16px;line-height:1.6;font-variant-numeric:tabular-nums lining-nums}
+.mb .mono,.mb-strip,.mb-crumb,.mb .tag,.mb .cite,.mb-lbl,.mb-toc,.mb .st,.mb .fmeta,.mb-diff .dl,.mb-hist time,.mb .wr .n,.mb .wr .added,.mb-srcs .id,.mb-srcs .ty,.mb-disc dt,.mb .blk .revn{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.mb-strip{position:sticky;top:0;z-index:2;background:var(--ink);color:var(--bg);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:8px 16px;display:flex;flex-wrap:wrap;gap:3px 12px}
+.mb-strip a{color:var(--bg);margin-left:auto}
+.mb-wrap{padding:18px 16px 56px}
+.mb-crumb{font-size:11.5px;color:var(--muted)}
+.mb h1{font-size:30px;line-height:1.15;font-weight:600;letter-spacing:-.015em;margin:8px 0 8px}
+.mb-one{margin:0 0 14px}
+.mb-obj{background:var(--surf);border-radius:6px;padding:11px 14px;margin:0 0 14px}
+.mb-lbl{display:block;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.mb-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:12px 0;margin:0}
+.mb-meta dt{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.mb-meta dd{margin:0;font-size:14.5px;font-weight:500}
+.mb-toc{font-size:11.5px;display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 16px;padding:0;list-style:none;text-transform:uppercase;letter-spacing:.05em}
+.mb-toc a{color:var(--muted);text-decoration:none}
+.mb-toc a:hover{color:var(--ink)}
+.mb-toc .on{color:var(--ink);font-weight:500}
+.mb-sec{margin-top:38px}
+.mb-sec-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:9px;margin-bottom:14px}
+.mb-sec-h h2{font-size:19px;font-weight:600;margin:0;letter-spacing:-.005em}
+.mb-sec-h .sub{flex-basis:100%;font-size:13px;color:var(--muted)}
+.mb .tag{font-size:10px;letter-spacing:.08em;padding:2px 6px;border-radius:3px;border:1px solid var(--ink);line-height:1.4}
+.mb .tag.view{background:var(--ink);color:var(--bg)}
+.mb .tag.fact{border-style:dashed}
+.mb .blk{margin:0 0 14px;padding-left:14px;border-left:2px solid var(--ink)}
+.mb .blk .revn{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.mb .cite{font-size:11px;padding:0 5px;border:1px solid var(--rule);border-radius:4px;color:var(--acc);background:var(--surf);white-space:nowrap;text-decoration:none;vertical-align:1px}
+.mb-wr{border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.mb .wr{display:grid;grid-template-columns:22px 1fr auto;gap:4px 10px;padding:12px 14px;border-bottom:1px solid var(--rule)}
+.mb .wr:last-child{border-bottom:0}
+.mb .wr .n{font-size:12px;color:var(--muted);padding-top:2px}
+.mb .wr .c{grid-column:2/4;font-size:15px}
+.mb .wr .l{grid-column:2/3;font-size:13px;color:var(--muted)}
+.mb .wr .l .mono{font-size:11px}
+.mb .wr .st{grid-column:3/4;grid-row:2;align-self:start;font-size:10px;letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--ink);border-radius:3px;padding:1px 6px;white-space:nowrap}
+.mb .wr .added{font-size:10.5px;color:var(--muted)}
+.mb-ft{border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.mb-ft .hd{display:none}
+.mb .fx{padding:11px 14px;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:1fr auto;gap:0 12px}
+.mb .fx:last-child{border-bottom:0}
+.mb .fx .k{font-size:14px}
+.mb .fx .v{font-size:21px;font-weight:600;text-align:right;line-height:1.25}
+.mb .fx .fmeta{grid-column:1/3;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.mb .fx .p,.mb .fx .s,.mb .fx .a{display:none}
+.mb-srcs{list-style:none;margin:14px 0 0;padding:0}
+.mb-srcs li{display:grid;grid-template-columns:30px 1fr;gap:2px 8px;padding:8px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.mb-srcs .id{font-size:12px;color:var(--acc);padding-top:1px}
+.mb-srcs .ty{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block}
+.mb-diff{border:1px solid var(--rule);border-radius:6px;padding:12px 14px;margin:0 0 14px;font-size:15px}
+.mb-diff .dl{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;text-decoration:none}
+.mb-diff .del{margin:0 0 12px;padding-left:12px;border-left:2px dashed var(--muted);color:var(--muted)}
+.mb-diff .del s{text-decoration-thickness:1px}
+.mb-diff .ins{margin:0;padding-left:12px;border-left:2px solid var(--ink)}
+.mb-hist{list-style:none;margin:0;padding:0}
+.mb-hist li{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:8px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.mb-hist time{font-size:12px;color:var(--muted);padding-top:2px}
+.mb-links{margin:0;padding-left:18px}
+.mb-disc{border:1.5px solid var(--ink);border-radius:6px;padding:14px 16px}
+.mb-disc dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 12px;font-size:14px}
+.mb-disc dt{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.mb-disc dd{margin:0;font-weight:500}
+.mb-disc p{margin:0;font-size:14px;color:var(--muted)}
+.mb-disc p strong{color:var(--ink)}
+@container (min-width:760px){
+ .mb{font-size:16.5px}
+ .mb-strip{padding:8px 32px}
+ .mb-wrap{display:grid;grid-template-columns:150px minmax(0,600px);gap:60px;padding:34px 48px 90px}
+ .mb-side{position:sticky;top:64px;align-self:start}
+ .mb-toc{flex-direction:column;gap:9px;margin:0}
+ .mb h1{font-size:40px}
+ .mb-meta{grid-template-columns:repeat(4,auto);justify-content:space-between}
+ .mb-ft .hd{display:grid}
+ .mb .fx,.mb-ft .hd{grid-template-columns:1.6fr .8fr 1fr .9fr .9fr;gap:0 12px;align-items:baseline}
+ .mb-ft .hd{padding:8px 14px;background:var(--surf);font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--rule)}
+ .mb-ft .hd span:nth-child(2),.mb-ft .hd span:nth-child(3),.mb .fx .v,.mb .fx .p{text-align:right}
+ .mb .fx .v{font-size:16px}
+ .mb .fx .fmeta{display:none}
+ .mb .fx .p,.mb .fx .s,.mb .fx .a{display:block;font-size:13px;color:var(--muted)}
+ .mb .fx .s{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--acc)}
+ .mb .fx .a{font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+ .mb .wr{grid-template-columns:22px 1fr 168px 92px;gap:0 14px}
+ .mb .wr .c{grid-column:2/3}
+ .mb .wr .l{grid-column:3/4;grid-row:1}
+ .mb .wr .st{grid-column:4/5;grid-row:1;justify-self:end}
+}
+
+/* ================= Direction C: Letter and Exhibits ================= */
+.mc{--bg:#F6F3EC;--ink:#211E19;--muted:#5D574C;--rule:#CBC3B4;--ex:#FFFDF8;--acc:#7A2E2E}
+:root[data-theme=dark] .mc{--bg:#191713;--ink:#EDE7DB;--muted:#ADA493;--rule:#3E392F;--ex:#221F1A;--acc:#E2A498}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .mc{--bg:#191713;--ink:#EDE7DB;--muted:#ADA493;--rule:#3E392F;--ex:#221F1A;--acc:#E2A498}}
+.mc{min-height:100%;background:var(--bg);color:var(--ink);font-family:"Newsreader",Georgia,serif;font-size:18.5px;line-height:1.6;padding:16px 22px 64px;font-variant-numeric:lining-nums tabular-nums}
+.mc .ps,.mc-mast,.mc-before .lbl,.mc-before .pos,.mc-date,.mc-by,.mc .ex,.mc sup,.mc .chk,.mc-notes,.mc-rec,.mc .ps-h,.mc-end,.mc .revtag{font-family:"Public Sans",system-ui,sans-serif}
+.mc-mast{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;text-align:center;color:var(--muted);border-bottom:1px solid var(--rule);padding-bottom:10px}
+.mc-before{margin:22px 0 34px;padding:14px 0 16px;border-top:2px solid var(--ink);border-bottom:1px solid var(--rule);font-size:16px;line-height:1.55}
+.mc-before .lbl{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-weight:600}
+.mc-before p{margin:0}
+.mc-date{font-size:12.5px;color:var(--muted);margin:0 0 10px;letter-spacing:.02em}
+.mc h1{font-size:40px;line-height:1.04;font-weight:500;letter-spacing:-.022em;margin:0 0 14px}
+.mc-deck{font-style:italic;font-size:21px;line-height:1.4;margin:0 0 14px}
+.mc-one{margin:0 0 16px;color:var(--muted)}
+.mc-by{font-size:13px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px;margin:0}
+.mc h2{font-size:25px;font-weight:500;line-height:1.2;margin:46px 0 14px;letter-spacing:-.01em}
+.mc h2 .sec{font-style:italic;color:var(--acc);margin-right:8px}
+.mc h2.minor{font-size:19px;margin-top:36px}
+.mc p{margin:0 0 14px}
+.mc sup{font-size:11px;font-weight:600;line-height:0}
+.mc sup a{color:var(--acc);text-decoration:none;padding:0 1px}
+.mc .revtag{font-size:12px;color:var(--muted);white-space:nowrap}
+.mc .wrong{margin:0;padding:0;list-style:none}
+.mc .wrong li{margin:0 0 18px}
+.mc .wrong .if{font-size:20px;line-height:1.45;margin:0 0 4px}
+.mc .wrong .if i{color:var(--acc)}
+.mc .chk{font-size:13.5px;color:var(--muted);margin:0;line-height:1.5}
+.mc .chk b{color:var(--ink)}
+.mc .ex{background:var(--ex);border:1px solid var(--rule);padding:14px 14px 10px;margin:22px -8px}
+.mc .ex .en{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);font-weight:600}
+.mc .ex .et{font-size:15.5px;font-weight:600;margin:2px 0 10px;line-height:1.35}
+.mc .ex table{width:100%;border-collapse:collapse;font-size:14px}
+.mc .ex th,.mc .ex td{padding:7px 0;border-bottom:1px solid var(--rule);text-align:right;vertical-align:baseline}
+.mc .ex th:first-child,.mc .ex td:first-child{text-align:left;padding-right:10px}
+.mc .ex thead th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.mc .ex td.n{font-weight:600;white-space:nowrap;padding-left:12px}
+.mc .ex .cap{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.45}
+.mc .ps-h{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+.mc blockquote{margin:6px 0 16px;padding:0 0 0 16px;border-left:2px solid var(--rule);color:var(--muted);font-style:italic}
+.mc blockquote .ps{display:block;font-style:normal;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.mc-rec{list-style:none;padding:0;margin:0;font-size:14px}
+.mc-rec li{padding:6px 0;border-bottom:1px solid var(--rule)}
+.mc-rec b{display:inline-block;min-width:96px}
+.mc-sign{margin-top:30px;font-style:italic;font-size:21px}
+.mc-sign span{display:block;font-family:"Public Sans",sans-serif;font-style:normal;font-size:13px;color:var(--muted)}
+.mc-notes{font-size:13.5px;line-height:1.5;padding-left:20px;margin:0;color:var(--muted)}
+.mc-notes li{margin-bottom:6px}
+.mc-notes b{color:var(--ink);font-weight:600}
+.mc-notes.plain{list-style:none;padding:0;margin-top:12px}
+.mc-end{margin-top:36px;padding-top:12px;border-top:2px solid var(--ink);font-size:13px;color:var(--muted)}
+@container (min-width:760px){
+ .mc{padding:24px max(24px,calc((100% - 620px) / 2)) 100px;font-size:20px}
+ .mc-mast{margin-left:-130px;margin-right:-130px}
+ .mc h1{font-size:58px}
+ .mc-deck{font-size:24px}
+ .mc .ex{margin:26px -70px;padding:18px 22px 12px}
+ .mc .ex table{font-size:15px}
+}
+</style>
+</head>
+<body>
+<header class="shell">
+  <h1>Segment 1: reading experience, three directions</h1>
+  <p>Each direction renders the same thesis page from one shared data object, so only the design differs. The company, ticker and every figure are fictional and are there to test layout. Colour is a placeholder (greys plus one muted accent). Identity is decided in segment 5, so judge type, measure, hierarchy and how each block is marked, not palette.</p>
+  <p>Each desktop frame is 960 px wide and each phone frame 375 px. Both scroll on their own. Layout switches on the frame's own width (container queries), so the phone shows the real mobile layout.</p>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Theme"><span>Theme</span>
+      <button type="button" data-theme-btn="system" aria-pressed="true">System</button>
+      <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" role="group" aria-label="Layout"><span>Layout</span>
+      <button type="button" data-layout-btn="both" aria-pressed="true">Desktop + phone</button>
+      <button type="button" data-layout-btn="phones" aria-pressed="false">Three phones side by side</button>
+    </div>
+  </div>
+</header>
+
+<main class="dirs">
+  <section class="dir" aria-labelledby="hA">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">A</div><div><h2 id="hA">A. Margin Ledger</h2><p>Aksh's argument keeps the full column. Every citation, as-of date and revision mark sits beside the sentence it supports, so the reader can check a claim without leaving it.</p></div></div>
+    <div class="stage">
+      <figure class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">research desk / companies / kaveri-pumps</span></div><div class="vp" data-render="A" tabindex="0" role="region" aria-label="Direction A, desktop mockup"></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="phone"><div class="bezel"><div class="vp" data-render="A" tabindex="0" role="region" aria-label="Direction A, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="dir" aria-labelledby="hB">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">B</div><div><h2 id="hB">B. Labelled Blocks</h2><p>The page reads like a well-kept research file. Every block says what it is (VIEW, TEST, FACT), facts and kill criteria are rows you can scan, and revisions show as a diff.</p></div></div>
+    <div class="stage">
+      <figure class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">research desk / companies / kaveri-pumps</span></div><div class="vp" data-render="B" tabindex="0" role="region" aria-label="Direction B, desktop mockup"></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="phone"><div class="bezel"><div class="vp" data-render="B" tabindex="0" role="region" aria-label="Direction B, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="dir" aria-labelledby="hC">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">C</div><div><h2 id="hC">C. Letter and Exhibits</h2><p>The thesis reads as a dated letter from Aksh. Facts appear as numbered exhibits, revisions as signed postscripts, and the disclosure comes before the first word.</p></div></div>
+    <div class="stage">
+      <figure class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">research desk / companies / kaveri-pumps</span></div><div class="vp" data-render="C" tabindex="0" role="region" aria-label="Direction C, desktop mockup"></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="phone"><div class="bezel"><div class="vp" data-render="C" tabindex="0" role="region" aria-label="Direction C, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<section class="matrix-wrap" aria-labelledby="hM">
+  <h2 id="hM">How each direction handles the same eight jobs</h2>
+  <div class="matrix-scroll">
+  <table class="matrix">
+    <thead><tr><th scope="col">Job</th><th scope="col">A. Margin Ledger</th><th scope="col">B. Labelled Blocks</th><th scope="col">C. Letter and Exhibits</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Type</th><td>Source Serif 4 for the argument, Source Sans 3 for notes and facts</td><td>IBM Plex Sans for prose, IBM Plex Mono for labels, chips and dates</td><td>Newsreader for the letter, Public Sans for exhibits and captions</td></tr>
+      <tr><th scope="row">Body size and measure</th><td>19.5 px, about 61 characters per line (desktop); 18 px, about 37 (phone)</td><td>16.5 px, about 73 (desktop); 16 px, about 43 (phone)</td><td>20 px, about 68 (desktop); 18.5 px, about 39 (phone)</td></tr>
+      <tr><th scope="row">View against facts</th><td>Serif argument against a tinted sans ledger, with "not Aksh's words" stated</td><td>Labelled block types: solid VIEW, dashed FACT, outlined TEST</td><td>Letter prose against boxed, numbered exhibits</td></tr>
+      <tr><th scope="row">Citations and as-of dates</th><td>Numbered sidenotes in the margin carry source, page and as-of; on the phone they sit under the paragraph</td><td>Inline source chips (S1 · p. 84); as-of is a column in the fact table</td><td>Endnote superscripts, plus a source and as-of line under each exhibit</td></tr>
+      <tr><th scope="row">Revision history</th><td>A rule beside the changed paragraph plus a dated margin note; the list sits at the end</td><td>Real diff of what was removed and added; dated log</td><td>Dated postscript that quotes the old version in Aksh's voice</td></tr>
+      <tr><th scope="row">What would prove me wrong</th><td>Numbered conditions, each with the latest reading and a status word</td><td>Test table: condition, latest reading and status, scannable in 5 seconds</td><td>"I would be wrong if…" sentences, each with a dated check</td></tr>
+      <tr><th scope="row">Disclosure</th><td>Short "reading conditions" in the header; the full text closes the page as a ruled colophon at body size</td><td>Sticky status strip on every screen; a structured block at the end</td><td>Full text as the letter's preface, before the first sentence</td></tr>
+      <tr><th scope="row">Main risk</th><td>Sidenotes need careful engineering, and a long note list on the phone breaks reading rhythm</td><td>Can feel like a SaaS docs page, so it needs the strongest typography in segment 5</td><td>On a phone the preface pushes the thesis about one screen down; exhibits need discipline</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="ask">Reply with A, B, C or a mix, for example "A's margin citations with B's test table and C's postscripts". Mixes are expected; each row above is separable.</p>
+</section>
+
+<script>
+/* ---------- one shared data object: identical content for all three directions ---------- */
+var D = {
+  name: "Kaveri Pumps &amp; Motors",
+  symbol: "NSE: KAVERIPMP (fictional)",
+  sector: "Capital goods · Pumps and motors",
+  oneLiner: "Makes solar and electric water pumps for farms, housing and industry. About three-fifths of FY26 sales came through a government subsidy scheme.",
+  objective: "How to tell whether a manufacturer's growth comes from a subsidy scheme or from customers who would pay anyway.",
+  dataAsOf: "30 Jun 2026", reviewed: "2 Sep 2026", position: "No",
+  firstWritten: "14 Jul 2026", firstWrittenLong: "14 July 2026", revisedLong: "2 September 2026",
+  sources: {
+    S1: {title: "Kaveri Pumps &amp; Motors Ltd, Annual Report 2025-26", meta: "Filed with NSE on 3 Jul 2026", type: "Annual report"},
+    S2: {title: "Q1 FY27 results and investor presentation", meta: "Filed with NSE on 11 Aug 2026", type: "Results deck"},
+    S3: {title: "MNRE, PM-KUSUM Component B state-wise progress", meta: "Published table, as of 30 Jun 2026", type: "Government data"}
+  },
+  view: [
+    {t: "I expected Kaveri's FY26 growth to look like demand from farmers. The segment note changed my mind. Revenue rose to ₹1,284 cr{S1|p. 112|31 Mar 2026}, but 61% of it came from PM-KUSUM orders placed through state agencies, up from 48% a year earlier{S1|p. 84|31 Mar 2026}. The growth is real. The question is who is paying, and when."},
+    {t: "The cost shows up in working capital. Receivable days went from 96 to 142 in one year{S1|p. 131|31 Mar 2026}. That is what it looks like when the customer is a state agency that pays after the subsidy is released, not a farmer paying at the counter. A company can grow sales and still be lending money to its largest customer."},
+    {t: "Q1 FY27 did not settle it. Revenue was ₹311 cr and the scheme share eased to 58%{S2|slide 9|30 Jun 2026}, while industrial and export pumps grew 19%{S2|slide 11|30 Jun 2026}. The scheme is also closer to its installation goal than I assumed: 81% of sanctioned Component B pumps were installed by 30 June{S3|national table|30 Jun 2026}. What I am trying to learn is whether the non-scheme business is big enough to carry the company when the scheme slows.",
+     rev: 2, old: "The industrial and export business is too small to matter yet, at 9% of revenue. Until it grows, I read Kaveri as a scheme contractor rather than a pump brand."}
+  ],
+  wrong: [
+    {c: "receivable days fall below 100 in the FY27 annual report without new bill discounting or factoring.", latest: "151 days in Q1 FY27, annualised", asof: "30 Jun 2026", status: "Not met"},
+    {c: "industrial and export revenue grows faster than 20% a year for four quarters in a row.", latest: "+19% in Q1 FY27; 0 of 4 quarters so far", asof: "30 Jun 2026", status: "Watching"},
+    {c: "the company discloses that states paying within 90 days make up more than half of its scheme order book.", latest: "State-wise payment terms not disclosed", asof: "11 Aug 2026", status: "No data", added: 2}
+  ],
+  facts: [
+    {k: "Revenue, FY26", v: "₹1,284 cr", p: "FY25 ₹902 cr", s: "S1", loc: "p. 112", a: "31 Mar 2026", g: 1},
+    {k: "PM-KUSUM share of revenue, FY26", v: "61%", p: "FY25 48%", s: "S1", loc: "p. 84", a: "31 Mar 2026", g: 1},
+    {k: "Receivable days, FY26", v: "142", p: "FY25 96", s: "S1", loc: "p. 131", a: "31 Mar 2026", g: 1},
+    {k: "Revenue, Q1 FY27", v: "₹311 cr", p: "Q1 FY26 ₹236 cr", s: "S2", loc: "slide 9", a: "30 Jun 2026", g: 2},
+    {k: "PM-KUSUM share, Q1 FY27", v: "58%", p: "not given", s: "S2", loc: "slide 9", a: "30 Jun 2026", g: 2},
+    {k: "Industrial and export growth, Q1 FY27", v: "+19%", p: "year on year", s: "S2", loc: "slide 11", a: "30 Jun 2026", g: 2},
+    {k: "Receivable days, Q1 FY27 (annualised)", v: "151", p: "FY26 142", s: "S2", loc: "slide 14", a: "30 Jun 2026", g: 2},
+    {k: "Component B pumps installed / sanctioned", v: "81%", p: "national", s: "S3", loc: "national table", a: "30 Jun 2026", g: 2}
+  ],
+  revisions: [
+    {n: 1, d: "14 Jul 2026", r: "First case study, written after reading the FY26 annual report."},
+    {n: 2, d: "2 Sep 2026", r: "Q1 FY27 results: receivable days rose again. Rewrote paragraph 3 and added test 3."}
+  ],
+  links: ["Reading a segment note in an annual report", "Receivable days, and why they rise with government customers"],
+  disclosure: function () {
+    return "Educational content only. Aksh Agrawal is not a SEBI-registered Research Analyst or Investment Adviser. Nothing here is a recommendation, offer or solicitation to buy or sell any security. Figures are shown with a minimum 30-day lag. Position in the security discussed: <strong>" + this.position + "</strong>. Investments in securities are subject to market risk; consult a SEBI-registered adviser before acting. Last reviewed " + this.reviewed + ".";
+  }
+};
+var CITE = /\{(S\d)\|([^|]+)\|([^}]+)\}/g;
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function shortSrc(id) { return {S1: "Annual Report FY26", S2: "Q1 FY27 deck", S3: "MNRE table"}[id]; }
+function each(list, fn) { for (var i = 0; i < list.length; i++) fn(list[i], i); }
+function revNewest() { return D.revisions.slice().reverse(); }
+
+/* ---------- A. Margin Ledger ---------- */
+function renderA() {
+  var n = 0, h = '';
+  h += '<article class="ma">';
+  h += '<div class="ma-top">Research desk &nbsp;/&nbsp; Companies &nbsp;/&nbsp; Kaveri Pumps</div>';
+  h += '<div class="u"><header>';
+  h += '<p class="ma-kicker">Case study · ' + D.sector + '</p>';
+  h += '<h1>' + D.name + '</h1>';
+  h += '<p class="ma-one">' + D.oneLiner + '</p>';
+  h += '<p class="ma-stand"><b>What this teaches</b>' + D.objective + '</p>';
+  h += '<dl class="ma-meta"><div><dt>Figures as of</dt><dd>' + D.dataAsOf + '</dd></div><div><dt>Position</dt><dd>None held</dd></div><div><dt>Revision</dt><dd>2 of 2</dd></div></dl>';
+  h += '<p class="ma-cond">Reading conditions: educational case study, not a recommendation. Aksh is not SEBI-registered. Figures lag by at least 30 days. Full disclosure closes the page.</p>';
+  h += '</header><div class="notes"><p class="sn"><em>Revisions</em></p><ul class="ma-revmini">';
+  each(revNewest(), function (r) { h += '<li><b>Rev ' + r.n + '</b> · ' + r.d + (r.n === 2 ? ' · current' : ' · first') + '</li>'; });
+  h += '</ul><p class="sn" style="margin-top:10px"><em>Linked notes</em></p>';
+  each(D.links, function (l) { h += '<p class="sn">' + l + '</p>'; });
+  h += '</div></div>';
+
+  h += '<h2 class="w">Aksh\'s view<small>His own words. Written ' + D.firstWritten + ', revised ' + D.reviewed + '.</small></h2>';
+  each(D.view, function (para) {
+    var notes = [];
+    var txt = para.t.replace(CITE, function (m, s, loc, a) { n++; notes.push('<p class="sn"><b>' + n + '</b>' + shortSrc(s) + ', ' + loc + '. <em>As of ' + a + '.</em></p>'); return '<sup class="r">' + n + '</sup>'; });
+    if (para.rev) notes.unshift('<p class="sn"><b>Rev ' + para.rev + '</b>Paragraph rewritten ' + D.reviewed + '. Earlier text is kept in the history.</p>');
+    h += '<div class="u' + (para.rev ? ' changed' : '') + '"><p>' + txt + '</p><div class="notes">' + notes.join('') + '</div></div>';
+  });
+
+  h += '<h2 class="w">What would prove me wrong<small>Checked against each new filing.</small></h2><ol class="ma-wrong w">';
+  each(D.wrong, function (w) {
+    h += '<li><p>' + cap(w.c) + '</p><p class="ma-check">Latest: ' + w.latest + ', as of ' + w.asof + ' <strong>' + w.status + '</strong>' + (w.added ? ' <span class="new">· added in rev ' + w.added + '</span>' : '') + '</p></li>';
+  });
+  h += '</ol>';
+
+  h += '<h2 class="w">Source facts<small>Taken from filings and public data. Not Aksh\'s words.</small></h2><div class="ma-facts w"><p class="ma-facts-lede">8 figures · 3 sources · newest as of ' + D.dataAsOf + '</p>';
+  each(D.facts, function (f) {
+    h += '<div class="fr"><span class="fk">' + f.k + '</span><span class="fv">' + f.v + '</span><span class="fs">' + f.s + ', ' + f.loc + ' · as of ' + f.a + '</span><span class="fp">' + f.p + '</span></div>';
+  });
+  h += '</div><ol class="ma-src w">';
+  each(['S1', 'S2', 'S3'], function (k) { var s = D.sources[k]; h += '<li><b>' + k + '</b>' + s.title + '. ' + s.meta + '.</li>'; });
+  h += '</ol>';
+
+  h += '<h2 class="w">Revision history</h2><ul class="ma-hist w">';
+  each(revNewest(), function (r) { h += '<li><time>Rev ' + r.n + ' · ' + r.d.replace(' 2026', '') + '</time><span>' + r.r + '</span></li>'; });
+  h += '</ul>';
+
+  h += '<footer class="ma-colo w"><h2 style="margin-top:14px">Disclosure</h2><span class="pos">Position in this security: None</span><p>' + D.disclosure() + '</p></footer>';
+  h += '</article>';
+  return h;
+}
+
+/* ---------- B. Labelled Blocks ---------- */
+function renderB() {
+  var h = '';
+  h += '<article class="mb">';
+  h += '<div class="mb-strip" role="note"><span>Education only</span><span>Not SEBI-registered</span><span>Position: none</span><span>Figures 30+ days old</span><a href="#">Disclosure ↓</a></div>';
+  h += '<div class="mb-wrap"><div class="mb-side"><ul class="mb-toc" aria-label="On this page"><li><a class="on" href="#">View</a></li><li><a href="#">Tests</a></li><li><a href="#">Facts</a></li><li><a href="#">History</a></li><li><a href="#">Disclosure</a></li></ul></div><div class="mb-main">';
+  h += '<header><div class="mb-crumb">companies / kaveri-pumps · ' + D.symbol + '</div><h1>' + D.name + '</h1><p class="mb-one">' + D.oneLiner + '</p>';
+  h += '<div class="mb-obj"><span class="mb-lbl">Learning objective</span>' + D.objective + '</div>';
+  h += '<dl class="mb-meta"><div><dt>Data as of</dt><dd>' + D.dataAsOf + '</dd></div><div><dt>Position</dt><dd>None</dd></div><div><dt>Revision</dt><dd>2 · ' + D.reviewed + '</dd></div><div><dt>Sources</dt><dd>3 cited</dd></div></dl></header>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag view">VIEW</span><h2>Aksh\'s view</h2><span class="sub">Aksh\'s own words. Every figure links to a source fact.</span></div>';
+  each(D.view, function (para) {
+    var txt = para.t.replace(CITE, function (m, s, loc) { return ' <a class="cite" href="#">' + s + ' · ' + loc + '</a>'; });
+    h += '<p class="blk">' + (para.rev ? '<span class="revn">Revised in rev ' + para.rev + ' · ' + D.reviewed + '</span>' : '') + txt + '</p>';
+  });
+  h += '</section>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag">TEST</span><h2>What would prove me wrong</h2><span class="sub">Each condition is checked when a new filing lands.</span></div><div class="mb-wr">';
+  each(D.wrong, function (w, i) {
+    h += '<div class="wr"><span class="n">' + (i + 1) + '</span><span class="c">' + cap(w.c) + (w.added ? ' <span class="added">(added rev ' + w.added + ')</span>' : '') + '</span><span class="l">' + w.latest + ' · <span class="mono">as of ' + w.asof + '</span></span><span class="st">' + w.status + '</span></div>';
+  });
+  h += '</div></section>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag fact">FACT</span><h2>Source facts</h2><span class="sub">Extracted from filings and public data. Not opinion.</span></div><div class="mb-ft"><div class="hd"><span>Metric</span><span>Value</span><span>Prior</span><span>Source</span><span>As of</span></div>';
+  each(D.facts, function (f) {
+    h += '<div class="fx"><span class="k">' + f.k + '</span><span class="v">' + f.v + '</span><span class="p">' + f.p + '</span><span class="s">' + f.s + ' · ' + f.loc + '</span><span class="a">' + f.a + '</span><span class="fmeta">' + f.p + ' · ' + f.s + ' ' + f.loc + ' · as of ' + f.a + '</span></div>';
+  });
+  h += '</div><ul class="mb-srcs">';
+  each(['S1', 'S2', 'S3'], function (k) { var s = D.sources[k]; h += '<li><span class="id">' + k + '</span><span><span class="ty">' + s.type + '</span>' + s.title + '. ' + s.meta + '.</span></li>'; });
+  h += '</ul></section>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag">LOG</span><h2>Revision history</h2><span class="sub">Revision 2 compared with revision 1, paragraph 3.</span></div>';
+  var nv = D.view[2];
+  h += '<div class="mb-diff"><p class="del"><span class="dl">− Removed · rev 1 · ' + D.firstWritten + '</span><s>' + nv.old + '</s></p><p class="ins"><span class="dl">+ Added · rev 2 · ' + D.reviewed + '</span>' + nv.t.replace(CITE, '') + '</p></div><ul class="mb-hist">';
+  each(revNewest(), function (r) { h += '<li><time>R' + r.n + ' ' + r.d + '</time><span>' + r.r + '</span></li>'; });
+  h += '</ul></section>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag">LINK</span><h2>Linked notes</h2></div><ul class="mb-links">';
+  each(D.links, function (l) { h += '<li>' + l + '</li>'; });
+  h += '</ul></section>';
+
+  h += '<section class="mb-sec"><div class="mb-disc"><dl><dt>Type</dt><dd>Educational case study</dd><dt>Registration</dt><dd>Not a SEBI-registered RA or IA</dd><dt>Position</dt><dd>None</dd><dt>Data lag</dt><dd>At least 30 days</dd><dt>Reviewed</dt><dd>' + D.reviewed + '</dd></dl><p>' + D.disclosure() + '</p></div></section>';
+  h += '</div></div></article>';
+  return h;
+}
+
+/* ---------- C. Letter and Exhibits ---------- */
+function renderC() {
+  var n = 0, notes = [], h = '';
+  h += '<article class="mc">';
+  h += '<div class="mc-mast">Research desk · Letters on companies</div>';
+  h += '<aside class="mc-before"><span class="lbl">Before you read</span><p>' + D.disclosure() + '</p></aside>';
+  h += '<header><p class="mc-date">First written ' + D.firstWrittenLong + ' · Revised ' + D.revisedLong + ' · Figures as of 30 June 2026</p><h1>' + D.name + '</h1><p class="mc-deck">' + D.objective + '</p><p class="mc-one">' + D.oneLiner + '</p><p class="mc-by">Aksh Agrawal · ' + D.sector + ' · ' + D.symbol + '</p></header>';
+
+  h += '<h2><span class="sec">§1</span>Aksh\'s view</h2>';
+  each(D.view, function (para) {
+    var txt = para.t.replace(CITE, function (m, s, loc, a) { n++; notes.push('<li><b>' + s + '</b>, ' + loc + '. As of ' + a + '.</li>'); return '<sup><a href="#">' + n + '</a></sup>'; });
+    h += '<p>' + txt + (para.rev ? ' <span class="revtag">[revised ' + D.reviewed + ', see §4]</span>' : '') + '</p>';
+  });
+
+  h += '<h2><span class="sec">§2</span>What would prove me wrong</h2><ul class="wrong">';
+  each(D.wrong, function (w) {
+    h += '<li><p class="if"><i>I would be wrong if</i> ' + w.c + '</p><p class="chk">Checked against data as of ' + w.asof + ': ' + w.latest + '. <b>' + w.status + '.</b>' + (w.added ? ' Added in the postscript.' : '') + '</p></li>';
+  });
+  h += '</ul>';
+
+  h += '<h2><span class="sec">§3</span>Source facts</h2><p>The exhibits below come straight from filings and public data. They are not my words.</p>';
+  h += '<figure class="ex"><div class="en">Exhibit 1</div><div class="et">Where the FY26 growth came from</div><table><thead><tr><th scope="col">Metric</th><th scope="col">FY25</th><th scope="col">FY26</th></tr></thead><tbody>';
+  h += '<tr><td>Revenue</td><td class="n">₹902 cr</td><td class="n">₹1,284 cr</td></tr><tr><td>PM-KUSUM share</td><td class="n">48%</td><td class="n">61%</td></tr><tr><td>Receivable days</td><td class="n">96</td><td class="n">142</td></tr>';
+  h += '</tbody></table><p class="cap">Source: S1, pp. 84, 112, 131. Figures as of 31 Mar 2026.</p></figure>';
+  h += '<figure class="ex"><div class="en">Exhibit 2</div><div class="et">The first quarter of FY27</div><table><thead><tr><th scope="col">Metric</th><th scope="col">Q1 FY27</th></tr></thead><tbody>';
+  each(D.facts, function (f) { if (f.g === 2) h += '<tr><td>' + f.k.replace(', Q1 FY27', '') + '</td><td class="n">' + f.v + '</td></tr>'; });
+  h += '</tbody></table><p class="cap">Source: S2, slides 9, 11, 14; S3, national table. Figures as of 30 Jun 2026. Q1 FY26 revenue was ₹236 cr.</p></figure>';
+
+  h += '<h2><span class="sec">§4</span>Postscript</h2><p class="ps-h">' + D.revisedLong + ' · revision 2</p>';
+  h += '<p>The Q1 FY27 results changed one paragraph. In the first version I wrote:</p><blockquote><span class="ps">Revision 1 · ' + D.firstWrittenLong + ' · replaced</span>' + D.view[2].old + '</blockquote>';
+  h += '<p>The third paragraph of §1 replaces it, and I added the third test in §2. Receivable days rose again, so the first test is still not met.</p>';
+  h += '<ul class="mc-rec">';
+  each(D.revisions, function (r) { h += '<li><b>Revision ' + r.n + '</b>' + r.d + '. ' + r.r + '</li>'; });
+  h += '</ul>';
+
+  h += '<p class="mc-sign">Aksh Agrawal<span>' + D.revisedLong + '</span></p>';
+
+  h += '<h2 class="minor">Notes and sources</h2><ol class="mc-notes">' + notes.join('') + '</ol><ol class="mc-notes plain">';
+  each(['S1', 'S2', 'S3'], function (k) { var s = D.sources[k]; h += '<li><b>' + k + '</b> ' + s.title + '. ' + s.meta + '.</li>'; });
+  h += '</ol><h2 class="minor">Further reading on this desk</h2><ol class="mc-notes plain">';
+  each(D.links, function (l) { h += '<li>' + l + '</li>'; });
+  h += '</ol><p class="mc-end">The note under "Before you read" applies to everything above. Position in this security: None. Last reviewed ' + D.reviewed + '.</p>';
+  h += '</article>';
+  return h;
+}
+
+var R = {A: renderA, B: renderB, C: renderC};
+each(document.querySelectorAll('[data-render]'), function (el) { el.innerHTML = R[el.getAttribute('data-render')](); });
+each(document.querySelectorAll('.vp a[href="#"]'), function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+
+/* ---------- controls ---------- */
+var root = document.documentElement;
+function press(sel, btn) { each(document.querySelectorAll(sel), function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); }); }
+each(document.querySelectorAll('[data-theme-btn]'), function (b) {
+  b.addEventListener('click', function () { var t = b.getAttribute('data-theme-btn'); if (t === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t); press('[data-theme-btn]', b); });
+});
+each(document.querySelectorAll('[data-layout-btn]'), function (b) {
+  b.addEventListener('click', function () { document.body.classList.toggle('phones', b.getAttribute('data-layout-btn') === 'phones'); press('[data-layout-btn]', b); });
+});
+</script>
+</body>
+</html>
