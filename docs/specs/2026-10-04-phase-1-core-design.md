@@ -1,6 +1,6 @@
 # Phase 1 spec: Core - data model, capture, public desk
 
-Status: DRAFT for Shlok's review - 2026-10-04. Depends on ADR-001. Exit criterion: deployed preview; Aksh has captured real notes for 3 consecutive days; rubric rows R1 1-3, R2 1-5, R3 1-7 score >= 4.
+Status: APPROVED by Shlok on 2026-10-04 (capture grammar kept; no client accounts in v1; interactive valuation private-only). Depends on ADR-001. Exit criterion: deployed preview; Aksh has captured real notes for 3 consecutive days; rubric rows R1 1-3, R2 1-5, R3 1-7 score >= 4.
 
 ## 1. Purpose
 Give Aksh a place faster than Notepad to record what he finds each day, make those findings accumulate into dated, versioned company theses and learning notes, and show the public a research desk (not a blog) that already obeys the compliance rules. Everything in later phases files *into* the objects defined here, so this phase must get the data model right.

@@ -22,7 +22,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
 - [x] `.env.example` with phase labels
 - [x] `docs/compliance/publishing-rules.md`, `docs/rubrics.md`
 - [x] Phase 1 spec drafted → `docs/specs/2026-10-04-phase-1-core-design.md`
-- [ ] Shlok approves ADR-001 + Phase 1 spec
+- [x] Shlok approves ADR-001 + Phase 1 spec (2026-10-04)
 - [ ] Phase 1 implementation plan (`superpowers:writing-plans`) → `docs/plans/`
 - [ ] Download official SEBI circular PDFs into `docs/compliance/`
 

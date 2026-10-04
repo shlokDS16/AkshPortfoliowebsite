@@ -1,6 +1,6 @@
 # ADR-001: Stack and system shape
 
-Status: PROPOSED, red-team pass complete, awaiting Shlok's approval - 2026-10-04
+Status: ACCEPTED by Shlok on 2026-10-04 (red-team pass folded into s8)
 Inputs: `docs/architecture/options/option-A-speed.md`, `option-B-extensibility.md`, `option-C-simplicity.md`; `docs/research/*.md`; `docs/compliance/publishing-rules.md`.
 
 ## 1. Problem
