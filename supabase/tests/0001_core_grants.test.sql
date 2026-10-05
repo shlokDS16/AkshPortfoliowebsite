@@ -2,7 +2,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(25);
 
 -- Table-level access.
 select is_empty($$
@@ -64,12 +64,14 @@ select ok(has_function_privilege('anon', 'private.is_admin()', 'execute')
       and has_function_privilege('authenticated', 'private.is_admin()', 'execute'),
   'is_admin is executable by the roles whose RLS predicates call it');
 select ok(has_function_privilege('anon', 'private.revision_passed(uuid)', 'execute')
-      and has_function_privilege('anon', 'private.is_lagged(date)', 'execute'),
+      and has_function_privilege('anon', 'private.is_lagged(date)', 'execute')
+      and has_function_privilege('anon', 'private.is_public_item(text, text, date)', 'execute')
+      and has_function_privilege('authenticated', 'private.is_public_item(text, text, date)', 'execute'),
   'the other RLS helpers are executable by anon');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname in ('public', 'private')
-     and p.proname not in ('is_admin', 'revision_passed', 'is_lagged')
+     and p.proname not in ('is_admin', 'revision_passed', 'is_lagged', 'is_public_item')
      and (has_function_privilege('anon', p.oid, 'execute')
           or has_function_privilege('authenticated', p.oid, 'execute'))
 $$, 'no other function in public or private is executable by anon or authenticated');
@@ -95,6 +97,19 @@ select ok(not has_table_privilege('anon', 'public.grants_probe', 'select')
       and not has_table_privilege('authenticated', 'public.grants_probe', 'select')
       and not has_table_privilege('service_role', 'public.grants_probe', 'select'),
   'a new public table is not granted to API roles by default');
+
+-- Default privileges: a function created later, in either schema, is closed by default
+-- (implicit PUBLIC EXECUTE included, which is why the revoke in the migration is global).
+create function private.grants_probe() returns int language sql as 'select 1';
+select ok(not has_function_privilege('anon', 'private.grants_probe()', 'execute')
+      and not has_function_privilege('authenticated', 'private.grants_probe()', 'execute')
+      and not has_function_privilege('service_role', 'private.grants_probe()', 'execute'),
+  'a new function in private is not executable by API roles by default');
+create function public.grants_probe() returns int language sql as 'select 1';
+select ok(not has_function_privilege('anon', 'public.grants_probe()', 'execute')
+      and not has_function_privilege('authenticated', 'public.grants_probe()', 'execute')
+      and not has_function_privilege('service_role', 'public.grants_probe()', 'execute'),
+  'a new function in public is not executable by API roles by default');
 
 -- Behaviour of the closed paths, through real roles.
 set local role service_role;

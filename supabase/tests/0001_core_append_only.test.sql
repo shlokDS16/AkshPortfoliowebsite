@@ -2,7 +2,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(30);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -79,10 +79,20 @@ select throws_ok($$ update public.item_revisions set body_md = 'x' where true $$
   'P0001', null, 'append-only trigger blocks UPDATE of revisions for the owner');
 select throws_ok($$ delete from public.item_revisions where true $$,
   'P0001', null, 'append-only trigger blocks DELETE of revisions for the owner');
+-- CASCADE also reaches gate_decisions, so assert the item_revisions-specific message.
 select throws_ok($$ truncate public.item_revisions cascade $$,
-  'P0001', null, 'append-only trigger blocks TRUNCATE of revisions');
+  'P0001', 'item_revisions is append-only: TRUNCATE is not allowed',
+  'append-only trigger blocks TRUNCATE of revisions');
+select has_trigger('public', 'item_revisions', 'item_revisions_no_truncate',
+  'item_revisions has its own TRUNCATE trigger');
 select throws_ok($$ delete from public.captures where true $$,
-  'P0001', null, 'trigger blocks deleting captures for the owner');
+  'P0001', 'captures are never deleted: DELETE is not allowed',
+  'trigger blocks deleting captures for the owner, with the captures message');
+select throws_ok($$ truncate public.captures $$,
+  'P0001', 'captures are never deleted: TRUNCATE is not allowed',
+  'trigger blocks TRUNCATE of captures');
+select has_trigger('public', 'captures', 'captures_no_truncate',
+  'captures has its own TRUNCATE trigger');
 
 insert into public.gate_decisions (id, item_id, revision_id, policy_version, verdict) values
   ('77777777-0000-4000-8000-000000000001', 'dddddddd-0000-4000-8000-000000000001',
@@ -93,7 +103,10 @@ select throws_ok($$ update public.gate_decisions set verdict = 'fail' where true
 select throws_ok($$ delete from public.gate_decisions where true $$,
   'P0001', null, 'append-only trigger blocks DELETE of gate decisions');
 select throws_ok($$ truncate public.gate_decisions $$,
-  'P0001', null, 'append-only trigger blocks TRUNCATE of gate decisions');
+  'P0001', 'gate_decisions is append-only: TRUNCATE is not allowed',
+  'append-only trigger blocks TRUNCATE of gate decisions');
+select has_trigger('public', 'gate_decisions', 'gate_decisions_no_truncate',
+  'gate_decisions has its own TRUNCATE trigger');
 
 -- Nothing above changed the data.
 select is((select count(*) from public.item_revisions), 4::bigint, 'all four revisions are still there');

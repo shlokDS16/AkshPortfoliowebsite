@@ -5,16 +5,23 @@
 -- Spec: docs/specs/2026-10-04-phase-1-core-design.md s3.
 -- =============================================================================
 
--- 0. Nothing in public is reachable by API roles unless granted in section 10.
+create schema if not exists private; -- must exist before its default privileges (section 0)
+
+-- 0. Nothing in public or private is reachable by API roles unless granted in section 10.
+-- Implicit PUBLIC EXECUTE on new functions can only be removed by a global default
+-- (a per-schema REVOKE cannot undo a global grant), so the first statement is global.
+alter default privileges for role postgres
+  revoke execute on functions from public;
 alter default privileges for role postgres in schema public
   revoke select, insert, update, delete on tables from anon, authenticated, service_role;
 alter default privileges for role postgres in schema public
   revoke execute on functions from public, anon, authenticated, service_role;
 alter default privileges for role postgres in schema public
   revoke usage, select on sequences from anon, authenticated, service_role;
+alter default privileges for role postgres in schema private
+  revoke execute on functions from public, anon, authenticated, service_role;
 
 -- 1. Private schema: helpers and settings, never exposed by the Data API.
-create schema if not exists private;
 revoke all on schema private from public;
 grant usage on schema private to anon, authenticated, service_role;
 -- The auth service fires on_auth_user_created; give it a path to the trigger function.
@@ -51,6 +58,14 @@ create function private.is_lagged(d date)
 returns boolean language sql stable set search_path = ''
 as $$
   select d is null or d <= current_date - 30;
+$$;
+
+-- The public tier predicate (decision D3), written once: public + published + past the
+-- lag. Every public-read policy and, in Task 4, every public view calls this.
+create function private.is_public_item(visibility text, status text, data_as_of date)
+returns boolean language sql stable set search_path = ''
+as $$
+  select visibility = 'public' and status = 'published' and private.is_lagged(data_as_of);
 $$;
 
 create function private.handle_new_user()
@@ -254,9 +269,21 @@ $$;
 create trigger captures_raw_text_immutable
   before update on public.captures
   for each row execute function private.guard_capture_raw_text();
+create function private.reject_capture_removal()
+returns trigger language plpgsql set search_path = ''
+as $$
+begin
+  raise exception 'captures are never deleted: % is not allowed', tg_op
+    using errcode = 'P0001';
+end;
+$$;
+
 create trigger captures_no_delete
   before delete on public.captures
-  for each row execute function private.reject_mutation();
+  for each row execute function private.reject_capture_removal();
+create trigger captures_no_truncate
+  before truncate on public.captures
+  for each statement execute function private.reject_capture_removal();
 
 -- 6. Compliance: audit trail of every gate decision, and the sentence allowlist.
 create table public.gate_decisions (
@@ -354,22 +381,23 @@ create policy heartbeats_admin_read on public.heartbeats for select to authentic
 -- extended to `authenticated`: that role holds full-table grants for the admin, and a
 -- public-read policy would hand any non-admin session every column of a public row.
 create policy items_public_read on public.items for select to anon
-  using (visibility = 'public' and status = 'published' and private.is_lagged(data_as_of));
+  using (private.is_public_item(visibility, status, data_as_of));
 create policy item_revisions_public_read on public.item_revisions for select to anon
   using (private.revision_passed(id) and exists (
     select 1 from public.items i
-    where i.id = item_revisions.item_id and i.visibility = 'public' and i.status = 'published'
-      and private.is_lagged(i.data_as_of)));
+    where i.id = item_revisions.item_id
+      and private.is_public_item(i.visibility, i.status, i.data_as_of)));
+-- A company or theme is public only when its own visibility says so AND a public item uses it.
 create policy companies_public_read on public.companies for select to anon
-  using (exists (
+  using (visibility = 'public' and exists (
     select 1 from public.items i
-    where i.company_id = companies.id and i.visibility = 'public' and i.status = 'published'
-      and private.is_lagged(i.data_as_of)));
+    where i.company_id = companies.id
+      and private.is_public_item(i.visibility, i.status, i.data_as_of)));
 create policy themes_public_read on public.themes for select to anon
-  using (exists (
+  using (visibility = 'public' and exists (
     select 1 from public.items i
-    where i.theme_id = themes.id and i.visibility = 'public' and i.status = 'published'
-      and private.is_lagged(i.data_as_of)));
+    where i.theme_id = themes.id
+      and private.is_public_item(i.visibility, i.status, i.data_as_of)));
 
 -- 10. Grants. Start from nothing, then grant exactly what each role needs.
 revoke all on all tables in schema public from anon, authenticated, service_role;
@@ -379,6 +407,7 @@ revoke execute on all functions in schema private from public, anon, authenticat
 grant execute on function private.is_admin() to anon, authenticated;
 grant execute on function private.revision_passed(uuid) to anon, authenticated;
 grant execute on function private.is_lagged(date) to anon, authenticated;
+grant execute on function private.is_public_item(text, text, date) to anon, authenticated;
 
 -- anon: column-level SELECT only, limited to what the public views (Task 4) expose.
 -- The *_public_read policies then restrict the rows. No full-table SELECT anywhere.
