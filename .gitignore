@@ -32,3 +32,6 @@ Thumbs.db
 
 # task-master
 .taskmaster/reports/
+
+# sdd scratch
+.superpowers/
