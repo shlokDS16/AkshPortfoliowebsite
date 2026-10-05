@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Labelled Blocks, round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- comparison shell (neutral, not a design proposal) ---------- */
+:root{--s-bg:#EFEFEC;--s-ink:#191919;--s-muted:#575757;--s-rule:#D2D2CD;--s-card:#FFFFFF;--s-hi:#191919;--s-on-hi:#FFFFFF}
+:root[data-theme=dark]{--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--s-bg);color:var(--s-ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+a{color:inherit}
+.shell{max-width:1480px;margin:0 auto;padding:28px 32px 8px}
+.shell h1{font-size:22px;margin:0 0 6px;font-weight:650;letter-spacing:-.01em}
+.shell p{margin:0 0 8px;color:var(--s-muted);max-width:980px}
+.controls{display:flex;flex-wrap:wrap;gap:14px 18px;margin:16px 0 4px;align-items:center}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--s-rule);border-radius:8px;overflow:hidden;background:var(--s-card)}
+.seg span{padding:7px 10px;font-size:12px;color:var(--s-muted);border-right:1px solid var(--s-rule);align-self:center}
+.seg button{font:inherit;font-size:13px;padding:7px 12px;border:0;background:transparent;color:var(--s-ink);cursor:pointer;min-height:36px}
+.seg button+button{border-left:1px solid var(--s-rule)}
+.seg button[aria-pressed=true]{background:var(--s-hi);color:var(--s-on-hi)}
+.seg button:focus-visible{outline:2px solid var(--s-ink);outline-offset:-3px}
+.dirs{max-width:1480px;margin:0 auto;padding:0 20px}
+.dir{margin:36px 0 56px}
+.dir-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;max-width:1000px}
+.dir-letter{flex:none;min-width:38px;height:38px;padding:0 6px;display:grid;place-items:center;border:1.5px solid var(--s-ink);border-radius:6px;font-weight:700;font-size:17px}
+.dir-head h2{margin:0;font-size:19px;font-weight:650}
+.dir-head p{margin:2px 0 0;color:var(--s-muted)}
+.dir-head p.thesis{color:var(--s-ink);font-weight:500}
+.stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+figure{margin:0}
+figcaption{font-size:12px;color:var(--s-muted);margin-top:8px}
+.browser{width:960px;max-width:100%;border:1px solid var(--s-rule);border-radius:10px;overflow:hidden;background:var(--s-card)}
+.chrome{height:36px;display:flex;align-items:center;gap:7px;padding:0 12px;border-bottom:1px solid var(--s-rule);font-size:12px;color:var(--s-muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--s-rule)}
+.url{margin-left:10px;padding:3px 12px;border-radius:6px;background:var(--s-bg)}
+.vp{overflow-y:auto;container-type:inline-size;overscroll-behavior:contain}
+.vp:focus-visible{outline:2px solid var(--s-ink);outline-offset:2px}
+.browser .vp{height:820px}
+.bezel{width:391px;height:800px;border:8px solid #0A0A0A;border-radius:46px;overflow:hidden;background:#0A0A0A}
+.bezel .vp{width:375px;height:100%;scrollbar-width:none}
+.bezel .vp::-webkit-scrollbar{display:none}
+body.phones .browser{display:none}
+body.phones .dirs{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+body.phones .dir{margin:24px 0 40px;width:391px}
+body.phones .dir-head{min-height:150px}
+.matrix-wrap{max-width:1480px;margin:0 auto;padding:0 32px 64px}
+.matrix-wrap h2{font-size:19px;margin:0 0 10px}
+.matrix-scroll{overflow-x:auto}
+.matrix{border-collapse:collapse;width:100%;min-width:860px;background:var(--s-card);border:1px solid var(--s-rule);font-size:13.5px}
+.matrix th,.matrix td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--s-rule)}
+.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--s-muted)}
+.matrix tbody th{width:160px;font-weight:600}
+.ask{margin-top:14px;color:var(--s-muted)}
+@media (max-width:640px){.shell,.dirs,.matrix-wrap{padding-left:16px;padding-right:16px}}
+
+/* ================= B, round 1 (verbatim) ================= */
+.mb{--bg:#FFFFFF;--ink:#15171A;--muted:#585F69;--rule:#E0E3E7;--surf:#F3F5F7;--acc:#245789}
+:root[data-theme=dark] .mb{--bg:#0F1114;--ink:#E5E8EC;--muted:#9EA6B1;--rule:#2A2F36;--surf:#181B20;--acc:#93BBE4}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .mb{--bg:#0F1114;--ink:#E5E8EC;--muted:#9EA6B1;--rule:#2A2F36;--surf:#181B20;--acc:#93BBE4}}
+.mb{min-height:100%;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16px;line-height:1.6;font-variant-numeric:tabular-nums lining-nums}
+.mb .mono,.mb-strip,.mb-crumb,.mb .tag,.mb .cite,.mb-lbl,.mb-toc,.mb .st,.mb .fmeta,.mb-diff .dl,.mb-hist time,.mb .wr .n,.mb .wr .added,.mb-srcs .id,.mb-srcs .ty,.mb-disc dt,.mb .blk .revn{font-family:"IBM Plex Mono",ui-monospace,monospace}
+.mb-strip{position:sticky;top:0;z-index:2;background:var(--ink);color:var(--bg);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:8px 16px;display:flex;flex-wrap:wrap;gap:3px 12px}
+.mb-strip a{color:var(--bg);margin-left:auto}
+.mb-wrap{padding:18px 16px 56px}
+.mb-crumb{font-size:11.5px;color:var(--muted)}
+.mb h1{font-size:30px;line-height:1.15;font-weight:600;letter-spacing:-.015em;margin:8px 0 8px}
+.mb-one{margin:0 0 14px}
+.mb-obj{background:var(--surf);border-radius:6px;padding:11px 14px;margin:0 0 14px}
+.mb-lbl{display:block;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.mb-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:12px 0;margin:0}
+.mb-meta dt{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.mb-meta dd{margin:0;font-size:14.5px;font-weight:500}
+.mb-toc{font-size:11.5px;display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 16px;padding:0;list-style:none;text-transform:uppercase;letter-spacing:.05em}
+.mb-toc a{color:var(--muted);text-decoration:none}
+.mb-toc a:hover{color:var(--ink)}
+.mb-toc .on{color:var(--ink);font-weight:500}
+.mb-sec{margin-top:38px}
+.mb-sec-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:9px;margin-bottom:14px}
+.mb-sec-h h2{font-size:19px;font-weight:600;margin:0;letter-spacing:-.005em}
+.mb-sec-h .sub{flex-basis:100%;font-size:13px;color:var(--muted)}
+.mb .tag{font-size:10px;letter-spacing:.08em;padding:2px 6px;border-radius:3px;border:1px solid var(--ink);line-height:1.4}
+.mb .tag.view{background:var(--ink);color:var(--bg)}
+.mb .tag.fact{border-style:dashed}
+.mb .blk{margin:0 0 14px;padding-left:14px;border-left:2px solid var(--ink)}
+.mb .blk .revn{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.mb .cite{font-size:11px;padding:0 5px;border:1px solid var(--rule);border-radius:4px;color:var(--acc);background:var(--surf);white-space:nowrap;text-decoration:none;vertical-align:1px}
+.mb-wr{border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.mb .wr{display:grid;grid-template-columns:22px 1fr auto;gap:4px 10px;padding:12px 14px;border-bottom:1px solid var(--rule)}
+.mb .wr:last-child{border-bottom:0}
+.mb .wr .n{font-size:12px;color:var(--muted);padding-top:2px}
+.mb .wr .c{grid-column:2/4;font-size:15px}
+.mb .wr .l{grid-column:2/3;font-size:13px;color:var(--muted)}
+.mb .wr .l .mono{font-size:11px}
+.mb .wr .st{grid-column:3/4;grid-row:2;align-self:start;font-size:10px;letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--ink);border-radius:3px;padding:1px 6px;white-space:nowrap}
+.mb .wr .added{font-size:10.5px;color:var(--muted)}
+.mb-ft{border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.mb-ft .hd{display:none}
+.mb .fx{padding:11px 14px;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:1fr auto;gap:0 12px}
+.mb .fx:last-child{border-bottom:0}
+.mb .fx .k{font-size:14px}
+.mb .fx .v{font-size:21px;font-weight:600;text-align:right;line-height:1.25}
+.mb .fx .fmeta{grid-column:1/3;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.mb .fx .p,.mb .fx .s,.mb .fx .a{display:none}
+.mb-srcs{list-style:none;margin:14px 0 0;padding:0}
+.mb-srcs li{display:grid;grid-template-columns:30px 1fr;gap:2px 8px;padding:8px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.mb-srcs .id{font-size:12px;color:var(--acc);padding-top:1px}
+.mb-srcs .ty{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block}
+.mb-diff{border:1px solid var(--rule);border-radius:6px;padding:12px 14px;margin:0 0 14px;font-size:15px}
+.mb-diff .dl{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;text-decoration:none}
+.mb-diff .del{margin:0 0 12px;padding-left:12px;border-left:2px dashed var(--muted);color:var(--muted)}
+.mb-diff .del s{text-decoration-thickness:1px}
+.mb-diff .ins{margin:0;padding-left:12px;border-left:2px solid var(--ink)}
+.mb-hist{list-style:none;margin:0;padding:0}
+.mb-hist li{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:8px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.mb-hist time{font-size:12px;color:var(--muted);padding-top:2px}
+.mb-links{margin:0;padding-left:18px}
+.mb-disc{border:1.5px solid var(--ink);border-radius:6px;padding:14px 16px}
+.mb-disc dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 12px;font-size:14px}
+.mb-disc dt{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.mb-disc dd{margin:0;font-weight:500}
+.mb-disc p{margin:0;font-size:14px;color:var(--muted)}
+.mb-disc p strong{color:var(--ink)}
+@container (min-width:760px){
+ .mb{font-size:16.5px}
+ .mb-strip{padding:8px 32px}
+ .mb-wrap{display:grid;grid-template-columns:150px minmax(0,600px);gap:60px;padding:34px 48px 90px}
+ .mb-side{position:sticky;top:64px;align-self:start}
+ .mb-toc{flex-direction:column;gap:9px;margin:0}
+ .mb h1{font-size:40px}
+ .mb-meta{grid-template-columns:repeat(4,auto);justify-content:space-between}
+ .mb-ft .hd{display:grid}
+ .mb .fx,.mb-ft .hd{grid-template-columns:1.6fr .8fr 1fr .9fr .9fr;gap:0 12px;align-items:baseline}
+ .mb-ft .hd{padding:8px 14px;background:var(--surf);font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--rule)}
+ .mb-ft .hd span:nth-child(2),.mb-ft .hd span:nth-child(3),.mb .fx .v,.mb .fx .p{text-align:right}
+ .mb .fx .v{font-size:16px}
+ .mb .fx .fmeta{display:none}
+ .mb .fx .p,.mb .fx .s,.mb .fx .a{display:block;font-size:13px;color:var(--muted)}
+ .mb .fx .s{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--acc)}
+ .mb .fx .a{font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+ .mb .wr{grid-template-columns:22px 1fr 168px 92px;gap:0 14px}
+ .mb .wr .c{grid-column:2/3}
+ .mb .wr .l{grid-column:3/4;grid-row:1}
+ .mb .wr .st{grid-column:4/5;grid-row:1;justify-self:end}
+}
+
+/* ================= B+ (improvised) and H (B+ structure in A's type) =================
+   One markup, two type systems. .bp = B+, .bp.h = hybrid. Colour is neutral greys only. */
+.bp{
+ --bg:#FCFCFB;--ink:#141619;--text:#1E2125;--muted:#565D66;--rule:#E2E4E7;--rule2:#C5CAD0;--surf:#F3F4F5;--surf2:#E9EBED;--ins:#ECEEF0;
+ --f-read:"IBM Plex Sans",system-ui,sans-serif;--f-data:"IBM Plex Sans",system-ui,sans-serif;--f-id:"IBM Plex Mono",ui-monospace,monospace;
+ --read:16.5px;--read-lh:1.62;--measure:54ch;--h1:30px;--h2:19px;--h2-w:600;--h2-st:normal;--h2-f:var(--f-data);--data:14.5px;--small:12.5px;
+ --sec-gap:48px;--gut:20px;
+ color-scheme:light;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--f-data);font-size:var(--data);line-height:1.5;
+ font-variant-numeric:lining-nums tabular-nums;font-feature-settings:"lnum","tnum"}
+.bp.h{--f-read:"Source Serif 4",Georgia,serif;--f-data:"Source Sans 3",system-ui,sans-serif;--read:18px;--read-lh:1.6;--measure:64ch;--h1:34px;--h2:24px;--h2-w:400;--h2-st:italic;--h2-f:var(--f-read);--data:15px;font-optical-sizing:auto}
+:root[data-theme=dark] .bp{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark;-webkit-font-smoothing:antialiased}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .bp{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark;-webkit-font-smoothing:antialiased}}
+.bp *{box-sizing:border-box}
+.bp .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.bp .id,.bp .kind,.bp .chip,.bp .g{font-family:var(--f-id);font-variant-numeric:tabular-nums}
+.bp button{font:inherit;color:inherit;cursor:pointer}
+.bp :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+.bp a{color:var(--ink);text-decoration-color:var(--rule2);text-underline-offset:3px}
+
+/* --- sticky top: compliance strip + phone section index --- */
+.bp-top{position:sticky;top:0;z-index:5;background:var(--bg)}
+.strip{border-bottom:1px solid var(--rule);background:var(--surf);font-size:12.5px;line-height:1.35}
+.strip summary{list-style:none;display:flex;align-items:center;gap:10px;padding:7px var(--gut);min-height:34px;cursor:pointer}
+.strip summary::-webkit-details-marker{display:none}
+.st-line{display:flex;flex-wrap:wrap;gap:0 0;flex:1;min-width:0;color:var(--muted)}
+.st-line>span{white-space:nowrap}
+.st-line>span+span::before{content:"\00B7";margin:0 7px;color:var(--rule2)}
+.st-line b{font-weight:600;color:var(--text)}
+.st-more{flex:none;font-size:12px;color:var(--text);display:inline-flex;align-items:center;gap:5px}
+.st-more::after{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform .15s ease-out}
+.strip[open] .st-more::after{transform:translateY(1px) rotate(-135deg)}
+.st-body{padding:4px var(--gut) 14px;border-top:1px solid var(--rule)}
+.facts-dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:8px 0 0;font-size:13px}
+.facts-dl dt{color:var(--muted)}
+.facts-dl dd{margin:0;color:var(--text)}
+.st-body .to{display:inline-block;margin-top:10px;font-size:12.5px;border:0;background:none;padding:4px 0;min-height:30px;text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px;color:var(--ink)}
+.idx{display:flex;border-bottom:1px solid var(--rule);position:relative;background:var(--bg)}
+.idx button{flex:1;min-height:44px;border:0;background:none;font-size:13px;color:var(--muted);padding:0 4px;display:flex;align-items:center;justify-content:center;gap:5px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.idx button .ct{font-family:var(--f-id);font-size:10.5px;color:var(--muted)}
+.idx button[aria-current=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.prog{position:absolute;left:0;right:0;bottom:-1px;height:1px;pointer-events:none}
+.prog i{display:block;height:1px;background:var(--rule2);transform-origin:left;transform:scaleX(0)}
+.rail{display:none}
+
+/* --- page --- */
+.bp-wrap{padding:22px var(--gut) 72px}
+.crumb{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.crumb .id{font-size:11.5px}
+.bp h1{font-family:var(--f-read);font-size:var(--h1);line-height:1.12;font-weight:600;letter-spacing:-.015em;color:var(--ink);margin:0 0 10px}
+.one{font-family:var(--f-read);font-size:var(--read);line-height:var(--read-lh);margin:0 0 16px;max-width:var(--measure)}
+.obj{background:var(--surf);border-radius:6px;padding:12px 14px;margin:0 0 16px;max-width:var(--measure)}
+.lbl{display:block;font-family:var(--f-data);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 3px;font-style:normal}
+.obj p{margin:0;font-family:var(--f-read);font-size:var(--read);line-height:1.5;color:var(--ink)}
+.dateline{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:0;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.dateline dt{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.dateline dd{margin:2px 0 0;font-size:14px;color:var(--ink)}
+.dateline dd small{display:block;font-size:12px;color:var(--muted)}
+
+.sec{margin-top:var(--sec-gap)}
+.sec-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding-bottom:10px;margin-bottom:16px;border-bottom:1px solid var(--rule)}
+.sec-h h2{font-family:var(--h2-f);font-size:var(--h2);font-weight:var(--h2-w);font-style:var(--h2-st);line-height:1.2;margin:0;color:var(--ink);letter-spacing:-.005em}
+.sec-h .sub{flex-basis:100%;font-size:13px;color:var(--muted);margin:0}
+.kind{font-size:10.5px;font-weight:500;letter-spacing:.08em;line-height:1;padding:4px 6px 3px;border:1px solid var(--ink);border-radius:3px;color:var(--ink)}
+.kind.view{background:var(--ink);color:var(--bg)}
+.kind.fact{border-style:dashed}
+.kind.log{border-style:dotted}
+.kind.plain{border-color:var(--rule2);color:var(--muted)}
+
+/* VIEW: one continuous rule for the block, not one per paragraph */
+.view{border-left:2px solid var(--ink);padding-left:14px}
+.para p{font-family:var(--f-read);font-size:var(--read);line-height:var(--read-lh);margin:0 0 1em;max-width:var(--measure);color:var(--text);font-variant-numeric:lining-nums proportional-nums;font-feature-settings:"lnum","pnum"}
+.para:last-child p:last-of-type{margin-bottom:0}
+.para .revmark{font-family:var(--f-data);font-size:12px;color:var(--muted);margin:0 0 4px;display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline}
+.revmark .id{color:var(--ink);font-size:11px;border:1px dotted var(--ink);border-radius:3px;padding:1px 4px}
+.revmark button{border:0;background:none;padding:0;text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px;font-size:12px;color:var(--ink)}
+.bp .chip{position:relative;display:inline-flex;align-items:baseline;gap:4px;font-size:11px;line-height:1.5;padding:0 5px;margin:0 1px;border:1px solid var(--rule2);border-radius:4px;background:var(--surf);color:var(--ink);vertical-align:1px;white-space:nowrap;font-style:normal}
+.bp .chip::after{content:"";position:absolute;inset:-8px -3px}
+.bp .chip b{font-weight:500}
+.bp .chip[aria-expanded=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.card{margin:4px 0 16px;border:1px dashed var(--rule2);border-radius:6px;background:var(--surf);padding:12px 14px 10px;max-width:var(--measure);font-family:var(--f-data)}
+.card-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:11.5px;color:var(--muted);margin-bottom:8px}
+.card-h .asof{margin-left:auto;font-family:var(--f-data);font-size:12px;color:var(--ink)}
+.kv{display:grid;grid-template-columns:1fr auto 3.3em;align-items:baseline;gap:0 6px;padding:3px 0}
+.kv .k{font-size:13.5px;color:var(--text)}
+.kv .n{font-size:17px;font-weight:600;color:var(--ink);text-align:right}
+.kv .u{font-size:12px;color:var(--muted)}
+.kv.pr .k,.kv.pr .n{font-size:13px;color:var(--muted);font-weight:400}
+.q{margin:8px 0 6px;padding:8px 0 0;border-top:1px solid var(--rule)}
+.q .lbl{margin-bottom:2px}
+.para .q p{margin:0;font-size:14px;line-height:1.5;color:var(--ink)}
+.para .card p{font-family:var(--f-data);font-variant-numeric:lining-nums tabular-nums;max-width:none}
+.para .card .card-src{margin:6px 0 0;font-size:12px;line-height:1.45;color:var(--muted)}
+.bp .card-x{margin-top:8px;border:1px solid var(--rule2);background:var(--bg);border-radius:4px;font-size:12px;padding:4px 10px;min-height:30px}
+
+/* TEST: status table */
+.tsum{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 6px;font-size:13px;color:var(--text)}
+.tsum span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.tsum .n{font-weight:600;color:var(--ink)}
+.legend{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.ico{width:12px;height:12px;flex:none;color:var(--ink)}
+.tests{list-style:none;margin:0;padding:0;border:1px solid var(--rule);border-radius:6px}
+.tests .thd{display:grid;grid-template-columns:24px 1fr auto;gap:0 10px;padding:7px 12px;background:var(--surf);border-bottom:1px solid var(--rule);font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-radius:6px 6px 0 0}
+.tests .thd span:first-child{grid-column:2}
+.tests .thd span:nth-child(2){display:none}
+.tests .thd span:last-child{text-align:right}
+.t{display:grid;grid-template-columns:24px 1fr;gap:0 10px;padding:12px;border-bottom:1px solid var(--rule)}
+.t:last-child{border-bottom:0}
+.tn{font-family:var(--f-id);font-size:12px;color:var(--muted);padding-top:3px}
+.tc{margin:0 0 8px;font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:1.5;color:var(--ink)}
+.tc .lead{color:var(--muted)}
+.tc .added{font-family:var(--f-id);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.te{grid-column:2;display:grid;grid-template-columns:1fr auto;grid-template-areas:"s c" "r r";gap:4px 10px;margin:0;font-size:13px;align-items:baseline}
+.te .s{grid-area:s}.te .c{grid-area:c}.te .r{grid-area:r}
+.te .r .pfx{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-right:6px}
+.te dd{margin:0}
+.te .s{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);white-space:nowrap}
+.te .r{color:var(--text)}
+.te .r small{color:var(--muted);font-size:12px;white-space:nowrap}
+.te .r small::before{content:" \00B7  "}
+.te .c{text-align:right;color:var(--muted);white-space:nowrap}
+
+/* FACT: grouped table, as-of stated once per group, digits aligned */
+.ft{width:100%;border-collapse:collapse;font-size:14px}
+.ft th,.ft td{padding:9px 0;border-bottom:1px solid var(--rule);text-align:left;vertical-align:baseline;font-weight:400}
+.ft thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:7px 0}
+.ft .grp th{padding:16px 0 6px;font-size:12.5px;font-weight:600;color:var(--ink);border-bottom:1px solid var(--rule2)}
+.ft .grp th span{font-weight:400;color:var(--muted)}
+.ft .n{text-align:right;font-size:16px;font-weight:600;color:var(--ink);padding-right:5px}
+.ft .u{font-size:12px;color:var(--muted);width:3.6em}
+.ft .pr{text-align:right;color:var(--muted);white-space:nowrap}
+.ft .pr .pl{font-size:11.5px;margin-right:4px}
+.ft .s{font-size:12px;color:var(--muted);white-space:nowrap;padding-left:16px}
+.ft .s .id{color:var(--ink);font-size:11.5px}
+.ft thead .r{text-align:right}
+.srcs{list-style:none;margin:16px 0 0;padding:0}
+.srcs li{display:grid;grid-template-columns:30px 1fr;gap:2px 8px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.srcs .id{font-size:12px;color:var(--ink);padding-top:2px}
+.srcs .ty{display:block;font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.srcs small{display:block;font-size:12.5px;color:var(--muted)}
+.fsum{font-size:13px;color:var(--muted);margin:0 0 4px}
+
+/* LOG: reason first, then grouped sentence diff, prose not code */
+.rv{border:1px solid var(--rule);border-radius:6px;padding:14px}
+.rv-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0 0 6px;font-size:13px;color:var(--muted)}
+.rv-h .id{font-size:12px;color:var(--ink);border:1px dotted var(--ink);border-radius:3px;padding:1px 5px}
+.rv-h b{color:var(--ink);font-weight:600}
+.reason{font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:1.5;margin:0 0 12px;color:var(--ink);max-width:var(--measure)}
+.dseg{display:inline-flex;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;margin:0 0 14px}
+.dseg button{border:0;background:none;font-size:12.5px;padding:0 12px;min-height:34px;color:var(--muted)}
+.dseg button+button{border-left:1px solid var(--rule2)}
+.dseg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.pane .loc{font-family:var(--f-data);line-height:1.4;max-width:none;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.pane .loc:first-child{margin-top:0}
+.dl{list-style:none;margin:0 0 8px;padding:0}
+.dl li{display:grid;grid-template-columns:16px 1fr;gap:0 8px;padding:6px 10px 6px 8px;font-family:var(--f-read);font-size:calc(var(--read) - 1.5px);line-height:1.5}
+.dl.del li{color:var(--muted);border-left:2px dashed var(--rule2)}
+.dl.ins li{color:var(--ink);background:var(--ins);border-left:2px solid var(--ink)}
+.dl .g{font-size:13px;line-height:1.7;color:var(--muted)}
+.dl.ins .g{color:var(--ink)}
+.dl .fx{font-family:var(--f-data);font-size:13.5px}
+.pane p{font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:var(--read-lh);margin:0 0 .9em;max-width:var(--measure)}
+.pane .note{font-family:var(--f-data);font-size:12px;color:var(--muted)}
+.rlog{list-style:none;margin:14px 0 0;padding:0}
+.rlog li{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;padding:9px 0;border-top:1px solid var(--rule);font-size:13.5px}
+.rlog .when{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.rlog .when .id{color:var(--ink);font-size:11.5px;margin-right:6px}
+.rlog .why{font-family:var(--f-read);font-size:calc(var(--read) - 2px);line-height:1.45}
+
+/* empty states: show the shape of what will come, never a blank box */
+.empty{border:1px dashed var(--rule2);border-radius:6px;padding:14px;color:var(--text)}
+.empty .lbl{margin-bottom:4px}
+.empty p{margin:0 0 6px;font-size:14px;line-height:1.5;max-width:var(--measure)}
+.empty p:last-child{margin-bottom:0}
+.empty .shape{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.empty .shape span{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--rule);border-radius:3px;padding:2px 6px}
+
+.links{margin:0;padding-left:18px;font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:1.55}
+.links li{margin-bottom:6px}
+.disc{border-top:2px solid var(--ink);padding-top:14px}
+.disc .pos{font-size:15px;margin:0 0 12px;color:var(--ink)}
+.disc .pos b{font-weight:600}
+.disc .pos small{display:block;font-size:12.5px;color:var(--muted)}
+.disc .full{margin:14px 0 0;font-size:13.5px;line-height:1.55;color:var(--muted);max-width:var(--measure)}
+.disc .full strong{color:var(--ink)}
+
+/* --- H: where the serif stops --- */
+.bp.h .obj{background:none;padding:0;border-radius:0}
+.bp.h .obj p{font-style:italic;font-size:calc(var(--read) + 1.5px);line-height:1.45}
+.bp.h .tc .lead{font-style:italic;color:var(--ink)}
+.bp.h .chip{font-size:10.5px}
+.bp.h .sec-h h2{letter-spacing:0}
+.bp.h .kv .n,.bp.h .ft .n{font-weight:600}
+.bp.h .para .q p{font-size:14.5px}
+
+@media (prefers-reduced-motion:reduce){.bp *{transition:none!important;scroll-behavior:auto!important}}
+
+/* --- desktop frame --- */
+@container (min-width:760px){
+ .bp{--read:17px;--h1:40px;--sec-gap:56px;--gut:32px}
+ .bp.h{--read:19.5px;--h1:46px;--h2:26px}
+ .idx{display:none}
+ .bp-wrap{display:grid;grid-template-columns:168px minmax(0,640px);gap:52px;padding:36px 44px 110px}
+ .rail{display:block;position:sticky;top:64px;align-self:start;font-size:13px}
+ .rail .lbl{margin-bottom:8px}
+ .rail button{display:flex;justify-content:space-between;width:100%;border:0;background:none;text-align:left;padding:5px 0 5px 10px;border-left:2px solid var(--rule);color:var(--muted)}
+ .rail button .ct{font-family:var(--f-id);font-size:11px}
+ .rail button[aria-current=true]{color:var(--ink);font-weight:600;border-left-color:var(--ink)}
+ .rail .file{margin:22px 0 0;padding-top:12px;border-top:1px solid var(--rule);display:grid;gap:9px}
+ .rail .file dt{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+ .rail .file dd{margin:1px 0 0;color:var(--ink);font-size:13px}
+ .rail .file dd small{display:block;color:var(--muted);font-size:12px}
+ .dateline{grid-template-columns:repeat(4,auto);justify-content:space-between}
+ .tests .thd{grid-template-columns:24px 120px 1fr 92px}
+ .tests .thd span:nth-child(2){display:block}
+ .te{grid-template-columns:120px 1fr 92px;grid-template-areas:"s r c"}
+ .te .r .pfx{display:none}
+ .te .r small{display:block;white-space:normal}
+ .te .r small::before{content:none}
+ .card{padding:14px 16px 12px}
+}
+/* fact table: phone = two-line rows, digits of value and prior share one right edge */
+.ft thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ft tbody{display:block}
+.ft tr{display:block}
+.ft tr:not(.grp){display:grid;grid-template-columns:1fr auto 3.6em;grid-template-areas:"k n u" "s p .";align-items:baseline;gap:3px 6px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.ft tr:not(.grp)>*{border:0;padding:0}
+.ft tr>th[scope=row]{grid-area:k;font-size:14px;color:var(--text)}
+.ft tr .n{grid-area:n;padding-right:0}
+.ft tr .u{grid-area:u}
+.ft tr .pr{grid-area:p;font-size:12.5px}
+.ft tr .s{grid-area:s;padding-left:0}
+.ft .grp th{display:block}
+@container (min-width:760px){
+ .ft thead{position:static;width:auto;height:auto;overflow:visible;clip:auto;display:table-header-group}
+ .ft tbody{display:table-row-group}
+ .ft tr,.ft tr:not(.grp){display:table-row}
+ .ft .grp th{display:table-cell}
+ .ft tr:not(.grp)>*{display:table-cell;padding:9px 0;border-bottom:1px solid var(--rule)}
+ .ft tr .n{padding-right:5px}
+ .ft tr .s{padding-left:18px}
+ .ft tr .pr{font-size:13px}
+}
+</style>
+</head>
+<body>
+<header class="shell">
+  <h1>Segment 1, round 2: Labelled Blocks, improvised and hybrid</h1>
+  <p>Three frames render the same fictional Kaveri Pumps thesis from one shared data object. <b>B</b> is round 1, unchanged, for reference. <b>B+</b> pushes the research-file idea further. <b>H</b> is B+ markup set in direction A's type. Company, ticker, figures and quoted filing lines are invented to test layout.</p>
+  <p>Colour is neutral greys on purpose (identity is segment 5). Judge structure, type, numbers and states. In B+ and H, tap a source chip such as <b>S1 · p. 112</b> to open the line it came from, open the strip at the top for the disclosure summary, and switch the history between changes, R2 and R1. "Empty states" swaps in a first draft that has one version and no sources.</p>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Theme"><span>Theme</span>
+      <button type="button" data-theme-btn="system" aria-pressed="true">System</button>
+      <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" role="group" aria-label="Layout"><span>Layout</span>
+      <button type="button" data-layout-btn="both" aria-pressed="true">Desktop + phone</button>
+      <button type="button" data-layout-btn="phones" aria-pressed="false">Three phones side by side</button>
+    </div>
+    <div class="seg" role="group" aria-label="Content"><span>Content</span>
+      <button type="button" data-content-btn="full" aria-pressed="true">Full file</button>
+      <button type="button" data-content-btn="empty" aria-pressed="false">Empty states</button>
+    </div>
+  </div>
+</header>
+
+<main class="dirs">
+  <section class="dir" aria-labelledby="hB">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">B</div><div><h2 id="hB">B. Labelled Blocks, round 1 (reference)</h2><p class="thesis">The page reads like a well-kept research file: every block says what it is, facts and tests are rows, revisions show as a diff.</p><p>Unchanged from round 1, except that it no longer breaks on empty data.</p></div></div>
+    <div class="stage">
+      <figure class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">research desk / companies / kaveri-pumps</span></div><div class="vp" data-render="B" tabindex="0" role="region" aria-label="B round 1, desktop mockup"></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="phone"><div class="bezel"><div class="vp" data-render="B" tabindex="0" role="region" aria-label="B round 1, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="dir" aria-labelledby="hP">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">B+</div><div><h2 id="hP">B+. Labelled Blocks, improvised</h2><p class="thesis">A research file you can audit on a phone: each figure opens the line it came from, each test shows when it was last checked, and each change shows its reason before the diff.</p><p>IBM Plex Sans for reading and data, Plex Mono only for IDs (S1, R2, block kinds).</p></div></div>
+    <div class="stage">
+      <figure class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">research desk / companies / kaveri-pumps</span></div><div class="vp" data-render="P" tabindex="0" role="region" aria-label="B plus, desktop mockup"></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="phone"><div class="bezel"><div class="vp" data-render="P" tabindex="0" role="region" aria-label="B plus, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="dir" aria-labelledby="hH">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">H</div><div><h2 id="hH">H. B+ structure in A's typography</h2><p class="thesis">Same file, two voices: serif wherever Aksh is speaking, sans wherever a filing or the desk is speaking, mono only for IDs.</p><p>Source Serif 4 for his sentences (italic for his framing), Source Sans 3 for figures, quotes and status, Plex Mono for IDs.</p></div></div>
+    <div class="stage">
+      <figure class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">research desk / companies / kaveri-pumps</span></div><div class="vp" data-render="H" tabindex="0" role="region" aria-label="Hybrid, desktop mockup"></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="phone"><div class="bezel"><div class="vp" data-render="H" tabindex="0" role="region" aria-label="Hybrid, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<section class="matrix-wrap" aria-labelledby="hM">
+  <h2 id="hM">What changed, axis by axis</h2>
+  <div class="matrix-scroll">
+  <table class="matrix">
+    <thead><tr><th scope="col">Axis</th><th scope="col">B, round 1</th><th scope="col">B+, improvised</th><th scope="col">H, hybrid</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Compliance strip</th><td>Inverted black bar, four uppercase mono phrases on every screen</td><td>Quiet one-line status on a grey surface: education, position, newest data date. Tap for the full summary; the standard text stays at the end</td><td>Same as B+, set in Source Sans 3</td></tr>
+      <tr><th scope="row">Phone navigation</th><td>TOC links wrap above the title, then scroll away</td><td>Sticky four-part section index with counts (Tests 3, Facts 8) and a hairline reading-progress bar</td><td>Same as B+</td></tr>
+      <tr><th scope="row">Citations</th><td>Chip shows source and page only</td><td>Chip opens a source-fact card in the flow: figure, prior figure, quoted line, source, as-of date</td><td>Same card; the quote stays in sans because the words are the filing's</td></tr>
+      <tr><th scope="row">Kill criteria</th><td>Rows with a status word, as-of beside the reading</td><td>Status table: counts per status, shape plus word, latest reading with its data date, and the date Aksh last checked</td><td>Condition in serif (his claim), evidence row in sans (the reading)</td></tr>
+      <tr><th scope="row">Revision diff</th><td>Struck old paragraph above the new one</td><td>Reason first, then removed and added sentences as separate blocks, plus the facts that arrived. Switch to read R2 or R1 whole</td><td>Diffed sentences in serif, labels in sans</td></tr>
+      <tr><th scope="row">Numbers</th><td>Tabular everywhere, units inside the value</td><td>Tabular in tables and dates, proportional in prose. Units in their own column, so digits share one right edge. As-of stated once per period group</td><td>Same rules in Source Sans 3 and Source Serif 4</td></tr>
+      <tr><th scope="row">Reading rhythm</th><td>16.5 px, 2 px rule on every paragraph</td><td>17 px desktop (about 73 characters a line), 16.5 px phone (about 44), one rule for the whole VIEW block, 1 em between paragraphs, 56 px between sections</td><td>19.5 px desktop (about 73 characters a line), 18 px phone (about 40)</td></tr>
+      <tr><th scope="row">Dark mode</th><td>Token swap</td><td>Raised surfaces get lighter, body text is softened to #D9DDE2, borders stay visible, color-scheme set so native controls match. Status never depends on colour</td><td>Same tokens; the serif's optical sizing stays on</td></tr>
+      <tr><th scope="row">Empty states</th><td>Blank boxes and an empty table header</td><td>Each empty block says what will appear, what it will contain and why it is empty</td><td>Same as B+</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="ask">Reply with B+ or H, or name rows to swap, for example "H, but B+'s sans for the test conditions".</p>
+</section>
+
+<script>
+/* ---------- one shared data object (round 1, unchanged) ---------- */
+var FULL = {
+  name: "Kaveri Pumps &amp; Motors",
+  symbol: "NSE: KAVERIPMP (fictional)",
+  sector: "Capital goods · Pumps and motors",
+  oneLiner: "Makes solar and electric water pumps for farms, housing and industry. About three-fifths of FY26 sales came through a government subsidy scheme.",
+  objective: "How to tell whether a manufacturer's growth comes from a subsidy scheme or from customers who would pay anyway.",
+  dataAsOf: "30 Jun 2026", reviewed: "2 Sep 2026", position: "No",
+  firstWritten: "14 Jul 2026", firstWrittenLong: "14 July 2026", revisedLong: "2 September 2026",
+  sources: {
+    S1: {title: "Kaveri Pumps &amp; Motors Ltd, Annual Report 2025-26", meta: "Filed with NSE on 3 Jul 2026", type: "Annual report"},
+    S2: {title: "Q1 FY27 results and investor presentation", meta: "Filed with NSE on 11 Aug 2026", type: "Results deck"},
+    S3: {title: "MNRE, PM-KUSUM Component B state-wise progress", meta: "Published table, as of 30 Jun 2026", type: "Government data"}
+  },
+  view: [
+    {t: "I expected Kaveri's FY26 growth to look like demand from farmers. The segment note changed my mind. Revenue rose to ₹1,284 cr{S1|p. 112|31 Mar 2026}, but 61% of it came from PM-KUSUM orders placed through state agencies, up from 48% a year earlier{S1|p. 84|31 Mar 2026}. The growth is real. The question is who is paying, and when."},
+    {t: "The cost shows up in working capital. Receivable days went from 96 to 142 in one year{S1|p. 131|31 Mar 2026}. That is what it looks like when the customer is a state agency that pays after the subsidy is released, not a farmer paying at the counter. A company can grow sales and still be lending money to its largest customer."},
+    {t: "Q1 FY27 did not settle it. Revenue was ₹311 cr and the scheme share eased to 58%{S2|slide 9|30 Jun 2026}, while industrial and export pumps grew 19%{S2|slide 11|30 Jun 2026}. The scheme is also closer to its installation goal than I assumed: 81% of sanctioned Component B pumps were installed by 30 June{S3|national table|30 Jun 2026}. What I am trying to learn is whether the non-scheme business is big enough to carry the company when the scheme slows.",
+     rev: 2, old: "The industrial and export business is too small to matter yet, at 9% of revenue. Until it grows, I read Kaveri as a scheme contractor rather than a pump brand."}
+  ],
+  wrong: [
+    {c: "receivable days fall below 100 in the FY27 annual report without new bill discounting or factoring.", latest: "151 days in Q1 FY27, annualised", asof: "30 Jun 2026", status: "Not met", checked: "2 Sep 2026"},
+    {c: "industrial and export revenue grows faster than 20% a year for four quarters in a row.", latest: "+19% in Q1 FY27; 0 of 4 quarters so far", asof: "30 Jun 2026", status: "Watching", checked: "2 Sep 2026"},
+    {c: "the company discloses that states paying within 90 days make up more than half of its scheme order book.", latest: "State-wise payment terms not disclosed", asof: "11 Aug 2026", status: "No data", checked: "2 Sep 2026", added: 2}
+  ],
+  /* round 1 fields (k, v, p, s, loc, a, g) plus round 2 fields: short name, number, unit, prior, prior label, quoted line, revision added */
+  facts: [
+    {k: "Revenue, FY26", v: "₹1,284 cr", p: "FY25 ₹902 cr", s: "S1", loc: "p. 112", a: "31 Mar 2026", g: 1, ks: "Revenue", n: "1,284", u: "₹ cr", pv: "902", pl: "FY25", r: 1, q: "Revenue from operations ₹1,284.27 crore (previous year ₹902.14 crore)."},
+    {k: "PM-KUSUM share of revenue, FY26", v: "61%", p: "FY25 48%", s: "S1", loc: "p. 84", a: "31 Mar 2026", g: 1, ks: "PM-KUSUM share of revenue", n: "61", u: "%", pv: "48", pl: "FY25", r: 1, q: "Supplies under the PM-KUSUM scheme, executed through state nodal agencies, contributed 61% of revenue from operations (previous year 48%)."},
+    {k: "Receivable days, FY26", v: "142", p: "FY25 96", s: "S1", loc: "p. 131", a: "31 Mar 2026", g: 1, ks: "Receivable days", n: "142", u: "days", pv: "96", pl: "FY25", r: 1, q: "Trade receivables stood at 142 days of revenue (previous year 96 days), reflecting longer realisation cycles on scheme orders."},
+    {k: "Revenue, Q1 FY27", v: "₹311 cr", p: "Q1 FY26 ₹236 cr", s: "S2", loc: "slide 9", a: "30 Jun 2026", g: 2, ks: "Revenue", n: "311", u: "₹ cr", pv: "236", pl: "Q1 FY26", r: 2, q: "Revenue from operations ₹311 cr, against ₹236 cr in Q1 FY26. Scheme business at 58% of revenue."},
+    {k: "PM-KUSUM share, Q1 FY27", v: "58%", p: "not given", s: "S2", loc: "slide 9", a: "30 Jun 2026", g: 2, ks: "PM-KUSUM share of revenue", n: "58", u: "%", pv: "", pl: "Prior not given", r: 2, q: "Revenue from operations ₹311 cr, against ₹236 cr in Q1 FY26. Scheme business at 58% of revenue."},
+    {k: "Industrial and export growth, Q1 FY27", v: "+19%", p: "year on year", s: "S2", loc: "slide 11", a: "30 Jun 2026", g: 2, ks: "Industrial and export growth", n: "+19", u: "% YoY", pv: "", pl: "", r: 2, q: "Industrial and export pumps: revenue up 19% year on year."},
+    {k: "Receivable days, Q1 FY27 (annualised)", v: "151", p: "FY26 142", s: "S2", loc: "slide 14", a: "30 Jun 2026", g: 2, ks: "Receivable days, annualised", n: "151", u: "days", pv: "142", pl: "FY26", r: 2, q: "Receivable days (annualised): 151."},
+    {k: "Component B pumps installed / sanctioned", v: "81%", p: "national", s: "S3", loc: "national table", a: "30 Jun 2026", g: 2, ks: "Component B installed / sanctioned, national", n: "81", u: "%", pv: "", pl: "", r: 2, q: "Component B, all states: pumps installed as a share of pumps sanctioned, 81%."}
+  ],
+  groups: {1: {name: "FY26", span: "year to 31 Mar 2026", a: "31 Mar 2026"}, 2: {name: "Q1 FY27", span: "quarter to 30 Jun 2026", a: "30 Jun 2026"}},
+  revisions: [
+    {n: 1, d: "14 Jul 2026", r: "First case study, written after reading the FY26 annual report."},
+    {n: 2, d: "2 Sep 2026", r: "Q1 FY27 results: receivable days rose again. Rewrote paragraph 3 and added test 3."}
+  ],
+  links: ["Reading a segment note in an annual report", "Receivable days, and why they rise with government customers"],
+  disclosure: function () {
+    return "Educational content only. Aksh Agrawal is not a SEBI-registered Research Analyst or Investment Adviser. Nothing here is a recommendation, offer or solicitation to buy or sell any security. Figures are shown with a minimum 30-day lag. Position in the security discussed: <strong>" + this.position + "</strong>. Investments in securities are subject to market risk; consult a SEBI-registered adviser before acting. Last reviewed " + this.reviewed + ".";
+  }
+};
+/* ---------- empty-state variant: a first draft, one version, nothing cited yet ---------- */
+var EMPTY = {};
+for (var key in FULL) EMPTY[key] = FULL[key];
+EMPTY.dataAsOf = null; EMPTY.reviewed = "14 Jul 2026"; EMPTY.sources = {}; EMPTY.facts = []; EMPTY.wrong = [];
+EMPTY.view = [{t: "I expected Kaveri's growth to look like demand from farmers. Before I write more, I am reading the segment note in the FY26 annual report to see who is paying, and when."}];
+EMPTY.revisions = [{n: 1, d: "14 Jul 2026", r: "First draft. No filings cited yet."}];
+
+var D = FULL;
+var CITE = /\{(S\d)\|([^|]+)\|([^}]+)\}/g;
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function shortSrc(id) { return {S1: "Annual Report FY26", S2: "Q1 FY27 deck", S3: "MNRE table"}[id]; }
+function each(list, fn) { for (var i = 0; i < list.length; i++) fn(list[i], i); }
+function revNewest() { return D.revisions.slice().reverse(); }
+function srcIds() { return Object.keys(D.sources); }
+
+/* ---------- B. Labelled Blocks, round 1 renderer (verbatim; guarded only so empty data cannot break it) ---------- */
+function renderB() {
+  var h = '';
+  h += '<article class="mb">';
+  h += '<div class="mb-strip" role="note"><span>Education only</span><span>Not SEBI-registered</span><span>Position: none</span><span>Figures 30+ days old</span><a href="#">Disclosure ↓</a></div>';
+  h += '<div class="mb-wrap"><div class="mb-side"><ul class="mb-toc" aria-label="On this page"><li><a class="on" href="#">View</a></li><li><a href="#">Tests</a></li><li><a href="#">Facts</a></li><li><a href="#">History</a></li><li><a href="#">Disclosure</a></li></ul></div><div class="mb-main">';
+  h += '<header><div class="mb-crumb">companies / kaveri-pumps · ' + D.symbol + '</div><h1>' + D.name + '</h1><p class="mb-one">' + D.oneLiner + '</p>';
+  h += '<div class="mb-obj"><span class="mb-lbl">Learning objective</span>' + D.objective + '</div>';
+  h += '<dl class="mb-meta"><div><dt>Data as of</dt><dd>' + (D.dataAsOf || '') + '</dd></div><div><dt>Position</dt><dd>None</dd></div><div><dt>Revision</dt><dd>' + D.revisions.length + ' · ' + D.reviewed + '</dd></div><div><dt>Sources</dt><dd>' + srcIds().length + ' cited</dd></div></dl></header>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag view">VIEW</span><h2>Aksh\'s view</h2><span class="sub">Aksh\'s own words. Every figure links to a source fact.</span></div>';
+  each(D.view, function (para) {
+    var txt = para.t.replace(CITE, function (m, s, loc) { return ' <a class="cite" href="#">' + s + ' · ' + loc + '</a>'; });
+    h += '<p class="blk">' + (para.rev ? '<span class="revn">Revised in rev ' + para.rev + ' · ' + D.reviewed + '</span>' : '') + txt + '</p>';
+  });
+  h += '</section>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag">TEST</span><h2>What would prove me wrong</h2><span class="sub">Each condition is checked when a new filing lands.</span></div><div class="mb-wr">';
+  each(D.wrong, function (w, i) {
+    h += '<div class="wr"><span class="n">' + (i + 1) + '</span><span class="c">' + cap(w.c) + (w.added ? ' <span class="added">(added rev ' + w.added + ')</span>' : '') + '</span><span class="l">' + w.latest + ' · <span class="mono">as of ' + w.asof + '</span></span><span class="st">' + w.status + '</span></div>';
+  });
+  h += '</div></section>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag fact">FACT</span><h2>Source facts</h2><span class="sub">Extracted from filings and public data. Not opinion.</span></div><div class="mb-ft"><div class="hd"><span>Metric</span><span>Value</span><span>Prior</span><span>Source</span><span>As of</span></div>';
+  each(D.facts, function (f) {
+    h += '<div class="fx"><span class="k">' + f.k + '</span><span class="v">' + f.v + '</span><span class="p">' + f.p + '</span><span class="s">' + f.s + ' · ' + f.loc + '</span><span class="a">' + f.a + '</span><span class="fmeta">' + f.p + ' · ' + f.s + ' ' + f.loc + ' · as of ' + f.a + '</span></div>';
+  });
+  h += '</div><ul class="mb-srcs">';
+  each(srcIds(), function (k) { var s = D.sources[k]; h += '<li><span class="id">' + k + '</span><span><span class="ty">' + s.type + '</span>' + s.title + '. ' + s.meta + '.</span></li>'; });
+  h += '</ul></section>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag">LOG</span><h2>Revision history</h2><span class="sub">Revision 2 compared with revision 1, paragraph 3.</span></div>';
+  var nv = D.view[2];
+  if (nv && nv.old) h += '<div class="mb-diff"><p class="del"><span class="dl">− Removed · rev 1 · ' + D.firstWritten + '</span><s>' + nv.old + '</s></p><p class="ins"><span class="dl">+ Added · rev 2 · ' + D.reviewed + '</span>' + nv.t.replace(CITE, '') + '</p></div>';
+  h += '<ul class="mb-hist">';
+  each(revNewest(), function (r) { h += '<li><time>R' + r.n + ' ' + r.d + '</time><span>' + r.r + '</span></li>'; });
+  h += '</ul></section>';
+
+  h += '<section class="mb-sec"><div class="mb-sec-h"><span class="tag">LINK</span><h2>Linked notes</h2></div><ul class="mb-links">';
+  each(D.links, function (l) { h += '<li>' + l + '</li>'; });
+  h += '</ul></section>';
+
+  h += '<section class="mb-sec"><div class="mb-disc"><dl><dt>Type</dt><dd>Educational case study</dd><dt>Registration</dt><dd>Not a SEBI-registered RA or IA</dd><dt>Position</dt><dd>None</dd><dt>Data lag</dt><dd>At least 30 days</dd><dt>Reviewed</dt><dd>' + D.reviewed + '</dd></dl><p>' + D.disclosure() + '</p></div></section>';
+  h += '</div></div></article>';
+  return h;
+}
+
+/* ---------- B+ and H: one renderer, two type systems ---------- */
+var uid = 0;
+var ICON = {
+  "Met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>',
+  "Not met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  "Watching": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 1.4a4.6 4.6 0 0 1 0 9.2z" fill="currentColor"/></svg>',
+  "No data": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>'
+};
+function factsAt(s, loc) { return D.facts.filter(function (f) { return f.s === s && f.loc === loc; }); }
+function sentences(t) { return t.replace(CITE, '').split(/(?<=[.?!])\s+(?=[A-Z₹0-9])/); }
+function kv(k, n, u, cls) { return '<div class="kv' + (cls ? ' ' + cls : '') + '"><span class="k">' + k + '</span><span class="n">' + n + '</span><span class="u">' + u + '</span></div>'; }
+function emptyBox(label, lines, shape) {
+  var h = '<div class="empty"><span class="lbl">' + label + '</span>';
+  each(lines, function (l) { h += '<p>' + l + '</p>'; });
+  if (shape) { h += '<div class="shape" aria-label="Columns that will appear">'; each(shape, function (s) { h += '<span>' + s + '</span>'; }); h += '</div>'; }
+  return h + '</div>';
+}
+
+function renderP(isH) {
+  var P = 'f' + (++uid), h = '', nS = srcIds().length, nF = D.facts.length, nT = D.wrong.length, cur = D.revisions[D.revisions.length - 1];
+  var counts = {"Met": 0, "Not met": 0, "Watching": 0, "No data": 0};
+  each(D.wrong, function (w) { counts[w.status]++; });
+  var dataTo = D.dataAsOf ? 'Data to ' + D.dataAsOf : 'No figures cited';
+
+  h += '<article class="bp' + (isH ? ' h' : '') + '">';
+  /* sticky: strip + phone index */
+  h += '<div class="bp-top"><details class="strip"><summary><span class="st-line"><span><b>Education</b></span><span>No position</span><span>' + dataTo + '</span></span><span class="st-more">Details</span></summary>';
+  h += '<div class="st-body"><dl class="facts-dl"><dt>Type</dt><dd>Educational case study, not a recommendation</dd><dt>Registration</dt><dd>Not a SEBI-registered RA or IA</dd><dt>Position</dt><dd>None, taken from the ledger on ' + D.reviewed + '</dd><dt>Data lag</dt><dd>At least 30 days' + (D.dataAsOf ? '; newest figure ' + D.dataAsOf : '') + '</dd><dt>Reviewed</dt><dd>' + D.reviewed + '</dd></dl><button type="button" class="to" data-jump="disclosure">Read the full disclosure</button></div></details>';
+  h += '<nav class="idx" aria-label="Sections"><button type="button" data-jump="view" aria-current="true">View</button><button type="button" data-jump="tests" aria-current="false">Tests <span class="ct">' + nT + '</span></button><button type="button" data-jump="facts" aria-current="false">Facts <span class="ct">' + nF + '</span></button><button type="button" data-jump="history" aria-current="false">History <span class="ct">R' + cur.n + '</span></button><span class="prog" aria-hidden="true"><i></i></span></nav></div>';
+
+  h += '<div class="bp-wrap">';
+  /* desktop rail */
+  h += '<nav class="rail" aria-label="On this page"><span class="lbl">On this page</span>';
+  each([["view", "View", D.view.length + ' ¶'], ["tests", "Tests", nT], ["facts", "Facts", nF], ["sources", "Sources", nS], ["history", "History", 'R' + cur.n], ["notes", "Notes", D.links.length], ["disclosure", "Disclosure", ""]], function (r, i) {
+    h += '<button type="button" data-jump="' + r[0] + '" aria-current="' + (i === 0) + '"><span>' + r[1] + '</span><span class="ct">' + r[2] + '</span></button>';
+  });
+  h += '<dl class="file"><div><dt>This version</dt><dd>R' + cur.n + ', ' + cur.d + '<small>first written ' + D.firstWritten + '</small></dd></div><div><dt>Figures</dt><dd>' + (D.dataAsOf ? 'to ' + D.dataAsOf : 'none cited') + '</dd></div><div><dt>Tests</dt><dd>' + (nT ? counts["Not met"] + ' not met, ' + counts["Watching"] + ' watching, ' + counts["No data"] + ' no data' : 'none yet') + '</dd></div><div><dt>Position</dt><dd>None</dd></div></dl></nav>';
+
+  h += '<div class="bp-main">';
+  /* header */
+  h += '<header><p class="crumb">Companies / Kaveri Pumps · <span class="id">' + D.symbol + '</span></p><h1>' + D.name + '</h1><p class="one">' + D.oneLiner + '</p>';
+  h += '<div class="obj"><span class="lbl">What this teaches</span><p>' + D.objective + '</p></div>';
+  h += '<dl class="dateline"><div><dt>This version</dt><dd>R' + cur.n + ' of ' + D.revisions.length + '</dd></div><div><dt>' + (D.revisions.length > 1 ? 'Revised' : 'Written') + '</dt><dd>' + cur.d + '</dd></div><div><dt>First written</dt><dd>' + D.firstWritten + '</dd></div><div><dt>Figures to</dt><dd>' + (D.dataAsOf || 'None cited') + '</dd></div></dl></header>';
+
+  /* VIEW */
+  h += '<section class="sec" data-sec="view"><div class="sec-h"><span class="kind view">VIEW</span><h2>Aksh\'s view</h2><p class="sub">His own words. ' + (nF ? 'Each figure opens the line it came from.' : 'No figures yet, so nothing to cite.') + '</p></div><div class="view">';
+  each(D.view, function (para, pi) {
+    var cards = '';
+    var txt = para.t.replace(CITE, function (m, s, loc, a) {
+      var id = P + '-c' + pi + '-' + s + loc.replace(/\W/g, ''), fs = factsAt(s, loc), src = D.sources[s];
+      var c = '<div class="card" id="' + id + '" hidden><div class="card-h"><span class="kind fact">FACT</span><span class="id">' + s + ' · ' + loc + '</span><span class="asof">as of ' + a + '</span></div>';
+      each(fs, function (f) { c += kv(f.ks, f.n, f.u); if (f.pv) c += kv(f.pl, f.pv, f.u, 'pr'); });
+      c += '<div class="q"><span class="lbl">Quoted from the filing</span><p>“' + fs[0].q + '”</p></div><p class="card-src">' + src.title + ' · ' + src.meta + '</p><button type="button" class="card-x" data-close="' + id + '">Close</button></div>';
+      cards += c;
+      return '<button type="button" class="chip" aria-expanded="false" aria-controls="' + id + '" aria-label="Source ' + s + ', ' + loc + ', as of ' + a + '"><b>' + s + '</b>' + loc + '</button>';
+    });
+    h += '<div class="para">' + (para.rev ? '<p class="revmark"><span class="id">R' + para.rev + '</span><span>Rewritten ' + D.reviewed + '</span><button type="button" data-jump="history">See the change</button></p>' : '') + '<p>' + txt + '</p>' + cards + '</div>';
+  });
+  h += '</div></section>';
+
+  /* TEST */
+  h += '<section class="sec" data-sec="tests"><div class="sec-h"><span class="kind">TEST</span><h2>What would prove me wrong</h2><p class="sub">Each condition is checked when a new filing lands.</p></div>';
+  if (nT) {
+    h += '<p class="tsum">';
+    each(["Met", "Not met", "Watching", "No data"], function (s) { h += '<span>' + ICON[s] + '<span class="n">' + counts[s] + '</span> ' + s.toLowerCase() + '</span>'; });
+    h += '</p><p class="legend">Met means the condition has happened, so the view is wrong on that test. All checked ' + D.wrong[0].checked + '.</p>';
+    h += '<ol class="tests"><li class="thd" aria-hidden="true"><span>Status</span><span>Latest reading</span><span>Checked</span></li>';
+    each(D.wrong, function (w, i) {
+      h += '<li class="t"><span class="tn">' + (i + 1) + '</span><div><p class="tc"><span class="lead">I would be wrong if</span> ' + w.c + (w.added ? ' <span class="added">added in R' + w.added + '</span>' : '') + '</p>';
+      h += '<dl class="te"><dt class="sr">Status</dt><dd class="s">' + ICON[w.status] + w.status + '</dd><dt class="sr">Latest reading</dt><dd class="r"><span class="pfx" aria-hidden="true">Latest</span>' + w.latest + '<small>data to ' + w.asof + '</small></dd><dt class="sr">Last checked</dt><dd class="c">' + w.checked + '</dd></dl></div></li>';
+    });
+    h += '</ol>';
+  } else {
+    h += emptyBox('No tests yet', ['Aksh has not yet written the conditions that would prove this view wrong. Each test will appear as one row, so a reader can see in a few seconds which ones have happened.'], ['Condition', 'Status', 'Latest reading', 'Checked']);
+  }
+  h += '</section>';
+
+  /* FACT */
+  h += '<section class="sec" data-sec="facts"><div class="sec-h"><span class="kind fact">FACT</span><h2>Source facts</h2><p class="sub">Taken from filings and public data. Not Aksh\'s words.</p></div>';
+  if (nF) {
+    h += '<p class="fsum">' + nF + ' figures from ' + nS + ' sources · newest as of ' + D.dataAsOf + '</p><table class="ft"><caption class="sr">Source facts, grouped by period</caption><thead><tr><th scope="col">Metric</th><th scope="col" class="r" colspan="2">Value</th><th scope="col" class="r">Prior</th><th scope="col" style="padding-left:18px">Source</th></tr></thead>';
+    each([1, 2], function (g) {
+      var G = D.groups[g];
+      h += '<tbody><tr class="grp"><th colspan="5" scope="rowgroup">' + G.name + ' <span>· ' + G.span + ' · as of ' + G.a + '</span></th></tr>';
+      each(D.facts, function (f) {
+        if (f.g !== g) return;
+        h += '<tr><th scope="row">' + f.ks + '</th><td class="n">' + f.n + '</td><td class="u">' + f.u + '</td><td class="pr">' + (f.pv ? '<span class="pl">' + f.pl + '</span>' + f.pv : '<span class="pl">' + (f.pl || '–') + '</span>') + '</td><td class="s"><span class="id">' + f.s + '</span> · ' + f.loc + '</td></tr>';
+      });
+      h += '</tbody>';
+    });
+    h += '</table>';
+  } else {
+    h += emptyBox('No source facts yet', ['This draft cites no filings, so it states no figures. A figure can only appear here with its source, page and as-of date, and the view above can only quote figures that appear here.'], ['Metric', 'Value', 'Prior', 'Source', 'As of']);
+  }
+  h += '<div data-sec="sources">';
+  if (nS) {
+    h += '<ol class="srcs" aria-label="Sources">';
+    each(srcIds(), function (k) { var s = D.sources[k]; h += '<li><span class="id">' + k + '</span><span><span class="ty">' + s.type + '</span>' + s.title + '<small>' + s.meta + '</small></span></li>'; });
+    h += '</ol>';
+  }
+  h += '</div></section>';
+
+  /* LOG */
+  h += '<section class="sec" data-sec="history"><div class="sec-h"><span class="kind log">LOG</span><h2>Revision history</h2><p class="sub">The reason comes first, then every sentence that changed.</p></div>';
+  if (D.revisions.length > 1) {
+    var nv = D.view[2], added = D.facts.filter(function (f) { return f.r === cur.n; }), newT = D.wrong.filter(function (w) { return w.added === cur.n; });
+    h += '<div class="rv"><p class="rv-h"><span class="id">R' + cur.n + '</span><b>' + cur.d + '</b><span>1 paragraph rewritten · ' + newT.length + ' test added · ' + added.length + ' facts added</span></p>';
+    h += '<p class="reason">' + cur.r + '</p>';
+    h += '<div class="dseg" role="group" aria-label="Show"><button type="button" data-pane="chg" aria-pressed="true">Changes</button><button type="button" data-pane="r2" aria-pressed="false">Read R2</button><button type="button" data-pane="r1" aria-pressed="false">Read R1</button></div>';
+    h += '<div class="pane" data-p="chg"><p class="loc">View, paragraph 3 · removed from R1</p><ol class="dl del">';
+    each(sentences(nv.old), function (s) { h += '<li><span class="g" aria-hidden="true">−</span><span><span class="sr">Removed: </span>' + s + '</span></li>'; });
+    h += '</ol><p class="loc">View, paragraph 3 · added in R2</p><ol class="dl ins">';
+    each(sentences(nv.t), function (s) { h += '<li><span class="g" aria-hidden="true">+</span><span><span class="sr">Added: </span>' + s + '</span></li>'; });
+    h += '</ol><p class="loc">Tests · added in R2</p><ol class="dl ins">';
+    each(newT, function (w) { h += '<li><span class="g" aria-hidden="true">+</span><span><span class="sr">Added: </span>Test 3. I would be wrong if ' + w.c + '</span></li>'; });
+    h += '</ol><p class="loc">Facts · added in R2</p><ol class="dl ins">';
+    each(added, function (f) { h += '<li><span class="g" aria-hidden="true">+</span><span class="fx"><span class="sr">Added: </span>' + f.k + ': ' + f.v + ' (' + f.s + ', ' + f.loc + ')</span></li>'; });
+    h += '</ol></div>';
+    h += '<div class="pane" data-p="r2" hidden>';
+    each(D.view, function (p) { h += '<p>' + p.t.replace(CITE, '') + '</p>'; });
+    h += '<p class="note">Current text, source links hidden.</p></div><div class="pane" data-p="r1" hidden>';
+    each(D.view, function (p) { h += '<p>' + (p.old || p.t).replace(CITE, '') + '</p>'; });
+    h += '<p class="note">As published on ' + D.firstWritten + '. Kept unchanged.</p></div>';
+    h += '<ol class="rlog" reversed>';
+    each(revNewest(), function (r) { h += '<li><span class="when"><span class="id">R' + r.n + '</span>' + r.d + '</span><span class="why">' + r.r + '</span></li>'; });
+    h += '</ol></div>';
+  } else {
+    h += emptyBox('No revisions yet', ['R1 is the only version, written ' + cur.d + '. When Aksh revises this page, the reason will show here first, then each sentence removed and added, then any tests or facts that arrived.'], ['Reason', 'Removed', 'Added', 'Read R1 / R2']);
+  }
+  h += '</section>';
+
+  /* LINK + disclosure */
+  h += '<section class="sec" data-sec="notes"><div class="sec-h"><span class="kind plain">LINK</span><h2>Linked notes</h2></div><ul class="links">';
+  each(D.links, function (l) { h += '<li><a href="#">' + l + '</a></li>'; });
+  h += '</ul></section>';
+  h += '<section class="sec disc" data-sec="disclosure"><span class="lbl">Disclosure</span><p class="pos">Position in this security: <b>None</b><small>Taken from the ledger when this version was published, ' + D.reviewed + '.</small></p><dl class="facts-dl"><dt>Type</dt><dd>Educational case study</dd><dt>Registration</dt><dd>Not a SEBI-registered RA or IA</dd><dt>Data lag</dt><dd>At least 30 days</dd><dt>Reviewed</dt><dd>' + D.reviewed + '</dd></dl><p class="full">' + D.disclosure() + '</p></section>';
+  h += '</div></div></article>';
+  return h;
+}
+
+/* ---------- mount ---------- */
+var R = {B: renderB, P: function () { return renderP(false); }, H: function () { return renderP(true); }};
+var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mountAll() {
+  each(document.querySelectorAll('[data-render]'), function (el) { el.innerHTML = R[el.getAttribute('data-render')](); el.scrollTop = 0; spy(el); });
+}
+function spy(vp) {
+  var top = vp.querySelector('.bp-top'); if (!top) return;
+  var off = top.offsetHeight + 28, vr = vp.getBoundingClientRect().top, cur = 'view';
+  each(vp.querySelectorAll('[data-sec]'), function (s) { if (s.getBoundingClientRect().top - vr <= off) cur = s.getAttribute('data-sec'); });
+  if (cur === 'sources') cur = 'facts';
+  each(vp.querySelectorAll('.idx [data-jump], .rail [data-jump]'), function (b) {
+    var k = b.getAttribute('data-jump'), on = k === cur || (cur === 'notes' || cur === 'disclosure') && k === 'history' && b.closest('.idx');
+    b.setAttribute('aria-current', on ? 'true' : 'false');
+  });
+  var bar = vp.querySelector('.prog i');
+  if (bar) bar.style.transform = 'scaleX(' + Math.min(1, vp.scrollTop / Math.max(1, vp.scrollHeight - vp.clientHeight)) + ')';
+}
+each(document.querySelectorAll('[data-render]'), function (vp) {
+  var t = 0;
+  vp.addEventListener('scroll', function () { if (!t) t = requestAnimationFrame(function () { t = 0; spy(vp); }); }, {passive: true});
+});
+document.addEventListener('click', function (e) {
+  var a = e.target.closest('.vp a[href="#"]'); if (a) e.preventDefault();
+  var chip = e.target.closest('.chip[aria-controls]');
+  if (chip) { var c = document.getElementById(chip.getAttribute('aria-controls')), open = chip.getAttribute('aria-expanded') !== 'true'; chip.setAttribute('aria-expanded', open ? 'true' : 'false'); c.hidden = !open; return; }
+  var x = e.target.closest('[data-close]');
+  if (x) { var id = x.getAttribute('data-close'), ch = document.querySelector('[aria-controls="' + id + '"]'); document.getElementById(id).hidden = true; ch.setAttribute('aria-expanded', 'false'); ch.focus(); return; }
+  var j = e.target.closest('[data-jump]');
+  if (j) {
+    var vp = j.closest('.vp'), tg = vp.querySelector('[data-sec="' + j.getAttribute('data-jump') + '"]'), top = vp.querySelector('.bp-top');
+    var strip = j.closest('details'); if (strip) strip.open = false;
+    vp.scrollTo({top: tg.getBoundingClientRect().top - vp.getBoundingClientRect().top + vp.scrollTop - top.offsetHeight - 12, behavior: reduce ? 'auto' : 'smooth'});
+    return;
+  }
+  var pb = e.target.closest('[data-pane]');
+  if (pb) {
+    var rv = pb.closest('.rv'), want = pb.getAttribute('data-pane');
+    each(rv.querySelectorAll('[data-pane]'), function (b) { b.setAttribute('aria-pressed', b === pb ? 'true' : 'false'); });
+    each(rv.querySelectorAll('.pane'), function (p) { p.hidden = p.getAttribute('data-p') !== want; });
+  }
+});
+
+/* ---------- controls ---------- */
+var root = document.documentElement;
+function press(sel, btn) { each(document.querySelectorAll(sel), function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); }); }
+each(document.querySelectorAll('[data-theme-btn]'), function (b) {
+  b.addEventListener('click', function () { var t = b.getAttribute('data-theme-btn'); if (t === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t); press('[data-theme-btn]', b); });
+});
+each(document.querySelectorAll('[data-layout-btn]'), function (b) {
+  b.addEventListener('click', function () { document.body.classList.toggle('phones', b.getAttribute('data-layout-btn') === 'phones'); press('[data-layout-btn]', b); each(document.querySelectorAll('[data-render]'), spy); });
+});
+each(document.querySelectorAll('[data-content-btn]'), function (b) {
+  b.addEventListener('click', function () { D = b.getAttribute('data-content-btn') === 'empty' ? EMPTY : FULL; press('[data-content-btn]', b); mountAll(); });
+});
+mountAll();
+</script>
+</body>
+</html>
