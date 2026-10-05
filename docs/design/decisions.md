@@ -21,7 +21,7 @@ Each entry: segment, options shown, choice, reason, date. Never redo a decided s
 - **Options shown (2026-10-05):** A Ledger (table as the exhibit, sticky key row on phone), B Exhibits (numbered figure blocks: chart first, Chart/Table toggle, source + as-of footer), C Instrument rows (one row per measure with sparkline, opens into periods and quotes; tests as distance-to-threshold meters). `comparisons/03-data-display.html`, brief `segment-03-data-brief.md`, 34 screens from 16 sites.
 - **PROVISIONAL (controller, Shlok in class; confirm or overturn):** B's exhibit frame for every figure block; exhibit 1 opens on A's ledger table with the sticky phone key row as its Table tab; C's distance-to-threshold meters for kill criteria; B's large figures with unit squares for the register-home stat tiles; B's heatmap only in the private valuation panel.
 - **Compliance ruling (rule 9):** public scenario tables never show equity value or per-share value; operating outputs only. Equity/per-share values live in the private panel.
-- **Status:** PROVISIONAL 2026-10-05, awaiting Shlok.
+- **Status:** CONFIRMED by Shlok 2026-10-05.
 
 ## Segment 6: motion (pulled forward at Shlok's request)
 - **Options shown (2026-10-05):** Instrument (snap/tick/roll, 120-220 ms, one ease-out), Paper (glide/draw/settle, 160-300 ms, shared-element morph), Terminal (draw/count/stamp, instant feedback). `comparisons/06-motion.html` (CSS + Web Animations API, no library; CLS 0 measured), brief `segment-06-motion-brief.md`. Research: `docs/research/2026-10-05-motion-landscape.md`.
@@ -35,3 +35,11 @@ Each entry: segment, options shown, choice, reason, date. Never redo a decided s
 - **Shared rules kept:** red liveness strip names what is late, says notes are safe and that Shlok was emailed; offline captures show "on this phone"; gate failure shows sentence + rule number + matched words; allowances only for rule-1 sentences with a reason; rule 3 "no allowance"; publish disabled while any rule fails or the rule-4 hand check is unticked; no override control.
 - **Reason (Shlok):** accepted the recommendation; trays make Phase 2 job states legible without logs; borrowings fix capture feel and gate clarity. Capture path is 3 taps on phone; measure the < 5 s target on a real phone in the Plan 1A smoke test.
 - **Status:** DECIDED 2026-10-05.
+
+## Segment 5: identity
+- **Options shown (2026-10-05):** A Masthead (name-led editorial, blue-black #23439A, 0 px radii), B Assay (coined desk brand + crucible monogram, cold teal #006A7E, 6 px radii; candidate names Assay / Plumbline / Nikasha), C Case files (under Aksh's name, khadi off-white, geru red-ochre #A13A22 accent, neel indigo thresholds, 3 px radii, numbering as the mark). `comparisons/05-identity.html`, brief `segment-05-identity-brief.md`, 30 identities studied.
+- **DECIDED: C Case files with A's restraint.** Published under Aksh's own name ("Aksh Agrawal · Case files"); the mark is the numbering (File 03, Ex. 03.1, T1; file numbers never reused); geru only for the hand (links, focus, active tab, mark), never on figures/statuses/chart series; chart subject in ink, benchmark grey, thresholds one separate hue; no ornament in the chrome; imagery limited to cited crops of primary documents plus one dated portrait on About; links underlined; third-person chrome around first-person VIEW. Fonts: keep IBM Plex Sans + Plex Mono (Plex has a Devanagari companion). Favicon: SVG with prefers-color-scheme + 32 px PNG fallback, dedicated 16 px drawing. Share card: one fixed card, linted under rule 8.
+- **Answers Q5:** own name, not a desk brand; check akshagrawal.in first. B's names reserved for a future SEBI-registered phase.
+- **Status:** DECIDED 2026-10-05 (Shlok).
+
+## All six segments decided (2026-10-05). Next: `design-dna.md` tokens + component inventory, then Plan 1B.

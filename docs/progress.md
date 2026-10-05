@@ -7,7 +7,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
 ## Status snapshot
 - **Phase:** 0 complete (ADR-001 accepted, Phase 1 spec approved, Plan 1A written). Phase 1 not started.
 - **Last session:** 2026-10-04 - kickoff, research, ADR-001 + red team, agents, env template, rubrics, Plan 1A (7,007 lines), UI segment 1 comparison
-- **Next highest-value task:** Shlok confirms segment 3 (provisional) and picks segment 5 (identity); then `docs/design/design-dna.md` tokens and Plan 1B. Build: Task 3 blocked on Docker Desktop crash (fix steps given); Task 2 waits for Vercel creds. WHY: Plan 1B needs all three. In parallel: Task 0 prerequisites by hand, then `superpowers:subagent-driven-development` on Plan 1A from Task 1 (does not depend on UI choices).
+- **Next highest-value task:** `docs/design/design-dna.md` (tokens + component inventory) then Plan 1B (public pages + desk screens). Build: Task 3 under review; Task 4 next; Task 2 waits for Vercel creds. Build: Task 3 blocked on Docker Desktop crash (fix steps given); Task 2 waits for Vercel creds. WHY: Plan 1B needs all three. In parallel: Task 0 prerequisites by hand, then `superpowers:subagent-driven-development` on Plan 1A from Task 1 (does not depend on UI choices).
 - **Blocked on:** credentials in `.env.local` (REQUIRED-P1 in `.env.example`); Mobbin MCP needs a paid plan (Q7)
 
 ## Phase 0 - Kickoff and planning
@@ -37,7 +37,7 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 - [ ] 1.5 `research` module: items + revisions service, TDD
 - [ ] 1.6 `compliance` module: lint + `publish_item()` + `gate_decisions`, adversarial tests
 - [ ] 1.7 Quick capture (`t:` `l:` `$SYM` `#theme` grammar) + daily capture log
-- [~] 1.8 UI segments 1-3 decided with Shlok → `docs/design/decisions.md`. Segments 1 (B+ Labelled Blocks) and 2 (Register + What-changed + Read-first) DECIDED; segment 3 (Exhibits + Ledger table + meters) PROVISIONAL pending Shlok; segment 6 motion DECIDED (Instrument + morph + draw-to-cap); segment 4 DECIDED (Trays + A capture + B gate notes); segment 5 (identity) in progress
+- [x] 1.8 UI segments 1-6 decided with Shlok → `docs/design/decisions.md`. Segments 1 (B+ Labelled Blocks) and 2 (Register + What-changed + Read-first) DECIDED; ALL SIX SEGMENTS DECIDED 2026-10-05 (1 B+ Labelled Blocks; 2 Register+What-changed+Read-first; 3 Exhibits+Ledger+meters; 4 Trays+capture internals+gate notes; 5 Case files under Aksh's name; 6 Instrument+morph+draw-to-cap)
 - [ ] 1.9 Public pages: desk home, company page (thesis + revisions + sources), learning note, about/process, disclosures
 - [ ] 1.10 Three clocks: `/api/cron/daily` heartbeat, `/api/jobs/run` pump via `.github/workflows/pump.yml` (15 min), `/api/health` + external uptime monitor emailing Shlok + Aksh
 - [ ] 1.11 Seed with 2 real companies from Aksh's notepad/Excel; 3-day usage trial; fix friction
