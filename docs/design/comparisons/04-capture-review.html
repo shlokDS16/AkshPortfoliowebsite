@@ -641,7 +641,7 @@ input.cell.fixed{border-color:var(--good)}
       <tr><th scope="row">Inbox</th><td>A status column in caps (READY, READING, PAUSED, ATTENTION, QUEUED), ETA right-aligned, budget as meters.</td><td>"Reading pile": a status sentence per document and a thin progress line; the budget in one sentence.</td><td>Sections as in HEY: Ready for you, Needs attention, Being read, Paused, Waiting to start.</td></tr>
       <tr><th scope="row">Review</th><td>Page text beside a values grid; flags listed under the grid; phone: Values and Page tabs.</td><td>The page as a sheet, the values as a card; each flag shows a torn strip of its page line.</td><td>One flagged value at a time: what the desk read against what the totals need, then approve and file.</td></tr>
       <tr><th scope="row">New names</th><td>A table with inline name entry and merge suggestions.</td><td>A question per name: "You wrote $LOHITGLS (2 notes). Which company is it?"</td><td>Screener cards: a new company, the same as an existing one, or not a company.</td></tr>
-      <tr><th scope="row">Phone capture path</th><td>Home-screen icon, tap the docked box, type, tap send: 2 taps.</td><td>Icon, tap the next line, type, tap Save: 2 taps; the line is at the top, a long reach on a large phone.</td><td>Icon, tap Capture (sheet opens, keyboard up), type, tap Save: 2 taps.</td></tr>
+      <tr><th scope="row">Phone capture path</th><td>Home-screen icon, tap the docked box, type, tap send: 3 taps including the icon. Laptop: type, Enter.</td><td>Icon, tap the next line, type, tap Save: 3 taps; the line is at the top, a long reach on a large phone. Laptop: type, Enter.</td><td>Icon, tap Capture (sheet opens, keyboard up), type, tap Save: 3 taps. Laptop: c, type, Enter.</td></tr>
     </tbody>
   </table>
   </div>
@@ -937,7 +937,7 @@ function editorA(d) {
   passes(d).forEach(function (r) { h += '<li><div class="r"><span class="stw ' + (r[0] === 'pass' ? 'good' : 'warn') + '">' + I(r[0] === 'pass' ? 'check' : 'hand', 's') + (r[0] === 'pass' ? 'pass' : 'by hand') + '</span><span class="nm">' + r[1].toLowerCase() + '</span><span>' + r[2] + '</span></div><p>' + r[3] + '</p>' + (r[1] === 'Rule 4' ? ck4(d) : '') + '</li>'; });
   h += '</ul><div class="a-gf"><p><b>' + (f.length ? f.length + ' failing. Publishing R3 is blocked.' : canPub(d) ? 'Every rule passes.' : 'Rules pass; tick the rule 4 check.') + '</b>' + (f.length ? ' There is no override: edit the sentence, or allow a rule 1 sentence with a reason.' : '') + '</p><div class="row"><button type="button" class="btn pri" data-publish' + (canPub(d) ? '' : ' disabled') + '>Publish R3</button><button type="button" class="btn" data-rerun>Run again <kbd>Ctrl Enter</kbd></button></div></div></section>';
   h += '<div><p class="a-crumb">items / kaveri-pumps-motors / thesis / R3 draft</p><h1 class="a-t">' + esc(F.title) + '</h1><p class="fine">R2 is public since 24 Aug 2026 and stays up until R3 passes the gate.</p></div>';
-  h += '<div class="a-fm"><label for="' + d + 'k">kind</label><span class="mono" id="' + d + 'k">thesis · public item</span><label for="' + d + 'o">objective</label><input id="' + d + 'o" value="' + esc(F.obj) + '"><label for="' + d + 'a">data_as_of</label><input id="' + d + 'a" type="date" value="' + F.asof + '"><span class="ok">≤ 5 Sep 2026, lag ok</span><label for="' + d + 'h">holds_position</label><select id="' + d + 'h"><option>yes</option><option selected>no</option><option>not disclosed</option></select><label for="' + d + 'w">change_reason</label><input id="' + d + 'w" value="' + esc(F.why) + '"></div>';
+  h += '<div class="a-fm"><span class="mono fine">kind</span><span class="mono">thesis · public item</span><label for="' + d + 'o">objective</label><input id="' + d + 'o" value="' + esc(F.obj) + '"><label for="' + d + 'a">data_as_of</label><input id="' + d + 'a" type="date" value="' + F.asof + '"><span class="ok">≤ 5 Sep 2026, lag ok</span><label for="' + d + 'h">holds_position</label><select id="' + d + 'h"><option>yes</option><option selected>no</option><option>not disclosed</option></select><label for="' + d + 'w">change_reason</label><input id="' + d + 'w" value="' + esc(F.why) + '"></div>';
   h += '<ol class="a-body" aria-label="Body, numbered sentences">' + SENT.map(function (s) { return '<li>' + sentHTML(d, s) + '</li>'; }).join('') + '</ol>';
   var D = diffLines(d);
   h += '<section class="a-diff" aria-label="Diff"><div class="hd"><span>diff</span><span class="tg" role="group" aria-label="Revisions"><button type="button" data-diff="r12" aria-pressed="' + (ST[d].diff === 'r12') + '">R1→R2</button><button type="button" data-diff="r23" aria-pressed="' + (ST[d].diff !== 'r12') + '">R2→R3</button></span><span>' + esc(D.a) + ' → ' + esc(D.b) + '</span></div><div class="ln eq" style="font-size:12.5px"><span>reason: ' + esc(D.why) + '</span></div>' +
@@ -1151,7 +1151,7 @@ function inboxC(d) {
 function reviewC(d) {
   var left = rvLeft(d), k = left[0], h = tb(d) + strips(d) + '<div class="c-rv">';
   h += '<div class="full"><p class="fine">Kaveri annual report FY26 · page 142 · profit and loss</p><h1 style="font-size:20px;margin-top:2px">' + (left.length ? 'Check ' + (3 - left.length) + ' of 2' : 'All values checked') + '</h1></div>';
-  var list = '<ul class="c-flist">' + PL.map(function (r, i) { var kk = flagAt(i, 1) || flagAt(i, 2), fl = kk && !ST[d].rv[kk]; return '<li class="' + (fl ? 'fl' : '') + '">' + I(fl ? 'alert' : 'check') + '<span>' + esc(r[0]) + '</span><span class="v">' + cellVal(d, i, 1) + '</span></li>'; }).join('') + '</ul>';
+  var list = '<ul class="c-flist">' + PL.map(function (r, i) { var kk = flagAt(i, 1) || flagAt(i, 2), fl = kk && !ST[d].rv[kk]; return '<li class="' + (fl ? 'fl' : '') + '">' + I(fl ? 'alert' : 'check') + '<span>' + esc(r[0]) + '</span><span class="v">' + (kk === 'tax' ? 'FY25 ' + cellVal(d, i, 2) : cellVal(d, i, 1)) + '</span></li>'; }).join('') + '</ul>';
   h += '<aside class="only-d" aria-label="All values">' + list + '</aside>';
   if (k) {
     var f = FLAG[k], row = PL[f.row];
@@ -1223,7 +1223,7 @@ document.addEventListener('input', function (e) {
 document.addEventListener('keydown', function (e) {
   var el = e.target;
   if (el.matches && el.matches('textarea[data-cap]') && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(el.closest('[data-unit]')); return; }
-  if (e.key === '/' && el.classList && el.classList.contains('vp') && SCREEN === 'home') { var ta = visibleTA(el); if (ta) { e.preventDefault(); ta.focus(); } }
+  if ((e.key === '/' || e.key === 'c') && el.classList && el.classList.contains('vp') && SCREEN === 'home') { var ta = visibleTA(el); if (ta) { e.preventDefault(); ta.focus(); } }
 });
 document.addEventListener('mousedown', function (e) { if (e.target.closest && e.target.closest('[data-ins]')) e.preventDefault(); });
 document.addEventListener('change', function (e) {
@@ -1291,7 +1291,7 @@ var root = document.documentElement;
 function press(sel, btn) { each(document.querySelectorAll(sel), function (x) { x.setAttribute('aria-pressed', x === btn ? 'true' : 'false'); }); }
 each(document.querySelectorAll('[data-theme-btn]'), function (b) { b.addEventListener('click', function () { var t = b.getAttribute('data-theme-btn'); if (t === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t); press('[data-theme-btn]', b); }); });
 each(document.querySelectorAll('[data-layout-btn]'), function (b) { b.addEventListener('click', function () { document.body.classList.toggle('phones', b.getAttribute('data-layout-btn') === 'phones'); press('[data-layout-btn]', b); }); });
-each(document.querySelectorAll('[data-screen-btn]'), function (b) { b.addEventListener('click', function () { SCREEN = b.getAttribute('data-screen-btn'); press('[data-screen-btn]', b); mountAll(); }); });
+each(document.querySelectorAll('[data-screen-btn]'), function (b) { b.addEventListener('click', function () { SCREEN = b.getAttribute('data-screen-btn'); press('[data-screen-btn]', b); mountAll(); each(document.querySelectorAll('.vp'), function (v) { v.scrollTop = 0; }); }); });
 each(document.querySelectorAll('[data-mode-btn]'), function (b) { b.addEventListener('click', function () { MODE = b.getAttribute('data-mode-btn'); if (MODE !== 'offline') ['A', 'B', 'C'].forEach(function (d) { ST[d].caps.forEach(function (c) { c.q = false; }); }); press('[data-mode-btn]', b); mountAll(); }); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { each(document.querySelectorAll('textarea[data-cap]'), sizeTA); });
 mountAll();
