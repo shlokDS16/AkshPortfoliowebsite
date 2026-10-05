@@ -1,0 +1,1252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Navigation and IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- comparison shell (neutral, not a design proposal) ---------- */
+:root{--s-bg:#EFEFEC;--s-ink:#191919;--s-muted:#575757;--s-rule:#D2D2CD;--s-card:#FFFFFF;--s-hi:#191919;--s-on-hi:#FFFFFF}
+:root[data-theme=dark]{--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--s-bg);color:var(--s-ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+a{color:inherit}
+.shell{max-width:1480px;margin:0 auto;padding:28px 32px 8px}
+.shell h1{font-size:22px;margin:0 0 6px;font-weight:650;letter-spacing:-.01em}
+.shell p{margin:0 0 8px;color:var(--s-muted);max-width:980px}
+.controls{display:flex;flex-wrap:wrap;gap:14px 18px;margin:16px 0 4px;align-items:center}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--s-rule);border-radius:8px;overflow:hidden;background:var(--s-card)}
+.seg span{padding:7px 10px;font-size:12px;color:var(--s-muted);border-right:1px solid var(--s-rule);align-self:center}
+.seg button{font:inherit;font-size:13px;padding:7px 12px;border:0;background:transparent;color:var(--s-ink);cursor:pointer;min-height:36px}
+.seg button+button{border-left:1px solid var(--s-rule)}
+.seg button[aria-pressed=true]{background:var(--s-hi);color:var(--s-on-hi)}
+.seg button:focus-visible{outline:2px solid var(--s-ink);outline-offset:-3px}
+.dirs{max-width:1480px;margin:0 auto;padding:0 20px}
+.dir{margin:36px 0 56px}
+.dir-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;max-width:1000px}
+.dir-letter{flex:none;min-width:38px;height:38px;padding:0 6px;display:grid;place-items:center;border:1.5px solid var(--s-ink);border-radius:6px;font-weight:700;font-size:17px}
+.dir-head h2{margin:0;font-size:19px;font-weight:650}
+.dir-head p{margin:2px 0 0;color:var(--s-muted)}
+.dir-head p.thesis{color:var(--s-ink);font-weight:500}
+.stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+figure{margin:0}
+figcaption{font-size:12px;color:var(--s-muted);margin-top:8px}
+.browser{width:960px;max-width:100%;border:1px solid var(--s-rule);border-radius:10px;overflow:hidden;background:var(--s-card)}
+.chrome{height:36px;display:flex;align-items:center;gap:7px;padding:0 12px;border-bottom:1px solid var(--s-rule);font-size:12px;color:var(--s-muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--s-rule)}
+.url{margin-left:10px;padding:3px 12px;border-radius:6px;background:var(--s-bg)}
+.vp{overflow-y:auto;container-type:inline-size;overscroll-behavior:contain}
+.vp:focus-visible{outline:2px solid var(--s-ink);outline-offset:2px}
+.browser .vp{height:820px}
+.bezel{width:391px;height:800px;border:8px solid #0A0A0A;border-radius:46px;overflow:hidden;background:#0A0A0A}
+.bezel .vp{width:375px;height:100%;scrollbar-width:none}
+.bezel .vp::-webkit-scrollbar{display:none}
+body.phones .browser{display:none}
+body.phones .dirs{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+body.phones .dir{margin:24px 0 40px;width:391px}
+body.phones .dir-head{min-height:150px}
+.matrix-wrap{max-width:1480px;margin:0 auto;padding:0 32px 64px}
+.matrix-wrap h2{font-size:19px;margin:0 0 10px}
+.matrix-scroll{overflow-x:auto}
+.matrix{border-collapse:collapse;width:100%;min-width:860px;background:var(--s-card);border:1px solid var(--s-rule);font-size:13.5px}
+.matrix th,.matrix td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--s-rule)}
+.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--s-muted)}
+.matrix tbody th{width:160px;font-weight:600}
+.ask{margin-top:14px;color:var(--s-muted)}
+@media (max-width:640px){.shell,.dirs,.matrix-wrap{padding-left:16px;padding-right:16px}}
+
+/* ================= B+ (segment 1, decided; copied unchanged from 01b) ================= */
+/* B+ tokens and components. Colour is neutral greys only. */
+.bp{
+ --bg:#FCFCFB;--ink:#141619;--text:#1E2125;--muted:#565D66;--rule:#E2E4E7;--rule2:#C5CAD0;--surf:#F3F4F5;--surf2:#E9EBED;--ins:#ECEEF0;
+ --f-read:"IBM Plex Sans",system-ui,sans-serif;--f-data:"IBM Plex Sans",system-ui,sans-serif;--f-id:"IBM Plex Mono",ui-monospace,monospace;
+ --read:16.5px;--read-lh:1.62;--measure:54ch;--h1:30px;--h2:19px;--h2-w:600;--h2-st:normal;--h2-f:var(--f-data);--data:14.5px;--small:12.5px;
+ --sec-gap:48px;--gut:20px;
+ color-scheme:light;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--f-data);font-size:var(--data);line-height:1.5;
+ font-variant-numeric:lining-nums tabular-nums;font-feature-settings:"lnum","tnum"}
+:root[data-theme=dark] .bp{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark;-webkit-font-smoothing:antialiased}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .bp{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark;-webkit-font-smoothing:antialiased}}
+.bp *{box-sizing:border-box}
+.bp .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.bp .id,.bp .kind,.bp .chip,.bp .g{font-family:var(--f-id);font-variant-numeric:tabular-nums}
+.bp button{font:inherit;color:inherit;cursor:pointer}
+.bp :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+.bp a{color:var(--ink);text-decoration-color:var(--rule2);text-underline-offset:3px}
+
+/* --- sticky top: compliance strip + phone section index --- */
+.bp-top{position:sticky;top:0;z-index:5;background:var(--bg)}
+.strip{border-bottom:1px solid var(--rule);background:var(--surf);font-size:12.5px;line-height:1.35}
+.strip summary{list-style:none;display:flex;align-items:center;gap:10px;padding:7px var(--gut);min-height:34px;cursor:pointer}
+.strip summary::-webkit-details-marker{display:none}
+.st-line{display:flex;flex-wrap:wrap;gap:0 0;flex:1;min-width:0;color:var(--muted)}
+.st-line>span{white-space:nowrap}
+.st-line>span+span::before{content:"\00B7";margin:0 7px;color:var(--rule2)}
+.st-line b{font-weight:600;color:var(--text)}
+.st-more{flex:none;font-size:12px;color:var(--text);display:inline-flex;align-items:center;gap:5px}
+.st-more::after{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform .15s ease-out}
+.strip[open] .st-more::after{transform:translateY(1px) rotate(-135deg)}
+.st-body{padding:4px var(--gut) 14px;border-top:1px solid var(--rule)}
+.facts-dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:8px 0 0;font-size:13px}
+.facts-dl dt{color:var(--muted)}
+.facts-dl dd{margin:0;color:var(--text)}
+.st-body .to{display:inline-block;margin-top:10px;font-size:12.5px;border:0;background:none;padding:4px 0;min-height:30px;text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px;color:var(--ink)}
+.idx{display:flex;border-bottom:1px solid var(--rule);position:relative;background:var(--bg)}
+.idx button{flex:1;min-height:44px;border:0;background:none;font-size:13px;color:var(--muted);padding:0 4px;display:flex;align-items:center;justify-content:center;gap:5px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.idx button .ct{font-family:var(--f-id);font-size:10.5px;color:var(--muted)}
+.idx button[aria-current=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.prog{position:absolute;left:0;right:0;bottom:-1px;height:1px;pointer-events:none}
+.prog i{display:block;height:1px;background:var(--rule2);transform-origin:left;transform:scaleX(0)}
+.rail{display:none}
+
+/* --- page --- */
+.bp-wrap{padding:22px var(--gut) 72px}
+.crumb{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.crumb .id{font-size:11.5px}
+.bp h1{font-family:var(--f-read);font-size:var(--h1);line-height:1.12;font-weight:600;letter-spacing:-.015em;color:var(--ink);margin:0 0 10px}
+.one{font-family:var(--f-read);font-size:var(--read);line-height:var(--read-lh);margin:0 0 16px;max-width:var(--measure)}
+.obj{background:var(--surf);border-radius:6px;padding:12px 14px;margin:0 0 16px;max-width:var(--measure)}
+.lbl{display:block;font-family:var(--f-data);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 3px;font-style:normal}
+.obj p{margin:0;font-family:var(--f-read);font-size:var(--read);line-height:1.5;color:var(--ink)}
+.dateline{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:0;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.dateline dt{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.dateline dd{margin:2px 0 0;font-size:14px;color:var(--ink)}
+.dateline dd small{display:block;font-size:12px;color:var(--muted)}
+
+.sec{margin-top:var(--sec-gap)}
+.sec-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding-bottom:10px;margin-bottom:16px;border-bottom:1px solid var(--rule)}
+.sec-h h2{font-family:var(--h2-f);font-size:var(--h2);font-weight:var(--h2-w);font-style:var(--h2-st);line-height:1.2;margin:0;color:var(--ink);letter-spacing:-.005em}
+.sec-h .sub{flex-basis:100%;font-size:13px;color:var(--muted);margin:0}
+.kind{font-size:10.5px;font-weight:500;letter-spacing:.08em;line-height:1;padding:4px 6px 3px;border:1px solid var(--ink);border-radius:3px;color:var(--ink)}
+.kind.view{background:var(--ink);color:var(--bg)}
+.kind.fact{border-style:dashed}
+.kind.log{border-style:dotted}
+.kind.plain{border-color:var(--rule2);color:var(--muted)}
+
+/* VIEW: one continuous rule for the block, not one per paragraph */
+.view{border-left:2px solid var(--ink);padding-left:14px}
+.para p{font-family:var(--f-read);font-size:var(--read);line-height:var(--read-lh);margin:0 0 1em;max-width:var(--measure);color:var(--text);font-variant-numeric:lining-nums proportional-nums;font-feature-settings:"lnum","pnum"}
+.para:last-child p:last-of-type{margin-bottom:0}
+.para .revmark{font-family:var(--f-data);font-size:12px;color:var(--muted);margin:0 0 4px;display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline}
+.revmark .id{color:var(--ink);font-size:11px;border:1px dotted var(--ink);border-radius:3px;padding:1px 4px}
+.revmark button{border:0;background:none;padding:0;text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px;font-size:12px;color:var(--ink)}
+.bp .chip{position:relative;display:inline-flex;align-items:baseline;gap:4px;font-size:11px;line-height:1.5;padding:0 5px;margin:0 1px;border:1px solid var(--rule2);border-radius:4px;background:var(--surf);color:var(--ink);vertical-align:1px;white-space:nowrap;font-style:normal}
+.bp .chip::after{content:"";position:absolute;inset:-8px -3px}
+.bp .chip b{font-weight:500}
+.bp .chip[aria-expanded=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.card{margin:4px 0 16px;border:1px dashed var(--rule2);border-radius:6px;background:var(--surf);padding:12px 14px 10px;max-width:var(--measure);font-family:var(--f-data)}
+.card-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:11.5px;color:var(--muted);margin-bottom:8px}
+.card-h .asof{margin-left:auto;font-family:var(--f-data);font-size:12px;color:var(--ink)}
+.kv{display:grid;grid-template-columns:1fr auto 3.3em;align-items:baseline;gap:0 6px;padding:3px 0}
+.kv .k{font-size:13.5px;color:var(--text)}
+.kv .n{font-size:17px;font-weight:600;color:var(--ink);text-align:right}
+.kv .u{font-size:12px;color:var(--muted)}
+.kv.pr .k,.kv.pr .n{font-size:13px;color:var(--muted);font-weight:400}
+.q{margin:8px 0 6px;padding:8px 0 0;border-top:1px solid var(--rule)}
+.q .lbl{margin-bottom:2px}
+.para .q p{margin:0;font-size:14px;line-height:1.5;color:var(--ink)}
+.para .card p{font-family:var(--f-data);font-variant-numeric:lining-nums tabular-nums;max-width:none}
+.para .card .card-src{margin:6px 0 0;font-size:12px;line-height:1.45;color:var(--muted)}
+.bp .card-x{margin-top:8px;border:1px solid var(--rule2);background:var(--bg);border-radius:4px;font-size:12px;padding:4px 10px;min-height:30px}
+
+/* TEST: status table */
+.tsum{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 6px;font-size:13px;color:var(--text)}
+.tsum span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.tsum .n{font-weight:600;color:var(--ink)}
+.legend{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.ico{width:12px;height:12px;flex:none;color:var(--ink)}
+.tests{list-style:none;margin:0;padding:0;border:1px solid var(--rule);border-radius:6px}
+.tests .thd{display:grid;grid-template-columns:24px 1fr auto;gap:0 10px;padding:7px 12px;background:var(--surf);border-bottom:1px solid var(--rule);font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-radius:6px 6px 0 0}
+.tests .thd span:first-child{grid-column:2}
+.tests .thd span:nth-child(2){display:none}
+.tests .thd span:last-child{text-align:right}
+.t{display:grid;grid-template-columns:24px 1fr;gap:0 10px;padding:12px;border-bottom:1px solid var(--rule)}
+.t:last-child{border-bottom:0}
+.tn{font-family:var(--f-id);font-size:12px;color:var(--muted);padding-top:3px}
+.tc{margin:0 0 8px;font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:1.5;color:var(--ink)}
+.tc .lead{color:var(--muted)}
+.tc .added{font-family:var(--f-id);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.te{grid-column:2;display:grid;grid-template-columns:1fr auto;grid-template-areas:"s c" "r r";gap:4px 10px;margin:0;font-size:13px;align-items:baseline}
+.te .s{grid-area:s}.te .c{grid-area:c}.te .r{grid-area:r}
+.te .r .pfx{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-right:6px}
+.te dd{margin:0}
+.te .s{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);white-space:nowrap}
+.te .r{color:var(--text)}
+.te .r small{color:var(--muted);font-size:12px;white-space:nowrap}
+.te .r small::before{content:" \00B7  "}
+.te .c{text-align:right;color:var(--muted);white-space:nowrap}
+
+/* FACT: grouped table, as-of stated once per group, digits aligned */
+.ft{width:100%;border-collapse:collapse;font-size:14px}
+.ft th,.ft td{padding:9px 0;border-bottom:1px solid var(--rule);text-align:left;vertical-align:baseline;font-weight:400}
+.ft thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:7px 0}
+.ft .grp th{padding:16px 0 6px;font-size:12.5px;font-weight:600;color:var(--ink);border-bottom:1px solid var(--rule2)}
+.ft .grp th span{font-weight:400;color:var(--muted)}
+.ft .n{text-align:right;font-size:16px;font-weight:600;color:var(--ink);padding-right:5px}
+.ft .u{font-size:12px;color:var(--muted);width:3.6em}
+.ft .pr{text-align:right;color:var(--muted);white-space:nowrap}
+.ft .pr .pl{font-size:11.5px;margin-right:4px}
+.ft .s{font-size:12px;color:var(--muted);white-space:nowrap;padding-left:16px}
+.ft .s .id{color:var(--ink);font-size:11.5px}
+.ft thead .r{text-align:right}
+.srcs{list-style:none;margin:16px 0 0;padding:0}
+.srcs li{display:grid;grid-template-columns:30px 1fr;gap:2px 8px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.srcs .id{font-size:12px;color:var(--ink);padding-top:2px}
+.srcs .ty{display:block;font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.srcs small{display:block;font-size:12.5px;color:var(--muted)}
+.fsum{font-size:13px;color:var(--muted);margin:0 0 4px}
+
+/* LOG: reason first, then grouped sentence diff, prose not code */
+.rv{border:1px solid var(--rule);border-radius:6px;padding:14px}
+.rv-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0 0 6px;font-size:13px;color:var(--muted)}
+.rv-h .id{font-size:12px;color:var(--ink);border:1px dotted var(--ink);border-radius:3px;padding:1px 5px}
+.rv-h b{color:var(--ink);font-weight:600}
+.reason{font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:1.5;margin:0 0 12px;color:var(--ink);max-width:var(--measure)}
+.dseg{display:inline-flex;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;margin:0 0 14px}
+.dseg button{border:0;background:none;font-size:12.5px;padding:0 12px;min-height:34px;color:var(--muted)}
+.dseg button+button{border-left:1px solid var(--rule2)}
+.dseg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.pane .loc{font-family:var(--f-data);line-height:1.4;max-width:none;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.pane .loc:first-child{margin-top:0}
+.dl{list-style:none;margin:0 0 8px;padding:0}
+.dl li{display:grid;grid-template-columns:16px 1fr;gap:0 8px;padding:6px 10px 6px 8px;font-family:var(--f-read);font-size:calc(var(--read) - 1.5px);line-height:1.5}
+.dl.del li{color:var(--muted);border-left:2px dashed var(--rule2)}
+.dl.ins li{color:var(--ink);background:var(--ins);border-left:2px solid var(--ink)}
+.dl .g{font-size:13px;line-height:1.7;color:var(--muted)}
+.dl.ins .g{color:var(--ink)}
+.dl .fx{font-family:var(--f-data);font-size:13.5px}
+.pane p{font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:var(--read-lh);margin:0 0 .9em;max-width:var(--measure)}
+.pane .note{font-family:var(--f-data);font-size:12px;color:var(--muted)}
+.rlog{list-style:none;margin:14px 0 0;padding:0}
+.rlog li{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;padding:9px 0;border-top:1px solid var(--rule);font-size:13.5px}
+.rlog .when{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.rlog .when .id{color:var(--ink);font-size:11.5px;margin-right:6px}
+.rlog .why{font-family:var(--f-read);font-size:calc(var(--read) - 2px);line-height:1.45}
+
+/* empty states: show the shape of what will come, never a blank box */
+.empty{border:1px dashed var(--rule2);border-radius:6px;padding:14px;color:var(--text)}
+.empty .lbl{margin-bottom:4px}
+.empty p{margin:0 0 6px;font-size:14px;line-height:1.5;max-width:var(--measure)}
+.empty p:last-child{margin-bottom:0}
+.empty .shape{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.empty .shape span{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--rule);border-radius:3px;padding:2px 6px}
+
+.links{margin:0;padding-left:18px;font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:1.55}
+.links li{margin-bottom:6px}
+.disc{border-top:2px solid var(--ink);padding-top:14px}
+.disc .pos{font-size:15px;margin:0 0 12px;color:var(--ink)}
+.disc .pos b{font-weight:600}
+.disc .pos small{display:block;font-size:12.5px;color:var(--muted)}
+.disc .full{margin:14px 0 0;font-size:13.5px;line-height:1.55;color:var(--muted);max-width:var(--measure)}
+.disc .full strong{color:var(--ink)}
+
+
+@media (prefers-reduced-motion:reduce){.bp *{transition:none!important;scroll-behavior:auto!important}}
+
+/* --- desktop frame --- */
+@container (min-width:760px){
+ .bp{--read:17px;--h1:40px;--sec-gap:56px;--gut:32px}
+ .idx{display:none}
+ .bp-wrap{display:grid;grid-template-columns:168px minmax(0,640px);gap:52px;padding:36px 44px 110px}
+ .rail{display:block;position:sticky;top:64px;align-self:start;font-size:13px}
+ .rail .lbl{margin-bottom:8px}
+ .rail button{display:flex;justify-content:space-between;width:100%;border:0;background:none;text-align:left;padding:5px 0 5px 10px;border-left:2px solid var(--rule);color:var(--muted)}
+ .rail button .ct{font-family:var(--f-id);font-size:11px}
+ .rail button[aria-current=true]{color:var(--ink);font-weight:600;border-left-color:var(--ink)}
+ .rail .file{margin:22px 0 0;padding-top:12px;border-top:1px solid var(--rule);display:grid;gap:9px}
+ .rail .file dt{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+ .rail .file dd{margin:1px 0 0;color:var(--ink);font-size:13px}
+ .rail .file dd small{display:block;color:var(--muted);font-size:12px}
+ .dateline{grid-template-columns:repeat(4,auto);justify-content:space-between}
+ .tests .thd{grid-template-columns:24px 120px 1fr 92px}
+ .tests .thd span:nth-child(2){display:block}
+ .te{grid-template-columns:120px 1fr 92px;grid-template-areas:"s r c"}
+ .te .r .pfx{display:none}
+ .te .r small{display:block;white-space:normal}
+ .te .r small::before{content:none}
+ .card{padding:14px 16px 12px}
+}
+/* fact table: phone = two-line rows, digits of value and prior share one right edge */
+.ft thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ft tbody{display:block}
+.ft tr{display:block}
+.ft tr:not(.grp){display:grid;grid-template-columns:1fr auto 3.6em;grid-template-areas:"k n u" "s p .";align-items:baseline;gap:3px 6px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.ft tr:not(.grp)>*{border:0;padding:0}
+.ft tr>th[scope=row]{grid-area:k;font-size:14px;color:var(--text)}
+.ft tr .n{grid-area:n;padding-right:0}
+.ft tr .u{grid-area:u}
+.ft tr .pr{grid-area:p;font-size:12.5px}
+.ft tr .s{grid-area:s;padding-left:0}
+.ft .grp th{display:block}
+@container (min-width:760px){
+ .ft thead{position:static;width:auto;height:auto;overflow:visible;clip:auto;display:table-header-group}
+ .ft tbody{display:table-row-group}
+ .ft tr,.ft tr:not(.grp){display:table-row}
+ .ft .grp th{display:table-cell}
+ .ft tr:not(.grp)>*{display:table-cell;padding:9px 0;border-bottom:1px solid var(--rule)}
+ .ft tr .n{padding-right:5px}
+ .ft tr .s{padding-left:18px}
+ .ft tr .pr{font-size:13px}
+}
+
+/* ================= Segment 2: site chrome around B+ (same tokens, same type) ================= */
+.screens{display:inline-flex;flex-wrap:wrap}
+.studied{margin-top:18px;color:var(--s-muted);max-width:1000px}
+.studied summary{cursor:pointer;color:var(--s-ink);font-weight:600;min-height:36px}
+body.phones .dir-head{min-height:230px}
+body.phones figure:has(.browser){display:none}
+.dir-head .answers{font-size:13px;color:var(--s-muted);margin-top:4px}
+.site{
+ --bg:#FCFCFB;--ink:#141619;--text:#1E2125;--muted:#565D66;--rule:#E2E4E7;--rule2:#C5CAD0;--surf:#F3F4F5;--surf2:#E9EBED;--ins:#ECEEF0;--gut:20px;
+ --mono:"IBM Plex Mono",ui-monospace,monospace;
+ color-scheme:light;min-height:100%;display:flex;flex-direction:column;background:var(--bg);color:var(--text);
+ font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:14.5px;line-height:1.5;font-variant-numeric:lining-nums tabular-nums}
+:root[data-theme=dark] .site{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark;-webkit-font-smoothing:antialiased}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .site{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark;-webkit-font-smoothing:antialiased}}
+.site *{box-sizing:border-box}
+.site button{font:inherit;color:inherit;cursor:pointer}
+.site :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+.site .id,.site .kind,.site .ct,.site .kbd{font-family:var(--mono)}
+.site .bp{flex:1}
+.main{flex:1;min-width:0}
+.go{border:0;background:none;padding:0;text-align:left;color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px;font:inherit}
+.go:hover{text-decoration-color:var(--ink)}
+.go.plain{text-decoration:none}
+.go.plain:hover{text-decoration:underline}
+.ico-s{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* top bar */
+.tb{display:flex;align-items:center;gap:8px;min-height:52px;padding:0 var(--gut);border-bottom:1px solid var(--rule);background:var(--bg)}
+.tb .sp{flex:1}
+.wm{border:0;background:none;padding:8px 0;font-size:15px;font-weight:600;letter-spacing:-.005em;color:var(--ink);white-space:nowrap;text-align:left}
+.wm small{font-weight:400;color:var(--muted);font-size:12.5px;margin-left:6px}
+.ib{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;background:none;color:var(--ink);font-size:13.5px;padding:0 6px;border-radius:6px}
+.ib.bx{border:1px solid var(--rule2);min-height:36px;padding:0 12px}
+.back{display:inline-flex;align-items:center;gap:2px;min-height:44px;border:0;background:none;padding:0 6px 0 0;font-size:14px;color:var(--ink)}
+.back svg{width:18px;height:18px}
+.dsk{display:none!important}
+
+/* site disclosure: one line that opens; bottom on phone, top on desktop */
+.dbar{background:var(--surf);border-top:1px solid var(--rule);font-size:12.5px;line-height:1.35}
+.dbar summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:36px;padding:6px var(--gut);cursor:pointer;color:var(--muted)}
+.dbar summary::-webkit-details-marker{display:none}
+.dbar summary b{color:var(--text);font-weight:600}
+.dbar .st-line{flex:1}
+.dbar .body{padding:6px var(--gut) 12px;border-bottom:1px solid var(--rule)}
+.dbar .body p{margin:8px 0 0;font-size:12.5px;color:var(--muted);max-width:70ch}
+.dtop{display:none}
+
+/* bottom dock (phone) */
+.dock{position:sticky;bottom:0;z-index:6;background:var(--bg);border-top:1px solid var(--rule)}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{min-height:54px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11.5px;color:var(--muted);position:relative}
+.tabs button .ct{font-size:10px}
+.tabs button[aria-current=page]{color:var(--ink);font-weight:600}
+.tabs button[aria-current=page]::before{content:"";position:absolute;top:-1px;left:28%;right:28%;height:2px;background:var(--ink)}
+
+/* page scaffolding */
+.pg{padding:22px var(--gut) 44px}
+.kick{font-size:12.5px;color:var(--muted);margin:0 0 6px}
+.h1{font-size:27px;line-height:1.15;font-weight:600;letter-spacing:-.015em;color:var(--ink);margin:0 0 8px}
+.stand{font-size:16px;line-height:1.55;max-width:56ch;margin:0 0 16px;color:var(--text)}
+.blk{margin-top:34px}
+.blk-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:8px;margin-bottom:4px}
+.blk-h h2{font-size:17px;font-weight:600;margin:0;color:var(--ink)}
+.blk-h .ct{font-size:11.5px;color:var(--muted)}
+.blk-h .more{margin-left:auto;font-size:13px}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin:0;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.stat dt{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.stat dd{margin:2px 0 0;font-size:14px;color:var(--ink)}
+.stat .wide{grid-column:1/-1}
+.streak{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;height:12px;max-width:260px;margin-top:5px}
+.streak i{display:block;border-radius:1px;background:var(--surf2);box-shadow:inset 0 0 0 1px var(--rule)}
+.streak i.on{background:var(--ink);box-shadow:none}
+.streak-cap{display:flex;justify-content:space-between;max-width:260px;font-size:11px;color:var(--muted);margin-top:3px}
+.ls{list-style:none;margin:0;padding:0}
+.ls li{padding:11px 0;border-bottom:1px solid var(--rule)}
+.ls .lt{font-size:15px;font-weight:500}
+.ls small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.tmini{display:inline-flex;gap:9px;white-space:nowrap;font-size:12.5px;color:var(--ink);vertical-align:-1px}
+.tmini>span{display:inline-flex;align-items:center;gap:3px}
+.legend2{font-size:12px;color:var(--muted);margin:8px 0 0;display:flex;flex-wrap:wrap;gap:4px 12px}
+.legend2 span{display:inline-flex;align-items:center;gap:4px}
+.site mark{background:var(--surf2);color:var(--ink);box-shadow:inset 0 -1px 0 var(--ink);padding:0 1px}
+.foot{margin-top:40px;padding-top:12px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16px}
+.note-body p{font-size:16.5px;line-height:1.62;max-width:56ch;margin:0 0 1em}
+.site .empty{margin-top:10px}
+
+/* ---------- A: Register ---------- */
+.ftab{width:100%;border-collapse:collapse;font-size:14px}
+.ftab caption{text-align:left}
+.ftab thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ftab tbody{display:block}
+.ftab tr{display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"n n v r" "s o o o" "t t t t";gap:3px 8px;padding:11px 0;border-bottom:1px solid var(--rule)}
+.ftab th,.ftab td{padding:0;border:0;text-align:left;font-weight:400;vertical-align:baseline}
+.ftab .c-n{grid-area:n;font-size:15px}
+.ftab .c-n .go{font-weight:600;text-decoration:none}
+.ftab .c-n .id{display:none}
+.ftab .c-v{grid-area:v;font-family:var(--mono);font-size:12px;color:var(--ink)}
+.ftab .c-r{grid-area:r;font-size:13px;color:var(--muted);text-align:right}
+.ftab .c-s{grid-area:s;font-size:13px;color:var(--muted)}
+.ftab .c-s::after{content:" \00B7"}
+.ftab .c-o{grid-area:o;font-size:13px;color:var(--muted)}
+.ftab .c-t{grid-area:t;padding-top:2px}
+.ftab .ph{display:inline}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:14px 0 4px;font-size:13px;color:var(--muted)}
+.tools select{font:inherit;font-size:14px;min-height:40px;padding:0 10px;border:1px solid var(--rule2);border-radius:6px;background:var(--bg);color:var(--ink)}
+.tools .sorts{display:inline-flex;border:1px solid var(--rule2);border-radius:6px;overflow:hidden}
+.tools .sorts button{border:0;background:none;min-height:40px;padding:0 10px;font-size:13px;color:var(--muted)}
+.tools .sorts button+button{border-left:1px solid var(--rule2)}
+.tools .sorts button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.grail{display:none}
+.a-body{flex:1;min-width:0}
+.site .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.bt{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+.bt th,.bt td{text-align:left;padding:9px 10px 9px 0;border-bottom:1px solid var(--rule);vertical-align:baseline;font-weight:400}
+.bt thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.bt td small{display:block;color:var(--muted);font-size:12px}
+
+/* ---------- B: Log + search ---------- */
+.bdock{display:flex;align-items:stretch;gap:0}
+.bdock details{flex:1;min-width:0;background:var(--surf);border-top:0}
+.bdock details summary{min-height:52px}
+.bdock .sbtn{flex:none;display:flex;align-items:center;gap:6px;border:0;border-left:1px solid var(--rule);background:var(--bg);padding:0 16px;min-height:52px;font-size:14px;font-weight:600;color:var(--ink)}
+.sbox{display:flex;align-items:center;gap:8px;border:1px solid var(--rule2);border-radius:8px;background:var(--bg);min-height:46px;padding:0 12px;color:var(--muted)}
+.sbox:focus-within{outline:2px solid var(--ink);outline-offset:1px}
+.sbox input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:16px;color:var(--ink);outline:none;padding:0}
+.sbox input::placeholder{color:var(--muted)}
+.kbd{font-size:11px;border:1px solid var(--rule2);border-radius:4px;padding:1px 6px;color:var(--muted);white-space:nowrap}
+.tb .sbox.fake{min-height:38px;cursor:pointer;flex:0 1 360px;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.chips button{min-height:40px;border:1px solid var(--rule2);border-radius:20px;background:var(--bg);padding:0 13px;font-size:13px;color:var(--text)}
+.chips button .ct{font-size:10.5px;margin-left:5px;color:var(--muted)}
+.chips button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chips button[aria-pressed=true] .ct{color:var(--bg)}
+.wk{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:24px 0 0;padding-bottom:7px;border-bottom:1px solid var(--rule2)}
+.le{display:grid;grid-template-columns:46px 1fr;gap:0 12px;padding:13px 0;border-bottom:1px solid var(--rule)}
+.le time{font-size:12.5px;color:var(--muted);padding-top:3px;line-height:1.3}
+.le .k{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:12px;color:var(--muted);margin-bottom:3px}
+.le .ttl{font-size:15.5px;font-weight:600;text-decoration:none;display:block}
+.le .ttl:hover{text-decoration:underline}
+.le .why{font-size:14.5px;line-height:1.5;margin:3px 0 0;color:var(--text);max-width:60ch}
+.le .ds{font-size:12.5px;color:var(--muted);margin:4px 0 0}
+.site .kind{font-size:10px;font-weight:500;letter-spacing:.08em;line-height:1;padding:4px 6px 3px;border:1px solid var(--ink);border-radius:3px;color:var(--ink);white-space:nowrap}
+.site .kind.view{background:var(--ink);color:var(--bg)}
+.site .kind.fact{border-style:dashed}
+.site .kind.log{border-style:dotted}
+.site .kind.plain{border-color:var(--rule2);color:var(--muted)}
+.bside{display:none}
+.rg{margin-top:20px}
+.rg h3{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0;padding-bottom:6px;border-bottom:1px solid var(--rule2)}
+.ri{padding:11px 0;border-bottom:1px solid var(--rule)}
+.ri .go{font-weight:600;font-size:15px;text-decoration:none}
+.ri .m{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+.ri .x{display:block;font-size:14px;margin-top:3px;color:var(--text)}
+.nores{padding:14px 0;color:var(--text);font-size:14px}
+.concept{border:0;background:none;padding:0;font:inherit;color:inherit;text-decoration:underline dotted;text-decoration-color:var(--ink);text-underline-offset:4px;text-decoration-thickness:1.5px}
+.concept[aria-expanded=true]{background:var(--surf2)}
+.bl-ex{margin:0;padding:0;list-style:none}
+.bl-ex li{padding:12px 0;border-bottom:1px solid var(--rule)}
+.bl-ex blockquote{margin:6px 0 0;padding-left:12px;border-left:2px solid var(--ink);font-size:15px;line-height:1.55;color:var(--text);max-width:58ch}
+.bl-ex .m{font-size:12.5px;color:var(--muted)}
+
+/* ---------- C: Letter + contents ---------- */
+.cmast{padding:10px var(--gut) 12px;border-bottom:1px solid var(--rule)}
+.cmast .row{display:flex;flex-wrap:wrap;gap:3px 14px;font-size:12.5px;color:var(--muted)}
+.cmast .row b{color:var(--ink);font-weight:600}
+.letter p{font-size:16.5px;line-height:1.62;max-width:54ch;margin:0 0 1em;color:var(--text)}
+.sign{font-size:13px;color:var(--muted);margin:0}
+.inl{list-style:none;margin:0;padding:0;counter-reset:inl}
+.inl li{display:grid;grid-template-columns:22px 1fr;gap:0 10px;padding:12px 0;border-bottom:1px solid var(--rule)}
+.inl li::before{counter-increment:inl;content:counter(inl);font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:3px}
+.inl .k{font-size:12px;color:var(--muted)}
+.inl .go{font-size:15.5px;font-weight:600;text-decoration:none;display:block}
+.inl p{margin:2px 0 0;font-size:14.5px;max-width:58ch}
+.sect{margin-top:18px}
+.sect h3{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;font-weight:600;color:var(--ink);margin:0;padding-bottom:6px;border-bottom:1px solid var(--rule2)}
+.sect h3 span{font-weight:400;color:var(--muted)}
+.sect ul{list-style:none;margin:0;padding:0}
+.sect li{padding:10px 0;border-bottom:1px solid var(--rule)}
+.sect .go{font-size:15px;font-weight:600;text-decoration:none}
+.sect .teach{display:block;font-size:14px;color:var(--text);margin-top:2px;max-width:58ch}
+.sect small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.chap{list-style:none;margin:0;padding:0}
+.chap li{display:grid;grid-template-columns:30px 1fr;gap:0 8px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.chap .n{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:3px}
+.chap .go{font-size:15px;font-weight:500;text-decoration:none}
+.chap small{display:block;font-size:12.5px;color:var(--muted)}
+.toc{list-style:none;margin:8px 0 0;padding:0;counter-reset:toc}
+.toc>li{border-bottom:1px solid var(--rule);padding:12px 0}
+.toc .tl{display:flex;align-items:baseline;gap:8px;width:100%;font-size:17px;font-weight:600;color:var(--ink);border:0;background:none;padding:0;text-align:left;min-height:32px}
+.toc .tl::before{counter-increment:toc;content:counter(toc);font-family:var(--mono);font-size:12px;color:var(--muted);width:20px;flex:none}
+.toc .tl .dots{flex:1;border-bottom:1px dotted var(--rule2);transform:translateY(-4px)}
+.toc .tl .ct{font-size:12px;font-weight:400;color:var(--muted)}
+.toc ul{list-style:none;margin:6px 0 0 28px;padding:0;font-size:14px}
+.toc ul li{padding:5px 0}
+.toc ul small{color:var(--muted);margin-left:6px}
+.readfirst{margin:18px 0 0;border:1px solid var(--rule);border-radius:6px;padding:12px 14px;max-width:54ch}
+.readfirst .chap li{padding:7px 0}
+.readfirst .chap li:last-child{border-bottom:0}
+.nextf{margin-top:28px;border-top:2px solid var(--ink);padding-top:12px;display:grid;gap:12px}
+.nextf .lbl{margin:0}
+.nextf .go{font-size:16px;font-weight:600;text-decoration:none}
+.nextf small{display:block;font-size:13px;color:var(--muted)}
+.cside{display:none}
+.chapnav{display:flex;justify-content:space-between;gap:12px;margin-top:24px;padding-top:12px;border-top:1px solid var(--rule);font-size:13px}
+.chapnav span{display:block;color:var(--muted);font-size:11.5px}
+
+@container (min-width:760px){
+ .site{--gut:32px}
+ .dsk{display:revert!important}
+ .tb .sbox.fake.dsk{display:flex!important}
+ .phn{display:none!important}
+ .pg{padding:30px 40px 64px}
+ .h1{font-size:34px}
+ .stat{grid-template-columns:repeat(4,auto);justify-content:space-between}
+ .stat .wide{grid-column:auto}
+ .dock{display:none}
+ .dtop{display:block;border-top:0;border-bottom:1px solid var(--rule)}
+ .dbar.bottom{display:none}
+ /* A */
+ .a-body{display:grid;grid-template-columns:212px minmax(0,1fr);flex:1}
+ .grail{display:block;position:sticky;top:0;align-self:start;max-height:820px;overflow-y:auto;border-right:1px solid var(--rule);padding:18px 12px 24px 18px;font-size:13.5px}
+ .grail .lbl{margin:16px 0 4px 8px}
+ .gi{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;min-height:34px;border:0;background:none;padding:4px 8px;border-radius:5px;color:var(--text);text-align:left}
+ .gi .ct{font-size:11px;color:var(--muted)}
+ .gi:hover{background:var(--surf)}
+ .gi[aria-current=page]{background:var(--surf2);color:var(--ink);font-weight:600}
+ .gsub{margin:2px 0 6px 12px;padding-left:6px;border-left:1px solid var(--rule)}
+ .gsub .gi{min-height:28px;font-size:13px;color:var(--muted)}
+ .gsub .gi[aria-current=true]{color:var(--ink);font-weight:600}
+ .gfile{font-size:13px;color:var(--ink);font-weight:600;padding:6px 8px 2px}
+ .gstat{margin:18px 0 0 8px;padding-top:12px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted)}
+ .gstat b{display:block;color:var(--ink);font-weight:600;font-size:13px}
+ .gstat .streak{max-width:170px}
+ .crumbs{display:flex;flex-wrap:wrap;gap:4px;font-size:12.5px;color:var(--muted);margin:0 0 10px}
+ .crumbs .go{color:var(--muted)}
+ .ftab thead{position:static;width:auto;height:auto;overflow:visible;clip:auto;display:table-header-group}
+ .ftab tbody{display:table-row-group}
+ .ftab tr{display:table-row}
+ .ftab th,.ftab td{display:table-cell;padding:11px 12px 11px 0;border-bottom:1px solid var(--rule)}
+ .ftab thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:8px 12px 8px 0}
+ .ftab thead th button{border:0;background:none;padding:0;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit}
+ .ftab thead th[aria-sort] button{color:var(--ink)}
+ .ftab .c-n .id{display:block;font-size:11px;color:var(--muted)}
+ .ftab .c-s::after{content:none}
+ .ftab .c-r{text-align:left}
+ .ftab .ph{display:none}
+ .bp.norail .bp-wrap{grid-template-columns:minmax(0,640px);padding:30px 40px 100px}
+ /* B */
+ .b-grid{display:grid;grid-template-columns:minmax(0,1fr) 228px;gap:44px}
+ .bside{display:block;position:sticky;top:16px;align-self:start;font-size:13.5px}
+ .bside .blk{margin-top:0;margin-bottom:26px}
+ .le{grid-template-columns:64px 1fr}
+ .bdock{display:none}
+ /* C */
+ .c-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:48px}
+ .cside{display:block}
+ .cmast .row{font-size:13px}
+}
+@media (prefers-reduced-motion:reduce){.site *{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="shell">
+  <h1>Segment 2: navigation and information architecture</h1>
+  <p>Three ways to organise the public desk, and to move around it, on a phone and on a desktop. Each frame is a working mock: tap links inside it to move between the desk home, the company index, the Kaveri file, a learning note and the menu or search. Every company link opens the Kaveri file, the only full file in the mock. Companies, symbols, figures and dates are invented to test layout.</p>
+  <p>The Kaveri file is the decided B+ page from segment 1, unchanged inside. Only the chrome around it changes: what sits above it, beside it and below it, and where the learning notes and the disclosure go. Colour stays neutral grey, because identity is segment 5.</p>
+  <div class="controls">
+    <div class="seg screens" role="group" aria-label="Screen in every frame"><span>Screen</span>
+      <button type="button" data-screen-btn="home" aria-pressed="true">Desk home</button>
+      <button type="button" data-screen-btn="index" aria-pressed="false">Company index</button>
+      <button type="button" data-screen-btn="thesis" aria-pressed="false">Kaveri file</button>
+      <button type="button" data-screen-btn="note" aria-pressed="false">Learning note</button>
+      <button type="button" data-screen-btn="menu" aria-pressed="false">Menu or search open</button>
+    </div>
+    <div class="seg" role="group" aria-label="Theme"><span>Theme</span>
+      <button type="button" data-theme-btn="system" aria-pressed="true">System</button>
+      <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" role="group" aria-label="Layout"><span>Layout</span>
+      <button type="button" data-layout-btn="both" aria-pressed="true">Desktop + phone</button>
+      <button type="button" data-layout-btn="phones" aria-pressed="false">Three phones side by side</button>
+    </div>
+  </div>
+</header>
+
+<main class="dirs">
+  <section class="dir" aria-labelledby="hA">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">A</div><div><h2 id="hA">A. The Register</h2><p class="thesis">The desk is a register of files: every company listed with its version, last revision, test status and data date, so a reader audits the desk before reading any of it.</p><p class="answers">Home is the file index · tab bar on phone, one left rail on desktop · breadcrumbs plus a rail that opens into the file's own sections · notes linked as a "used in" table</p></div></div>
+    <div class="stage">
+      <figure><div class="browser"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url" data-url-for="A-d">desk.example/</span></div><div class="vp" tabindex="0" data-frame="A" data-id="A-d" aria-label="Direction A, desktop frame"></div></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure><div class="bezel"><div class="vp" tabindex="0" data-frame="A" data-id="A-p" aria-label="Direction A, phone frame"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="dir" aria-labelledby="hB">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">B</div><div><h2 id="hB">B. The Desk Log</h2><p class="thesis">The desk is a dated log of what changed and why; search is the only navigation, and every company, note and test is one query away.</p><p class="answers">Home is the change log · search in a bottom dock on phone, a search field on desktop · no breadcrumbs · notes open inline from the words that use them</p></div></div>
+    <div class="stage">
+      <figure><div class="browser"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url" data-url-for="B-d">desk.example/</span></div><div class="vp" tabindex="0" data-frame="B" data-id="B-d" aria-label="Direction B, desktop frame"></div></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure><div class="bezel"><div class="vp" tabindex="0" data-frame="B" data-id="B-p" aria-label="Direction B, phone frame"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="dir" aria-labelledby="hC">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">C</div><div><h2 id="hC">C. The Weekly Letter</h2><p class="thesis">The desk reads like a periodical: home is this week's short letter from Aksh, the files sit behind it grouped by sector, and one Contents page maps everything.</p><p class="answers">Home is a dated letter · one Contents button, top right, on every screen · a sector kicker instead of breadcrumbs · notes placed before the file as "read first"</p></div></div>
+    <div class="stage">
+      <figure><div class="browser"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url" data-url-for="C-d">desk.example/</span></div><div class="vp" tabindex="0" data-frame="C" data-id="C-d" aria-label="Direction C, desktop frame"></div></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure><div class="bezel"><div class="vp" tabindex="0" data-frame="C" data-id="C-p" aria-label="Direction C, phone frame"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<section class="matrix-wrap" aria-labelledby="hM">
+  <h2 id="hM">The questions, answered three ways</h2>
+  <div class="matrix-scroll"><table class="matrix">
+    <thead><tr><th scope="col">Question</th><th scope="col">A. Register</th><th scope="col">B. Desk Log</th><th scope="col">C. Weekly Letter</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">What is the desk home?</th><td>A file index: one row per company with version, revised date, test shapes and data date. Learning, process and mistakes follow as short lists.</td><td>A feed of what changed, newest first, grouped by week. Each entry gives its reason and what moved (paragraphs, tests, facts), with filters for files, learning and process.</td><td>A front page: this week's 100-word letter, the three items it covers, then the files by sector and earlier letters.</td></tr>
+      <tr><th scope="row">How are companies found?</th><td>A sortable table (latest, A to Z, sector) with a sector filter. On a phone each row wraps to three lines and nothing scrolls sideways.</td><td>Search first. A query matches names, sectors, test conditions, notes and source facts, and shows the matching line. Sector chips narrow the list.</td><td>Grouped by sector like a book's chapters. Each file shows "what this teaches", not a ticker.</td></tr>
+      <tr><th scope="row">Global navigation</th><td>Phone: a four-tab bar (Desk, Files, Notes, About). Desktop: one left rail with counts.</td><td>Phone: a bottom dock with Search and the disclosure line. Desktop: a search field in the top bar (press /). No section menu.</td><td>One Contents button at the top right on both. It opens a numbered table of contents for the whole desk.</td></tr>
+      <tr><th scope="row">Breadcrumbs or rail?</th><td>Both on desktop. The rail opens into the file's own sections, so one rail does the site and the page. Phone: a back link to Files.</td><td>Neither. A back link to the log, and B+'s own rail is unchanged.</td><td>A sector kicker ("Capital goods · file 1 of 2") and a next-in-sector link at the end. B+'s own rail is unchanged.</td></tr>
+      <tr><th scope="row">Learning notes and files</th><td>Linked as data. The note ends with a "Used in" table (file, where, since), and the file's LINK block lists notes with reading time.</td><td>Linked in the prose. Words such as "segment note" open a note preview where they appear. The note shows each file sentence that cites it.</td><td>Linked as reading order. The file opens with "Read first", and the note is a numbered chapter with "files that assume this note".</td></tr>
+      <tr><th scope="row">Streak and last updated</th><td>A status row on the home page (files, last published, last entry, 30-day strip). It repeats at the foot of the desktop rail.</td><td>The log is the evidence. A 30-day strip sits above it on the phone and in the side column on desktop.</td><td>One line in the masthead ("Research logged on 23 of the last 30 days · last entry 4 Oct"), plus a strip on the Contents page.</td></tr>
+      <tr><th scope="row">Disclosure and navigation</th><td>Phone: a one-line strip stacked on the tab bar. On a file, B+'s own strip replaces it at the top and only the tabs stay at the bottom.</td><td>Phone: the disclosure line and Search share one dock, so it is always in view. Desktop: a strip under the top bar.</td><td>Phone: a one-line bottom bar with nothing else in it. Desktop: a strip under the masthead. On a file, B+'s strip takes over in all three.</td></tr>
+      <tr><th scope="row">Weekly cost to Aksh</th><td>None. The register fills itself from publishes.</td><td>None. The log shows the change reasons he already writes.</td><td>About 100 words a week, through the publish gate. Phase 2 can draft it from the week's change reasons.</td></tr>
+      <tr><th scope="row">Main risk</th><td>Reads as a database. Seven rows look thin until there are 20 files. It also uses the most chrome: 4 bars on a file page.</td><td>Search-only navigation hides how small the desk is. A first-time reader may not know what to search for, and log entries depend on good change reasons.</td><td>A missed week shows as a stale front page, which is the opposite of the daily-use evidence (R1-7). The letter is also another public text to gate.</td></tr>
+    </tbody>
+  </table></div>
+  <details class="studied">
+    <summary>Screens studied (39 captures from 31 sites, agent-browser at 375 and 1280 px, 5 Oct 2026)</summary>
+    <p>Phone: Stratechery home; Substack publication home (Antifragile Thinking); Zerodha Varsity modules index, a removed chapter (sitemap fallback); Groww stock filter; Smallcase discover; Last10K search-first home; Wikipedia mobile main page and an article ("Part of a series on" box); GitHub repo home (next.js, and equity-deep-dives); Stripe docs; Linear docs; StockAnalysis symbol list; Maggie Appleton's garden; Andy Matuschak's notes and their backlinks; Marcellus (a residency gate before any navigation); Gwern index; Our World in Data; GOV.UK; Simon Willison's weblog; Collab Fund blog; Bessemer Anti-Portfolio; arXiv q-fin listing; Koyfin, Readwise and AlphaSense (cookie walls covered the marketing pages, which is a lesson in itself); Obsidian Help. Desktop: Stripe docs, Linear docs, GitHub repo, StockAnalysis, Our World in Data, Maggie Appleton, Substack archive, Varsity modules, Linear changelog, Wikipedia revision history.</p>
+    <p>Blocked or empty, and not counted: The New York Times (bot check, not bypassed), and Stratechery's menu, which did not open headless. Koyfin watchlists, the Tegus library and the Readwise Reader library sit behind log-ins, so I studied their public pages only.</p>
+  </details>
+  <p class="ask">Reply with A, B or C, or a mix by row, for example "A's index and rail, B's search, C's Read first".</p>
+</section>
+
+<script>
+/* ================= shared data (Kaveri file = segment 1 data, unchanged) ================= */
+var FULL = {
+  name: "Kaveri Pumps &amp; Motors",
+  symbol: "NSE: KAVERIPMP (fictional)",
+  sector: "Capital goods · Pumps and motors",
+  oneLiner: "Makes solar and electric water pumps for farms, housing and industry. About three-fifths of FY26 sales came through a government subsidy scheme.",
+  objective: "How to tell whether a manufacturer's growth comes from a subsidy scheme or from customers who would pay anyway.",
+  dataAsOf: "30 Jun 2026", reviewed: "2 Sep 2026", position: "No",
+  firstWritten: "14 Jul 2026", firstWrittenLong: "14 July 2026", revisedLong: "2 September 2026",
+  sources: {
+    S1: {title: "Kaveri Pumps &amp; Motors Ltd, Annual Report 2025-26", meta: "Filed with NSE on 3 Jul 2026", type: "Annual report"},
+    S2: {title: "Q1 FY27 results and investor presentation", meta: "Filed with NSE on 11 Aug 2026", type: "Results deck"},
+    S3: {title: "MNRE, PM-KUSUM Component B state-wise progress", meta: "Published table, as of 30 Jun 2026", type: "Government data"}
+  },
+  view: [
+    {t: "I expected Kaveri's FY26 growth to look like demand from farmers. The segment note changed my mind. Revenue rose to ₹1,284 cr{S1|p. 112|31 Mar 2026}, but 61% of it came from PM-KUSUM orders placed through state agencies, up from 48% a year earlier{S1|p. 84|31 Mar 2026}. The growth is real. The question is who is paying, and when."},
+    {t: "The cost shows up in working capital. Receivable days went from 96 to 142 in one year{S1|p. 131|31 Mar 2026}. That is what it looks like when the customer is a state agency that pays after the subsidy is released, not a farmer paying at the counter. A company can grow sales and still be lending money to its largest customer."},
+    {t: "Q1 FY27 did not settle it. Revenue was ₹311 cr and the scheme share eased to 58%{S2|slide 9|30 Jun 2026}, while industrial and export pumps grew 19%{S2|slide 11|30 Jun 2026}. The scheme is also closer to its installation goal than I assumed: 81% of sanctioned Component B pumps were installed by 30 June{S3|national table|30 Jun 2026}. What I am trying to learn is whether the non-scheme business is big enough to carry the company when the scheme slows.",
+     rev: 2, old: "The industrial and export business is too small to matter yet, at 9% of revenue. Until it grows, I read Kaveri as a scheme contractor rather than a pump brand."}
+  ],
+  wrong: [
+    {c: "receivable days fall below 100 in the FY27 annual report without new bill discounting or factoring.", latest: "151 days in Q1 FY27, annualised", asof: "30 Jun 2026", status: "Not met", checked: "2 Sep 2026"},
+    {c: "industrial and export revenue grows faster than 20% a year for four quarters in a row.", latest: "+19% in Q1 FY27; 0 of 4 quarters so far", asof: "30 Jun 2026", status: "Watching", checked: "2 Sep 2026"},
+    {c: "the company discloses that states paying within 90 days make up more than half of its scheme order book.", latest: "State-wise payment terms not disclosed", asof: "11 Aug 2026", status: "No data", checked: "2 Sep 2026", added: 2}
+  ],
+  facts: [
+    {k: "Revenue, FY26", v: "₹1,284 cr", s: "S1", loc: "p. 112", a: "31 Mar 2026", g: 1, ks: "Revenue", n: "1,284", u: "₹ cr", pv: "902", pl: "FY25", r: 1, q: "Revenue from operations ₹1,284.27 crore (previous year ₹902.14 crore)."},
+    {k: "PM-KUSUM share of revenue, FY26", v: "61%", s: "S1", loc: "p. 84", a: "31 Mar 2026", g: 1, ks: "PM-KUSUM share of revenue", n: "61", u: "%", pv: "48", pl: "FY25", r: 1, q: "Supplies under the PM-KUSUM scheme, executed through state nodal agencies, contributed 61% of revenue from operations (previous year 48%)."},
+    {k: "Receivable days, FY26", v: "142", s: "S1", loc: "p. 131", a: "31 Mar 2026", g: 1, ks: "Receivable days", n: "142", u: "days", pv: "96", pl: "FY25", r: 1, q: "Trade receivables stood at 142 days of revenue (previous year 96 days), reflecting longer realisation cycles on scheme orders."},
+    {k: "Revenue, Q1 FY27", v: "₹311 cr", s: "S2", loc: "slide 9", a: "30 Jun 2026", g: 2, ks: "Revenue", n: "311", u: "₹ cr", pv: "236", pl: "Q1 FY26", r: 2, q: "Revenue from operations ₹311 cr, against ₹236 cr in Q1 FY26. Scheme business at 58% of revenue."},
+    {k: "PM-KUSUM share, Q1 FY27", v: "58%", s: "S2", loc: "slide 9", a: "30 Jun 2026", g: 2, ks: "PM-KUSUM share of revenue", n: "58", u: "%", pv: "", pl: "Prior not given", r: 2, q: "Revenue from operations ₹311 cr, against ₹236 cr in Q1 FY26. Scheme business at 58% of revenue."},
+    {k: "Industrial and export growth, Q1 FY27", v: "+19%", s: "S2", loc: "slide 11", a: "30 Jun 2026", g: 2, ks: "Industrial and export growth", n: "+19", u: "% YoY", pv: "", pl: "", r: 2, q: "Industrial and export pumps: revenue up 19% year on year."},
+    {k: "Receivable days, Q1 FY27 (annualised)", v: "151", s: "S2", loc: "slide 14", a: "30 Jun 2026", g: 2, ks: "Receivable days, annualised", n: "151", u: "days", pv: "142", pl: "FY26", r: 2, q: "Receivable days (annualised): 151."},
+    {k: "Component B pumps installed / sanctioned", v: "81%", s: "S3", loc: "national table", a: "30 Jun 2026", g: 2, ks: "Component B installed / sanctioned, national", n: "81", u: "%", pv: "", pl: "", r: 2, q: "Component B, all states: pumps installed as a share of pumps sanctioned, 81%."}
+  ],
+  groups: {1: {name: "FY26", span: "year to 31 Mar 2026", a: "31 Mar 2026"}, 2: {name: "Q1 FY27", span: "quarter to 30 Jun 2026", a: "30 Jun 2026"}},
+  revisions: [
+    {n: 1, d: "14 Jul 2026", r: "First case study, written after reading the FY26 annual report."},
+    {n: 2, d: "2 Sep 2026", r: "Q1 FY27 results: receivable days rose again. Rewrote paragraph 3 and added test 3."}
+  ],
+  links: ["Reading a segment note in an annual report", "Receivable days, and why they rise with government customers"],
+  disclosure: function () {
+    return "Educational content only. Aksh Agrawal is not a SEBI-registered Research Analyst or Investment Adviser. Nothing here is a recommendation, offer or solicitation to buy or sell any security. Figures are shown with a minimum 30-day lag. Position in the security discussed: <strong>" + this.position + "</strong>. Investments in securities are subject to market risk; consult a SEBI-registered adviser before acting. Last reviewed " + this.reviewed + ".";
+  }
+};
+var D = FULL;
+
+/* the desk around it: 7 fictional companies, 3 learning notes, 2 process notes */
+var COS = [
+  {slug: "kaveri", name: "Kaveri Pumps &amp; Motors", sym: "KAVERIPMP", sector: "Capital goods", teach: "Whether a manufacturer's growth comes from a subsidy scheme or from customers who would pay anyway.", rev: 2, revised: "2 Sep 2026", iso: "2026-09-02", first: "14 Jul 2026", to: "30 Jun 2026", t: {m: 0, nm: 1, w: 1, nd: 1}, test: "receivable days fall below 100 in the FY27 annual report"},
+  {slug: "halden", name: "Halden Cables &amp; Wires", sym: "HALDENCAB", sector: "Capital goods", teach: "How to read an order book when one type of customer dominates it.", rev: 1, revised: "29 Sep 2026", iso: "2026-09-29", first: "29 Sep 2026", to: "30 Jun 2026", t: {m: 0, nm: 0, w: 2, nd: 0}, test: "state utility orders fall below 40% of the order book"},
+  {slug: "mirav", name: "Mirav Housing Finance", sym: "MIRAVHFC", sector: "Financials", teach: "How stage 3 loans and write-offs together show what a lender's credit really costs.", rev: 3, revised: "1 Oct 2026", iso: "2026-10-01", first: "9 Jun 2026", to: "30 Jun 2026", t: {m: 1, nm: 2, w: 1, nd: 0}, test: "stage 3 loans rise for two quarters in a row"},
+  {slug: "tarsa", name: "Tarsa Specialty Chemicals", sym: "TARSACHEM", sector: "Chemicals", teach: "What two large customers do to the risk of a contract manufacturer.", rev: 1, revised: "5 Aug 2026", iso: "2026-08-05", first: "5 Aug 2026", to: "31 Mar 2026", t: {m: 0, nm: 2, w: 0, nd: 1}, test: "the top two customers fall below half of revenue"},
+  {slug: "ojas", name: "Ojas Snack Foods", sym: "OJASFOODS", sector: "Consumer staples", teach: "How distributor stocking can flatter one quarter of sales.", rev: 2, revised: "27 Jul 2026", iso: "2026-07-27", first: "2 Jun 2026", to: "31 Mar 2026", t: {m: 0, nm: 1, w: 1, nd: 0}, test: "distributor inventory days rise above 45"},
+  {slug: "kelvar", name: "Kelvar Cold Chain", sym: "KELVARCC", sector: "Logistics", teach: "Why utilisation, not capacity, drives returns in a warehouse business.", rev: 1, revised: "30 Jul 2026", iso: "2026-07-30", first: "30 Jul 2026", to: "31 Mar 2026", t: {m: 0, nm: 0, w: 1, nd: 2}, test: "warehouse utilisation stays below 70% for a full year"},
+  {slug: "durvan", name: "Durvan Cement", sym: "DURVANCEM", sector: "Materials", teach: "How to judge a capacity expansion before it produces anything.", rev: 1, revised: "12 Aug 2026", iso: "2026-08-12", first: "12 Aug 2026", to: "31 Mar 2026", t: {m: 0, nm: 3, w: 0, nd: 0}, test: "the second kiln starts more than two quarters late"}
+];
+var NOTES = [
+  {slug: "segment", title: "Reading a segment note in an annual report", date: "18 Jul 2026", min: 6, n: 1, obj: "Where a company says which businesses its revenue really comes from, and how to read that table.", used: [["kaveri", "View, paragraph 1", "R1, 14 Jul 2026", "The segment note changed my mind."], ["halden", "View, paragraph 2", "R1, 29 Sep 2026", "The segment note splits cables into utility, building and export; only the first grew."]]},
+  {slug: "receivables", title: "Receivable days, and why they rise with government customers", date: "4 Sep 2026", min: 5, n: 2, obj: "What receivable days measure, and why a state customer can stretch them while sales grow.", used: [["kaveri", "View, paragraph 2 · Test 1", "R2, 2 Sep 2026", "Receivable days went from 96 to 142 in one year."]]},
+  {slug: "stage3", title: "How housing finance companies report stage 3 loans", date: "30 Sep 2026", min: 7, n: 3, obj: "How to read stage 3 loans, write-offs and restructured loans as one number.", used: [["mirav", "View, paragraphs 1 and 3 · Test 2", "R3, 1 Oct 2026", "Stage 3 loans rose for a second quarter, and write-offs rose with them."]]}
+];
+var PROC = [
+  {slug: "choose", title: "How I choose which company to study next", date: "24 Sep 2026", rev: 2, why: "Added a check for related-party sales."},
+  {slug: "tests", title: "Why each file lists the tests that would prove it wrong", date: "20 Jun 2026", rev: 1, why: "First version."}
+];
+var LOG = [
+  {d: "1 Oct", w: 0, kind: "REVISION", type: "file", id: "R3", co: "mirav", why: "Q1 FY27 asset-quality note: stage 3 loans rose for a second quarter, so test 2 is now met and the view is weaker.", ds: "2 paragraphs rewritten · test 2 now met · figures to 30 Jun 2026"},
+  {d: "30 Sep", w: 0, kind: "LEARNING", type: "learning", note: "stage3", why: "Written so the Mirav revision can be read without a lending background.", ds: "7 min · linked from Mirav R3"},
+  {d: "29 Sep", w: 0, kind: "NEW FILE", type: "file", id: "R1", co: "halden", why: "First case study, written after the FY26 annual report and two tender filings.", ds: "2 tests · 6 facts · figures to 30 Jun 2026"},
+  {d: "24 Sep", w: 1, kind: "PROCESS", type: "process", id: "R2", proc: "choose", why: "Added a check for related-party sales.", ds: "1 section added"},
+  {d: "4 Sep", w: 2, kind: "LEARNING", type: "learning", note: "receivables", why: "Written after the Kaveri revision, to explain why the customer type changes the number.", ds: "5 min · linked from Kaveri R2"},
+  {d: "2 Sep", w: 2, kind: "REVISION", type: "file", id: "R2", co: "kaveri", why: "Q1 FY27 results: receivable days rose again. Rewrote paragraph 3 and added test 3.", ds: "1 paragraph rewritten · 1 test added · 5 facts added · figures to 30 Jun 2026"},
+  {d: "12 Aug", w: 3, kind: "NEW FILE", type: "file", id: "R1", co: "durvan", why: "First case study on a single-region cement maker adding a second kiln.", ds: "3 tests · 9 facts · figures to 31 Mar 2026"}
+];
+var WEEKS = ["This week · 28 Sep to 4 Oct", "Week of 21 Sep", "Earlier in September", "August"];
+var STREAK = "110011111101111011110110110111"; /* 30 days to 4 Oct 2026; counts only, never content */
+var LOGGED = STREAK.split("").filter(function (c) { return c === "1"; }).length;
+var SECTORS = ["Capital goods", "Financials", "Chemicals", "Consumer staples", "Logistics", "Materials"];
+var NOTE_BODY = ["Receivable days measure how long, on average, a company waits to be paid after it books a sale: trade receivables divided by revenue, times 365. A rise means the company is funding its customers for longer.", "When the customer is a government agency, payment often waits for a budget release or for a subsidy to reach the agency, so receivable days can rise while sales grow. The useful question is not whether the number is high, but who is paying late, and whether the company borrows to cover the gap."];
+
+/* ================= helpers ================= */
+function each(list, fn) { for (var i = 0; i < list.length; i++) fn(list[i], i); }
+function co(s) { return COS.filter(function (c) { return c.slug === s; })[0]; }
+function note(s) { return NOTES.filter(function (n) { return n.slug === s; })[0]; }
+function proc(s) { return PROC.filter(function (p) { return p.slug === s; })[0]; }
+function go(screen, label, cls, extra) { return '<button type="button" class="go' + (cls ? ' ' + cls : '') + '" data-go="' + screen + '"' + (extra || '') + '>' + label + '</button>'; }
+function cut(name) { return name.replace(" &amp; Motors", "").replace(" &amp; Wires", ""); }
+var SV = {
+  back: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5"/></svg>',
+  search: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.3"/><path d="m12.8 12.8 3.7 3.7"/></svg>',
+  desk: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3.5" width="14" height="13" rx="1.5"/><path d="M3 8h14M7.5 8v8.5"/></svg>',
+  files: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/><path d="M6 3.5v3M6 8.5v3M6 13.5v3"/></svg>',
+  notes: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.8h7l3.2 3.2v11.2H5z"/><path d="M12 2.8V6h3.2M7.5 10h5M7.5 13h5"/></svg>',
+  about: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.3v.2"/></svg>',
+  close: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg>',
+  contents: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5.5h12M4 10h12M4 14.5h8"/></svg>'
+};
+var ICON = {
+  "Met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>',
+  "Not met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  "Watching": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 1.4a4.6 4.6 0 0 1 0 9.2z" fill="currentColor"/></svg>',
+  "No data": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>'
+};
+var TK = [["Met", "m"], ["Not met", "nm"], ["Watching", "w"], ["No data", "nd"]];
+function tmini(t) {
+  var h = '', lab = [];
+  each(TK, function (k) { if (t[k[1]]) { h += '<span>' + ICON[k[0]] + t[k[1]] + '</span>'; lab.push(t[k[1]] + ' ' + k[0].toLowerCase()); } });
+  return '<span class="tmini" role="img" aria-label="Tests: ' + lab.join(', ') + '">' + h + '</span>';
+}
+function legend() { var h = '<p class="legend2">'; each(TK, function (k) { h += '<span>' + ICON[k[0]] + k[0] + '</span>'; }); return h + '<span>Met means the view is wrong on that test.</span></p>'; }
+function streak(w) {
+  var h = '<div class="streak" role="img" aria-label="Research logged on ' + LOGGED + ' of the last 30 days"' + (w ? ' style="max-width:' + w + 'px"' : '') + '>';
+  each(STREAK.split(""), function (c) { h += '<i' + (c === "1" ? ' class="on"' : '') + '></i>'; });
+  return h + '</div><div class="streak-cap"' + (w ? ' style="max-width:' + w + 'px"' : '') + ' aria-hidden="true"><span>5 Sep</span><span>4 Oct</span></div>';
+}
+function dbar(extraCls) {
+  return '<details class="dbar ' + (extraCls || '') + '"><summary><span class="st-line"><span><b>Education only</b></span><span>Not SEBI-registered</span><span>Figures 30+ days old</span></span><span class="st-more">Details</span></summary><div class="body"><dl class="facts-dl"><dt>Type</dt><dd>Educational case studies and notes, not recommendations</dd><dt>Registration</dt><dd>Aksh is not a SEBI-registered RA or IA</dd><dt>Data lag</dt><dd>Every figure is at least 30 days old</dd><dt>Positions</dt><dd>Stated on each file, taken from the ledger at publish</dd></dl></div></details>';
+}
+function emptyBox(label, lines, shape) {
+  var h = '<div class="empty"><span class="lbl">' + label + '</span>';
+  each(lines, function (l) { h += '<p>' + l + '</p>'; });
+  if (shape) { h += '<div class="shape" aria-label="Columns that will appear">'; each(shape, function (s) { h += '<span>' + s + '</span>'; }); h += '</div>'; }
+  return h + '</div>';
+}
+function mistakesEmpty() { return emptyBox('No mistakes published yet', ['Mistakes will appear once the private ledger exists (phase 3). Each one will link to the file it came from, with the date, what Aksh expected, and what happened instead.'], ['File', 'Expected', 'What happened', 'Lesson']); }
+function fullDisclosure() { return '<section class="sec disc" style="margin-top:30px"><span class="lbl">Disclosure</span><p class="full" style="margin-top:6px">' + FULL.disclosure.call({position: "Stated on each file", reviewed: "1 Oct 2026"}) + '</p></section>'; }
+
+/* ================= B+ thesis renderer (segment 1, with chrome hooks) ================= */
+var uid = 0, CITE = /\{(S\d)\|([^|]+)\|([^}]+)\}/g;
+function srcIds() { return Object.keys(D.sources); }
+function revNewest() { return D.revisions.slice().reverse(); }
+function factsAt(s, loc) { return D.facts.filter(function (f) { return f.s === s && f.loc === loc; }); }
+function sentences(t) { return t.replace(CITE, '').split(/(?<=[.?!])\s+(?=[A-Z₹0-9])/); }
+function kv(k, n, u, cls) { return '<div class="kv' + (cls ? ' ' + cls : '') + '"><span class="k">' + k + '</span><span class="n">' + n + '</span><span class="u">' + u + '</span></div>'; }
+var CONCEPTS = [["The segment note", "segment"], ["Receivable days", "receivables"]];
+function renderP(o) {
+  o = o || {};
+  var P = 'f' + (++uid), h = '', nS = srcIds().length, nF = D.facts.length, nT = D.wrong.length, cur = D.revisions[D.revisions.length - 1];
+  var counts = {"Met": 0, "Not met": 0, "Watching": 0, "No data": 0};
+  each(D.wrong, function (w) { counts[w.status]++; });
+  var dataTo = D.dataAsOf ? 'Data to ' + D.dataAsOf : 'No figures cited';
+  h += '<article class="bp' + (o.rail === 'none' ? ' norail' : '') + '">';
+  h += '<div class="bp-top"><details class="strip"><summary><span class="st-line"><span><b>Education</b></span><span>No position</span><span>' + dataTo + '</span></span><span class="st-more">Details</span></summary>';
+  h += '<div class="st-body"><dl class="facts-dl"><dt>Type</dt><dd>Educational case study, not a recommendation</dd><dt>Registration</dt><dd>Not a SEBI-registered RA or IA</dd><dt>Position</dt><dd>None, taken from the ledger on ' + D.reviewed + '</dd><dt>Data lag</dt><dd>At least 30 days; newest figure ' + D.dataAsOf + '</dd><dt>Reviewed</dt><dd>' + D.reviewed + '</dd></dl><button type="button" class="to" data-jump="disclosure">Read the full disclosure</button></div></details>';
+  h += '<nav class="idx" aria-label="Sections"><button type="button" data-jump="view" aria-current="true">View</button><button type="button" data-jump="tests" aria-current="false">Tests <span class="ct">' + nT + '</span></button><button type="button" data-jump="facts" aria-current="false">Facts <span class="ct">' + nF + '</span></button><button type="button" data-jump="history" aria-current="false">History <span class="ct">R' + cur.n + '</span></button><span class="prog" aria-hidden="true"><i></i></span></nav></div>';
+  h += '<div class="bp-wrap">';
+  if (o.rail !== 'none') {
+    h += '<nav class="rail" aria-label="On this page"><span class="lbl">On this page</span>';
+    each([["view", "View", D.view.length + ' ¶'], ["tests", "Tests", nT], ["facts", "Facts", nF], ["sources", "Sources", nS], ["history", "History", 'R' + cur.n], ["notes", "Notes", D.links.length], ["disclosure", "Disclosure", ""]], function (r, i) {
+      h += '<button type="button" data-jump="' + r[0] + '" aria-current="' + (i === 0) + '"><span>' + r[1] + '</span><span class="ct">' + r[2] + '</span></button>';
+    });
+    h += '<dl class="file"><div><dt>This version</dt><dd>R' + cur.n + ', ' + cur.d + '<small>first written ' + D.firstWritten + '</small></dd></div><div><dt>Figures</dt><dd>to ' + D.dataAsOf + '</dd></div><div><dt>Tests</dt><dd>' + counts["Not met"] + ' not met, ' + counts["Watching"] + ' watching, ' + counts["No data"] + ' no data</dd></div><div><dt>Position</dt><dd>None</dd></div></dl>' + (o.railExtra || '') + '</nav>';
+  }
+  h += '<div class="bp-main">';
+  h += '<header>' + (o.crumb || '<p class="crumb">Companies / Kaveri Pumps · <span class="id">' + D.symbol + '</span></p>') + '<h1>' + D.name + '</h1><p class="one">' + D.oneLiner + '</p>';
+  h += '<div class="obj"><span class="lbl">What this teaches</span><p>' + D.objective + '</p></div>';
+  h += '<dl class="dateline"><div><dt>This version</dt><dd>R' + cur.n + ' of ' + D.revisions.length + '</dd></div><div><dt>Revised</dt><dd>' + cur.d + '</dd></div><div><dt>First written</dt><dd>' + D.firstWritten + '</dd></div><div><dt>Figures to</dt><dd>' + D.dataAsOf + '</dd></div></dl>' + (o.pre || '') + '</header>';
+  /* VIEW */
+  h += '<section class="sec" data-sec="view"><div class="sec-h"><span class="kind view">VIEW</span><h2>Aksh\'s view</h2><p class="sub">His own words. Each figure opens the line it came from.' + (o.concepts ? ' Dotted words open a learning note.' : '') + '</p></div><div class="view">';
+  each(D.view, function (para, pi) {
+    var cards = '';
+    var txt = para.t.replace(CITE, function (m, s, loc, a) {
+      var id = P + '-c' + pi + '-' + s + loc.replace(/\W/g, ''), fs = factsAt(s, loc), src = D.sources[s];
+      var c = '<div class="card" id="' + id + '" hidden><div class="card-h"><span class="kind fact">FACT</span><span class="id">' + s + ' · ' + loc + '</span><span class="asof">as of ' + a + '</span></div>';
+      each(fs, function (f) { c += kv(f.ks, f.n, f.u); if (f.pv) c += kv(f.pl, f.pv, f.u, 'pr'); });
+      c += '<div class="q"><span class="lbl">Quoted from the filing</span><p>“' + fs[0].q + '”</p></div><p class="card-src">' + src.title + ' · ' + src.meta + '</p><button type="button" class="card-x" data-close="' + id + '">Close</button></div>';
+      cards += c;
+      return '<button type="button" class="chip" aria-expanded="false" aria-controls="' + id + '" aria-label="Source ' + s + ', ' + loc + ', as of ' + a + '"><b>' + s + '</b>' + loc + '</button>';
+    });
+    if (o.concepts) each(CONCEPTS, function (cp) {
+      if (txt.indexOf(cp[0]) < 0) return;
+      var id = P + '-n' + pi, nt = note(cp[1]);
+      txt = txt.replace(cp[0], '<button type="button" class="concept" aria-expanded="false" aria-controls="' + id + '">' + cp[0] + '</button>');
+      cards += '<div class="card" id="' + id + '" hidden><div class="card-h"><span class="kind plain">NOTE</span><span>Learning note · ' + nt.min + ' min</span><span class="asof">' + nt.date + '</span></div><p style="margin:0 0 4px;font-weight:600;color:var(--ink)">' + nt.title + '</p><p class="card-src" style="margin:0">' + nt.obj + '</p><button type="button" class="card-x" data-go="note">Open the note</button> <button type="button" class="card-x" data-close="' + id + '">Close</button></div>';
+    });
+    h += '<div class="para">' + (para.rev ? '<p class="revmark"><span class="id">R' + para.rev + '</span><span>Rewritten ' + D.reviewed + '</span><button type="button" data-jump="history">See the change</button></p>' : '') + '<p>' + txt + '</p>' + cards + '</div>';
+  });
+  h += '</div></section>';
+  /* TEST */
+  h += '<section class="sec" data-sec="tests"><div class="sec-h"><span class="kind">TEST</span><h2>What would prove me wrong</h2><p class="sub">Each condition is checked when a new filing lands.</p></div><p class="tsum">';
+  each(["Met", "Not met", "Watching", "No data"], function (s) { h += '<span>' + ICON[s] + '<span class="n">' + counts[s] + '</span> ' + s.toLowerCase() + '</span>'; });
+  h += '</p><p class="legend">Met means the condition has happened, so the view is wrong on that test. All checked ' + D.wrong[0].checked + '.</p><ol class="tests"><li class="thd" aria-hidden="true"><span>Status</span><span>Latest reading</span><span>Checked</span></li>';
+  each(D.wrong, function (w, i) {
+    h += '<li class="t"><span class="tn">' + (i + 1) + '</span><div><p class="tc"><span class="lead">I would be wrong if</span> ' + w.c + (w.added ? ' <span class="added">added in R' + w.added + '</span>' : '') + '</p>';
+    h += '<dl class="te"><dt class="sr">Status</dt><dd class="s">' + ICON[w.status] + w.status + '</dd><dt class="sr">Latest reading</dt><dd class="r"><span class="pfx" aria-hidden="true">Latest</span>' + w.latest + '<small>data to ' + w.asof + '</small></dd><dt class="sr">Last checked</dt><dd class="c">' + w.checked + '</dd></dl></div></li>';
+  });
+  h += '</ol></section>';
+  /* FACT */
+  h += '<section class="sec" data-sec="facts"><div class="sec-h"><span class="kind fact">FACT</span><h2>Source facts</h2><p class="sub">Taken from filings and public data. Not Aksh\'s words.</p></div>';
+  h += '<p class="fsum">' + nF + ' figures from ' + nS + ' sources · newest as of ' + D.dataAsOf + '</p><table class="ft"><caption class="sr">Source facts, grouped by period</caption><thead><tr><th scope="col">Metric</th><th scope="col" class="r" colspan="2">Value</th><th scope="col" class="r">Prior</th><th scope="col" style="padding-left:18px">Source</th></tr></thead>';
+  each([1, 2], function (g) {
+    var G = D.groups[g];
+    h += '<tbody><tr class="grp"><th colspan="5" scope="rowgroup">' + G.name + ' <span>· ' + G.span + ' · as of ' + G.a + '</span></th></tr>';
+    each(D.facts, function (f) {
+      if (f.g !== g) return;
+      h += '<tr><th scope="row">' + f.ks + '</th><td class="n">' + f.n + '</td><td class="u">' + f.u + '</td><td class="pr">' + (f.pv ? '<span class="pl">' + f.pl + '</span>' + f.pv : '<span class="pl">' + (f.pl || '–') + '</span>') + '</td><td class="s"><span class="id">' + f.s + '</span> · ' + f.loc + '</td></tr>';
+    });
+    h += '</tbody>';
+  });
+  h += '</table><div data-sec="sources"><ol class="srcs" aria-label="Sources">';
+  each(srcIds(), function (k) { var s = D.sources[k]; h += '<li><span class="id">' + k + '</span><span><span class="ty">' + s.type + '</span>' + s.title + '<small>' + s.meta + '</small></span></li>'; });
+  h += '</ol></div></section>';
+  /* LOG */
+  var nv = D.view[2], added = D.facts.filter(function (f) { return f.r === cur.n; }), newT = D.wrong.filter(function (w) { return w.added === cur.n; });
+  h += '<section class="sec" data-sec="history"><div class="sec-h"><span class="kind log">LOG</span><h2>Revision history</h2><p class="sub">The reason comes first, then every sentence that changed.</p></div>';
+  h += '<div class="rv"><p class="rv-h"><span class="id">R' + cur.n + '</span><b>' + cur.d + '</b><span>1 paragraph rewritten · ' + newT.length + ' test added · ' + added.length + ' facts added</span></p><p class="reason">' + cur.r + '</p>';
+  h += '<div class="dseg" role="group" aria-label="Show"><button type="button" data-pane="chg" aria-pressed="true">Changes</button><button type="button" data-pane="r2" aria-pressed="false">Read R2</button><button type="button" data-pane="r1" aria-pressed="false">Read R1</button></div>';
+  h += '<div class="pane" data-p="chg"><p class="loc">View, paragraph 3 · removed from R1</p><ol class="dl del">';
+  each(sentences(nv.old), function (s) { h += '<li><span class="g" aria-hidden="true">−</span><span><span class="sr">Removed: </span>' + s + '</span></li>'; });
+  h += '</ol><p class="loc">View, paragraph 3 · added in R2</p><ol class="dl ins">';
+  each(sentences(nv.t), function (s) { h += '<li><span class="g" aria-hidden="true">+</span><span><span class="sr">Added: </span>' + s + '</span></li>'; });
+  h += '</ol><p class="loc">Tests · added in R2</p><ol class="dl ins">';
+  each(newT, function (w) { h += '<li><span class="g" aria-hidden="true">+</span><span><span class="sr">Added: </span>Test 3. I would be wrong if ' + w.c + '</span></li>'; });
+  h += '</ol><p class="loc">Facts · added in R2</p><ol class="dl ins">';
+  each(added, function (f) { h += '<li><span class="g" aria-hidden="true">+</span><span class="fx"><span class="sr">Added: </span>' + f.k + ': ' + f.v + ' (' + f.s + ', ' + f.loc + ')</span></li>'; });
+  h += '</ol></div><div class="pane" data-p="r2" hidden>';
+  each(D.view, function (p) { h += '<p>' + p.t.replace(CITE, '') + '</p>'; });
+  h += '<p class="note">Current text, source links hidden.</p></div><div class="pane" data-p="r1" hidden>';
+  each(D.view, function (p) { h += '<p>' + (p.old || p.t).replace(CITE, '') + '</p>'; });
+  h += '<p class="note">As published on ' + D.firstWritten + '. Kept unchanged.</p></div><ol class="rlog" reversed>';
+  each(revNewest(), function (r) { h += '<li><span class="when"><span class="id">R' + r.n + '</span>' + r.d + '</span><span class="why">' + r.r + '</span></li>'; });
+  h += '</ol></div></section>';
+  /* LINK (the hook each direction fills differently) + disclosure */
+  h += '<section class="sec" data-sec="notes"><div class="sec-h"><span class="kind plain">LINK</span><h2>' + (o.linksTitle || 'Linked notes') + '</h2>' + (o.linksSub ? '<p class="sub">' + o.linksSub + '</p>' : '') + '</div>' + (o.links || '') + '</section>';
+  h += '<section class="sec disc" data-sec="disclosure"><span class="lbl">Disclosure</span><p class="pos">Position in this security: <b>None</b><small>Taken from the ledger when this version was published, ' + D.reviewed + '.</small></p><dl class="facts-dl"><dt>Type</dt><dd>Educational case study</dd><dt>Registration</dt><dd>Not a SEBI-registered RA or IA</dd><dt>Data lag</dt><dd>At least 30 days</dd><dt>Reviewed</dt><dd>' + D.reviewed + '</dd></dl><p class="full">' + D.disclosure() + '</p></section>';
+  h += (o.after || '') + '</div></div></article>';
+  return h;
+}
+
+/* ================= A. The Register ================= */
+function aTabs(cur) {
+  var h = '<nav class="tabs" aria-label="Main">';
+  each([["home", "Desk", SV.desk, ""], ["index", "Files", SV.files, "7"], ["note", "Notes", SV.notes, "5"], ["menu", "About", SV.about, ""]], function (t) {
+    h += '<button type="button" data-go="' + t[0] + '"' + (t[0] === cur ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + (t[3] ? ' <span class="ct">' + t[3] + '</span>' : '') + '</span></button>';
+  });
+  return h + '</nav>';
+}
+function aRail(cur, inFile) {
+  var h = '<nav class="grail" aria-label="Desk">';
+  each([["home", "Desk", ""], ["index", "Files", "7"]], function (t) { h += '<button type="button" class="gi" data-go="' + t[0] + '"' + (t[0] === cur ? ' aria-current="page"' : '') + '><span>' + t[1] + '</span><span class="ct">' + t[2] + '</span></button>'; });
+  if (inFile) {
+    h += '<div class="gsub"><div class="gfile">Kaveri Pumps</div>';
+    each([["view", "View", "3 ¶"], ["tests", "Tests", "3"], ["facts", "Facts", "8"], ["sources", "Sources", "3"], ["history", "History", "R2"], ["notes", "Notes", "2"], ["disclosure", "Disclosure", ""]], function (r, i) {
+      h += '<button type="button" class="gi" data-jump="' + r[0] + '" aria-current="' + (i === 0) + '"><span>' + r[1] + '</span><span class="ct">' + r[2] + '</span></button>';
+    });
+    h += '</div>';
+  }
+  each([["note", "Learning notes", "3"], ["menu", "Process", "2"], ["menu#m", "Mistakes", "0"], ["menu#a", "About and disclosures", ""]], function (t) {
+    var k = t[0].split("#")[0];
+    h += '<button type="button" class="gi" data-go="' + k + '"' + (t[0] === cur ? ' aria-current="page"' : '') + '><span>' + t[1] + '</span><span class="ct">' + t[2] + '</span></button>';
+  });
+  h += '<div class="gstat"><b>' + LOGGED + ' of the last 30 days</b>research logged; counts only.' + streak(170) + '<p style="margin:8px 0 0">Last entry 4 Oct 2026<br>Last published 1 Oct 2026</p></div>';
+  return h + '</nav>';
+}
+function aTop(screen) {
+  var h = '<div class="tb">';
+  if (screen === 'thesis') h += '<button type="button" class="back phn" data-go="index">' + SV.back + 'Files</button>';
+  h += '<button type="button" class="wm' + (screen === 'thesis' ? ' dsk' : '') + '" data-go="home">Aksh Research Desk</button><span class="sp"></span>';
+  h += '<button type="button" class="ib" data-go="index" aria-label="Find a file">' + SV.search + '<span class="dsk">Find a file</span></button></div>';
+  return h;
+}
+function aRow(c) {
+  return '<tr><th scope="row" class="c-n">' + go('thesis', c.name, 'plain') + '<span class="id">' + c.sym + '</span></th><td class="c-s">' + c.sector + '</td><td class="c-v">R' + c.rev + '</td><td class="c-r">' + c.revised + '</td><td class="c-t">' + tmini(c.t) + '</td><td class="c-o"><span class="ph">figures to </span>' + c.to + '</td></tr>';
+}
+function aTable(list, sortKey) {
+  var th = function (k, l) { return '<th scope="col"' + (sortKey === k ? ' aria-sort="' + (k === 'name' ? 'ascending' : 'descending') + '"' : '') + '><button type="button" data-asort="' + k + '">' + l + '</button></th>'; };
+  var h = '<table class="ftab"><caption class="sr">Company files</caption><thead><tr>' + th('name', 'Company') + th('sector', 'Sector') + '<th scope="col">Version</th>' + th('latest', 'Revised') + '<th scope="col">Tests</th><th scope="col">Figures to</th></tr></thead><tbody>';
+  each(list, function (c) { h += aRow(c); });
+  return h + '</tbody></table>';
+}
+function sorted(key, sector) {
+  var l = COS.filter(function (c) { return !sector || sector === 'all' || c.sector === sector; }).slice();
+  if (key === 'name') l.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+  else if (key === 'sector') l.sort(function (a, b) { return a.sector === b.sector ? (a.iso < b.iso ? 1 : -1) : (a.sector < b.sector ? -1 : 1); });
+  else l.sort(function (a, b) { return a.iso < b.iso ? 1 : -1; });
+  return l;
+}
+function aPage(screen) {
+  var h = '';
+  if (screen === 'home') {
+    h += '<p class="kick">Aksh Research Desk · case studies of Indian listed companies</p><h1 class="h1">Research files</h1><p class="stand">Each file says what Aksh expected, what would prove him wrong, and every revision since. Education, not advice.</p>';
+    h += '<dl class="stat"><div><dt>Files</dt><dd>7 companies, 6 sectors</dd></div><div><dt>Last published</dt><dd>1 Oct 2026</dd></div><div><dt>Last entry</dt><dd>4 Oct 2026</dd></div><div class="wide"><dt>Research logged</dt><dd>' + LOGGED + ' of the last 30 days' + streak(200) + '</dd></div></dl>';
+    h += '<section class="blk"><div class="blk-h"><h2>Files</h2><span class="ct">7</span><span class="more">' + go('index', 'Sort and filter') + '</span></div>' + aTable(sorted('latest'), 'latest') + legend() + '</section>';
+    h += '<section class="blk"><div class="blk-h"><h2>Learning notes</h2><span class="ct">3</span></div><ul class="ls">';
+    each(NOTES, function (n) { h += '<li>' + go('note', n.title, 'plain lt') + '<small>' + n.date + ' · ' + n.min + ' min · used in ' + n.used.length + ' file' + (n.used.length > 1 ? 's' : '') + '</small></li>'; });
+    h += '</ul></section><section class="blk"><div class="blk-h"><h2>Process</h2><span class="ct">2</span></div><ul class="ls">';
+    each(PROC, function (p) { h += '<li>' + go('menu', p.title, 'plain lt') + '<small>R' + p.rev + ' · ' + p.date + '</small></li>'; });
+    h += '</ul></section><section class="blk"><div class="blk-h"><h2>Mistakes</h2><span class="ct">0</span></div>' + mistakesEmpty() + '</section>';
+  } else if (screen === 'index') {
+    h += '<p class="crumbs dsk">' + go('home', 'Desk') + ' / Files</p><h1 class="h1">Files</h1><p class="stand">Seven companies. Sorted by latest revision; each row shows its version, its tests and the date its figures run to.</p>';
+    h += '<div class="tools"><label>Sector <select data-afilter><option value="all">All sectors (7)</option>';
+    each(SECTORS, function (s) { h += '<option value="' + s + '">' + s + ' (' + COS.filter(function (c) { return c.sector === s; }).length + ')</option>'; });
+    h += '</select></label><span class="sorts" role="group" aria-label="Sort"><button type="button" data-asort="latest" aria-pressed="true">Latest</button><button type="button" data-asort="name" aria-pressed="false">A to Z</button><button type="button" data-asort="sector" aria-pressed="false">Sector</button></span></div>';
+    h += '<div data-atable>' + aTable(sorted('latest'), 'latest') + '</div>' + legend();
+  } else if (screen === 'note') {
+    var n = note('receivables');
+    h += '<p class="crumbs dsk">' + go('home', 'Desk') + ' / Learning notes / Receivable days</p><p class="kick phn">Learning note</p><h1 class="h1">' + n.title + '</h1>';
+    h += '<dl class="stat"><div><dt>Written</dt><dd>' + n.date + '</dd></div><div><dt>Reading</dt><dd>' + n.min + ' min</dd></div><div><dt>Used in</dt><dd>' + n.used.length + ' file</dd></div><div><dt>Version</dt><dd>R1</dd></div></dl>';
+    h += '<div class="note-body" style="margin-top:18px">'; each(NOTE_BODY, function (p) { h += '<p>' + p + '</p>'; }); h += '</div>';
+    h += '<section class="blk"><div class="blk-h"><h2>Used in</h2><span class="ct">1 file</span></div><table class="bt"><thead><tr><th scope="col">File</th><th scope="col">Where</th><th scope="col">Since</th></tr></thead><tbody>';
+    each(n.used, function (u) { h += '<tr><td>' + go('thesis', co(u[0]).name, 'plain') + '</td><td>' + u[1] + '</td><td>' + u[2] + '</td></tr>'; });
+    h += '</tbody></table></section><section class="blk"><div class="blk-h"><h2>Other learning notes</h2></div><ul class="ls">';
+    each(NOTES, function (x) { if (x !== n) h += '<li>' + go('note', x.title, 'plain lt') + '<small>' + x.date + ' · used in ' + x.used.length + ' file' + (x.used.length > 1 ? 's' : '') + '</small></li>'; });
+    h += '</ul></section>';
+  } else {
+    h += '<p class="crumbs dsk">' + go('home', 'Desk') + ' / About</p><h1 class="h1">About the desk</h1><p class="stand">Aksh Agrawal is a student who studies Indian listed companies and writes each study down before the evidence arrives. This site shows the files, the notes behind them and how the work is done.</p>';
+    h += '<section class="blk"><div class="blk-h"><h2>Process</h2><span class="ct">2</span></div><ul class="ls">';
+    each(PROC, function (p) { h += '<li>' + go('menu', p.title, 'plain lt') + '<small>R' + p.rev + ' · ' + p.date + ' · ' + p.why + '</small></li>'; });
+    h += '</ul></section><section class="blk"><div class="blk-h"><h2>Mistakes</h2><span class="ct">0</span></div>' + mistakesEmpty() + '</section>';
+    h += '<section class="blk"><div class="blk-h"><h2>Desk status</h2></div><dl class="stat"><div><dt>Last entry</dt><dd>4 Oct 2026</dd></div><div><dt>Last published</dt><dd>1 Oct 2026</dd></div><div class="wide"><dt>Research logged</dt><dd>' + LOGGED + ' of the last 30 days' + streak(200) + '</dd></div></dl></section>' + fullDisclosure();
+  }
+  return h + '<p class="foot"><span>Aksh Research Desk</span>' + go('menu', 'About and disclosures') + '<span>Not SEBI-registered</span></p>';
+}
+function renderA(screen) {
+  var tab = {home: 'home', index: 'index', thesis: 'index', note: 'note', menu: 'menu'}[screen];
+  var h = '<div class="site a">';
+  if (screen !== 'thesis') h += dbar('dtop');
+  h += aTop(screen) + '<div class="a-body">' + aRail(screen === 'thesis' ? 'index' : (screen === 'menu' ? 'menu#a' : screen), screen === 'thesis') + '<div class="main">';
+  if (screen === 'thesis') {
+    var links = '<table class="bt"><thead><tr><th scope="col">Note</th><th scope="col">Used here in</th><th scope="col">Reading</th></tr></thead><tbody>';
+    each(["segment", "receivables"], function (s) { var n = note(s), u = n.used[0]; links += '<tr><td>' + go('note', n.title, 'plain') + '</td><td>' + u[1] + '</td><td>' + n.min + ' min</td></tr>'; });
+    links += '</tbody></table>';
+    h += renderP({rail: 'none', crumb: '<p class="crumb"><span class="dsk">' + go('home', 'Desk', 'plain') + ' / ' + go('index', 'Files', 'plain') + ' / Capital goods / </span>Kaveri Pumps · <span class="id">' + D.symbol + '</span></p>', links: links});
+  } else h += '<div class="pg">' + aPage(screen) + '</div>';
+  h += '</div></div><div class="dock">' + (screen !== 'thesis' ? dbar('bottom-strip') : '') + aTabs(tab) + '</div></div>';
+  return h;
+}
+
+/* ================= B. The Desk Log ================= */
+function bTop(screen) {
+  var h = '<div class="tb">';
+  if (screen === 'thesis' || screen === 'note') h += '<button type="button" class="back phn" data-go="home">' + SV.back + 'Log</button>';
+  h += '<button type="button" class="wm' + (screen === 'thesis' || screen === 'note' ? ' dsk' : '') + '" data-go="home">Aksh Research Desk</button><span class="sp"></span>';
+  h += '<button type="button" class="sbox fake dsk" data-go="menu">' + SV.search + '<span style="flex:1;text-align:left">Search files, tests, notes</span><span class="kbd">/</span></button>';
+  h += '<button type="button" class="ib phn" data-go="menu" aria-label="Search">' + SV.search + '</button></div>';
+  return h;
+}
+function bEntries(filter) {
+  var h = '', lastW = -1;
+  each(LOG, function (e) {
+    if (filter && filter !== 'all' && e.type !== filter) return;
+    if (e.w !== lastW) { h += '<h3 class="wk">' + WEEKS[e.w] + '</h3>'; lastW = e.w; }
+    var title = e.co ? co(e.co).name : e.note ? note(e.note).title : proc(e.proc).title;
+    var dest = e.co ? 'thesis' : e.note ? 'note' : 'menu';
+    h += '<article class="le"><time>' + e.d.replace(' ', '<br>') + '</time><div><p class="k"><span class="kind' + (e.type === 'file' ? '' : ' plain') + '">' + e.kind + '</span>' + (e.id ? '<span class="id">' + e.id + '</span>' : '') + (e.co ? '<span>' + co(e.co).sector + '</span>' : '') + '</p>' + go(dest, title, 'ttl') + '<p class="why">' + e.why + '</p><p class="ds">' + e.ds + '</p></div></article>';
+  });
+  return h || '<p class="nores">Nothing of this kind yet.</p>';
+}
+function bStatus(w) { return '<p style="margin:0;font-size:14px;color:var(--ink)"><b>' + LOGGED + ' of the last 30 days</b> with research logged</p>' + streak(w) + '<p style="margin:6px 0 0;font-size:12.5px;color:var(--muted)">Last entry 4 Oct 2026 · last published 1 Oct 2026. Counts only; private entries stay private.</p>'; }
+function bLogFilter() {
+  var n = {all: LOG.length, file: 0, learning: 0, process: 0};
+  each(LOG, function (e) { n[e.type]++; });
+  var h = '<div class="chips" role="group" aria-label="Show">';
+  each([["all", "All"], ["file", "Files"], ["learning", "Learning"], ["process", "Process"]], function (f, i) { h += '<button type="button" data-blog="' + f[0] + '" aria-pressed="' + (i === 0) + '">' + f[1] + '<span class="ct">' + n[f[0]] + '</span></button>'; });
+  return h + '</div>';
+}
+function bSide() {
+  var h = '<aside class="bside"><section class="blk"><span class="lbl">Desk status</span>' + bStatus(228) + '</section><section class="blk"><span class="lbl">Files, A to Z</span><ul class="ls">';
+  each(sorted('name'), function (c) { h += '<li style="padding:7px 0">' + go('thesis', cut(c.name), 'plain') + '<small>' + c.sector + ' · R' + c.rev + '</small></li>'; });
+  return h + '</ul></section><section class="blk"><span class="lbl">Mistakes</span><p style="margin:0;font-size:13px">None published yet. They arrive with the ledger in phase 3, each linked to its file.</p></section></aside>';
+}
+function hay(s) { return s.replace(/&amp;/g, '&'); }
+function mark(text, q) {
+  var t = hay(text), i = t.toLowerCase().indexOf(q);
+  if (i < 0) return null;
+  var a = Math.max(0, i - 48), b = Math.min(t.length, i + q.length + 60);
+  var esc = function (s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+  return (a > 0 ? '…' : '') + esc(t.slice(a, i)) + '<mark>' + esc(t.slice(i, i + q.length)) + '</mark>' + esc(t.slice(i + q.length, b)) + (b < t.length ? '…' : '');
+}
+function bResults(q, sector) {
+  q = (q || '').trim().toLowerCase();
+  var files = [], notes = [], facts = [], h = '';
+  each(sorted('latest', sector), function (c) {
+    if (!q) { files.push([c, '<span class="x">' + c.teach + '</span>']); return; }
+    var fields = [["", c.name], ["", c.sector], ["What this teaches: ", c.teach], ["Test: I would be wrong if ", c.test]];
+    if (c.slug === 'kaveri') each(D.wrong, function (w) { fields.push(["Test: I would be wrong if ", w.c]); });
+    for (var i = 0; i < fields.length; i++) { var m = mark(fields[i][1], q); if (m) { files.push([c, '<span class="x">' + fields[i][0] + m + '</span>']); break; } }
+  });
+  if (q && (!sector || sector === 'all')) {
+    each(NOTES, function (n) { var m = mark(n.title, q) || mark(n.obj, q); if (m) notes.push([n, m]); });
+    each(D.facts, function (f) { if (mark(f.k, q)) facts.push(f); });
+  }
+  if (files.length) {
+    h += '<div class="rg"><h3>' + (q ? 'Files · ' : 'Files, latest change first · ') + files.length + '</h3>';
+    each(files, function (r) { var c = r[0]; h += '<div class="ri">' + go('thesis', c.name) + '<span class="m">' + c.sector + ' · R' + c.rev + ', ' + c.revised + ' · figures to ' + c.to + '</span>' + r[1] + '</div>'; });
+    h += '</div>';
+  }
+  if (notes.length) {
+    h += '<div class="rg"><h3>Learning notes · ' + notes.length + '</h3>';
+    each(notes, function (r) { h += '<div class="ri">' + go('note', r[0].title) + '<span class="m">' + r[0].date + ' · ' + r[0].min + ' min</span><span class="x">' + r[1] + '</span></div>'; });
+    h += '</div>';
+  }
+  if (facts.length) {
+    h += '<div class="rg"><h3>Source facts · ' + facts.length + '</h3>';
+    each(facts, function (f) { h += '<div class="ri">' + go('thesis', f.k) + '<span class="m">Kaveri Pumps · ' + f.s + ', ' + f.loc + ' · as of ' + f.a + '</span><span class="x">' + f.v + '</span></div>'; });
+    h += '</div>';
+  }
+  if (!h) h = '<p class="nores">Nothing matches “' + q.replace(/</g, '&lt;') + '”. Try a sector, such as capital goods, or a term such as receivable days, stage 3 or utilisation.</p>';
+  return h;
+}
+function bSearch(q, ph, withChips) {
+  var h = '<label class="sbox">' + SV.search + '<span class="sr">Search</span><input type="search" data-bq value="' + (q || '') + '" placeholder="' + ph + '" autocomplete="off"></label>';
+  if (withChips) {
+    h += '<div class="chips" role="group" aria-label="Sector"><button type="button" data-bsec="all" aria-pressed="true">All<span class="ct">7</span></button>';
+    each(SECTORS, function (s) { h += '<button type="button" data-bsec="' + s + '" aria-pressed="false">' + s + '<span class="ct">' + COS.filter(function (c) { return c.sector === s; }).length + '</span></button>'; });
+    h += '</div>';
+  }
+  return h + '<div data-bres>' + bResults(q, 'all') + '</div>';
+}
+function bPage(screen) {
+  var h = '';
+  if (screen === 'home') {
+    h += '<div class="b-grid"><div><h1 class="h1">Desk log</h1><p class="stand">Everything Aksh publishes, newest first. Each entry says what changed and why. Education, not advice.</p>';
+    h += '<div class="phn" style="padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">' + bStatus() + '</div>' + bLogFilter() + '<div data-blist>' + bEntries('all') + '</div></div>' + bSide() + '</div>';
+  } else if (screen === 'index') {
+    h += '<h1 class="h1">Companies</h1><p class="stand">Seven files. Search by name, sector, or any condition that would prove a view wrong.</p>' + bSearch('', 'Try “capital goods” or “receivable”', true);
+  } else if (screen === 'note') {
+    var n = note('receivables');
+    h += '<p class="kick"><span class="kind plain">LEARNING</span> &nbsp;Written ' + n.date + ' · ' + n.min + ' min · in the log</p><h1 class="h1">' + n.title + '</h1><div class="note-body" style="margin-top:14px">';
+    each(NOTE_BODY, function (p) { h += '<p>' + p + '</p>'; });
+    h += '</div><section class="blk"><div class="blk-h"><h2>Mentioned in</h2><span class="ct">1 file</span></div><ul class="bl-ex">';
+    each(n.used, function (u) { h += '<li>' + go('thesis', co(u[0]).name, 'plain') + '<span class="m"> · ' + u[1] + ' · ' + u[2] + '</span><blockquote>' + u[3].replace('Receivable days', '<mark>Receivable days</mark>') + '</blockquote></li>'; });
+    h += '</ul></section><section class="blk"><div class="blk-h"><h2>Around it in the log</h2></div>' + bEntries('learning') + '</section>';
+  } else {
+    h += '<h1 class="h1 dsk">Search the desk</h1><p class="stand dsk">Files, tests, learning notes, process and source facts.</p>' + bSearch('receiv', 'Search files, tests, notes', false);
+    h += '<section class="blk"><div class="blk-h"><h2>Or go to</h2></div><ul class="ls"><li>' + go('index', 'All companies', 'plain lt') + '<small>7 files in 6 sectors</small></li><li>' + go('home', 'Desk log', 'plain lt') + '<small>Every change, newest first</small></li><li>' + go('note', 'Learning notes', 'plain lt') + '<small>3 notes</small></li></ul></section><section class="blk"><div class="blk-h"><h2>About the desk</h2></div><p style="max-width:58ch;font-size:15px">Aksh Agrawal is a student who studies Indian listed companies and writes each study down before the evidence arrives. The log above is the whole record: nothing is edited without a revision.</p></section>' + fullDisclosure();
+  }
+  return h + '<p class="foot"><span>Aksh Research Desk</span>' + go('menu', 'About and disclosures') + '<span>Not SEBI-registered</span></p>';
+}
+function renderB(screen) {
+  var h = '<div class="site b">';
+  h += bTop(screen) + (screen !== 'thesis' ? dbar('dtop') : '') + '<div class="main">';
+  if (screen === 'thesis') {
+    var links = '<ul class="bl-ex">';
+    each(["segment", "receivables"], function (s) { var n = note(s), u = n.used[0]; links += '<li>' + go('note', n.title, 'plain') + '<span class="m"> · ' + n.min + ' min · used in ' + u[1] + '</span><blockquote>' + n.obj + '</blockquote></li>'; });
+    links += '</ul>';
+    h += renderP({concepts: true, crumb: '<p class="crumb">Last change ' + D.reviewed + ' · R2 · ' + go('home', 'in the desk log', '') + '</p>', links: links, linksSub: 'Also opened in place from the dotted words in the view.'});
+  } else h += '<div class="pg">' + bPage(screen) + '</div>';
+  h += '</div>';
+  if (screen !== 'thesis') h += '<div class="dock bdock">' + dbar('in-dock').replace('<span>Figures 30+ days old</span>', '') + '<button type="button" class="sbtn" data-go="menu">' + SV.search + 'Search</button></div>';
+  return h + '</div>';
+}
+
+/* ================= C. The Weekly Letter ================= */
+function cTop(screen) {
+  return '<div class="tb"><button type="button" class="wm" data-go="home">Aksh Research Desk</button><span class="sp"></span>' + (screen === 'menu' ? '<button type="button" class="ib bx" data-go="home">' + SV.close + 'Close</button>' : '<button type="button" class="ib bx" data-go="menu" aria-label="Contents">' + SV.contents + 'Contents</button>') + '</div>';
+}
+function cSectors(withTeach) {
+  var h = '';
+  each(SECTORS, function (s) {
+    var l = COS.filter(function (c) { return c.sector === s; });
+    h += '<div class="sect"><h3>' + s + ' <span>' + l.length + ' file' + (l.length > 1 ? 's' : '') + '</span></h3><ul>';
+    each(l, function (c) { h += '<li>' + go('thesis', c.name) + (withTeach ? '<span class="teach">' + c.teach + '</span>' : '') + '<small>R' + c.rev + ', ' + c.revised + ' · figures to ' + c.to + '</small></li>'; });
+    h += '</ul></div>';
+  });
+  return h;
+}
+function cChapters() {
+  var h = '<ol class="chap">';
+  each(NOTES, function (n) { h += '<li><span class="n">L' + n.n + '</span><span>' + go('note', n.title) + '<small>' + n.min + ' min · ' + n.date + '</small></span></li>'; });
+  return h + '</ol>';
+}
+function cPage(screen) {
+  var h = '';
+  if (screen === 'home') {
+    h += '<div class="c-grid"><div><p class="kick">From the desk · Letter No. 14 · 4 Oct 2026</p><h1 class="h1">Two files moved, and one test was met</h1><div class="letter">';
+    h += '<p>Mirav\'s stage 3 loans rose for a second quarter. That meets test 2 of the four I wrote in June, so the view is weaker, and revision 3 says why.</p><p>Halden is new: a cable maker whose order book, like Kaveri\'s, leans on state customers. I also wrote up how housing finance companies report stage 3 loans, because I could not read Mirav\'s note without it.</p></div><p class="sign">Aksh, 4 Oct 2026</p>';
+    h += '<section class="blk"><div class="blk-h"><h2>In this letter</h2><span class="ct">3</span></div><ol class="inl">';
+    h += '<li><div><span class="k">Revision R3 · Financials · 1 Oct</span>' + go('thesis', 'Mirav Housing Finance') + '<p>Stage 3 loans rose for a second quarter; test 2 is now met. Figures to 30 Jun 2026.</p></div></li>';
+    h += '<li><div><span class="k">New file R1 · Capital goods · 29 Sep</span>' + go('thesis', 'Halden Cables &amp; Wires') + '<p>How to read an order book when one type of customer dominates it.</p></div></li>';
+    h += '<li><div><span class="k">Learning L3 · 30 Sep · 7 min</span>' + go('note', 'How housing finance companies report stage 3 loans') + '<p>Read this before the Mirav file.</p></div></li></ol></section>';
+    h += '<section class="blk phn"><div class="blk-h"><h2>The files, by sector</h2><span class="ct">7</span></div>' + cSectors(false) + '</section>';
+    h += '<section class="blk"><div class="blk-h"><h2>Earlier letters</h2></div><ul class="ls"><li>' + go('home', 'No. 13 · The Kaveri revision, and receivable days', 'plain lt') + '<small>6 Sep 2026</small></li><li>' + go('home', 'No. 12 · Durvan, a kiln before it produces', 'plain lt') + '<small>16 Aug 2026</small></li></ul><p class="kick" style="margin-top:8px">No letter in a week means no public change that week; the desk log still counts private research days.</p></section></div>';
+    h += '<aside class="cside"><section class="blk" style="margin-top:0"><div class="blk-h"><h2>The files, by sector</h2><span class="ct">7</span></div>' + cSectors(false) + '</section><section class="blk"><div class="blk-h"><h2>Learning</h2><span class="ct">3</span></div>' + cChapters() + '</section><section class="blk"><div class="blk-h"><h2>Mistakes</h2><span class="ct">0</span></div><p style="font-size:13px;margin:8px 0 0">None published yet. They arrive with the ledger in phase 3.</p></section></aside></div>';
+  } else if (screen === 'index') {
+    h += '<p class="kick">Contents › The files</p><h1 class="h1">The files, by sector</h1><p class="stand">Seven companies in six sectors. Each one is listed by what it teaches.</p>' + cSectors(true);
+  } else if (screen === 'note') {
+    var n = note('receivables');
+    h += '<p class="kick">Learning · L2 of 3 · ' + n.min + ' min</p><h1 class="h1">' + n.title + '</h1><p class="stand" style="font-size:15px;color:var(--muted)">' + n.obj + '</p><div class="note-body">';
+    each(NOTE_BODY, function (p) { h += '<p>' + p + '</p>'; });
+    h += '</div><section class="blk"><div class="blk-h"><h2>Files that assume this note</h2></div><ul class="ls">';
+    each(n.used, function (u) { h += '<li>' + go('thesis', co(u[0]).name, 'plain lt') + '<small>' + co(u[0]).sector + ' · read before ' + u[1].toLowerCase() + '</small></li>'; });
+    h += '</ul></section><nav class="chapnav" aria-label="Learning notes"><span>' + '<span>Previous · L1</span>' + go('note', 'Reading a segment note') + '</span><span style="text-align:right"><span>Next · L3</span>' + go('note', 'Stage 3 loans') + '</span></nav>';
+  } else {
+    h += '<h1 class="h1">Contents</h1><p class="kick">Research logged on ' + LOGGED + ' of the last 30 days · last entry 4 Oct 2026</p>' + streak(240);
+    h += '<ol class="toc"><li><button type="button" class="tl" data-go="home">This week · Letter No. 14<span class="dots"></span><span class="ct">4 Oct</span></button></li>';
+    h += '<li><button type="button" class="tl" data-go="index">The files, by sector<span class="dots"></span><span class="ct">7</span></button><ul>';
+    each(SECTORS, function (s) { h += '<li>' + go('index', s, 'plain') + '<small>' + COS.filter(function (c) { return c.sector === s; }).length + '</small></li>'; });
+    h += '</ul></li><li><button type="button" class="tl" data-go="note">Learning<span class="dots"></span><span class="ct">3</span></button><ul>';
+    each(NOTES, function (n) { h += '<li>' + go('note', 'L' + n.n + ' · ' + n.title, 'plain') + '</li>'; });
+    h += '</ul></li><li><button type="button" class="tl" data-go="menu">Process<span class="dots"></span><span class="ct">2</span></button><ul>';
+    each(PROC, function (p) { h += '<li>' + go('menu', p.title, 'plain') + '</li>'; });
+    h += '</ul></li><li><button type="button" class="tl" data-go="menu">Mistakes<span class="dots"></span><span class="ct">0</span></button><ul><li style="color:var(--muted)">Arrive with the ledger in phase 3</li></ul></li>';
+    h += '<li><button type="button" class="tl" data-go="home">Earlier letters<span class="dots"></span><span class="ct">13</span></button></li><li><button type="button" class="tl" data-go="menu">About and disclosures<span class="dots"></span><span class="ct"></span></button></li></ol>' + fullDisclosure();
+  }
+  return h + '<p class="foot"><span>Aksh Research Desk</span>' + go('menu', 'Contents') + '<span>Not SEBI-registered</span></p>';
+}
+function renderC(screen) {
+  var h = '<div class="site c">' + cTop(screen);
+  if (screen === 'home') h += '<div class="cmast"><p class="row"><span><b>Letter No. 14</b> · week of 28 Sep 2026</span><span>Research logged on ' + LOGGED + ' of the last 30 days</span><span>Last entry 4 Oct</span></p></div>';
+  if (screen !== 'thesis') h += dbar('dtop');
+  h += '<div class="main">';
+  if (screen === 'thesis') {
+    var pre = '<div class="readfirst"><span class="lbl">Read first</span><ol class="chap">';
+    each(["segment", "receivables"], function (s) { var n = note(s); pre += '<li><span class="n">L' + n.n + '</span><span>' + go('note', n.title) + '<small>' + n.min + ' min · ' + n.date + '</small></span></li>'; });
+    pre += '</ol></div>';
+    var after = '<nav class="nextf" aria-label="Continue"><span class="lbl">Next in Capital goods · file 2 of 2</span><span>' + go('thesis', 'Halden Cables &amp; Wires') + '<small>How to read an order book when one type of customer dominates it.</small></span><span>' + go('home', 'Back to Letter No. 14', 'plain') + '</span></nav>';
+    h += renderP({crumb: '<p class="crumb">' + go('index', 'Capital goods', 'plain') + ' · file 1 of 2 · <span class="id">' + D.symbol + '</span></p>', pre: pre, links: cChapters(), linksTitle: 'Learning used here', after: after});
+  } else h += '<div class="pg">' + cPage(screen) + '</div>';
+  h += '</div>';
+  if (screen !== 'thesis') h += '<div class="dock">' + dbar('bottom-only') + '</div>';
+  return h + '</div>';
+}
+
+/* ================= mount, navigation, controls ================= */
+var R = {A: renderA, B: renderB, C: renderC};
+var URLS = {
+  A: {home: '/', index: '/files', thesis: '/files/kaveri-pumps', note: '/notes/receivable-days', menu: '/about'},
+  B: {home: '/', index: '/companies', thesis: '/companies/kaveri-pumps', note: '/learning/receivable-days', menu: '/search?q=receiv'},
+  C: {home: '/', index: '/files', thesis: '/files/kaveri-pumps', note: '/learning/2-receivable-days', menu: '/contents'}
+};
+var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function show(vp, screen) {
+  var dir = vp.getAttribute('data-frame');
+  vp.setAttribute('data-screen', screen);
+  vp.innerHTML = R[dir](screen);
+  vp.scrollTop = 0;
+  var u = document.querySelector('[data-url-for="' + vp.getAttribute('data-id') + '"]');
+  if (u) u.textContent = 'desk.example' + URLS[dir][screen];
+  spy(vp);
+}
+function mountAll(screen) { each(document.querySelectorAll('[data-frame]'), function (vp) { show(vp, screen); }); }
+function spy(vp) {
+  var top = vp.querySelector('.bp-top'); if (!top) return;
+  var off = top.offsetHeight + 28, vr = vp.getBoundingClientRect().top, cur = 'view';
+  each(vp.querySelectorAll('[data-sec]'), function (s) { if (s.getBoundingClientRect().top - vr <= off) cur = s.getAttribute('data-sec'); });
+  each(vp.querySelectorAll('.idx [data-jump], .rail [data-jump], .grail [data-jump]'), function (b) {
+    var k = b.getAttribute('data-jump'), inIdx = b.closest('.idx'), c2 = cur;
+    if (inIdx && c2 === 'sources') c2 = 'facts';
+    var on = k === c2 || inIdx && (cur === 'notes' || cur === 'disclosure') && k === 'history';
+    b.setAttribute('aria-current', on ? 'true' : 'false');
+  });
+  var bar = vp.querySelector('.prog i');
+  if (bar) bar.style.transform = 'scaleX(' + Math.min(1, vp.scrollTop / Math.max(1, vp.scrollHeight - vp.clientHeight)) + ')';
+}
+each(document.querySelectorAll('[data-frame]'), function (vp) {
+  var t = 0;
+  vp.addEventListener('scroll', function () { if (!t) t = requestAnimationFrame(function () { t = 0; spy(vp); }); }, {passive: true});
+});
+document.addEventListener('click', function (e) {
+  var vp = e.target.closest('.vp');
+  var g = e.target.closest('[data-go]');
+  if (g && vp) { show(vp, g.getAttribute('data-go')); vp.focus({preventScroll: true}); return; }
+  var tog = e.target.closest('[aria-controls].chip, [aria-controls].concept');
+  if (tog) { var c = document.getElementById(tog.getAttribute('aria-controls')), open = tog.getAttribute('aria-expanded') !== 'true'; tog.setAttribute('aria-expanded', open ? 'true' : 'false'); c.hidden = !open; return; }
+  var x = e.target.closest('[data-close]');
+  if (x) { var id = x.getAttribute('data-close'), ch = document.querySelector('[aria-controls="' + id + '"]'); document.getElementById(id).hidden = true; ch.setAttribute('aria-expanded', 'false'); ch.focus(); return; }
+  var j = e.target.closest('[data-jump]');
+  if (j && vp) {
+    var tg = vp.querySelector('[data-sec="' + j.getAttribute('data-jump') + '"]'), top = vp.querySelector('.bp-top');
+    var strip = j.closest('details'); if (strip) strip.open = false;
+    vp.scrollTo({top: tg.getBoundingClientRect().top - vp.getBoundingClientRect().top + vp.scrollTop - top.offsetHeight - 12, behavior: reduce ? 'auto' : 'smooth'});
+    return;
+  }
+  var pb = e.target.closest('[data-pane]');
+  if (pb) {
+    var rv = pb.closest('.rv'), want = pb.getAttribute('data-pane');
+    each(rv.querySelectorAll('[data-pane]'), function (b) { b.setAttribute('aria-pressed', b === pb ? 'true' : 'false'); });
+    each(rv.querySelectorAll('.pane'), function (p) { p.hidden = p.getAttribute('data-p') !== want; });
+    return;
+  }
+  var as = e.target.closest('[data-asort]');
+  if (as && vp) {
+    vp.setAttribute('data-sort', as.getAttribute('data-asort'));
+    each(vp.querySelectorAll('.sorts [data-asort]'), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-asort') === as.getAttribute('data-asort') ? 'true' : 'false'); });
+    aRedraw(vp); return;
+  }
+  var bl = e.target.closest('[data-blog]');
+  if (bl && vp) {
+    each(vp.querySelectorAll('[data-blog]'), function (b) { b.setAttribute('aria-pressed', b === bl ? 'true' : 'false'); });
+    vp.querySelector('[data-blist]').innerHTML = bEntries(bl.getAttribute('data-blog')); return;
+  }
+  var bs = e.target.closest('[data-bsec]');
+  if (bs && vp) {
+    each(vp.querySelectorAll('[data-bsec]'), function (b) { b.setAttribute('aria-pressed', b === bs ? 'true' : 'false'); });
+    vp.setAttribute('data-bsec', bs.getAttribute('data-bsec')); bRedraw(vp); return;
+  }
+});
+function aRedraw(vp) {
+  var key = vp.getAttribute('data-sort') || 'latest', sel = vp.querySelector('[data-afilter]'), box = vp.querySelector('[data-atable]');
+  if (box) box.innerHTML = aTable(sorted(key, sel ? sel.value : 'all'), key);
+}
+function bRedraw(vp) {
+  var q = vp.querySelector('[data-bq]'), box = vp.querySelector('[data-bres]');
+  if (box) box.innerHTML = bResults(q ? q.value : '', vp.getAttribute('data-bsec') || 'all');
+}
+document.addEventListener('change', function (e) { if (e.target.matches('[data-afilter]')) aRedraw(e.target.closest('.vp')); });
+document.addEventListener('input', function (e) { if (e.target.matches('[data-bq]')) bRedraw(e.target.closest('.vp')); });
+document.addEventListener('keydown', function (e) {
+  if (e.key !== '/' || /input|select|textarea/i.test(e.target.tagName)) return;
+  var vp = e.target.closest && e.target.closest('.vp[data-frame="B"]');
+  if (vp) { e.preventDefault(); show(vp, 'menu'); var i = vp.querySelector('[data-bq]'); if (i) i.focus(); }
+});
+
+var root = document.documentElement;
+function press(sel, btn) { each(document.querySelectorAll(sel), function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); }); }
+each(document.querySelectorAll('[data-theme-btn]'), function (b) {
+  b.addEventListener('click', function () { var t = b.getAttribute('data-theme-btn'); if (t === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t); press('[data-theme-btn]', b); });
+});
+each(document.querySelectorAll('[data-layout-btn]'), function (b) {
+  b.addEventListener('click', function () { document.body.classList.toggle('phones', b.getAttribute('data-layout-btn') === 'phones'); press('[data-layout-btn]', b); each(document.querySelectorAll('[data-frame]'), spy); });
+});
+each(document.querySelectorAll('[data-screen-btn]'), function (b) {
+  b.addEventListener('click', function () { press('[data-screen-btn]', b); mountAll(b.getAttribute('data-screen-btn')); });
+});
+mountAll('home');
+</script>
+</body>
+</html>
