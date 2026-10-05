@@ -24,6 +24,9 @@ insert into public.themes (id, slug, name, visibility) values
 
 -- 1 private draft, 2 public+published but inside the 30-day lag, 3 public+published
 -- and old enough, 4 public+published with no data date, 5 public draft, 6 clients-only.
+-- The publish guard (items_guard_publish) rejects public rows unless the gate setting is on, which
+-- only a non-API role can do. Fixtures open it for this one insert.
+select set_config('app.publish_gate', 'on', true);
 insert into public.items (id, kind, title, visibility, status, data_as_of, company_id, theme_id) values
   ('dddddddd-0000-4000-8000-000000000001', 'note', 'Private draft', 'private', 'draft', null,
      'cccccccc-0000-4000-8000-00000000000b', 'eeeeeeee-0000-4000-8000-00000000000b'),
@@ -37,6 +40,7 @@ insert into public.items (id, kind, title, visibility, status, data_as_of, compa
      null, null),
   ('dddddddd-0000-4000-8000-000000000006', 'note', 'Clients only', 'clients', 'published', current_date - 40,
      null, null);
+select set_config('app.publish_gate', 'off', true);
 
 -- Two revisions of the visible item; only the first has passed the gate.
 insert into public.item_revisions (id, item_id, body_md) values

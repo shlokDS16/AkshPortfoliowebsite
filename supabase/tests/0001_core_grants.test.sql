@@ -42,9 +42,10 @@ select ok(has_column_privilege('anon', 'public.companies', 'one_liner', 'select'
       and has_column_privilege('anon', 'public.companies', 'nse_symbol', 'select'),
   'anon can select the public company columns');
 select ok(not has_column_privilege('anon', 'public.companies', 'needs_review', 'select')
-      and not has_column_privilege('anon', 'public.companies', 'isin', 'select')
-      and not has_column_privilege('anon', 'public.companies', 'bse_code', 'select'),
-  'anon cannot select the other company columns');
+      and not has_column_privilege('anon', 'public.companies', 'created_at', 'select')
+      and has_column_privilege('anon', 'public.companies', 'isin', 'select')
+      and has_column_privilege('anon', 'public.companies', 'bse_code', 'select'),
+  'anon can select the identifier columns public_companies needs, not the internal ones');
 select ok(has_column_privilege('anon', 'public.themes', 'name', 'select')
       and not has_column_privilege('anon', 'public.themes', 'description_md', 'select')
       and not has_column_privilege('anon', 'public.themes', 'needs_review', 'select'),
@@ -56,8 +57,8 @@ select ok(has_column_privilege('anon', 'public.items', 'title', 'select')
   'anon item access is limited to the public columns');
 select ok(has_column_privilege('anon', 'public.item_revisions', 'body_md', 'select')
       and not has_column_privilege('anon', 'public.item_revisions', 'author', 'select')
-      and not has_column_privilege('anon', 'public.item_revisions', 'schema_version', 'select'),
-  'anon revision access is limited to the public columns');
+      and has_column_privilege('anon', 'public.item_revisions', 'schema_version', 'select'),
+  'anon revision access is limited to the columns public_items needs (no author)');
 
 -- Functions.
 select ok(has_function_privilege('anon', 'private.is_admin()', 'execute')
@@ -70,11 +71,11 @@ select ok(has_function_privilege('anon', 'private.revision_passed(uuid)', 'execu
   'the other RLS helpers are executable by anon');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname in ('public', 'private')
+   where n.nspname = 'private'
      and p.proname not in ('is_admin', 'revision_passed', 'is_lagged', 'is_public_item')
      and (has_function_privilege('anon', p.oid, 'execute')
           or has_function_privilege('authenticated', p.oid, 'execute'))
-$$, 'no other function in public or private is executable by anon or authenticated');
+$$, 'no other function in private is executable by anon or authenticated (public: 0002_function_privileges)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'private' and p.prosecdef
