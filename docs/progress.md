@@ -7,7 +7,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
 ## Status snapshot
 - **Phase:** 0 complete (ADR-001 accepted, Phase 1 spec approved, Plan 1A written). Phase 1 not started.
 - **Last session:** 2026-10-04 - kickoff, research, ADR-001 + red team, agents, env template, rubrics, Plan 1A (7,007 lines), UI segment 1 comparison
-- **Next highest-value task:** Shlok confirms segment 3 (provisional) and picks the motion personality (segment 6) from `docs/design/comparisons/06-motion.html`; then design-dna tokens and Plan 1B. WHY: Plan 1B needs all three. In parallel: Task 0 prerequisites by hand, then `superpowers:subagent-driven-development` on Plan 1A from Task 1 (does not depend on UI choices).
+- **Next highest-value task:** Shlok confirms segment 3 (provisional), then picks segments 4 and 5; then `docs/design/design-dna.md` tokens and Plan 1B. Build: Task 3 blocked on Docker Desktop crash (fix steps given); Task 2 waits for Vercel creds. WHY: Plan 1B needs all three. In parallel: Task 0 prerequisites by hand, then `superpowers:subagent-driven-development` on Plan 1A from Task 1 (does not depend on UI choices).
 - **Blocked on:** credentials in `.env.local` (REQUIRED-P1 in `.env.example`); Mobbin MCP needs a paid plan (Q7)
 
 ## Phase 0 - Kickoff and planning
@@ -29,14 +29,15 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
 
 ## Phase 1 - Core: data model, capture, public desk
 Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public site looks like a desk. Exit: deployed preview, Aksh has used it for 3 days.
-- [ ] 1.1 Scaffold Next.js 16 + pnpm + Tailwind v4 + shadcn + Vitest + Playwright; CI; smoke deploy to Vercel (Turbopack CSS check)
+- [x] 1.1a Scaffold Next.js 16.3.8 + pnpm + Tailwind v4 + shadcn + Vitest + Playwright + CI (Plan 1A Task 1, commits 55e4f08, 826c87a, branch phase-1a, reviewed)
+- [ ] 1.1b Smoke deploy to Vercel (Plan 1A Task 2) — waits for Vercel credentials
 - [ ] 1.2 Supabase project, migrations 0001 (identity, catalog, research, compliance tables), RLS, generated types
 - [ ] 1.3 `src/lib/env.ts` (zod), Supabase clients (server/browser/service/public), `proxy.ts` session refresh
 - [ ] 1.4 Admin auth (magic link, `ADMIN_EMAIL` gate), `/desk` shell
 - [ ] 1.5 `research` module: items + revisions service, TDD
 - [ ] 1.6 `compliance` module: lint + `publish_item()` + `gate_decisions`, adversarial tests
 - [ ] 1.7 Quick capture (`t:` `l:` `$SYM` `#theme` grammar) + daily capture log
-- [~] 1.8 UI segments 1-3 decided with Shlok → `docs/design/decisions.md`. Segments 1 (B+ Labelled Blocks) and 2 (Register + What-changed + Read-first) DECIDED; segment 3 (Exhibits + Ledger table + meters) PROVISIONAL pending Shlok; segment 6 (motion) in progress
+- [~] 1.8 UI segments 1-3 decided with Shlok → `docs/design/decisions.md`. Segments 1 (B+ Labelled Blocks) and 2 (Register + What-changed + Read-first) DECIDED; segment 3 (Exhibits + Ledger table + meters) PROVISIONAL pending Shlok; segment 6 motion DECIDED (Instrument + morph + draw-to-cap); segment 4 (capture/review) and 5 (identity) in progress
 - [ ] 1.9 Public pages: desk home, company page (thesis + revisions + sources), learning note, about/process, disclosures
 - [ ] 1.10 Three clocks: `/api/cron/daily` heartbeat, `/api/jobs/run` pump via `.github/workflows/pump.yml` (15 min), `/api/health` + external uptime monitor emailing Shlok + Aksh
 - [ ] 1.11 Seed with 2 real companies from Aksh's notepad/Excel; 3-day usage trial; fix friction

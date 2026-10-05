@@ -1,0 +1,1539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion personalities</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=optional" rel="stylesheet">
+<style>
+/* ---------- comparison shell (neutral, not a design proposal) ---------- */
+:root{--s-bg:#EFEFEC;--s-ink:#191919;--s-muted:#575757;--s-rule:#D2D2CD;--s-card:#FFFFFF;--s-hi:#191919;--s-on-hi:#FFFFFF}
+:root[data-theme=dark]{--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--s-bg);color:var(--s-ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+.shell{max-width:1480px;margin:0 auto;padding:28px 32px 8px}
+.shell h1{font-size:22px;margin:0 0 6px;font-weight:650;letter-spacing:-.01em}
+.shell p{margin:0 0 8px;color:var(--s-muted);max-width:1000px}
+.shell p b{color:var(--s-ink)}
+.shell code,.spec code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
+.controls{display:flex;flex-wrap:wrap;gap:14px 18px;margin:16px 0 4px;align-items:center}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--s-rule);border-radius:8px;overflow:hidden;background:var(--s-card)}
+.seg span{padding:7px 10px;font-size:12px;color:var(--s-muted);border-right:1px solid var(--s-rule);align-self:center}
+.seg button{font:inherit;font-size:13px;padding:7px 12px;border:0;background:transparent;color:var(--s-ink);cursor:pointer;min-height:36px}
+.seg button+button{border-left:1px solid var(--s-rule)}
+.seg button[aria-pressed=true]{background:var(--s-hi);color:var(--s-on-hi)}
+.seg button:focus-visible,.ftools button:focus-visible,.spec summary:focus-visible{outline:2px solid var(--s-ink);outline-offset:-3px}
+.osnote{font-size:12.5px;color:var(--s-muted)}
+.dirs{max-width:1480px;margin:0 auto;padding:0 20px}
+.dir{margin:36px 0 56px}
+.dir-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;max-width:1000px}
+.dir-letter{flex:none;min-width:38px;height:38px;padding:0 6px;display:grid;place-items:center;border:1.5px solid var(--s-ink);border-radius:6px;font-weight:700;font-size:17px}
+.dir-head h2{margin:0;font-size:19px;font-weight:650}
+.dir-head p{margin:2px 0 0;color:var(--s-muted)}
+.dir-head p.thesis{color:var(--s-ink);font-weight:500}
+.dir-head .answers{font-size:13px}
+.stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+figure{margin:0;max-width:100%;min-width:0}
+figure.fd{width:960px}
+figure.fp{width:391px}
+.browser{width:100%;border:1px solid var(--s-rule);border-radius:10px;overflow:hidden;background:var(--s-card)}
+.chrome{height:36px;display:flex;align-items:center;gap:7px;padding:0 12px;border-bottom:1px solid var(--s-rule);font-size:12px;color:var(--s-muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--s-rule);flex:none}
+.url{margin-left:10px;padding:3px 12px;border-radius:6px;background:var(--s-bg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vp{overflow-y:auto;container-type:inline-size;overscroll-behavior:contain;position:relative}
+.vp:focus-visible{outline:2px solid var(--s-ink);outline-offset:2px}
+.browser .vp{height:780px}
+.bezel{width:100%;height:780px;border:8px solid #0A0A0A;border-radius:46px;overflow:hidden;background:#0A0A0A}
+.bezel .vp{width:100%;height:100%;scrollbar-width:none}
+.bezel .vp::-webkit-scrollbar{display:none}
+.ftools{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:10px;font-size:12px;color:var(--s-muted);max-width:960px}
+.fp .ftools{max-width:391px}
+.ftools .g{display:inline-flex;border:1px solid var(--s-rule);border-radius:6px;overflow:hidden;background:var(--s-card)}
+.ftools button{font:inherit;font-size:12.5px;min-height:34px;padding:0 10px;border:0;background:transparent;color:var(--s-ink);cursor:pointer}
+.ftools .g button+button{border-left:1px solid var(--s-rule)}
+.ftools button[aria-pressed=true]{background:var(--s-hi);color:var(--s-on-hi)}
+.ftools .rp{border:1px solid var(--s-ink);border-radius:6px;font-weight:600;background:var(--s-card)}
+.ftools .fcap{flex-basis:100%;margin:0}
+.spec{margin-top:18px;border:1px solid var(--s-rule);border-radius:10px;background:var(--s-card);max-width:1375px}
+.spec summary{cursor:pointer;padding:12px 16px;font-weight:600;font-size:14px;min-height:44px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.spec summary small{font-weight:400;color:var(--s-muted)}
+.spec .tok{margin:0;padding:0 16px 10px;font-size:12.5px;color:var(--s-muted)}
+.spec .tok code{color:var(--s-ink);background:var(--s-bg);padding:1px 5px;border-radius:4px;line-height:1.9;white-space:nowrap}
+.spec ol{list-style:none;margin:0;padding:0 16px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 28px}
+.spec li{padding:9px 0;border-top:1px solid var(--s-rule);font-size:13px;line-height:1.45}
+.spec li b{display:flex;justify-content:space-between;gap:10px;font-weight:600}
+.spec li b span{font-weight:500;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;white-space:nowrap}
+.spec li .e{display:block;color:var(--s-muted);font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px}
+.spec li .h{display:block}
+.spec li .r{display:block;color:var(--s-muted);font-size:12.5px}
+.spec li .r::before{content:"Reduced: ";color:var(--s-ink);font-weight:600}
+.matrix-wrap{max-width:1480px;margin:0 auto;padding:0 32px 64px}
+.matrix-wrap h2{font-size:19px;margin:0 0 10px}
+.matrix-scroll{overflow-x:auto}
+.matrix{border-collapse:collapse;width:100%;min-width:860px;background:var(--s-card);border:1px solid var(--s-rule);font-size:13.5px}
+.matrix th,.matrix td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--s-rule)}
+.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--s-muted)}
+.matrix tbody th{width:170px;font-weight:600}
+.ask{margin-top:14px;color:var(--s-muted);max-width:1000px}
+.ask b{color:var(--s-ink)}
+body.phones figure.fd{display:none}
+body.phones .dirs{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+body.phones .dir{margin:24px 0 40px;width:391px;max-width:100%}
+body.phones .dir-head{min-height:215px}
+body.phones .spec ol{grid-template-columns:1fr}
+@media (max-width:640px){
+ .shell{padding:20px 16px 4px}.dirs{padding:0 16px}.matrix-wrap{padding:0 16px 48px}
+ .bezel{border-width:6px;border-radius:30px}
+}
+
+/* ================= B+ (segment 1, decided; unchanged from 01b except motion hooks) ================= */
+.bp{
+ --bg:#FCFCFB;--ink:#141619;--text:#1E2125;--muted:#565D66;--rule:#E2E4E7;--rule2:#C5CAD0;--surf:#F3F4F5;--surf2:#E9EBED;--ins:#ECEEF0;
+ --f-read:"IBM Plex Sans",system-ui,sans-serif;--f-data:"IBM Plex Sans",system-ui,sans-serif;--f-id:"IBM Plex Mono",ui-monospace,monospace;
+ --read:16.5px;--read-lh:1.62;--measure:54ch;--h1:30px;--h2:19px;--h2-w:600;--h2-st:normal;--h2-f:var(--f-data);--data:14.5px;--small:12.5px;
+ --sec-gap:48px;--gut:20px;
+ color-scheme:light;background:var(--bg);color:var(--text);font-family:var(--f-data);font-size:var(--data);line-height:1.5;
+ font-variant-numeric:lining-nums tabular-nums;font-feature-settings:"lnum","tnum"}
+:root[data-theme=dark] .bp{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .bp{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark}}
+.bp *{box-sizing:border-box}
+.bp .id,.bp .kind,.bp .chip,.bp .g{font-family:var(--f-id);font-variant-numeric:tabular-nums}
+.bp a{color:var(--ink);text-decoration-color:var(--rule2);text-underline-offset:3px}
+.bp-top{position:sticky;top:0;z-index:5;background:var(--bg)}
+.strip{border-bottom:1px solid var(--rule);background:var(--surf);font-size:12.5px;line-height:1.35}
+.strip summary,.dbar summary{list-style:none;display:flex;align-items:center;gap:10px;padding:7px var(--gut);min-height:34px;cursor:pointer}
+.strip summary::-webkit-details-marker,.dbar summary::-webkit-details-marker{display:none}
+.st-line{display:flex;flex-wrap:wrap;flex:1;min-width:0;color:var(--muted)}
+.st-line>span{white-space:nowrap}
+.st-line>span+span::before{content:"\00B7";margin:0 7px;color:var(--rule2)}
+.st-line b{font-weight:600;color:var(--text)}
+.st-more{flex:none;font-size:12px;color:var(--text);display:inline-flex;align-items:center;gap:5px}
+.st-more::after{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg)}
+details[open]>summary .st-more::after{transform:translateY(1px) rotate(-135deg)}
+.st-body{padding:4px var(--gut) 14px;border-top:1px solid var(--rule)}
+.facts-dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:8px 0 0;font-size:13px}
+.facts-dl dt{color:var(--muted)}
+.facts-dl dd{margin:0;color:var(--text)}
+.st-body .to{display:inline-block;margin-top:10px;font-size:12.5px;border:0;background:none;padding:4px 0;min-height:30px;text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px;color:var(--ink)}
+.idx{display:flex;border-bottom:1px solid var(--rule);position:relative;background:var(--bg)}
+.idx button{flex:1;min-height:44px;border:0;background:none;font-size:13px;color:var(--muted);padding:0 4px;display:flex;align-items:center;justify-content:center;gap:5px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.idx button .ct{font-family:var(--f-id);font-size:10.5px;color:var(--muted)}
+.idx button[aria-current=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.prog{position:absolute;left:0;right:0;bottom:-1px;height:1px;pointer-events:none}
+.prog i{display:block;height:1px;background:var(--ink);opacity:.45;transform-origin:left;transform:scaleX(0)}
+.bp-wrap{padding:22px var(--gut) 72px}
+.crumb{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.crumb .id{font-size:11.5px}
+.bp h1{font-family:var(--f-read);font-size:var(--h1);line-height:1.12;font-weight:600;letter-spacing:-.015em;color:var(--ink);margin:0 0 10px}
+.one{font-family:var(--f-read);font-size:var(--read);line-height:var(--read-lh);margin:0 0 16px;max-width:var(--measure)}
+.obj{background:var(--surf);border-radius:6px;padding:12px 14px;margin:0 0 16px;max-width:var(--measure)}
+.lbl{display:block;font-family:var(--f-data);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 3px;font-style:normal}
+.obj p{margin:0;font-family:var(--f-read);font-size:var(--read);line-height:1.5;color:var(--ink)}
+.dateline{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:0;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.dateline dt{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.dateline dd{margin:2px 0 0;font-size:14px;color:var(--ink);justify-self:start}
+.sec{margin-top:var(--sec-gap)}
+.sec-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding-bottom:10px;margin-bottom:16px;border-bottom:1px solid var(--rule)}
+.sec-h h2{font-family:var(--h2-f);font-size:var(--h2);font-weight:var(--h2-w);font-style:var(--h2-st);line-height:1.2;margin:0;color:var(--ink);letter-spacing:-.005em}
+.sec-h .sub{flex-basis:100%;font-size:13px;color:var(--muted);margin:0}
+.kind{font-size:10.5px;font-weight:500;letter-spacing:.08em;line-height:1;padding:4px 6px 3px;border:1px solid var(--ink);border-radius:3px;color:var(--ink);white-space:nowrap}
+.kind.view{background:var(--ink);color:var(--bg)}
+.kind.fact{border-style:dashed}
+.kind.log{border-style:dotted}
+.kind.plain{border-color:var(--rule2);color:var(--muted)}
+.view{border-left:2px solid var(--ink);padding-left:14px}
+.para p{font-family:var(--f-read);font-size:var(--read);line-height:var(--read-lh);margin:0 0 1em;max-width:var(--measure);color:var(--text);font-variant-numeric:lining-nums proportional-nums;font-feature-settings:"lnum","pnum"}
+.para:last-child p:last-of-type{margin-bottom:0}
+.para .revmark{font-family:var(--f-data);font-size:12px;color:var(--muted);margin:0 0 4px;display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline}
+.revmark .id{color:var(--ink);font-size:11px;border:1px dotted var(--ink);border-radius:3px;padding:1px 4px}
+.revmark button{border:0;background:none;padding:0;text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px;font-size:12px;color:var(--ink)}
+.bp .chip{position:relative;display:inline-flex;align-items:baseline;gap:4px;font-size:11px;line-height:1.5;padding:0 5px;margin:0 1px;border:1px solid var(--rule2);border-radius:4px;background:var(--surf);color:var(--ink);vertical-align:1px;white-space:nowrap;font-style:normal}
+.bp .chip::after{content:"";position:absolute;inset:-8px -3px}
+.bp .chip b{font-weight:500}
+.bp .chip[aria-expanded=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.card{margin:4px 0 16px;border:1px dashed var(--rule2);border-radius:6px;background:var(--surf);padding:12px 14px 10px;max-width:var(--measure);font-family:var(--f-data)}
+.card-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:11.5px;color:var(--muted);margin-bottom:8px}
+.card-h .asof{margin-left:auto;font-size:12px;color:var(--ink)}
+.kv{display:grid;grid-template-columns:1fr auto 3.3em;align-items:baseline;gap:0 6px;padding:3px 0}
+.kv .k{font-size:13.5px;color:var(--text)}
+.kv .n{font-size:17px;font-weight:600;color:var(--ink);text-align:right}
+.kv .u{font-size:12px;color:var(--muted)}
+.kv.pr .k,.kv.pr .n{font-size:13px;color:var(--muted);font-weight:400}
+.q{margin:8px 0 6px;padding:8px 0 0;border-top:1px solid var(--rule)}
+.para .q p{margin:0;font-size:14px;line-height:1.5;color:var(--ink)}
+.para .card p{font-family:var(--f-data);font-variant-numeric:lining-nums tabular-nums;max-width:none}
+.para .card .card-src{margin:6px 0 0;font-size:12px;line-height:1.45;color:var(--muted)}
+.bp .card-x{margin-top:8px;border:1px solid var(--rule2);background:var(--bg);border-radius:4px;font-size:12px;padding:4px 10px;min-height:30px}
+.tsum{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 6px;font-size:13px;color:var(--text)}
+.tsum>span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.tsum .n{font-weight:600;color:var(--ink)}
+.legend{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.ico{width:12px;height:12px;flex:none;color:var(--ink)}
+.tests{list-style:none;margin:0;padding:0;border:1px solid var(--rule);border-radius:6px}
+.tests .thd{display:grid;grid-template-columns:24px 1fr auto;gap:0 10px;padding:7px 12px;background:var(--surf);border-bottom:1px solid var(--rule);font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-radius:6px 6px 0 0}
+.tests .thd span:first-child{grid-column:2}
+.tests .thd span:nth-child(2){display:none}
+.tests .thd span:last-child{text-align:right}
+.t{display:grid;grid-template-columns:24px 1fr;gap:0 10px;padding:12px;border-bottom:1px solid var(--rule)}
+.t:last-child{border-bottom:0}
+.tn{font-family:var(--f-id);font-size:12px;color:var(--muted);padding-top:3px}
+.tc{margin:0 0 8px;font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:1.5;color:var(--ink)}
+.tc .lead{color:var(--muted)}
+.tc .added{font-family:var(--f-id);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.te{grid-column:2;display:grid;grid-template-columns:1fr auto;grid-template-areas:"s c" "r r";gap:4px 10px;margin:0;font-size:13px;align-items:baseline}
+.te .s{grid-area:s}.te .c{grid-area:c}.te .r{grid-area:r}
+.te .r .pfx{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-right:6px}
+.te dd{margin:0}
+.te .s{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);white-space:nowrap;position:relative;justify-self:start}
+.te .r{color:var(--text)}
+.te .r small{color:var(--muted);font-size:12px;white-space:nowrap}
+.te .r small::before{content:" \00B7  "}
+.te .c{text-align:right;color:var(--muted);white-space:nowrap}
+.ft{width:100%;border-collapse:collapse;font-size:14px}
+.ft th,.ft td{padding:9px 0;border-bottom:1px solid var(--rule);text-align:left;vertical-align:baseline;font-weight:400}
+.ft thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:7px 0}
+.ft .grp th{padding:16px 0 6px;font-size:12.5px;font-weight:600;color:var(--ink);border-bottom:1px solid var(--rule2)}
+.ft .grp th span{font-weight:400;color:var(--muted)}
+.ft .n{text-align:right;font-size:16px;font-weight:600;color:var(--ink);padding-right:5px}
+.ft .u{font-size:12px;color:var(--muted);width:3.6em}
+.ft .pr{text-align:right;color:var(--muted);white-space:nowrap}
+.ft .pr .pl{font-size:11.5px;margin-right:4px}
+.ft .s{font-size:12px;color:var(--muted);white-space:nowrap;padding-left:16px}
+.ft .s .id{color:var(--ink);font-size:11.5px}
+.ft thead .r{text-align:right}
+.srcs{list-style:none;margin:16px 0 0;padding:0}
+.srcs li{display:grid;grid-template-columns:30px 1fr;gap:2px 8px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.srcs .id{font-size:12px;color:var(--ink);padding-top:2px}
+.srcs .ty{display:block;font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.srcs small{display:block;font-size:12.5px;color:var(--muted)}
+.fsum{font-size:13px;color:var(--muted);margin:0 0 4px}
+.rv{border:1px solid var(--rule);border-radius:6px;padding:14px}
+.rv-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0 0 6px;font-size:13px;color:var(--muted)}
+.rv-h .id{font-size:12px;color:var(--ink);border:1px dotted var(--ink);border-radius:3px;padding:1px 5px}
+.rv-h b{color:var(--ink);font-weight:600}
+.reason{font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:1.5;margin:0 0 12px;color:var(--ink);max-width:var(--measure)}
+.dseg{display:inline-flex;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;margin:0 0 14px;position:relative}
+.dseg button{border:0;background:none;font-size:12.5px;padding:0 12px;min-height:34px;color:var(--muted);position:relative;z-index:1}
+.dseg button+button{border-left:1px solid var(--rule2)}
+.dseg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.pane .loc{font-family:var(--f-data);line-height:1.4;max-width:none;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+.pane .loc:first-child{margin-top:0}
+.dl{list-style:none;margin:0 0 8px;padding:0}
+.dl li{display:grid;grid-template-columns:16px 1fr;gap:0 8px;padding:6px 10px 6px 8px;font-family:var(--f-read);font-size:calc(var(--read) - 1.5px);line-height:1.5}
+.dl.del li{color:var(--muted);border-left:2px dashed var(--rule2)}
+.dl.ins li{color:var(--ink);background:var(--ins);border-left:2px solid var(--ink)}
+.dl .g{font-size:13px;line-height:1.7;color:var(--muted)}
+.dl.ins .g{color:var(--ink)}
+.dl .fx{font-family:var(--f-data);font-size:13.5px}
+.pane p{font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:var(--read-lh);margin:0 0 .9em;max-width:var(--measure)}
+.pane .note{font-family:var(--f-data);font-size:12px;color:var(--muted)}
+.rlog{list-style:none;margin:14px 0 0;padding:0}
+.rlog li{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;padding:9px 0;border-top:1px solid var(--rule);font-size:13.5px}
+.rlog .when{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.rlog .when .id{color:var(--ink);font-size:11.5px;margin-right:6px}
+.rlog .why{font-family:var(--f-read);font-size:calc(var(--read) - 2px);line-height:1.45}
+.empty{border:1px dashed var(--rule2);border-radius:6px;padding:14px;color:var(--text)}
+.empty .lbl{margin-bottom:4px}
+.empty p{margin:0 0 6px;font-size:14px;line-height:1.5;max-width:var(--measure)}
+.empty p:last-child{margin-bottom:0}
+.empty .shape{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.empty .shape span{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--rule);border-radius:3px;padding:2px 6px}
+.links{margin:0;padding-left:18px;font-family:var(--f-read);font-size:calc(var(--read) - 1px);line-height:1.55}
+.links li{margin-bottom:6px}
+.disc{border-top:2px solid var(--ink);padding-top:14px}
+.disc .pos{font-size:15px;margin:0 0 12px;color:var(--ink)}
+.disc .pos b{font-weight:600}
+.disc .pos small{display:block;font-size:12.5px;color:var(--muted)}
+.disc .full{margin:14px 0 0;font-size:13.5px;line-height:1.55;color:var(--muted);max-width:var(--measure)}
+.disc .full strong{color:var(--ink)}
+/* placeholder chart: segment 3 (data display) is not decided; it is here only to carry chart motion */
+.chart{margin:0 0 18px}
+.chart figcaption{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;margin-bottom:6px}
+.chart figcaption .lbl{margin:0}
+.chart .cap-src{font-size:12px;color:var(--muted)}
+.chart .cap-src .id{color:var(--ink);font-size:11.5px}
+.cbox{height:168px;position:relative}
+.cbox svg{display:block;overflow:visible}
+.chart .gl{stroke:var(--rule);stroke-width:1}
+.chart .ax{fill:var(--muted);font-size:10.5px;font-family:var(--f-data)}
+.chart .lag{fill:var(--surf2)}
+.chart .capl{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+.chart .capt{fill:var(--ink);font-size:10.5px;font-weight:600;font-family:var(--f-data)}
+.chart .cap-g{transform-box:fill-box;transform-origin:100% 50%}
+.chart .ln{fill:none;stroke:var(--ink);stroke-width:1.75;stroke-linejoin:round;stroke-linecap:round}
+.chart .dt{fill:var(--bg);stroke:var(--ink);stroke-width:1.5}
+.chart .vl{fill:var(--ink);font-size:11px;font-weight:600;font-family:var(--f-data)}
+.cnote{display:flex;gap:8px;align-items:baseline;font-size:12.5px;color:var(--muted);margin:6px 0 0;max-width:var(--measure)}
+.cnote i{flex:none;width:10px;height:10px;background:var(--surf2);border:1px solid var(--rule2);transform:translateY(1px)}
+@container (min-width:760px){
+ .bp{--read:17px;--h1:40px;--sec-gap:56px;--gut:32px}
+ .idx{display:none}
+ .bp-wrap{display:grid;grid-template-columns:minmax(0,640px);padding:30px 40px 100px}
+ .dateline{grid-template-columns:repeat(4,auto);justify-content:space-between}
+ .tests .thd{grid-template-columns:24px 120px 1fr 92px}
+ .tests .thd span:nth-child(2){display:block}
+ .te{grid-template-columns:120px 1fr 92px;grid-template-areas:"s r c"}
+ .te .r .pfx{display:none}
+ .te .r small{display:block;white-space:normal}
+ .te .r small::before{content:none}
+ .card{padding:14px 16px 12px}
+}
+.ft thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ft tbody{display:block}
+.ft tr{display:block}
+.ft tr:not(.grp){display:grid;grid-template-columns:1fr auto 3.6em;grid-template-areas:"k n u" "s p .";align-items:baseline;gap:3px 6px;padding:10px 0;border-bottom:1px solid var(--rule)}
+.ft tr:not(.grp)>*{border:0;padding:0}
+.ft tr>th[scope=row]{grid-area:k;font-size:14px;color:var(--text)}
+.ft tr .n{grid-area:n;padding-right:0}
+.ft tr .u{grid-area:u}
+.ft tr .pr{grid-area:p;font-size:12.5px}
+.ft tr .s{grid-area:s;padding-left:0}
+.ft .grp th{display:block}
+@container (min-width:760px){
+ .ft thead{position:static;width:auto;height:auto;overflow:visible;clip:auto;display:table-header-group}
+ .ft tbody{display:table-row-group}
+ .ft tr,.ft tr:not(.grp){display:table-row}
+ .ft .grp th{display:table-cell}
+ .ft tr:not(.grp)>*{display:table-cell;padding:9px 0;border-bottom:1px solid var(--rule)}
+ .ft tr .n{padding-right:5px}
+ .ft tr .s{padding-left:18px}
+ .ft tr .pr{font-size:13px}
+}
+
+/* ================= Segment 2 chrome (A + "What changed"), same tokens ================= */
+.site{
+ --bg:#FCFCFB;--ink:#141619;--text:#1E2125;--muted:#565D66;--rule:#E2E4E7;--rule2:#C5CAD0;--surf:#F3F4F5;--surf2:#E9EBED;--ins:#ECEEF0;--gut:20px;
+ --mono:"IBM Plex Mono",ui-monospace,monospace;
+ color-scheme:light;min-height:100%;display:flex;flex-direction:column;background:var(--bg);color:var(--text);
+ font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:14.5px;line-height:1.5;font-variant-numeric:lining-nums tabular-nums}
+:root[data-theme=dark] .site{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark;-webkit-font-smoothing:antialiased}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .site{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;color-scheme:dark;-webkit-font-smoothing:antialiased}}
+.site *{box-sizing:border-box}
+.site button{font:inherit;color:inherit;cursor:pointer}
+.site [aria-disabled=true]{cursor:default}
+.site .id,.site .ct{font-family:var(--mono)}
+.site .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.site :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+.main{flex:1;min-width:0}
+.go{border:0;background:none;padding:0;text-align:left;color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px;font:inherit}
+.go.plain{text-decoration:none}
+.ico-s{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.tb{display:flex;align-items:center;gap:8px;min-height:52px;padding:0 var(--gut);border-bottom:1px solid var(--rule);background:var(--bg)}
+.tb .sp{flex:1}
+.wm{border:0;background:none;padding:8px 0;font-size:15px;font-weight:600;letter-spacing:-.005em;color:var(--ink);white-space:nowrap;text-align:left}
+.ib{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;background:none;color:var(--ink);font-size:13.5px;padding:0 6px;border-radius:6px}
+.back{display:inline-flex;align-items:center;gap:2px;min-height:44px;border:0;background:none;padding:0 6px 0 0;font-size:14px;color:var(--ink)}
+.back svg{width:18px;height:18px}
+.dsk{display:none!important}
+.dbar{background:var(--surf);border-top:1px solid var(--rule);font-size:12.5px;line-height:1.35}
+.dbar summary{color:var(--muted);min-height:36px;padding:6px var(--gut)}
+.dbar summary b{color:var(--text);font-weight:600}
+.dbar .body{padding:6px var(--gut) 12px;border-top:1px solid var(--rule)}
+.dtop{display:none}
+.dock{position:sticky;bottom:0;z-index:6;background:var(--bg);border-top:1px solid var(--rule)}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr)}
+.tabs button{min-height:54px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11.5px;color:var(--muted);position:relative}
+.tabs button .ct{font-size:10px}
+.tabs button[aria-current=page]{color:var(--ink);font-weight:600}
+.tabs button[aria-current=page]::before{content:"";position:absolute;top:-1px;left:28%;right:28%;height:2px;background:var(--ink)}
+.pg{padding:22px var(--gut) 44px}
+.kick{font-size:12.5px;color:var(--muted);margin:0 0 6px}
+.h1{font-size:27px;line-height:1.15;font-weight:600;letter-spacing:-.015em;color:var(--ink);margin:0 0 8px}
+.stand{font-size:16px;line-height:1.55;max-width:56ch;margin:0 0 16px;color:var(--text)}
+.blk{margin-top:34px}
+.blk-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:8px;margin-bottom:4px}
+.blk-h h2{font-size:17px;font-weight:600;margin:0;color:var(--ink)}
+.blk-h .ct{font-size:11.5px;color:var(--muted)}
+.blk-h .more{margin-left:auto;font-size:12.5px;color:var(--muted)}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin:0;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.stat dt{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.stat dd{margin:2px 0 0;font-size:14px;color:var(--ink)}
+.stat .wide{grid-column:1/-1}
+.streak{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;height:12px;max-width:260px;margin-top:5px}
+.streak i{display:block;border-radius:1px;background:var(--surf2);box-shadow:inset 0 0 0 1px var(--rule)}
+.streak i.on{background:var(--ink);box-shadow:none}
+.streak-cap{display:flex;justify-content:space-between;max-width:260px;font-size:11px;color:var(--muted);margin-top:3px}
+.le{display:grid;grid-template-columns:46px 1fr;gap:0 12px;padding:13px 0;border-bottom:1px solid var(--rule)}
+.le time{font-size:12.5px;color:var(--muted);padding-top:3px;line-height:1.3;align-self:start;justify-self:start}
+.le .k{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:12px;color:var(--muted);margin:0 0 3px}
+.le .ttl{font-size:15.5px;font-weight:600;text-decoration:none;display:inline-block;color:var(--ink);text-align:left}
+.le .why{font-size:14.5px;line-height:1.5;margin:3px 0 0;color:var(--text);max-width:60ch}
+.le .ds{font-size:12.5px;color:var(--muted);margin:4px 0 0}
+.site .kind{font-size:10px}
+.tmini{display:inline-flex;gap:9px;white-space:nowrap;font-size:12.5px;color:var(--ink);vertical-align:-1px}
+.tmini .sh{display:inline-flex;align-items:center;gap:3px;position:relative}
+.legend2{font-size:12px;color:var(--muted);margin:8px 0 0;display:flex;flex-wrap:wrap;gap:4px 12px}
+.legend2 span{display:inline-flex;align-items:center;gap:4px}
+.site mark{color:var(--ink);background-color:transparent;background-image:linear-gradient(var(--surf2),var(--surf2));background-repeat:no-repeat;background-size:100% 100%;box-shadow:inset 0 -1px 0 var(--ink);padding:0 1px}
+.foot{margin-top:40px;padding-top:12px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16px}
+.site .empty{margin-top:10px}
+.ftab{width:100%;border-collapse:collapse;font-size:14px}
+.ftab thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ftab tbody{display:block}
+.ftab tr{display:grid;grid-template-columns:auto 1fr auto auto;grid-template-areas:"n n v r" "s o o o" "t t t t";gap:3px 8px;padding:11px 0;border-bottom:1px solid var(--rule)}
+.ftab tr.nores-r{display:block;padding:14px 0;color:var(--text);font-size:14px}
+.ftab th,.ftab td{padding:0;border:0;text-align:left;font-weight:400;vertical-align:baseline}
+.ftab .c-n{grid-area:n;font-size:15px;position:relative}
+.ftab .c-n .go{font-weight:600;text-decoration:none}
+.ftab .c-n .id{display:none}
+.ftab .c-v{grid-area:v;font-family:var(--mono);font-size:12px;color:var(--ink)}
+.ftab .c-r{grid-area:r;font-size:13px;color:var(--muted);text-align:right}
+.ftab .c-s{grid-area:s;font-size:13px;color:var(--muted)}
+.ftab .c-s::after{content:" \00B7"}
+.ftab .c-o{grid-area:o;font-size:13px;color:var(--muted)}
+.ftab .c-t{grid-area:t;padding-top:2px}
+.ftab .ph{display:inline}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:12px 0 4px;font-size:13px;color:var(--muted)}
+.sorts{display:inline-flex;border:1px solid var(--rule2);border-radius:6px;overflow:hidden;position:relative}
+.sorts button{border:0;background:none;min-height:40px;padding:0 12px;font-size:13px;color:var(--muted);position:relative;z-index:1}
+.sorts button+button{border-left:1px solid var(--rule2)}
+.sorts button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.sbox{display:flex;align-items:center;gap:8px;border:1px solid var(--rule2);border-radius:8px;background:var(--bg);min-height:42px;padding:0 12px;color:var(--muted);flex:1 1 220px;max-width:420px}
+.sbox:focus-within{outline:2px solid var(--ink);outline-offset:1px}
+.sbox input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:16px;color:var(--ink);outline:none;padding:0}
+.sbox input::placeholder{color:var(--muted)}
+.sbox input::-webkit-search-cancel-button{display:none}
+.sres{font-size:12px;white-space:nowrap}
+.grail{display:none}
+.a-body{flex:1;min-width:0}
+.gsub{position:relative}
+.ind{display:none}
+@container (min-width:760px){
+ .site{--gut:32px}
+ .dsk{display:revert!important}
+ .phn{display:none!important}
+ .pg{padding:30px 40px 64px}
+ .h1{font-size:34px}
+ .stat{grid-template-columns:repeat(4,auto);justify-content:space-between}
+ .stat .wide{grid-column:auto}
+ .dock{display:none}
+ .dtop{display:block;border-top:0;border-bottom:1px solid var(--rule)}
+ .a-body{display:grid;grid-template-columns:212px minmax(0,1fr);flex:1}
+ .grail{display:block;position:sticky;top:0;align-self:start;max-height:780px;overflow-y:auto;border-right:1px solid var(--rule);padding:18px 12px 24px 18px;font-size:13.5px}
+ .grail .lbl{margin:16px 0 4px 8px}
+ .gi{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;min-height:34px;border:0;background:none;padding:4px 8px;border-radius:5px;color:var(--text);text-align:left}
+ .gi .ct{font-size:11px;color:var(--muted)}
+ .gi[aria-disabled=true]{color:var(--muted)}
+ .gi[aria-current=page]{background:var(--surf2);color:var(--ink);font-weight:600}
+ .gsub{margin:2px 0 6px 12px;padding-left:6px;border-left:1px solid var(--rule)}
+ .gsub .gi{min-height:28px;font-size:13px;color:var(--muted)}
+ .gsub .gi[aria-current=true]{color:var(--ink);font-weight:600}
+ .gfile{font-size:13px;color:var(--ink);font-weight:600;padding:6px 8px 2px}
+ .gstat{margin:18px 0 0 8px;padding-top:12px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted)}
+ .gstat b{display:block;color:var(--ink);font-weight:600;font-size:13px}
+ .gstat .streak,.gstat .streak-cap{max-width:170px}
+ .ftab thead{position:static;width:auto;height:auto;overflow:visible;clip:auto;display:table-header-group}
+ .ftab tbody{display:table-row-group}
+ .ftab tr{display:table-row}
+ .ftab tr.nores-r{display:table-row}
+ .ftab th,.ftab td{display:table-cell;padding:11px 12px 11px 0;border-bottom:1px solid var(--rule)}
+ .ftab thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:8px 12px 8px 0}
+ .ftab .c-n .id{display:block;font-size:11px;color:var(--muted)}
+ .ftab .c-s::after{content:none}
+ .ftab .c-r{text-align:left}
+ .ftab .ph{display:none}
+ .le{grid-template-columns:64px 1fr}
+}
+
+/* ================= skeleton: the loaded layout with the ink removed, so arrival cannot shift anything ================= */
+.is-sk .sk{color:transparent!important;background-color:var(--surf2);border-radius:4px}
+.is-sk .sk *{opacity:0}
+.is-sk .sk mark{box-shadow:none}
+
+/* ================= motion personalities ================= */
+/* 1. Instrument: snap, tick, roll. */
+.site[data-p=instrument]{--m1:120ms;--m2:180ms;--m3:220ms;--me:cubic-bezier(0.2,0,0,1)}
+[data-p=instrument] button,[data-p=instrument] .chip{transition:transform var(--m1) var(--me),background-color var(--m1) var(--me),color var(--m1) var(--me),border-color var(--m1) var(--me),outline-offset var(--m1) var(--me)}
+[data-p=instrument] button:active:not([aria-disabled=true]){transform:scale(.97)}
+[data-p=instrument] .ftab tbody tr,[data-p=instrument] .le{transition:background-color var(--m1) var(--me)}
+[data-p=instrument] .ftab tbody tr:not(.nores-r):hover,[data-p=instrument] .le:hover{background-color:var(--surf)}
+[data-p=instrument] .chip:hover{border-color:var(--ink)}
+[data-p=instrument] :focus-visible{outline-offset:2px}
+[data-p=instrument] button:not(:focus-visible){outline:2px solid transparent;outline-offset:5px}
+[data-p=instrument] .ind{display:block;position:absolute;left:0;top:0;width:1px;height:1px;background:var(--ink);transform-origin:0 0;pointer-events:none;z-index:0}
+[data-p=instrument] .ind.live{transition:transform var(--m3) var(--me)}
+[data-p=instrument] .idx>.ind{top:auto;bottom:-1px;height:2px;z-index:2}
+[data-p=instrument] .idx button[aria-current=true]{border-bottom-color:transparent}
+[data-p=instrument] .gsub>.ind{left:-1px;width:2px}
+[data-p=instrument] .sorts>.ind,[data-p=instrument] .dseg>.ind{height:100%}
+[data-p=instrument] .sorts button[aria-pressed=true],[data-p=instrument] .dseg button[aria-pressed=true]{background:transparent}
+[data-p=instrument] .dock{transition:transform var(--m2) var(--me)}
+[data-p=instrument] .dock.hid{transform:translateY(100%)}
+[data-p=instrument] .sk{transition:color var(--m1) steps(2,end),background-color var(--m1) steps(2,end)}
+[data-p=instrument] .sk *{transition:opacity var(--m1) steps(2,end)}
+[data-p=instrument] .st-more::after{transition:transform var(--m2) var(--me)}
+/* 2. Paper: glide, draw, settle. */
+.site[data-p=paper]{--m1:160ms;--m2:240ms;--m3:300ms;--me:cubic-bezier(0.22,1,0.36,1)}
+[data-p=paper] button{transition:transform var(--m1) var(--me),background-color var(--m2) var(--me),color var(--m2) var(--me),outline-offset var(--m2) var(--me),outline-color var(--m2) var(--me)}
+[data-p=paper] button:active:not([aria-disabled=true]){transform:scale(.98)}
+[data-p=paper] .go.plain,[data-p=paper] .le .ttl,[data-p=paper] .wm{background:linear-gradient(currentColor,currentColor) 0 100%/0 1px no-repeat;transition:background-size var(--m2) var(--me),transform var(--m1) var(--me)}
+[data-p=paper] .go.plain:hover,[data-p=paper] .le .ttl:hover,[data-p=paper] .wm:hover{background-size:100% 1px}
+[data-p=paper] .ftab tbody tr,[data-p=paper] .le{transition:background-color var(--m2) var(--me)}
+[data-p=paper] .ftab tbody tr:not(.nores-r):hover,[data-p=paper] .le:hover{background-color:var(--surf)}
+[data-p=paper] .chip{transition:background-color var(--m2) var(--me),color var(--m2) var(--me),border-color var(--m2) var(--me)}
+[data-p=paper] :focus-visible{outline-offset:3px}
+[data-p=paper] button:not(:focus-visible){outline:2px solid transparent;outline-offset:8px}
+[data-p=paper] .idx button{transition:border-color var(--m2) var(--me),color var(--m2) var(--me)}
+[data-p=paper] .prog i{transition:transform var(--m1) var(--me)}
+[data-p=paper] .dock{transition:transform var(--m2) var(--me),opacity var(--m2) var(--me)}
+[data-p=paper] .dock.hid{transform:translateY(100%);opacity:0}
+[data-p=paper] .is-sk .sk{animation:pp-pulse 1.2s ease-in-out infinite}
+@keyframes pp-pulse{50%{background-color:var(--surf)}}
+[data-p=paper] .sk{transition:color var(--m2) var(--me),background-color var(--m2) var(--me)}
+[data-p=paper] .sk *{transition:opacity var(--m2) var(--me)}
+[data-p=paper] .dl .tx{background-repeat:no-repeat;background-image:linear-gradient(var(--muted),var(--muted));background-size:0% 1px;background-position:0 60%;transition:background-size var(--m3) var(--me)}
+[data-p=paper] .dl.ins .tx{background-image:linear-gradient(var(--ink),var(--ink));background-position:0 100%}
+[data-p=paper] .dl .tx.drawn{background-size:100% 1px}
+[data-p=paper] .st-more::after{transition:transform var(--m2) var(--me)}
+/* 3. Terminal: draw, count, stamp. Interaction feedback is instant. */
+.site[data-p=terminal]{--m1:90ms;--m2:160ms;--m3:280ms;--me:cubic-bezier(0.16,1,0.3,1)}
+[data-p=terminal] button:active:not([aria-disabled=true]){transform:translateY(1px)}
+[data-p=terminal] .ftab tbody tr:not(.nores-r):hover,[data-p=terminal] .le:hover{background-color:var(--surf2)}
+[data-p=terminal] .ftab .c-n .go::before{content:"\25B8";position:absolute;left:-13px;font-size:11px;top:3px;opacity:0;color:var(--ink)}
+[data-p=terminal] .ftab tbody tr:hover .c-n .go::before,[data-p=terminal] .ftab .c-n .go:focus-visible::before{opacity:1}
+[data-p=terminal] .chip:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+[data-p=terminal] :focus-visible{outline-offset:1px}
+[data-p=terminal] .dock{transition:transform var(--m1) steps(3,end)}
+[data-p=terminal] .dock.hid{transform:translateY(100%)}
+[data-p=terminal] .is-sk .sk{animation:tm-blink .8s steps(1,end) infinite}
+@keyframes tm-blink{50%{background-color:var(--surf)}}
+@supports (animation-timeline: scroll()){
+ [data-p=terminal] .prog i{animation:tm-prog linear both;animation-timeline:scroll(nearest block)}
+}
+@keyframes tm-prog{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* shared motion helpers */
+.cnt{white-space:nowrap}
+.rl{display:inline-flex}
+.dc{display:inline-block;height:1.2em;line-height:1.2em;overflow:hidden;vertical-align:bottom}
+.ds{display:flex;flex-direction:column}
+.ds i{display:block;height:1.2em;font-style:normal}
+.cu{display:inline-block;text-align:right;white-space:nowrap}
+.ring{position:absolute;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);pointer-events:none;opacity:0}
+
+/* view transitions (only Paper uses them) */
+::view-transition{pointer-events:none}
+::view-transition-old(root),::view-transition-new(root){animation:none}
+::view-transition-group(*){animation-duration:300ms;animation-timing-function:cubic-bezier(0.22,1,0.36,1)}
+::view-transition-old(*),::view-transition-new(*){animation-duration:240ms}
+
+/* reduced motion: every CSS transition and loop off. Scroll-linked progress stays (it moves only while the reader scrolls). */
+html[data-motion=reduced] .site *,html[data-motion=reduced] .site *::before,html[data-motion=reduced] .site *::after{transition:none!important}
+html[data-motion=reduced] .site *:not(.prog-i),html[data-motion=reduced] .site *::before,html[data-motion=reduced] .site *::after{animation:none!important}
+html[data-motion=reduced]::view-transition-group(*),html[data-motion=reduced]::view-transition-old(*),html[data-motion=reduced]::view-transition-new(*){animation:none!important}
+@media (prefers-reduced-motion:reduce){
+ html:not([data-motion=full]) .site *,html:not([data-motion=full]) .site *::before,html:not([data-motion=full]) .site *::after{transition:none!important}
+ html:not([data-motion=full]) .site *:not(.prog-i),html:not([data-motion=full]) .site *::before,html:not([data-motion=full]) .site *::after{animation:none!important}
+ html:not([data-motion=full])::view-transition-group(*),html:not([data-motion=full])::view-transition-old(*),html:not([data-motion=full])::view-transition-new(*){animation:none!important}
+}
+</style>
+</head>
+<body>
+<header class="shell">
+  <h1>Segment 6: motion, three personalities on the same two screens</h1>
+  <p>Each personality runs on the decided screens: the register home with its "What changed" block (segment 2) and the B+ Kaveri file (segment 1). The markup, type and greys are identical in all six frames; only motion differs. Every frame is a working mock: open the Kaveri file from the register, open the strip, tap a source chip such as <b>S1 · p. 112</b>, scroll to the tests, the facts and the history, sort and search the register, and press <b>Replay</b> under any frame to watch its entrance again.</p>
+  <p>Under each frame, <b>Skeleton</b> loads the screen from a skeleton and <b>Empty</b> swaps in a first-day desk or a first draft. The <b>Motion</b> switch below degrades every animation in every frame to instant or opacity-only; it starts on your system setting. Each personality ends with a spec panel whose durations and easings can become tokens. Built with CSS and the Web Animations API only: no animation library and no CDN script, so it opens from disk. The chart in the Facts block is a placeholder (segment 3 is not decided) that exists to carry chart motion. Company, figures and filing lines are invented.</p>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Theme"><span>Theme</span>
+      <button type="button" data-theme-btn="system" aria-pressed="true">System</button>
+      <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" role="group" aria-label="Layout"><span>Layout</span>
+      <button type="button" data-layout-btn="both" aria-pressed="true">Desktop + phone</button>
+      <button type="button" data-layout-btn="phones" aria-pressed="false">Three phones</button>
+    </div>
+    <div class="seg" role="group" aria-label="Motion"><span>Motion</span>
+      <button type="button" data-motion-btn="full" aria-pressed="true">Full</button>
+      <button type="button" data-motion-btn="reduced" aria-pressed="false">Reduced</button>
+    </div>
+    <span class="osnote" id="osnote" aria-live="polite"></span>
+  </div>
+</header>
+
+<main class="dirs">
+  <section class="dir" aria-labelledby="hI">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">1</div><div><h2 id="hI">Instrument</h2><p class="thesis">The desk behaves like a precise instrument: controls snap, statuses tick, counts roll like an odometer, and reading content never fades in.</p><p class="answers">Verbs: snap, tick, roll. 120 to 220 ms, one easing, no overshoot. Real build: CSS + Motion (LazyMotion) + NumberFlow.</p></div></div>
+    <div class="stage">
+      <figure class="fd"><div class="browser"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url" data-url-for="I-d">desk.example/</span></div><div class="vp" tabindex="0" data-id="I-d" data-p="instrument" aria-label="Instrument, desktop frame"></div></div><div class="ftools" data-for="I-d"></div></figure>
+      <figure class="fp"><div class="bezel"><div class="vp" tabindex="0" data-id="I-p" data-p="instrument" aria-label="Instrument, phone frame"></div></div><div class="ftools" data-for="I-p"></div></figure>
+    </div>
+    <details class="spec" data-spec="instrument" open></details>
+  </section>
+
+  <section class="dir" aria-labelledby="hP">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">2</div><div><h2 id="hP">Paper</h2><p class="thesis">The desk behaves like a well-set periodical: the company name carries you into its file, blocks settle in once, and revisions are marked the way an editor marks proof.</p><p class="answers">Verbs: glide, draw, settle. 160 to 300 ms, a long-tailed ease-out. Real build: React ViewTransition + CSS + Motion.</p></div></div>
+    <div class="stage">
+      <figure class="fd"><div class="browser"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url" data-url-for="P-d">desk.example/</span></div><div class="vp" tabindex="0" data-id="P-d" data-p="paper" aria-label="Paper, desktop frame"></div></div><div class="ftools" data-for="P-d"></div></figure>
+      <figure class="fp"><div class="bezel"><div class="vp" tabindex="0" data-id="P-p" data-p="paper" aria-label="Paper, phone frame"></div></div><div class="ftools" data-for="P-p"></div></figure>
+    </div>
+    <details class="spec" data-spec="paper" open></details>
+  </section>
+
+  <section class="dir" aria-labelledby="hT">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">3</div><div><h2 id="hT">Terminal</h2><p class="thesis">The desk behaves like a data terminal: figures count in, lines draw up to the 30-day data cap and stop, and every interaction answers instantly.</p><p class="answers">Verbs: draw, count, stamp. 0 ms for feedback, up to 280 ms for data, linear or stepped. Real build: CSS scroll-driven animation + NumberFlow + SVG pathLength.</p></div></div>
+    <div class="stage">
+      <figure class="fd"><div class="browser"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url" data-url-for="T-d">desk.example/</span></div><div class="vp" tabindex="0" data-id="T-d" data-p="terminal" aria-label="Terminal, desktop frame"></div></div><div class="ftools" data-for="T-d"></div></figure>
+      <figure class="fp"><div class="bezel"><div class="vp" tabindex="0" data-id="T-p" data-p="terminal" aria-label="Terminal, phone frame"></div></div><div class="ftools" data-for="T-p"></div></figure>
+    </div>
+    <details class="spec" data-spec="terminal" open></details>
+  </section>
+</main>
+
+<section class="matrix-wrap" aria-labelledby="hM">
+  <h2 id="hM">The same moments, three ways</h2>
+  <div class="matrix-scroll"><table class="matrix">
+    <thead><tr><th scope="col">Moment</th><th scope="col">1. Instrument</th><th scope="col">2. Paper</th><th scope="col">3. Terminal</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Register to file</th><td>The content column pushes 24 px sideways and settles, 220 ms. Back reverses the direction.</td><td>The company name morphs into the file title (shared-element view transition, 300 ms); the rest crossfades. Back morphs the title into its row.</td><td>A print-head wipe uncovers the file from the top, 160 ms, linear.</td></tr>
+      <tr><th scope="row">First paint</th><td>Nothing fades. Counts roll from 0 and status labels tick in.</td><td>Up to 8 visible blocks rise 6 px and fade in, 35 ms apart, once per screen per session.</td><td>Counts count up; entry dates and the dateline print; the 30-day strip scans left to right.</td></tr>
+      <tr><th scope="row">Disclosure strip</th><td>Opens like a drawer: clipped from the top with an 8 px slide, 180 ms; closes in 120 ms.</td><td>Fades and drops 4 px, 240 ms; fades out in 160 ms.</td><td>Opens instantly, then each value prints in steps.</td></tr>
+      <tr><th scope="row">Source chip to card</th><td>The card grows out of the chip's own box and slides down into place, 220 ms.</td><td>The card fades and settles 6 px, 240 ms.</td><td>The card wipes open, 120 ms, then its figures count up.</td></tr>
+      <tr><th scope="row">Tests block</th><td>Status cells tick in with a four-step clip, 60 ms apart; summary counts roll.</td><td>No motion beyond first paint.</td><td>Each "Watching" shape pulses once, 280 ms, here and on the register rows.</td></tr>
+      <tr><th scope="row">Figures and chart</th><td>Chart wipes left to right, 220 ms. Table figures never move.</td><td>Chart rises with the blocks. Table figures never move.</td><td>Line draws to the data cap (280 ms, linear), then the cap label stamps in (160 ms). Table figures count up.</td></tr>
+      <tr><th scope="row">Revision diff</th><td>The Changes / R2 / R1 indicator slides between segments; panes swap instantly.</td><td>Removed sentences get a strike drawn through them and added ones an underline, 300 ms each, 40 ms apart, all done by 500 ms.</td><td>Instant pane swap.</td></tr>
+      <tr><th scope="row">Reading progress and tab bar</th><td>Hairline tracks scroll directly. Tab bar slides away on scroll down and back on scroll up, 180 ms.</td><td>Hairline is smoothed over 160 ms; the dateline drifts up to 8 px (parallax). Tab bar fades away while scrolling and returns 500 ms after you stop.</td><td>Hairline runs on CSS <code>animation-timeline: scroll()</code>, with a script fallback where unsupported. Tab bar steps away in 90 ms.</td></tr>
+      <tr><th scope="row">Sort and search</th><td>Rows slide to their new places (FLIP, 220 ms, snap).</td><td>Rows glide to their new places (FLIP, 300 ms, long tail).</td><td>Rows reorder instantly; the matched letters highlight with a 90 ms sweep.</td></tr>
+      <tr><th scope="row">Skeleton to content</th><td>Static skeleton; ink snaps in block by block, 25 ms apart.</td><td>Skeleton breathes (1.2 s); content arrives with a 240 ms crossfade and a 2 px blur clearing.</td><td>Skeleton blinks in two steps; content prints in left to right, 20 ms apart, and figures count up.</td></tr>
+      <tr><th scope="row">Hover, press, focus</th><td>Row tint snaps in 120 ms; press scales to 0.97; focus ring snaps in from 5 px out.</td><td>Underline draws in from the left; press 0.98; focus ring glides in from 8 px out.</td><td>Row tint and caret are instant; press drops 1 px; focus ring is instant.</td></tr>
+      <tr><th scope="row">Reduced motion</th><td colspan="3">All three: no transforms, clips, draws, counts, parallax, loops or view-transition morphs. Screen changes, cards, the strip and arriving content use one 120 ms opacity fade; everything else is instant. Numbers show their final value. The progress hairline still follows the scroll, because the reader moves it.</td></tr>
+      <tr><th scope="row">Main risk</th><td>Can read as cold; digit rolls on the counts must never spread to financial figures.</td><td>Longest durations of the three; parallax is a decorative scroll effect (rubric R2-6 scores that 1) and the strike costs a little legibility on removed text.</td><td>Count-ups show false intermediate figures on a page whose figures are compliance-sensitive; auto-typing and pulses can feel busy.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="ask"><b>Recommendation: Instrument as the motion system, with two borrowings.</b> Take Paper's shared-element title morph from register row to file, and Terminal's chart line that draws to the data cap and stamps the cap label (plus its CSS scroll-driven progress hairline). Leave out Paper's parallax and Terminal's count-up of financial figures. Reply with 1, 2 or 3, or a mix by row, for example "1, with 2's diff marking".</p>
+</section>
+
+<script>
+(function () {
+'use strict';
+var root = document.documentElement;
+var SDA = !!(window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll()'));
+var VT = typeof document.startViewTransition === 'function';
+var OSR = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+function each(l, fn) { for (var i = 0; i < l.length; i++) fn(l[i], i); }
+function q(s, r) { return (r || document).querySelector(s); }
+function qa(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function red() { return root.getAttribute('data-motion') === 'reduced'; }
+
+/* motion tokens, mirrored in the CSS custom properties and the spec panels */
+var TOK = {
+  instrument: {f: 120, m: 180, s: 220, e: 'cubic-bezier(0.2, 0, 0, 1)', ein: 'cubic-bezier(0.3, 0, 1, 1)'},
+  paper: {f: 160, m: 240, s: 300, e: 'cubic-bezier(0.22, 1, 0.36, 1)', ein: 'cubic-bezier(0.4, 0, 1, 1)'},
+  terminal: {f: 90, m: 160, s: 280, e: 'cubic-bezier(0.16, 1, 0.3, 1)', ein: 'linear'}
+};
+
+/* ================= data: segment 1 file and segment 2 desk, unchanged ================= */
+var FULL = {
+  name: "Kaveri Pumps &amp; Motors",
+  symbol: "NSE: KAVERIPMP (fictional)",
+  oneLiner: "Makes solar and electric water pumps for farms, housing and industry. About three-fifths of FY26 sales came through a government subsidy scheme.",
+  objective: "How to tell whether a manufacturer's growth comes from a subsidy scheme or from customers who would pay anyway.",
+  dataAsOf: "30 Jun 2026", reviewed: "2 Sep 2026", position: "No",
+  firstWritten: "14 Jul 2026",
+  sources: {
+    S1: {title: "Kaveri Pumps &amp; Motors Ltd, Annual Report 2025-26", meta: "Filed with NSE on 3 Jul 2026", type: "Annual report"},
+    S2: {title: "Q1 FY27 results and investor presentation", meta: "Filed with NSE on 11 Aug 2026", type: "Results deck"},
+    S3: {title: "MNRE, PM-KUSUM Component B state-wise progress", meta: "Published table, as of 30 Jun 2026", type: "Government data"}
+  },
+  view: [
+    {t: "I expected Kaveri's FY26 growth to look like demand from farmers. The segment note changed my mind. Revenue rose to ₹1,284 cr{S1|p. 112|31 Mar 2026}, but 61% of it came from PM-KUSUM orders placed through state agencies, up from 48% a year earlier{S1|p. 84|31 Mar 2026}. The growth is real. The question is who is paying, and when."},
+    {t: "The cost shows up in working capital. Receivable days went from 96 to 142 in one year{S1|p. 131|31 Mar 2026}. That is what it looks like when the customer is a state agency that pays after the subsidy is released, not a farmer paying at the counter. A company can grow sales and still be lending money to its largest customer."},
+    {t: "Q1 FY27 did not settle it. Revenue was ₹311 cr and the scheme share eased to 58%{S2|slide 9|30 Jun 2026}, while industrial and export pumps grew 19%{S2|slide 11|30 Jun 2026}. The scheme is also closer to its installation goal than I assumed: 81% of sanctioned Component B pumps were installed by 30 June{S3|national table|30 Jun 2026}. What I am trying to learn is whether the non-scheme business is big enough to carry the company when the scheme slows.",
+     rev: 2, old: "The industrial and export business is too small to matter yet, at 9% of revenue. Until it grows, I read Kaveri as a scheme contractor rather than a pump brand."}
+  ],
+  wrong: [
+    {c: "receivable days fall below 100 in the FY27 annual report without new bill discounting or factoring.", latest: "151 days in Q1 FY27, annualised", asof: "30 Jun 2026", status: "Not met", checked: "2 Sep 2026"},
+    {c: "industrial and export revenue grows faster than 20% a year for four quarters in a row.", latest: "+19% in Q1 FY27; 0 of 4 quarters so far", asof: "30 Jun 2026", status: "Watching", checked: "2 Sep 2026"},
+    {c: "the company discloses that states paying within 90 days make up more than half of its scheme order book.", latest: "State-wise payment terms not disclosed", asof: "11 Aug 2026", status: "No data", checked: "2 Sep 2026", added: 2}
+  ],
+  facts: [
+    {k: "Revenue, FY26", v: "₹1,284 cr", s: "S1", loc: "p. 112", g: 1, ks: "Revenue", n: "1,284", u: "₹ cr", pv: "902", pl: "FY25", r: 1, q: "Revenue from operations ₹1,284.27 crore (previous year ₹902.14 crore)."},
+    {k: "PM-KUSUM share of revenue, FY26", v: "61%", s: "S1", loc: "p. 84", g: 1, ks: "PM-KUSUM share of revenue", n: "61", u: "%", pv: "48", pl: "FY25", r: 1, q: "Supplies under the PM-KUSUM scheme, executed through state nodal agencies, contributed 61% of revenue from operations (previous year 48%)."},
+    {k: "Receivable days, FY26", v: "142", s: "S1", loc: "p. 131", g: 1, ks: "Receivable days", n: "142", u: "days", pv: "96", pl: "FY25", r: 1, q: "Trade receivables stood at 142 days of revenue (previous year 96 days), reflecting longer realisation cycles on scheme orders."},
+    {k: "Revenue, Q1 FY27", v: "₹311 cr", s: "S2", loc: "slide 9", g: 2, ks: "Revenue", n: "311", u: "₹ cr", pv: "236", pl: "Q1 FY26", r: 2, q: "Revenue from operations ₹311 cr, against ₹236 cr in Q1 FY26. Scheme business at 58% of revenue."},
+    {k: "PM-KUSUM share, Q1 FY27", v: "58%", s: "S2", loc: "slide 9", g: 2, ks: "PM-KUSUM share of revenue", n: "58", u: "%", pv: "", pl: "Prior not given", r: 2, q: "Revenue from operations ₹311 cr, against ₹236 cr in Q1 FY26. Scheme business at 58% of revenue."},
+    {k: "Industrial and export growth, Q1 FY27", v: "+19%", s: "S2", loc: "slide 11", g: 2, ks: "Industrial and export growth", n: "+19", u: "% YoY", pv: "", pl: "", r: 2, q: "Industrial and export pumps: revenue up 19% year on year."},
+    {k: "Receivable days, Q1 FY27 (annualised)", v: "151", s: "S2", loc: "slide 14", g: 2, ks: "Receivable days, annualised", n: "151", u: "days", pv: "142", pl: "FY26", r: 2, q: "Receivable days (annualised): 151."},
+    {k: "Component B pumps installed / sanctioned", v: "81%", s: "S3", loc: "national table", g: 2, ks: "Component B installed / sanctioned, national", n: "81", u: "%", pv: "", pl: "", r: 2, q: "Component B, all states: pumps installed as a share of pumps sanctioned, 81%."}
+  ],
+  groups: {1: {name: "FY26", span: "year to 31 Mar 2026", a: "31 Mar 2026"}, 2: {name: "Q1 FY27", span: "quarter to 30 Jun 2026", a: "30 Jun 2026"}},
+  revisions: [
+    {n: 1, d: "14 Jul 2026", r: "First case study, written after reading the FY26 annual report."},
+    {n: 2, d: "2 Sep 2026", r: "Q1 FY27 results: receivable days rose again. Rewrote paragraph 3 and added test 3."}
+  ],
+  links: ["Reading a segment note in an annual report", "Receivable days, and why they rise with government customers"],
+  disclosure: function () {
+    return "Educational content only. Aksh Agrawal is not a SEBI-registered Research Analyst or Investment Adviser. Nothing here is a recommendation, offer or solicitation to buy or sell any security. Figures are shown with a minimum 30-day lag. Position in the security discussed: <strong>" + this.position + "</strong>. Investments in securities are subject to market risk; consult a SEBI-registered adviser before acting. Last reviewed " + this.reviewed + ".";
+  }
+};
+var EMPTY = {};
+for (var key in FULL) EMPTY[key] = FULL[key];
+EMPTY.dataAsOf = null; EMPTY.reviewed = "14 Jul 2026"; EMPTY.sources = {}; EMPTY.facts = []; EMPTY.wrong = [];
+EMPTY.view = [{t: "I expected Kaveri's growth to look like demand from farmers. Before I write more, I am reading the segment note in the FY26 annual report to see who is paying, and when."}];
+EMPTY.revisions = [{n: 1, d: "14 Jul 2026", r: "First draft. No filings cited yet."}];
+
+var COS = [
+  {slug: "kaveri", name: "Kaveri Pumps & Motors", sym: "KAVERIPMP", sector: "Capital goods", rev: 2, revised: "2 Sep 2026", iso: "2026-09-02", to: "30 Jun 2026", t: {m: 0, nm: 1, w: 1, nd: 1}},
+  {slug: "halden", name: "Halden Cables & Wires", sym: "HALDENCAB", sector: "Capital goods", rev: 1, revised: "29 Sep 2026", iso: "2026-09-29", to: "30 Jun 2026", t: {m: 0, nm: 0, w: 2, nd: 0}},
+  {slug: "mirav", name: "Mirav Housing Finance", sym: "MIRAVHFC", sector: "Financials", rev: 3, revised: "1 Oct 2026", iso: "2026-10-01", to: "30 Jun 2026", t: {m: 1, nm: 2, w: 1, nd: 0}},
+  {slug: "tarsa", name: "Tarsa Specialty Chemicals", sym: "TARSACHEM", sector: "Chemicals", rev: 1, revised: "5 Aug 2026", iso: "2026-08-05", to: "31 Mar 2026", t: {m: 0, nm: 2, w: 0, nd: 1}},
+  {slug: "ojas", name: "Ojas Snack Foods", sym: "OJASFOODS", sector: "Consumer staples", rev: 2, revised: "27 Jul 2026", iso: "2026-07-27", to: "31 Mar 2026", t: {m: 0, nm: 1, w: 1, nd: 0}},
+  {slug: "kelvar", name: "Kelvar Cold Chain", sym: "KELVARCC", sector: "Logistics", rev: 1, revised: "30 Jul 2026", iso: "2026-07-30", to: "31 Mar 2026", t: {m: 0, nm: 0, w: 1, nd: 2}},
+  {slug: "durvan", name: "Durvan Cement", sym: "DURVANCEM", sector: "Materials", rev: 1, revised: "12 Aug 2026", iso: "2026-08-12", to: "31 Mar 2026", t: {m: 0, nm: 3, w: 0, nd: 0}}
+];
+var LOG5 = [
+  {d: "1 Oct", kind: "REVISION", type: "file", id: "R3", co: "mirav", why: "Q1 FY27 asset-quality note: stage 3 loans rose for a second quarter, so test 2 is now met and the view is weaker.", ds: "2 paragraphs rewritten · test 2 now met · figures to 30 Jun 2026"},
+  {d: "30 Sep", kind: "LEARNING", type: "learning", title: "How housing finance companies report stage 3 loans", why: "Written so the Mirav revision can be read without a lending background.", ds: "7 min · linked from Mirav R3"},
+  {d: "29 Sep", kind: "NEW FILE", type: "file", id: "R1", co: "halden", why: "First case study, written after the FY26 annual report and two tender filings.", ds: "2 tests · 6 facts · figures to 30 Jun 2026"},
+  {d: "24 Sep", kind: "PROCESS", type: "process", id: "R2", title: "How I choose which company to study next", why: "Added a check for related-party sales.", ds: "1 section added"},
+  {d: "4 Sep", kind: "LEARNING", type: "learning", title: "Receivable days, and why they rise with government customers", why: "Written after the Kaveri revision, to explain why the customer type changes the number.", ds: "5 min · linked from Kaveri R2"}
+];
+var STREAK = "110011111101111011110110110111";
+var STREAK0 = "000000000000000000000000000001";
+var LOGGED = STREAK.split("").filter(function (c) { return c === "1"; }).length;
+/* placeholder chart data: receivable days by period (FY23 and FY24 from the five-year summary, S1 p. 18) */
+var CH = [
+  {p: "FY23", t: Date.UTC(2023, 2, 31), v: 88}, {p: "FY24", t: Date.UTC(2024, 2, 31), v: 92}, {p: "FY25", t: Date.UTC(2025, 2, 31), v: 96},
+  {p: "FY26", t: Date.UTC(2026, 2, 31), v: 142}, {p: "Q1 FY27", t: Date.UTC(2026, 5, 30), v: 151}
+];
+var T0 = Date.UTC(2023, 0, 1), T1 = Date.UTC(2026, 9, 4), CAPD = Date.UTC(2026, 5, 30), LAGD = Date.UTC(2026, 8, 4);
+
+var SV = {
+  back: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5"/></svg>',
+  search: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.3"/><path d="m12.8 12.8 3.7 3.7"/></svg>',
+  desk: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3.5" width="14" height="13" rx="1.5"/><path d="M3 8h14M7.5 8v8.5"/></svg>',
+  files: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/><path d="M6 3.5v3M6 8.5v3M6 13.5v3"/></svg>',
+  notes: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.8h7l3.2 3.2v11.2H5z"/><path d="M12 2.8V6h3.2M7.5 10h5M7.5 13h5"/></svg>',
+  about: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.3v.2"/></svg>'
+};
+var ICON = {
+  "Met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>',
+  "Not met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  "Watching": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 1.4a4.6 4.6 0 0 1 0 9.2z" fill="currentColor"/></svg>',
+  "No data": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>'
+};
+var TK = [["Met", "m"], ["Not met", "nm"], ["Watching", "w"], ["No data", "nd"]];
+var CITE = /\{(S\d)\|([^|]+)\|([^}]+)\}/g;
+
+/* ================= small renderers ================= */
+function cnt(k, v) { return '<span class="cnt" data-k="' + k + '" data-v="' + v + '">' + v + '</span>'; }
+function tmini(t) {
+  var h = '', lab = [];
+  each(TK, function (k) { if (t[k[1]]) { h += '<span class="sh" data-st="' + k[0] + '">' + ICON[k[0]] + t[k[1]] + '</span>'; lab.push(t[k[1]] + ' ' + k[0].toLowerCase()); } });
+  return '<span class="tmini" role="img" aria-label="Tests: ' + lab.join(', ') + '">' + h + '</span>';
+}
+function legend() { var h = '<p class="legend2">'; each(TK, function (k) { h += '<span>' + ICON[k[0]] + k[0] + '</span>'; }); return h + '<span>Met means the view is wrong on that test.</span></p>'; }
+function streak(w, empty) {
+  var n = empty ? 1 : LOGGED, h = '<div class="streak" role="img" aria-label="Research logged on ' + n + ' of the last 30 days"' + (w ? ' style="max-width:' + w + 'px"' : '') + '>';
+  each((empty ? STREAK0 : STREAK).split(""), function (c) { h += '<i' + (c === "1" ? ' class="on"' : '') + '></i>'; });
+  return h + '</div><div class="streak-cap"' + (w ? ' style="max-width:' + w + 'px"' : '') + ' aria-hidden="true"><span>5 Sep</span><span>4 Oct</span></div>';
+}
+function dbar(cls) {
+  return '<details class="dbar ' + cls + '"><summary><span class="st-line"><span><b>Education only</b></span><span>Not SEBI-registered</span><span>Figures 30+ days old</span></span><span class="st-more">Details</span></summary><div class="body"><dl class="facts-dl"><dt>Type</dt><dd>Educational case studies and notes, not recommendations</dd><dt>Registration</dt><dd>Aksh is not a SEBI-registered RA or IA</dd><dt>Data lag</dt><dd>Every figure is at least 30 days old</dd><dt>Positions</dt><dd>Stated on each file, taken from the ledger at publish</dd></dl></div></details>';
+}
+function emptyBox(label, lines, shape) {
+  var h = '<div class="empty"><span class="lbl">' + label + '</span>';
+  each(lines, function (l) { h += '<p>' + l + '</p>'; });
+  if (shape) { h += '<div class="shape" aria-label="Columns that will appear">'; each(shape, function (s) { h += '<span>' + s + '</span>'; }); h += '</div>'; }
+  return h + '</div>';
+}
+function coName(s) { for (var i = 0; i < COS.length; i++) if (COS[i].slug === s) return COS[i].name; return s; }
+function kv(k, n, u, cls) { return '<div class="kv' + (cls ? ' ' + cls : '') + '"><span class="k">' + k + '</span><span class="n">' + n + '</span><span class="u">' + u + '</span></div>'; }
+function factsAt(D, s, loc) { return D.facts.filter(function (f) { return f.s === s && f.loc === loc; }); }
+function sentences(t) { return t.replace(CITE, '').split(/(?<=[.?!])\s+(?=[A-Z₹0-9])/); }
+
+/* ================= chrome ================= */
+function topbar(s) {
+  var h = '<div class="tb">';
+  if (s === 'thesis') h += '<button type="button" class="back phn" data-go="home">' + SV.back + 'Files</button>';
+  h += '<button type="button" class="wm' + (s === 'thesis' ? ' dsk' : '') + '" data-go="home">Aksh Research Desk</button><span class="sp"></span>';
+  return h + '<button type="button" class="ib" data-go="files" data-focus-search aria-label="Find a file">' + SV.search + '<span class="dsk">Find a file</span></button></div>';
+}
+function gi(go, label, ct, cur, dis) {
+  return '<button type="button" class="gi"' + (go ? ' data-go="' + go + '"' : '') + (cur ? ' aria-current="page"' : '') + (dis ? ' aria-disabled="true" title="Not part of this motion demo"' : '') + '><span>' + label + '</span><span class="ct">' + ct + '</span></button>';
+}
+function grail(f, D, n) {
+  var s = f.screen, h = '<nav class="grail" aria-label="Desk">' + gi('home', 'Desk', '', s === 'home') + gi('files', 'Files', cnt('gf', n), s === 'thesis');
+  if (s === 'thesis') {
+    h += '<div class="gsub"><div class="gfile">Kaveri Pumps</div>';
+    each([["view", "View", D.view.length + ' ¶'], ["tests", "Tests", cnt('gt', D.wrong.length)], ["facts", "Facts", cnt('gx', D.facts.length)], ["sources", "Sources", cnt('gs', Object.keys(D.sources).length)], ["history", "History", 'R' + cnt('gr', D.revisions.length)], ["notes", "Notes", D.links.length], ["disclosure", "Disclosure", ""]], function (r, i) {
+      h += '<button type="button" class="gi" data-jump="' + r[0] + '" aria-current="' + (i === 0) + '"><span>' + r[1] + '</span><span class="ct">' + r[2] + '</span></button>';
+    });
+    h += '<span class="ind" aria-hidden="true"></span></div>';
+  }
+  each([["Learning notes", "3"], ["Process", "2"], ["Mistakes", "0"], ["About and disclosures", ""]], function (t) { h += gi('', t[0], t[1], false, true); });
+  return h + '<div class="gstat"><b>' + (f.state === 'empty' ? 1 : LOGGED) + ' of the last 30 days</b>research logged; counts only.' + streak(0, f.state === 'empty') + '</div></nav>';
+}
+function tabs(s, n) {
+  var h = '<nav class="tabs" aria-label="Main">';
+  each([["home", "Desk", SV.desk, ""], ["files", "Files", SV.files, cnt('tf', n)], ["", "Notes", SV.notes, "3"], ["", "About", SV.about, ""]], function (t, i) {
+    var cur = (i === 0 && s === 'home') || (i === 1 && s === 'thesis');
+    h += '<button type="button"' + (t[0] ? ' data-go="' + t[0] + '"' : ' aria-disabled="true" title="Not part of this motion demo"') + (cur ? ' aria-current="page"' : '') + '>' + t[2] + '<span>' + t[1] + (t[3] !== '' ? ' <span class="ct">' + t[3] + '</span>' : '') + '</span></button>';
+  });
+  return h + '</nav>';
+}
+
+/* ================= register home ================= */
+function visibleList(f) {
+  var qq = (f.q || '').toLowerCase();
+  var l = COS.filter(function (c) { return !qq || c.name.toLowerCase().indexOf(qq) > -1 || c.sector.toLowerCase().indexOf(qq) > -1; });
+  if (f.sort === 'name') l.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+  else l.sort(function (a, b) { return a.iso < b.iso ? 1 : -1; });
+  return l;
+}
+function hl(text, qq) {
+  if (!qq) return esc(text);
+  var i = text.toLowerCase().indexOf(qq.toLowerCase());
+  if (i < 0) return esc(text);
+  return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + qq.length)) + '</mark>' + esc(text.slice(i + qq.length));
+}
+function rowsHTML(f) {
+  var l = visibleList(f), qq = f.q || '', h = '';
+  each(l, function (c) {
+    h += '<tr data-slug="' + c.slug + '"><th scope="row" class="c-n"><span class="sk"><button type="button" class="go plain" data-go="thesis" data-slug="' + c.slug + '">' + hl(c.name, qq) + '</button></span><span class="id">' + c.sym + '</span></th>';
+    h += '<td class="c-s"><span class="sk">' + hl(c.sector, qq) + '</span></td><td class="c-v"><span class="sk">R' + c.rev + '</span></td><td class="c-r"><span class="sk">' + c.revised + '</span></td><td class="c-t"><span class="sk">' + tmini(c.t) + '</span></td><td class="c-o"><span class="sk"><span class="ph">figures to </span>' + c.to + '</span></td></tr>';
+  });
+  return l.length ? h : '<tr class="nores-r"><td colspan="6">No file matches “' + esc(qq) + '”. Search covers company names and sectors.</td></tr>';
+}
+function entryHTML(e) {
+  var t = e.co ? '<button type="button" class="go ttl" data-go="thesis" data-slug="' + e.co + '">' + esc(coName(e.co)) + '</button>' : '<span class="ttl">' + esc(e.title) + '</span>';
+  return '<article class="le"><time>' + e.d.replace(' ', '<br>') + '</time><div><p class="k"><span class="kind' + (e.type === 'file' ? '' : ' plain') + '">' + e.kind + '</span>' + (e.id ? '<span class="id">' + e.id + '</span>' : '') + '</p><span class="sk">' + t + '</span><p class="why"><span class="sk">' + e.why + '</span></p><p class="ds"><span class="sk">' + e.ds + '</span></p></div></article>';
+}
+function homeHTML(f) {
+  var empty = f.state === 'empty', n = empty ? 0 : COS.length, h = '';
+  h += '<p class="kick">Aksh Research Desk · case studies of Indian listed companies</p><h1 class="h1">Research files</h1><p class="stand"><span class="sk">Each file says what Aksh expected, what would prove him wrong, and every revision since. Education, not advice.</span></p>';
+  h += '<dl class="stat"><div><dt>Files</dt><dd><span class="sk">' + cnt('files', n) + ' companies</span></dd></div><div><dt>Last published</dt><dd><span class="sk">' + (empty ? 'Not yet' : '1 Oct 2026') + '</span></dd></div><div><dt>Last entry</dt><dd><span class="sk">4 Oct 2026</span></dd></div><div class="wide"><dt>Research logged</dt><dd><span class="sk">' + cnt('days', empty ? 1 : LOGGED) + ' of the last 30 days</span>' + streak(200, empty) + '</dd></div></dl>';
+  h += '<section class="blk"><div class="blk-h"><h2>What changed</h2><span class="ct">' + cnt('chg', empty ? 0 : LOG5.length) + '</span><span class="more">newest first, reason first</span></div>';
+  if (empty) h += emptyBox('Nothing published yet', ['The first entry appears here when the first file is published: the date, the kind of change, and the reason Aksh gave for it.'], ['Date', 'Kind', 'File', 'Reason']);
+  else each(LOG5, function (e) { h += entryHTML(e); });
+  h += '</section><section class="blk" data-sec="files" data-io="files"><div class="blk-h"><h2>Files</h2><span class="ct">' + cnt('files2', n) + '</span></div>';
+  if (empty) h += emptyBox('No files yet', ['Each company will be one row: its version, when it was last revised, the state of its tests and the date its figures run to.'], ['Company', 'Version', 'Revised', 'Tests', 'Figures to']);
+  else {
+    h += '<div class="tools"><label class="sbox">' + SV.search + '<input type="search" data-search placeholder="Find a file by name or sector" aria-label="Find a file by name or sector" autocomplete="off" value="' + esc(f.q || '') + '"><span class="sres">' + cnt('match', visibleList(f).length) + ' of ' + COS.length + '</span></label>';
+    h += '<span class="sorts" role="group" aria-label="Sort"><button type="button" data-sort="latest" aria-pressed="' + (f.sort === 'latest') + '">Latest</button><button type="button" data-sort="name" aria-pressed="' + (f.sort === 'name') + '">A to Z</button><span class="ind" aria-hidden="true"></span></span></div>';
+    h += '<div class="tbl"><table class="ftab"><caption class="sr">Company files</caption><thead><tr><th scope="col">Company</th><th scope="col">Sector</th><th scope="col">Version</th><th scope="col">Revised</th><th scope="col">Tests</th><th scope="col">Figures to</th></tr></thead><tbody data-rows>' + rowsHTML(f) + '</tbody></table></div>' + legend();
+  }
+  return h + '</section><p class="foot"><span>Aksh Research Desk</span><span>About and disclosures</span><span>Not SEBI-registered</span></p>';
+}
+
+/* ================= B+ file ================= */
+function fileHTML(f, D) {
+  var P = 'c-' + f.id, h = '', nS = Object.keys(D.sources).length, nF = D.facts.length, nT = D.wrong.length, cur = D.revisions[D.revisions.length - 1];
+  var counts = {"Met": 0, "Not met": 0, "Watching": 0, "No data": 0};
+  each(D.wrong, function (w) { counts[w.status]++; });
+  var dataTo = D.dataAsOf ? 'Data to ' + D.dataAsOf : 'No figures cited';
+  h += '<article class="bp"><div class="bp-top"><details class="strip"><summary><span class="st-line"><span><b>Education</b></span><span>No position</span><span>' + dataTo + '</span></span><span class="st-more">Details</span></summary>';
+  h += '<div class="st-body"><dl class="facts-dl"><dt>Type</dt><dd>Educational case study, not a recommendation</dd><dt>Registration</dt><dd>Not a SEBI-registered RA or IA</dd><dt>Position</dt><dd>None, taken from the ledger on ' + D.reviewed + '</dd><dt>Data lag</dt><dd>At least 30 days' + (D.dataAsOf ? '; newest figure ' + D.dataAsOf : '') + '</dd><dt>Reviewed</dt><dd>' + D.reviewed + '</dd></dl><button type="button" class="to" data-jump="disclosure">Read the full disclosure</button></div></details>';
+  h += '<nav class="idx" aria-label="Sections"><button type="button" data-jump="view" aria-current="true">View</button><button type="button" data-jump="tests" aria-current="false">Tests <span class="ct">' + cnt('it', nT) + '</span></button><button type="button" data-jump="facts" aria-current="false">Facts <span class="ct">' + cnt('if', nF) + '</span></button><button type="button" data-jump="history" aria-current="false">History <span class="ct">R' + cnt('ir', cur.n) + '</span></button><span class="ind" aria-hidden="true"></span><span class="prog" aria-hidden="true"><i class="prog-i"></i></span></nav></div>';
+  h += '<div class="bp-wrap"><div class="bp-main">';
+  h += '<header><p class="crumb"><span class="sk"><span class="dsk">Desk / Files / </span>Capital goods / Kaveri Pumps · <span class="id">' + D.symbol + '</span></span></p><h1 data-vt-title>' + D.name + '</h1><p class="one"><span class="sk">' + D.oneLiner + '</span></p>';
+  h += '<div class="obj"><span class="lbl">What this teaches</span><p><span class="sk">' + D.objective + '</span></p></div>';
+  h += '<dl class="dateline"><div><dt>This version</dt><dd><span class="sk">R' + cur.n + ' of ' + D.revisions.length + '</span></dd></div><div><dt>' + (D.revisions.length > 1 ? 'Revised' : 'Written') + '</dt><dd><span class="sk">' + cur.d + '</span></dd></div><div><dt>First written</dt><dd><span class="sk">' + D.firstWritten + '</span></dd></div><div><dt>Figures to</dt><dd><span class="sk">' + (D.dataAsOf || 'None cited') + '</span></dd></div></dl></header>';
+
+  /* VIEW */
+  h += '<section class="sec" data-sec="view"><div class="sec-h"><span class="kind view">VIEW</span><h2>Aksh\'s view</h2><p class="sub">His own words. ' + (nF ? 'Each figure opens the line it came from.' : 'No figures yet, so nothing to cite.') + '</p></div><div class="view">';
+  each(D.view, function (para, pi) {
+    var cards = '';
+    var txt = para.t.replace(CITE, function (m, s, loc, a) {
+      var id = P + '-' + pi + '-' + s + loc.replace(/\W/g, ''), fs = factsAt(D, s, loc), src = D.sources[s];
+      var c = '<div class="card" id="' + id + '" hidden><div class="card-h"><span class="kind fact">FACT</span><span class="id">' + s + ' · ' + loc + '</span><span class="asof">as of ' + a + '</span></div>';
+      each(fs, function (fa) { c += kv(fa.ks, fa.n, fa.u); if (fa.pv) c += kv(fa.pl, fa.pv, fa.u, 'pr'); });
+      c += '<div class="q"><span class="lbl">Quoted from the filing</span><p>“' + fs[0].q + '”</p></div><p class="card-src">' + src.title + ' · ' + src.meta + '</p><button type="button" class="card-x" data-close="' + id + '">Close</button></div>';
+      cards += c;
+      return '<button type="button" class="chip" aria-expanded="false" aria-controls="' + id + '" aria-label="Source ' + s + ', ' + loc + ', as of ' + a + '"><b>' + s + '</b>' + loc + '</button>';
+    });
+    h += '<div class="para">' + (para.rev ? '<p class="revmark"><span class="id">R' + para.rev + '</span><span>Rewritten ' + D.reviewed + '</span><button type="button" data-jump="history">See the change</button></p>' : '') + '<p><span class="sk">' + txt + '</span></p>' + cards + '</div>';
+  });
+  h += '</div></section>';
+
+  /* TEST */
+  h += '<section class="sec" data-sec="tests"' + (nT ? ' data-io="tests"' : '') + '><div class="sec-h"><span class="kind">TEST</span><h2>What would prove me wrong</h2><p class="sub">Each condition is checked when a new filing lands.</p></div>';
+  if (nT) {
+    h += '<p class="tsum">';
+    each(["Met", "Not met", "Watching", "No data"], function (s, i) { h += '<span>' + ICON[s] + '<span class="n">' + cnt('ts' + i, counts[s]) + '</span> ' + s.toLowerCase() + '</span>'; });
+    h += '</p><p class="legend">Met means the condition has happened, so the view is wrong on that test. All checked ' + D.wrong[0].checked + '.</p>';
+    h += '<ol class="tests"><li class="thd" aria-hidden="true"><span>Status</span><span>Latest reading</span><span>Checked</span></li>';
+    each(D.wrong, function (w, i) {
+      h += '<li class="t"><span class="tn">' + (i + 1) + '</span><div><p class="tc"><span class="sk"><span class="lead">I would be wrong if</span> ' + w.c + (w.added ? ' <span class="added">added in R' + w.added + '</span>' : '') + '</span></p>';
+      h += '<dl class="te"><dt class="sr">Status</dt><dd class="s" data-st="' + w.status + '">' + ICON[w.status] + w.status + '</dd><dt class="sr">Latest reading</dt><dd class="r"><span class="sk"><span class="pfx" aria-hidden="true">Latest</span>' + w.latest + '<small>data to ' + w.asof + '</small></span></dd><dt class="sr">Last checked</dt><dd class="c"><span class="sk">' + w.checked + '</span></dd></dl></div></li>';
+    });
+    h += '</ol>';
+  } else {
+    h += emptyBox('No tests yet', ['Aksh has not yet written the conditions that would prove this view wrong. Each test will appear as one row, so a reader can see in a few seconds which ones have happened.'], ['Condition', 'Status', 'Latest reading', 'Checked']);
+  }
+  h += '</section>';
+
+  /* FACT */
+  h += '<section class="sec" data-sec="facts"><div class="sec-h"><span class="kind fact">FACT</span><h2>Source facts</h2><p class="sub">Taken from filings and public data. Not Aksh\'s words.</p></div>';
+  if (nF) {
+    h += '<figure class="chart" data-io="chart"><figcaption><span class="lbl">Receivable days, FY23 to Q1 FY27</span><span class="cap-src"><span class="id">S1</span> p. 18, p. 131 · <span class="id">S2</span> slide 14 · Q1 FY27 annualised</span></figcaption><div class="cbox sk"></div><p class="cnote"><i aria-hidden="true"></i><span>Shaded: the last 30 days, where no figure can appear. The line ends at the newest published figure, 30 Jun 2026.</span></p></figure>';
+    h += '<p class="fsum">' + cnt('fn', nF) + ' figures from ' + nS + ' sources · newest as of ' + D.dataAsOf + '</p><table class="ft" data-io="facts"><caption class="sr">Source facts, grouped by period</caption><thead><tr><th scope="col">Metric</th><th scope="col" class="r" colspan="2">Value</th><th scope="col" class="r">Prior</th><th scope="col" style="padding-left:18px">Source</th></tr></thead>';
+    each([1, 2], function (g) {
+      var G = D.groups[g];
+      h += '<tbody><tr class="grp"><th colspan="5" scope="rowgroup">' + G.name + ' <span>· ' + G.span + ' · as of ' + G.a + '</span></th></tr>';
+      each(D.facts, function (fa) {
+        if (fa.g !== g) return;
+        h += '<tr><th scope="row"><span class="sk">' + fa.ks + '</span></th><td class="n"><span class="sk num">' + fa.n + '</span></td><td class="u">' + fa.u + '</td><td class="pr"><span class="sk">' + (fa.pv ? '<span class="pl">' + fa.pl + '</span>' + fa.pv : '<span class="pl">' + (fa.pl || '–') + '</span>') + '</span></td><td class="s"><span class="sk"><span class="id">' + fa.s + '</span> · ' + fa.loc + '</span></td></tr>';
+      });
+      h += '</tbody>';
+    });
+    h += '</table>';
+  } else {
+    h += emptyBox('No source facts yet', ['This draft cites no filings, so it states no figures. A figure can only appear here with its source, page and as-of date, and the view above can only quote figures that appear here.'], ['Metric', 'Value', 'Prior', 'Source', 'As of']);
+  }
+  h += '<div data-sec="sources">';
+  if (nS) {
+    h += '<ol class="srcs" aria-label="Sources">';
+    each(Object.keys(D.sources), function (k) { var s = D.sources[k]; h += '<li><span class="id">' + k + '</span><span class="sk"><span class="ty">' + s.type + '</span>' + s.title + '<small>' + s.meta + '</small></span></li>'; });
+    h += '</ol>';
+  }
+  h += '</div></section>';
+
+  /* LOG */
+  h += '<section class="sec" data-sec="history"><div class="sec-h"><span class="kind log">LOG</span><h2>Revision history</h2><p class="sub">The reason comes first, then every sentence that changed.</p></div>';
+  if (D.revisions.length > 1) {
+    var nv = D.view[2], added = D.facts.filter(function (x) { return x.r === cur.n; }), newT = D.wrong.filter(function (w) { return w.added === cur.n; });
+    h += '<div class="rv"><p class="rv-h"><span class="id">R' + cur.n + '</span><b>' + cur.d + '</b><span>1 paragraph rewritten · ' + newT.length + ' test added · ' + added.length + ' facts added</span></p>';
+    h += '<p class="reason"><span class="sk">' + cur.r + '</span></p>';
+    h += '<div class="dseg" role="group" aria-label="Show"><button type="button" data-pane="chg" aria-pressed="true">Changes</button><button type="button" data-pane="r2" aria-pressed="false">Read R2</button><button type="button" data-pane="r1" aria-pressed="false">Read R1</button><span class="ind" aria-hidden="true"></span></div>';
+    h += '<div class="pane" data-pn="chg" data-io="diff"><p class="loc">View, paragraph 3 · removed from R1</p><ol class="dl del">';
+    each(sentences(nv.old), function (s) { h += '<li><span class="g" aria-hidden="true">−</span><span><span class="sr">Removed: </span><span class="tx">' + s + '</span></span></li>'; });
+    h += '</ol><p class="loc">View, paragraph 3 · added in R2</p><ol class="dl ins">';
+    each(sentences(nv.t), function (s) { h += '<li><span class="g" aria-hidden="true">+</span><span><span class="sr">Added: </span><span class="tx">' + s + '</span></span></li>'; });
+    h += '</ol><p class="loc">Tests · added in R2</p><ol class="dl ins">';
+    each(newT, function (w) { h += '<li><span class="g" aria-hidden="true">+</span><span><span class="sr">Added: </span><span class="tx">Test 3. I would be wrong if ' + w.c + '</span></span></li>'; });
+    h += '</ol><p class="loc">Facts · added in R2</p><ol class="dl ins">';
+    each(added, function (x) { h += '<li><span class="g" aria-hidden="true">+</span><span class="fx"><span class="sr">Added: </span><span class="tx">' + x.k + ': ' + x.v + ' (' + x.s + ', ' + x.loc + ')</span></span></li>'; });
+    h += '</ol></div><div class="pane" data-pn="r2" hidden>';
+    each(D.view, function (p) { h += '<p>' + p.t.replace(CITE, '') + '</p>'; });
+    h += '<p class="note">Current text, source links hidden.</p></div><div class="pane" data-pn="r1" hidden>';
+    each(D.view, function (p) { h += '<p>' + (p.old || p.t).replace(CITE, '') + '</p>'; });
+    h += '<p class="note">As published on ' + D.firstWritten + '. Kept unchanged.</p></div><ol class="rlog" reversed>';
+    each(D.revisions.slice().reverse(), function (r) { h += '<li><span class="when"><span class="id">R' + r.n + '</span>' + r.d + '</span><span class="why"><span class="sk">' + r.r + '</span></span></li>'; });
+    h += '</ol></div>';
+  } else {
+    h += emptyBox('No revisions yet', ['R1 is the only version, written ' + cur.d + '. When Aksh revises this page, the reason will show here first, then each sentence removed and added, then any tests or facts that arrived.'], ['Reason', 'Removed', 'Added', 'Read R1 / R2']);
+  }
+  h += '</section>';
+
+  /* LINK + disclosure */
+  h += '<section class="sec" data-sec="notes"><div class="sec-h"><span class="kind plain">LINK</span><h2>Linked notes</h2></div><ul class="links">';
+  each(D.links, function (l) { h += '<li><a href="#">' + l + '</a></li>'; });
+  h += '</ul></section><section class="sec disc" data-sec="disclosure"><span class="lbl">Disclosure</span><p class="pos">Position in this security: <b>None</b><small>Taken from the ledger when this version was published, ' + D.reviewed + '.</small></p><dl class="facts-dl"><dt>Type</dt><dd>Educational case study</dd><dt>Registration</dt><dd>Not a SEBI-registered RA or IA</dd><dt>Data lag</dt><dd>At least 30 days</dd><dt>Reviewed</dt><dd>' + D.reviewed + '</dd></dl><p class="full">' + D.disclosure() + '</p></section>';
+  return h + '</div></div></article>';
+}
+
+function siteHTML(f) {
+  var s = f.screen, n = f.state === 'empty' ? 0 : COS.length, D = f.state === 'empty' ? EMPTY : FULL;
+  var h = '<div class="site" data-p="' + f.p + '">';
+  if (s === 'home') h += dbar('dtop');
+  h += topbar(s) + '<div class="a-body">' + grail(f, D, n) + '<div class="main' + (f.loading ? ' is-sk' : '') + '">';
+  h += s === 'home' ? '<div class="pg">' + homeHTML(f) + '</div>' : fileHTML(f, D);
+  return h + '</div></div><div class="dock">' + (s === 'home' ? dbar('bottom') : '') + tabs(s, n) + '</div></div>';
+}
+
+/* chart: drawn at the box's real pixel width so text never scales */
+function drawChart(f, box, arm) {
+  var W = Math.round(box.clientWidth); if (!W) return;
+  if (!arm && box._w === W) return; box._w = W;
+  var H = 168, L = 30, R = 8, TOP = 22, B = 22;
+  function X(t) { return L + (W - L - R) * (t - T0) / (T1 - T0); }
+  function Y(v) { return TOP + (H - TOP - B) * (1 - (v - 60) / 110); }
+  var pts = CH.map(function (c) { return [X(c.t), Y(c.v), c]; }), x0 = pts[0][0], xn = pts[pts.length - 1][0];
+  var s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Receivable days: FY23 88, FY24 92, FY25 96, FY26 142, Q1 FY27 151 annualised. The line stops at the data cap, 30 June 2026.">';
+  each([80, 120, 160], function (v) { s += '<line class="gl" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '"/><text class="ax" x="' + (L - 6) + '" y="' + (Y(v) + 3.5).toFixed(1) + '" text-anchor="end">' + v + '</text>'; });
+  var lx = X(LAGD), cx = X(CAPD);
+  s += '<rect class="lag" x="' + lx.toFixed(1) + '" y="' + TOP + '" width="' + Math.max(2, X(T1) - lx).toFixed(1) + '" height="' + (H - TOP - B) + '"/>';
+  s += '<line class="capl" x1="' + cx.toFixed(1) + '" x2="' + cx.toFixed(1) + '" y1="' + (TOP - 6) + '" y2="' + (H - B) + '"/>';
+  s += '<g class="cap-g"><text class="capt" x="' + (cx - 5).toFixed(1) + '" y="' + (TOP - 9) + '" text-anchor="end">Data cap · 30 Jun 2026</text></g>';
+  var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+  var armed = arm && !red() && f.p === 'terminal';
+  s += '<path class="ln" pathLength="1" d="' + d + '"' + (armed ? ' style="stroke-dasharray:1;stroke-dashoffset:1"' : '') + '/>';
+  each(pts, function (p, i) {
+    var fr = ((p[0] - x0) / Math.max(1, xn - x0)).toFixed(3), right = i >= 3;
+    s += '<circle class="dt" cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3" data-fr="' + fr + '"/>';
+    s += '<text class="vl" x="' + (right ? p[0] - 7 : p[0]).toFixed(1) + '" y="' + (right ? p[1] - (i === 3 ? 7 : 4) : p[1] - 8).toFixed(1) + '" text-anchor="' + (right ? 'end' : 'middle') + '" data-fr="' + fr + '">' + p[2].v + '</text>';
+    if (i < 4) s += '<text class="ax" x="' + p[0].toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + p[2].p + '</text>';
+  });
+  box.innerHTML = s + '</svg>';
+}
+
+/* ================= motion primitives ================= */
+/* A(): one entry point for every JS animation. Reduced motion: nothing, or a 120 ms opacity fade when `fade` is set. */
+function A(el, kf, o, fade) {
+  if (!el || !el.animate) return null;
+  if (red()) return fade ? el.animate([{opacity: 0}, {opacity: 1}], {duration: 120, easing: 'linear', fill: 'backwards'}) : null;
+  o = o || {}; if (!o.fill) o.fill = 'backwards';
+  var an;
+  try { an = el.animate(kf, o); } catch (e) { return null; }
+  /* watchdog: if frames stop (hidden or throttled page) the timeline stalls; jump to the end state so nothing stays hidden or half-drawn */
+  var end = (o.duration || 0) + (o.delay || 0);
+  setTimeout(function () { if (an.playState === 'running' || an.playState === 'pending') { try { an.finish(); } catch (e) {} } }, end + 300);
+  return an;
+}
+function then(a, fn) {
+  if (!a) { fn(); return; }
+  var done = false; function g() { if (!done) { done = true; fn(); } }
+  if (a.finished && a.finished.then) a.finished.then(g, g); else { a.onfinish = g; a.oncancel = g; }
+}
+function inView(f, el) { var a = f.vp.getBoundingClientRect(), b = el.getBoundingClientRect(); return a.height > 0 && b.bottom > a.top && b.top < a.bottom; }
+function isVis(f) { return function (el) { return inView(f, el); }; }
+
+/* odometer roll for counts (NumberFlow in the build) */
+function roll(el, from, to) {
+  el.setAttribute('data-v', to);
+  if (red() || from === to || !el.animate) { el.textContent = to; return; }
+  var ts = String(to), fs = String(from), n = Math.max(ts.length, fs.length), cols = [], h;
+  while (ts.length < n) ts = ' ' + ts;
+  while (fs.length < n) fs = ' ' + fs;
+  h = '<span class="sr">' + to + '</span><span class="rl" aria-hidden="true">';
+  for (var i = 0; i < n; i++) {
+    if (ts.charAt(i) === ' ') continue;
+    h += '<span class="dc"><span class="ds"><i>0</i><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i></span></span>';
+    cols.push([fs.charAt(i) === ' ' ? 0 : +fs.charAt(i), +ts.charAt(i)]);
+  }
+  el.innerHTML = h + '</span>';
+  var ds = qa('.ds', el), slowest = null;
+  each(ds, function (d, i) {
+    var a = A(d, [{transform: 'translateY(' + (-1.2 * cols[i][0]) + 'em)'}, {transform: 'translateY(' + (-1.2 * cols[i][1]) + 'em)'}], {duration: 220, delay: (ds.length - 1 - i) * 30, easing: TOK.instrument.e, fill: 'both'});
+    if (i === 0) slowest = a;
+  });
+  then(slowest, function () { if (String(el.getAttribute('data-v')) === String(to)) el.textContent = to; });
+}
+/* count-up with a locked width (NumberFlow in the build) */
+function countUp(el, from, dur) {
+  var fin = el.getAttribute('data-v');
+  if (fin === null) { fin = el.textContent; el.setAttribute('data-v', fin); }
+  var m = /^([^0-9]*)([0-9][0-9,]*)(.*)$/.exec(fin);
+  if (!m || red() || !window.requestAnimationFrame) { el.textContent = fin; return; }
+  var to = parseInt(m[2].replace(/,/g, ''), 10), fr = from || 0;
+  if (fr === to) { el.textContent = fin; return; }
+  var rg = document.createRange(); rg.selectNodeContents(el);
+  var w = rg.getBoundingClientRect().width, grp = m[2].indexOf(',') > -1, tok = {}, t0 = null, D = dur || 280;
+  el._cu = tok;
+  el.innerHTML = '<span class="sr">' + esc(fin) + '</span><span class="cu" aria-hidden="true" style="min-width:' + w.toFixed(1) + 'px"></span>';
+  var cu = el.lastChild;
+  function fmt(v) { return m[1] + (grp ? v.toLocaleString('en-IN') : String(v)) + m[3]; }
+  cu.textContent = fmt(fr);
+  /* watchdog: a figure must never be left showing an intermediate value */
+  setTimeout(function () { if (el._cu === tok) { el._cu = null; el.textContent = fin; } }, D + 300);
+  requestAnimationFrame(function step(now) {
+    if (el._cu !== tok) return;
+    if (t0 === null) t0 = now;
+    var k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
+    if (k < 1 && cu.isConnected) { cu.textContent = fmt(Math.round(fr + (to - fr) * e)); requestAnimationFrame(step); }
+    else el.textContent = fin;
+  });
+}
+function readCounts(f) { var o = {}; each(qa('.cnt', f.vp), function (el) { o[el.getAttribute('data-k')] = parseInt(el.getAttribute('data-v'), 10) || 0; }); return o; }
+function rollAll(f, from) { each(qa('.cnt', f.vp), function (el) { var to = parseInt(el.getAttribute('data-v'), 10); if (isNaN(to)) return; var k = el.getAttribute('data-k'); roll(el, from && from[k] != null ? from[k] : 0, to); }); }
+function countAll(f, from) { each(qa('.cnt', f.vp), function (el) { var k = el.getAttribute('data-k'); countUp(el, from && from[k] != null ? from[k] : 0, 280); }); }
+function changeCount(f, el, from, to) {
+  if (f.p === 'instrument') roll(el, from, to);
+  else if (f.p === 'terminal') { el.setAttribute('data-v', to); countUp(el, from, 160); }
+  else { el.setAttribute('data-v', to); el.textContent = to; if (from !== to) A(el, [{opacity: 0}, {opacity: 1}], {duration: 160, easing: TOK.paper.e}); }
+}
+function ticks(els, gap) { each(els, function (el, i) { A(el, [{clipPath: 'inset(0 100% 0 0)'}, {clipPath: 'inset(0 0% 0 0)'}], {duration: 160, delay: i * gap, easing: 'steps(4, end)'}); }); }
+function typeIn(els, gap) { each(els, function (el, i) { A(el, [{clipPath: 'inset(0 100% 0 0)'}, {clipPath: 'inset(0 0% 0 0)'}], {duration: 140, delay: i * gap, easing: 'steps(6, end)'}); }); }
+function pulse(el, delay) {
+  if (!el || red()) return;
+  var svg = q('svg', el); if (!svg) return;
+  var a = svg.getBoundingClientRect(), b = el.getBoundingClientRect(), r = document.createElement('span');
+  r.className = 'ring'; r.setAttribute('aria-hidden', 'true');
+  r.style.left = (a.left - b.left) + 'px'; r.style.top = (a.top - b.top) + 'px';
+  el.appendChild(r);
+  var an = A(r, [{transform: 'scale(1)', opacity: 0.7}, {transform: 'scale(2.4)', opacity: 0}], {duration: 280, delay: delay || 0, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'both'});
+  then(an, function () { if (r.parentNode) r.parentNode.removeChild(r); });
+}
+function drawLine(fig) {
+  var path = q('.ln', fig), cap = q('.cap-g', fig);
+  if (path) {
+    var a = A(path, [{strokeDashoffset: '1'}, {strokeDashoffset: '0'}], {duration: 280, easing: 'linear', fill: 'both'});
+    if (a) path.style.strokeDasharray = '1';
+    then(a, function () { path.style.strokeDasharray = ''; path.style.strokeDashoffset = ''; if (a) a.cancel(); });
+  }
+  each(qa('[data-fr]', fig), function (d) { A(d, [{opacity: 0}, {opacity: 1}], {duration: 1, delay: Math.round(280 * parseFloat(d.getAttribute('data-fr'))), easing: 'linear'}); });
+  if (cap) A(cap, [{opacity: 0, transform: 'scale(1.4)'}, {opacity: 1, transform: 'scale(1)'}], {duration: 160, delay: 290, easing: TOK.terminal.e});
+}
+function drawDiff(pane, instant) {
+  var tx = qa('.tx', pane);
+  each(tx, function (t, i) { t.classList.remove('drawn'); t.style.transitionDelay = instant ? '0ms' : Math.min(i * 40, 200) + 'ms'; });
+  void pane.offsetWidth;
+  each(tx, function (t) { t.classList.add('drawn'); });
+}
+function moveInd(ind, btn, vertical, instant) {
+  if (!ind || !btn) return;
+  if (instant) ind.classList.remove('live');
+  ind.style.transform = vertical ? 'translateY(' + btn.offsetTop + 'px) scaleY(' + btn.offsetHeight + ')' : 'translateX(' + btn.offsetLeft + 'px) scaleX(' + btn.offsetWidth + ')';
+  if (instant) { void ind.offsetWidth; requestAnimationFrame(function () { ind.classList.add('live'); }); }
+}
+function placeInds(f, instant) {
+  each(qa('.ind', f.vp), function (ind) {
+    var g = ind.parentElement, gs = g.classList.contains('gsub');
+    var btn = g.classList.contains('idx') ? q('[aria-current="true"]', g) : gs ? q('.gi[aria-current="true"]', g) : q('[aria-pressed="true"]', g);
+    moveInd(ind, btn, gs, instant);
+  });
+}
+function stagger(f) {
+  var sel = f.screen === 'home' ? '.stand, .stat, .blk-h, .le, .tools' : '.crumb, .one, .obj, .dateline, .para, .sec-h';
+  var items = qa(sel, f.vp).filter(isVis(f)).slice(0, 8);
+  each(items, function (el, i) { A(el, [{opacity: 0, transform: 'translateY(6px)'}, {opacity: 1, transform: 'none'}], {duration: 240, delay: i * 35, easing: TOK.paper.e}); });
+}
+function pushIn(f, back) { A(q('.main', f.vp), [{transform: 'translateX(' + (back ? -24 : 24) + 'px)', opacity: 0}, {transform: 'none', opacity: 1}], {duration: 220, easing: TOK.instrument.e}); }
+function wipeIn(f) {
+  var m = q('.main', f.vp); if (!m) return;
+  var H = m.offsetHeight, top = f.vp.scrollTop - m.offsetTop, vh = f.vp.clientHeight;
+  var a = Math.max(0, H - Math.max(0, top)), b = Math.max(0, H - Math.min(H, top + vh));
+  A(m, [{clipPath: 'inset(0 0 ' + a + 'px 0)'}, {clipPath: 'inset(0 0 ' + b + 'px 0)'}], {duration: 160, easing: 'linear'});
+}
+function scanStreak(f) { each(qa('.streak', f.vp), function (s) { each(qa('i', s), function (c, i) { if (c.classList.contains('on')) A(c, [{opacity: 0.15}, {opacity: 1}], {duration: 40, delay: i * 8, easing: 'steps(1, end)'}); }); }); }
+
+/* ================= per-personality behaviour ================= */
+function enter(f, reason) {
+  var s = f.screen, firstTime = !f.seen[s];
+  f.seen[s] = true;
+  var full = reason === 'first' || reason === 'replay' || ((reason === 'nav' || reason === 'back') && firstTime);
+  if (red()) { if (reason === 'replay') A(q('.main', f.vp), [{opacity: 0}, {opacity: 1}], {duration: 120}, true); return; }
+  if (!full) return;
+  if (f.p === 'instrument') {
+    rollAll(f, null);
+    if (s === 'home') ticks(qa('.le .kind', f.vp).filter(isVis(f)), 50);
+  } else if (f.p === 'paper') {
+    stagger(f);
+  } else {
+    countAll(f, null);
+    if (s === 'home') { typeIn(qa('.le time', f.vp).filter(isVis(f)), 40); scanStreak(f); }
+    else typeIn(qa('.dateline dd', f.vp), 40);
+  }
+}
+function inview(f, el, quiet) {
+  var k = el.getAttribute('data-io'), p = f.p;
+  if (k === 'diff') { if (p === 'paper') drawDiff(el, quiet || red()); return; }
+  if (k === 'chart' && (quiet || red())) { var ln = q('.ln', el); if (ln) { ln.style.strokeDasharray = ''; ln.style.strokeDashoffset = ''; } }
+  if (quiet || red()) return;
+  if (k === 'tests') {
+    if (p === 'instrument') { ticks(qa('.te .s', el), 60); each(qa('.tsum .cnt', el), function (c) { roll(c, 0, parseInt(c.getAttribute('data-v'), 10) || 0); }); }
+    else if (p === 'terminal') each(qa('.te .s[data-st="Watching"]', el), function (s, i) { pulse(s, i * 60); });
+  } else if (k === 'files') {
+    if (p === 'terminal') each(qa('.sh[data-st="Watching"]', el).filter(isVis(f)), function (s, i) { pulse(s, i * 40); });
+    else if (p === 'instrument') ticks(qa('.c-t .tmini', el).filter(isVis(f)).slice(0, 8), 30);
+  } else if (k === 'chart') {
+    var svg = q('svg', el);
+    if (p === 'terminal') drawLine(el);
+    else if (p === 'instrument') A(svg, [{clipPath: 'inset(0 100% 0 0)'}, {clipPath: 'inset(0 0% 0 0)'}], {duration: 220, easing: TOK.instrument.e});
+    else A(el, [{opacity: 0, transform: 'translateY(6px)'}, {opacity: 1, transform: 'none'}], {duration: 300, easing: TOK.paper.e});
+  } else if (k === 'facts') {
+    if (p === 'terminal') each(qa('.num', el), function (n) { countUp(n, 0, 280); });
+  }
+}
+/* in-view hooks: anything already on screen runs before first paint (no flash); the rest waits for an observer that fires 24 px early */
+function observe(f, quiet) {
+  if (f.io) { f.io.disconnect(); f.io = null; }
+  var els = qa('[data-io]', f.vp), rest = [];
+  each(els, function (el) { if (inView(f, el)) inview(f, el, quiet); else rest.push(el); });
+  if (!rest.length) return;
+  if (!('IntersectionObserver' in window)) { each(rest, function (el) { inview(f, el, true); }); return; }
+  f.io = new IntersectionObserver(function (es) {
+    each(es, function (e) { if (!e.isIntersecting) return; f.io.unobserve(e.target); inview(f, e.target, false); });
+  }, {root: f.vp, rootMargin: '0px 0px 24px 0px', threshold: 0});
+  each(rest, function (el) { f.io.observe(el); });
+}
+
+/* ================= frames ================= */
+var FR = {}, ORDER = [];
+function mount(f, reason) {
+  each(f.timers, clearTimeout); f.timers = [];
+  if (f.io) { f.io.disconnect(); f.io = null; }
+  f.vp.innerHTML = siteHTML(f);
+  f.vp.scrollTop = reason === 'back' ? f.homeScroll : 0;
+  f.lastSt = f.vp.scrollTop; f.cur = '';
+  var quiet = reason === 'quiet';
+  each(qa('.cbox', f.vp), function (b) { drawChart(f, b, !quiet && !f.loading); });
+  placeInds(f, true);
+  spy(f);
+  if (!f.loading) observe(f, quiet);
+  syncTools(f);
+  var u = q('[data-url-for="' + f.id + '"]');
+  if (u) u.textContent = f.screen === 'home' ? 'desk.example/' : 'desk.example/files/kaveri-pumps';
+}
+function spy(f) {
+  if (f.screen !== 'thesis') return;
+  var vp = f.vp, top = q('.bp-top', vp), off = (top ? top.offsetHeight : 0) + 40, vr = vp.getBoundingClientRect().top, cur = 'view';
+  each(qa('[data-sec]', vp), function (s) { if (s.getBoundingClientRect().top - vr <= off) cur = s.getAttribute('data-sec'); });
+  if (cur === 'sources') cur = 'facts';
+  if (cur !== f.cur) {
+    f.cur = cur;
+    var ic = (cur === 'notes' || cur === 'disclosure') ? 'history' : cur, idx = q('.idx', vp), gs = q('.gsub', vp);
+    each(qa('.idx [data-jump]', vp), function (b) { b.setAttribute('aria-current', b.getAttribute('data-jump') === ic ? 'true' : 'false'); });
+    each(qa('.gsub [data-jump]', vp), function (b) { b.setAttribute('aria-current', b.getAttribute('data-jump') === cur ? 'true' : 'false'); });
+    if (idx) moveInd(q(':scope > .ind', idx), q('[aria-current="true"]', idx), false);
+    if (gs) moveInd(q(':scope > .ind', gs), q('.gi[aria-current="true"]', gs), true);
+  }
+  var bar = q('.prog i', vp);
+  if (bar && !(f.p === 'terminal' && SDA)) bar.style.transform = 'scaleX(' + Math.min(1, vp.scrollTop / Math.max(1, vp.scrollHeight - vp.clientHeight)).toFixed(4) + ')';
+}
+function onScroll(f) {
+  var vp = f.vp, st = vp.scrollTop, dy = st - f.lastSt;
+  f.lastSt = st;
+  spy(f);
+  if (f.screen !== 'thesis') return;
+  if (f.p === 'paper') { var dl = q('.dateline', vp); if (dl) dl.style.transform = red() ? '' : 'translateY(' + Math.min(st * 0.06, 8).toFixed(2) + 'px)'; }
+  var d = q('.dock', vp); if (!d) return;
+  if (f.p === 'paper') {
+    if (Math.abs(dy) > 2) { d.classList.add('hid'); clearTimeout(f.dockT); f.dockT = setTimeout(function () { d.classList.remove('hid'); }, 500); }
+  } else if (dy > 4 && st > 80) d.classList.add('hid');
+  else if (dy < -4) d.classList.remove('hid');
+}
+function jumpTo(f, sec, instant) {
+  var vp = f.vp, tg = q('[data-sec="' + sec + '"]', vp); if (!tg) return;
+  var top = q('.bp-top', vp), off = top ? top.offsetHeight : 0;
+  vp.scrollTo({top: tg.getBoundingClientRect().top - vp.getBoundingClientRect().top + vp.scrollTop - off - 12, behavior: (instant || red() || f.p === 'terminal') ? 'auto' : 'smooth'});
+}
+function focusSearch(f) { var i = q('[data-search]', f.vp); if (!i) return; jumpTo(f, 'files', true); i.focus({preventScroll: true}); }
+
+function navigate(f, to, src, extra) {
+  if (to === 'files') { to = 'home'; extra = extra || 'files'; }
+  f.loading = false;
+  if (f.screen === to) { if (extra === 'files') jumpTo(f, 'files'); else if (extra === 'search') focusSearch(f); return; }
+  if (f.screen === 'home') f.homeScroll = f.vp.scrollTop;
+  var back = to === 'home', reason = back && !extra ? 'back' : 'nav';
+  f.screen = to;
+  function after() { if (extra === 'files') jumpTo(f, 'files', true); else if (extra === 'search') focusSearch(f); }
+  if (red()) { mount(f, reason); enter(f, reason); A(q('.main', f.vp), [{opacity: 0}, {opacity: 1}], {duration: 120}, true); after(); return; }
+  if (f.p === 'paper') { paperNav(f, reason, src, after); return; }
+  mount(f, reason);
+  if (f.p === 'instrument') pushIn(f, back); else wipeIn(f);
+  enter(f, reason);
+  after();
+}
+/* Paper: shared-element morph. View Transitions where supported, a FLIP of the title elsewhere. */
+function paperNav(f, reason, src, after) {
+  var back = reason === 'back', nm = 'pt-' + f.id.toLowerCase(), vpn = 'pv-' + f.id.toLowerCase();
+  var fromEl = back ? q('[data-vt-title]', f.vp) : (src && src.getAttribute && src.getAttribute('data-slug') === 'kaveri' ? src : null);
+  if (fromEl && !inView(f, fromEl)) fromEl = null;
+  function findTo() { return back ? q('tr[data-slug="kaveri"] .go', f.vp) : q('[data-vt-title]', f.vp); }
+  if (VT) {
+    if (fromEl) fromEl.style.viewTransitionName = nm;
+    f.vp.style.viewTransitionName = vpn;
+    var t = null, ran = false;
+    try {
+      t = document.startViewTransition(function () {
+        ran = true;
+        mount(f, reason);
+        var el = findTo(); if (fromEl && el && inView(f, el)) el.style.viewTransitionName = nm;
+        enter(f, reason);
+      });
+    } catch (e) { t = null; }
+    if (t) {
+      var done = function () { f.vp.style.viewTransitionName = ''; var el = findTo(); if (el) el.style.viewTransitionName = ''; after(); };
+      t.finished.then(done, done);
+      if (t.ready) t.ready.catch(function () {});
+      /* a page that is not painting (background tab, hidden window) never reaches the update; skipping still runs it */
+      setTimeout(function () { if (!ran && t.skipTransition) t.skipTransition(); }, 250);
+      return;
+    }
+    f.vp.style.viewTransitionName = '';
+  }
+  var r0 = fromEl ? fromEl.getBoundingClientRect() : null;
+  mount(f, reason);
+  enter(f, reason);
+  A(q('.main', f.vp), [{opacity: 0}, {opacity: 1}], {duration: 240, easing: TOK.paper.e});
+  var el = findTo();
+  if (r0 && el && inView(f, el)) {
+    var r1 = el.getBoundingClientRect(), sc = r0.height / Math.max(1, r1.height);
+    A(el, [{transformOrigin: '0 0', transform: 'translate(' + (r0.left - r1.left) + 'px,' + (r0.top - r1.top) + 'px) scale(' + sc + ')'}, {transformOrigin: '0 0', transform: 'none'}], {duration: 300, easing: TOK.paper.e});
+  }
+  after();
+}
+function setState(f, st) {
+  var old = readCounts(f);
+  f.loading = false; f.state = st; f.q = '';
+  mount(f, 'state');
+  var m = q('.main', f.vp);
+  if (red()) { A(m, [{opacity: 0}, {opacity: 1}], {duration: 120}, true); return; }
+  if (f.p === 'instrument') { A(m, [{opacity: 0}, {opacity: 1}], {duration: 120, easing: 'linear'}); rollAll(f, old); }
+  else if (f.p === 'paper') A(m, [{opacity: 0, filter: 'blur(2px)'}, {opacity: 1, filter: 'blur(0px)'}], {duration: 240, easing: TOK.paper.e});
+  else countAll(f, old);
+}
+function load(f) {
+  f.loading = true; f.state = 'full'; f.q = '';
+  mount(f, 'state');
+  f.timers.push(setTimeout(function () { arrive(f); }, 1000));
+}
+function arrive(f) {
+  var m = q('.main', f.vp); if (!m || !f.loading) return;
+  f.loading = false; syncTools(f);
+  var vis = qa('.sk', m).filter(isVis(f));
+  if (red()) { m.classList.remove('is-sk'); A(m, [{opacity: 0}, {opacity: 1}], {duration: 120}, true); }
+  else if (f.p === 'instrument') {
+    each(vis, function (el, i) { var d = Math.min(i * 25, 300) + 'ms'; el.style.transitionDelay = d; each(qa('*', el), function (c) { c.style.transitionDelay = d; }); });
+    m.classList.remove('is-sk');
+    f.timers.push(setTimeout(function () { each(qa('.sk, .sk *', m), function (c) { c.style.transitionDelay = ''; }); }, 800));
+    rollAll(f, null);
+  } else if (f.p === 'paper') {
+    m.classList.remove('is-sk');
+    A(m, [{filter: 'blur(2px)'}, {filter: 'blur(0px)'}], {duration: 240, easing: TOK.paper.e});
+  } else {
+    m.classList.remove('is-sk');
+    wipeIn(f);
+    countAll(f, null);
+  }
+  each(qa('.cbox', f.vp), function (b) { drawChart(f, b, true); });
+  observe(f, false);
+}
+
+/* cards, strips, panes, sorting */
+function toggleCard(f, chip) {
+  var card = document.getElementById(chip.getAttribute('aria-controls')); if (!card) return;
+  var open = chip.getAttribute('aria-expanded') !== 'true', T = TOK[f.p];
+  chip.setAttribute('aria-expanded', open ? 'true' : 'false');
+  card._tok = {};
+  if (open) {
+    card.hidden = false;
+    if (red()) { A(card, [{opacity: 0}, {opacity: 1}], {duration: 120}, true); return; }
+    if (f.p === 'instrument') {
+      var c = chip.getBoundingClientRect(), r = card.getBoundingClientRect();
+      A(card, [{clipPath: 'inset(0px ' + Math.max(0, r.right - c.right) + 'px ' + Math.max(0, r.height - c.height) + 'px ' + Math.max(0, c.left - r.left) + 'px round 4px)', transform: 'translateY(' + Math.max(-140, c.bottom - r.top) + 'px)'}, {clipPath: 'inset(0px 0px 0px 0px round 6px)', transform: 'none'}], {duration: 220, easing: T.e});
+    } else if (f.p === 'paper') A(card, [{opacity: 0, transform: 'translateY(-6px)'}, {opacity: 1, transform: 'none'}], {duration: 240, easing: T.e});
+    else { A(card, [{clipPath: 'inset(0 0 100% 0)'}, {clipPath: 'inset(0 0 0% 0)'}], {duration: 120, easing: 'linear'}); each(qa('.kv .n', card), function (n) { countUp(n, 0, 200); }); }
+    return;
+  }
+  var tok = card._tok, a = null;
+  if (!red()) {
+    if (f.p === 'instrument') {
+      var c2 = chip.getBoundingClientRect(), r2 = card.getBoundingClientRect();
+      a = A(card, [{clipPath: 'inset(0px 0px 0px 0px round 6px)', transform: 'none'}, {clipPath: 'inset(0px ' + Math.max(0, r2.right - c2.right) + 'px ' + Math.max(0, r2.height - c2.height) + 'px ' + Math.max(0, c2.left - r2.left) + 'px round 4px)', transform: 'translateY(' + Math.max(-140, c2.bottom - r2.top) + 'px)'}], {duration: 160, easing: T.ein, fill: 'forwards'});
+    } else if (f.p === 'paper') a = A(card, [{opacity: 1}, {opacity: 0}], {duration: 160, easing: T.ein, fill: 'forwards'});
+  }
+  then(a, function () { if (card._tok === tok) card.hidden = true; if (a) a.cancel(); });
+}
+function toggleDet(f, det) {
+  var body = q(':scope > .st-body', det) || q(':scope > .body', det), T = TOK[f.p], tok = {};
+  det._tok = tok;
+  if (!det.open) {
+    det.open = true;
+    if (!body) return;
+    if (red()) { A(body, [{opacity: 0}, {opacity: 1}], {duration: 120}, true); return; }
+    if (f.p === 'instrument') A(body, [{clipPath: 'inset(0 0 100% 0)', transform: 'translateY(-8px)'}, {clipPath: 'inset(0 0 0% 0)', transform: 'none'}], {duration: 180, easing: T.e});
+    else if (f.p === 'paper') A(body, [{opacity: 0, transform: 'translateY(-4px)'}, {opacity: 1, transform: 'none'}], {duration: 240, easing: T.e});
+    else each(qa('dd', body), function (dd, i) { A(dd, [{clipPath: 'inset(0 100% 0 0)'}, {clipPath: 'inset(0 0% 0 0)'}], {duration: 120, delay: i * 30, easing: 'steps(6, end)'}); });
+    return;
+  }
+  var a = null;
+  if (body && !red()) {
+    if (f.p === 'instrument') a = A(body, [{clipPath: 'inset(0 0 0% 0)', transform: 'none'}, {clipPath: 'inset(0 0 100% 0)', transform: 'translateY(-8px)'}], {duration: 120, easing: T.ein, fill: 'forwards'});
+    else if (f.p === 'paper') a = A(body, [{opacity: 1}, {opacity: 0}], {duration: 160, easing: T.ein, fill: 'forwards'});
+  }
+  then(a, function () { if (det._tok === tok) det.open = false; if (a) a.cancel(); });
+}
+function setPane(f, pb) {
+  var rv = pb.closest('.rv'), want = pb.getAttribute('data-pane'), pane = null;
+  each(qa('[data-pane]', rv), function (b) { b.setAttribute('aria-pressed', b === pb ? 'true' : 'false'); });
+  moveInd(q(':scope > .ind', pb.parentElement), pb, false);
+  each(qa('.pane', rv), function (p) { var on = p.getAttribute('data-pn') === want; p.hidden = !on; if (on) pane = p; });
+  if (!pane) return;
+  if (f.p === 'paper') { if (want === 'chg') drawDiff(pane, red()); A(pane, [{opacity: 0}, {opacity: 1}], {duration: 240, easing: TOK.paper.e}, true); }
+  else if (red()) A(pane, [{opacity: 0}, {opacity: 1}], {duration: 120}, true);
+}
+function setSort(f, btn) {
+  var k = btn.getAttribute('data-sort'); if (k === f.sort) return;
+  f.sort = k;
+  each(qa('[data-sort]', btn.parentElement), function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); });
+  moveInd(q(':scope > .ind', btn.parentElement), btn, false);
+  updateRows(f);
+}
+function updateRows(f) {
+  var tb = q('[data-rows]', f.vp); if (!tb) return;
+  var before = {}, box = tb.closest('.tbl');
+  each(qa('tr[data-slug]', tb), function (tr) { before[tr.getAttribute('data-slug')] = tr.getBoundingClientRect().top; });
+  /* while a search filters rows, hold the register's full height so nothing below it moves */
+  if (box) { if (f.q && !box.style.minHeight) box.style.minHeight = box.offsetHeight + 'px'; else if (!f.q) box.style.minHeight = ''; }
+  tb.innerHTML = rowsHTML(f);
+  var mc = q('.cnt[data-k="match"]', f.vp), n = qa('tr[data-slug]', tb).length;
+  if (mc) changeCount(f, mc, parseInt(mc.getAttribute('data-v'), 10) || 0, n);
+  if (red()) return;
+  var T = TOK[f.p];
+  if (f.p === 'terminal') { each(qa('mark', tb), function (mk) { A(mk, [{backgroundSize: '0% 100%'}, {backgroundSize: '100% 100%'}], {duration: 90, easing: 'linear'}); }); return; }
+  each(qa('tr[data-slug]', tb), function (tr) {
+    var s = tr.getAttribute('data-slug'), now = tr.getBoundingClientRect().top;
+    if (before[s] != null) { var dy = before[s] - now; if (Math.abs(dy) > 0.5) A(tr, [{transform: 'translateY(' + dy + 'px)'}, {transform: 'none'}], {duration: f.p === 'paper' ? 300 : 220, easing: T.e}); }
+    else A(tr, [{opacity: 0}, {opacity: 1}], f.p === 'paper' ? {duration: 240, easing: T.e} : {duration: 120, easing: 'steps(2, end)'});
+  });
+}
+function typeDemo(f) {
+  if (f.screen !== 'home' || f.state !== 'full' || f.loading) { f.state = 'full'; f.loading = false; f.screen = 'home'; mount(f, 'nav'); }
+  var inp = q('[data-search]', f.vp); if (!inp) return;
+  jumpTo(f, 'files', true);
+  inp.value = ''; f.q = ''; updateRows(f);
+  var word = 'cap', i = 0;
+  function typeNext() {
+    if (!inp.isConnected) return;
+    if (i < word.length) { inp.value = word.slice(0, ++i); f.q = inp.value; updateRows(f); f.timers.push(setTimeout(typeNext, 130)); }
+    else f.timers.push(setTimeout(clearNext, 1800));
+  }
+  function clearNext() {
+    if (!inp.isConnected || document.activeElement === inp) return;
+    if (inp.value) { inp.value = inp.value.slice(0, -1); f.q = inp.value; updateRows(f); f.timers.push(setTimeout(clearNext, 70)); }
+  }
+  f.timers.push(setTimeout(typeNext, 250));
+}
+
+/* ================= frame toolbars and spec panels ================= */
+function toolsHTML(id, p) {
+  return '<button type="button" class="rp" data-act="replay">Replay</button>' +
+    '<span class="g" role="group" aria-label="Screen"><button type="button" data-act="screen" data-v="home" aria-pressed="true">Register</button><button type="button" data-act="screen" data-v="thesis" aria-pressed="false">Kaveri file</button></span>' +
+    '<span class="g" role="group" aria-label="Content"><button type="button" data-act="state" data-v="full" aria-pressed="true">Loaded</button><button type="button" data-act="state" data-v="loading" aria-pressed="false">Skeleton</button><button type="button" data-act="state" data-v="empty" aria-pressed="false">Empty</button></span>' +
+    (p === 'terminal' ? '<button type="button" class="rp" data-act="demo">Type-ahead</button>' : '') +
+    '<p class="fcap">' + (id.slice(-1) === 'd' ? 'Desktop, 960 px' : 'Phone, 375 px') + '</p>';
+}
+function syncTools(f) {
+  var bar = q('.ftools[data-for="' + f.id + '"]'); if (!bar) return;
+  var st = f.loading ? 'loading' : f.state;
+  each(qa('[data-act="screen"]', bar), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === f.screen ? 'true' : 'false'); });
+  each(qa('[data-act="state"]', bar), function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === st ? 'true' : 'false'); });
+}
+var SPEC = {
+  instrument: {sub: 'snap, tick, roll', tok: ['--motion-fast: 120ms', '--motion-base: 180ms', '--motion-slow: 220ms', '--ease-snap: cubic-bezier(0.2, 0, 0, 1)', '--ease-snap-in: cubic-bezier(0.3, 0, 1, 1)', '--ease-tick: steps(4, end)', '--stagger-micro: 25ms', '--stagger-row: 60ms'], rows: [
+    ['Press', '120 ms', 'ease-snap', 'scale(0.97) on :active (CSS)', 'no scale; colour only, instant'],
+    ['Row and chip hover', '120 ms', 'ease-snap', 'Background and border colour (CSS)', 'instant'],
+    ['Focus ring', '120 ms', 'ease-snap', 'Ring closes from 5 px to 2 px offset (CSS outline-offset)', 'ring appears at once'],
+    ['Disclosure strip', '180 ms open, 120 ms close', 'ease-snap, ease-snap-in', 'Drawer: clip-path from the top plus an 8 px slide (WAAPI here; Motion in the build)', '120 ms fade in, instant close'],
+    ['Source chip to card', '220 ms open, 160 ms close', 'ease-snap, ease-snap-in', 'Clip grows out of the chip box while the card slides down from it (WAAPI; Motion)', '120 ms fade in, instant close'],
+    ['Section index, rail, segmented controls', '220 ms', 'ease-snap', 'One indicator translates and scales between items (CSS transform; Motion layoutId)', 'indicator jumps'],
+    ['Counts: tabs, rail, register, tests', '220 ms, 30 ms per digit', 'ease-snap', 'Odometer roll from 0 on first view, from the old value on change (NumberFlow)', 'final value at once'],
+    ['Test status and entry labels', '160 ms, 50 to 60 ms apart', 'ease-tick', 'Stepped clip when the block enters view', 'instant'],
+    ['Sort and search', '220 ms', 'ease-snap', 'FLIP: rows slide from old to new position (Motion layout)', 'instant reorder'],
+    ['Chart', '220 ms', 'ease-snap', 'Left-to-right clip wipe when in view (CSS or Motion)', 'drawn at once'],
+    ['Register to file', '220 ms', 'ease-snap', 'Content column pushes 24 px in the direction of travel (ViewTransition with custom keyframes, or Motion)', '120 ms fade'],
+    ['Tab bar on a file', '180 ms', 'ease-snap', 'Slides away on scroll down, back on scroll up (CSS transform)', 'instant'],
+    ['Skeleton to content', '120 ms, 25 ms apart, max 300 ms', 'steps(2, end)', 'Static skeleton; ink snaps in block by block, then counts roll (CSS)', 'static skeleton, 120 ms fade'],
+    ['Empty state', '120 ms', 'linear', 'Crossfade; counts roll down to 0', '120 ms fade']
+  ]},
+  paper: {sub: 'glide, draw, settle', tok: ['--motion-fast: 160ms', '--motion-base: 240ms', '--motion-slow: 300ms', '--ease-paper: cubic-bezier(0.22, 1, 0.36, 1)', '--ease-paper-in: cubic-bezier(0.4, 0, 1, 1)', '--stagger-block: 35ms', '--rise: 6px', '--blur-mask: 2px'], rows: [
+    ['Register to file', '300 ms morph, 240 ms fade', 'ease-paper', 'Shared element: the company name becomes the file title (View Transition; FLIP of the title where unsupported). Back morphs it home (React ViewTransition)', '120 ms fade, no morph'],
+    ['First paint', '240 ms, 35 ms apart, max 8 blocks', 'ease-paper', 'Visible blocks rise 6 px and fade, once per screen per session; never the title, which is the LCP element (Motion)', 'none'],
+    ['Revision diff', '300 ms, 40 ms apart, done by 500 ms', 'ease-paper', 'Strike drawn through removed sentences, underline under added ones (CSS background-size)', 'drawn at once'],
+    ['Reading progress', '160 ms', 'ease-paper', 'Hairline eases toward the scroll position (CSS transition)', 'follows the scroll directly'],
+    ['Dateline parallax', 'scroll-linked', '0.06 x scroll, max 8 px', 'Dateline drifts behind the scroll (rAF here; CSS scroll timeline in the build)', 'off'],
+    ['Link hover', '240 ms', 'ease-paper', 'Underline draws in from the left (CSS)', 'instant'],
+    ['Press', '160 ms', 'ease-paper', 'scale(0.98) (CSS)', 'no scale'],
+    ['Focus ring', '240 ms', 'ease-paper', 'Ring glides in from 8 px out to 3 px (CSS outline-offset)', 'instant'],
+    ['Disclosure strip', '240 ms open, 160 ms close', 'ease-paper, ease-paper-in', 'Fade with a 4 px drop (Motion)', '120 ms fade in, instant close'],
+    ['Source chip to card', '240 ms open, 160 ms close', 'ease-paper, ease-paper-in', 'Fade with a 6 px settle (Motion)', '120 ms fade in, instant close'],
+    ['Sort and search', '300 ms', 'ease-paper', 'FLIP glide (Motion layout)', 'instant reorder'],
+    ['Tab bar on a file', '240 ms', 'ease-paper', 'Fades away while scrolling, returns 500 ms after scrolling stops', 'instant'],
+    ['Skeleton to content', '1.2 s loop, 240 ms arrival', 'ease-in-out, ease-paper', 'Skeleton breathes between two greys; content crossfades as a 2 px blur clears (Emil Kowalski)', 'static skeleton, 120 ms fade'],
+    ['Pane switch, empty state', '240 ms', 'ease-paper', 'Crossfade (with the blur mask for empty); the diff redraws on Changes', '120 ms fade']
+  ]},
+  terminal: {sub: 'draw, count, stamp', tok: ['--motion-instant: 0ms', '--motion-fast: 90ms', '--motion-base: 160ms', '--motion-data: 280ms', '--ease-data: linear', '--ease-stamp: cubic-bezier(0.16, 1, 0.3, 1)', '--ease-print: steps(6, end)', '--stagger-print: 20 to 40ms'], rows: [
+    ['Chart', '280 ms draw, then 160 ms stamp', 'ease-data, ease-stamp', 'Line draws to the data cap (SVG pathLength + stroke-dashoffset), points appear as it passes, then the cap label stamps from 1.4x (CSS or Motion; Recharts isAnimationActive="auto")', 'drawn at once'],
+    ['Figures in the facts table', '280 ms', 'ease-out cubic', 'Count up from 0 with tabular numerals and a locked width (NumberFlow)', 'final value at once'],
+    ['Watching status', '280 ms, once', 'ease-stamp', 'A ring pulses out of each Watching shape, in the file and on register rows (WAAPI)', 'none'],
+    ['Search', '90 ms per change', 'ease-data', 'Matched letters highlight with a left-to-right sweep; rows reorder instantly', 'highlight at once'],
+    ['Reading progress', 'scroll-linked', 'linear', 'animation-timeline: scroll() inside @supports; script fallback where unsupported (Firefox stable)', 'kept: it moves only when the reader scrolls'],
+    ['Register to file', '160 ms', 'ease-data', 'Print-head wipe uncovers the new screen from the top (clip-path)', '120 ms fade'],
+    ['Disclosure strip', '120 ms, 30 ms apart', 'ease-print', 'Opens instantly; each value prints in', '120 ms fade in, instant close'],
+    ['Source chip to card', '120 ms, then 200 ms', 'ease-data', 'Wipes open, then its figures count up', '120 ms fade in, instant close'],
+    ['First paint', 'max 280 ms', 'ease-print, ease-data', 'Counts count up; dates and the dateline print; the 30-day strip scans left to right', 'none'],
+    ['Hover, press, focus', '0 ms', 'none', 'Instant row tint and caret, 1 px press, instant ring', 'same'],
+    ['Tab bar on a file', '90 ms', 'steps(3, end)', 'Steps away on scroll down, back on scroll up', 'instant'],
+    ['Skeleton to content', '0.8 s blink, 160 ms arrival', 'steps(1, end), ease-data', 'Two-step blink; content prints in with the wipe, counts count up', 'static skeleton, 120 ms fade']
+  ]}
+};
+function specHTML(k) {
+  var s = SPEC[k], h = '<summary>Spec: ' + k.charAt(0).toUpperCase() + k.slice(1) + ' <small>' + s.sub + ' · durations and easings ready to become tokens</small></summary><p class="tok">';
+  each(s.tok, function (t) { h += '<code>' + t + '</code> '; });
+  h += '</p><ol>';
+  each(s.rows, function (r) { h += '<li><b>' + r[0] + '<span>' + r[1] + '</span></b><span class="e">' + r[2] + '</span><span class="h">' + r[3] + '</span><span class="r">' + r[4] + '</span></li>'; });
+  return h + '</ol>';
+}
+
+/* ================= wiring ================= */
+each(qa('[data-spec]'), function (d) { d.innerHTML = specHTML(d.getAttribute('data-spec')); });
+each(qa('.vp[data-id]'), function (vp) {
+  var id = vp.getAttribute('data-id');
+  var f = {id: id, p: vp.getAttribute('data-p'), vp: vp, screen: 'home', state: 'full', loading: false, sort: 'latest', q: '', homeScroll: 0, seen: {}, lastSt: 0, cur: '', timers: [], io: null, raf: 0, dockT: 0};
+  FR[id] = f; ORDER.push(f);
+  vp.addEventListener('scroll', function () { if (!f.raf) f.raf = requestAnimationFrame(function () { f.raf = 0; onScroll(f); }); }, {passive: true});
+  if (window.ResizeObserver) {
+    var lw = 0;
+    new ResizeObserver(function () { var w = vp.clientWidth; if (w && w !== lw) { lw = w; each(qa('.cbox', vp), function (b) { if (!f.loading) drawChart(f, b, false); }); placeInds(f, true); } }).observe(vp);
+  }
+  var bar = q('.ftools[data-for="' + id + '"]'); if (bar) bar.innerHTML = toolsHTML(id, f.p);
+});
+
+document.addEventListener('click', function (e) {
+  var t = e.target; if (!t.closest) return;
+  var ft = t.closest('[data-act]');
+  if (ft) {
+    var f0 = FR[ft.closest('[data-for]').getAttribute('data-for')], act = ft.getAttribute('data-act'), v = ft.getAttribute('data-v');
+    if (act === 'replay') { f0.loading = false; f0.seen = {}; f0.q = ''; mount(f0, 'replay'); enter(f0, 'replay'); }
+    else if (act === 'screen') { if (v !== f0.screen) navigate(f0, v, v === 'thesis' ? q('tr[data-slug="kaveri"] .go', f0.vp) : null); }
+    else if (act === 'state') { if (v === 'loading') load(f0); else setState(f0, v); }
+    else if (act === 'demo') typeDemo(f0);
+    syncTools(f0);
+    return;
+  }
+  var vp = t.closest('.vp[data-id]'); if (!vp) return;
+  var f = FR[vp.getAttribute('data-id')];
+  if (t.closest('a[href="#"]')) { e.preventDefault(); return; }
+  if (t.closest('[aria-disabled="true"]')) { e.preventDefault(); return; }
+  var sum = t.closest('summary');
+  if (sum && sum.parentElement && sum.parentElement.tagName === 'DETAILS') { e.preventDefault(); toggleDet(f, sum.parentElement); return; }
+  var chip = t.closest('.chip[aria-controls]'); if (chip) { toggleCard(f, chip); return; }
+  var x = t.closest('[data-close]');
+  if (x) { var ch = q('[aria-controls="' + x.getAttribute('data-close') + '"]', vp); if (ch) { toggleCard(f, ch); ch.focus(); } return; }
+  var g = t.closest('[data-go]'); if (g) { navigate(f, g.getAttribute('data-go'), g, g.hasAttribute('data-focus-search') ? 'search' : null); return; }
+  var j = t.closest('[data-jump]');
+  if (j) { var det = j.closest('details'); if (det) det.open = false; jumpTo(f, j.getAttribute('data-jump')); return; }
+  var so = t.closest('[data-sort]'); if (so) { setSort(f, so); return; }
+  var pb = t.closest('[data-pane]'); if (pb) { setPane(f, pb); return; }
+});
+document.addEventListener('input', function (e) {
+  var inp = e.target; if (!inp.matches || !inp.matches('[data-search]')) return;
+  var vp = inp.closest('.vp[data-id]'); if (!vp) return;
+  var f = FR[vp.getAttribute('data-id')]; f.q = inp.value.trim(); updateRows(f);
+});
+
+/* shell controls */
+function press(sel, attr, val) { each(qa(sel), function (b) { b.setAttribute('aria-pressed', b.getAttribute(attr) === val ? 'true' : 'false'); }); }
+var userMotion = false;
+function osNote() {
+  var n = q('#osnote'); if (!n) return;
+  n.textContent = (OSR && OSR.matches ? 'Your system asks for reduced motion.' : 'Your system has no reduced-motion setting.') + ' Motion is ' + (red() ? 'reduced' : 'full') + ' in every frame.';
+}
+function setMotion(m, replay) {
+  root.setAttribute('data-motion', m);
+  press('[data-motion-btn]', 'data-motion-btn', m);
+  osNote();
+  if (replay) each(ORDER, function (f) { f.loading = false; f.seen = {}; mount(f, 'replay'); enter(f, 'replay'); });
+}
+each(qa('[data-motion-btn]'), function (b) { b.addEventListener('click', function () { userMotion = true; setMotion(b.getAttribute('data-motion-btn'), true); }); });
+if (OSR) { var onOS = function () { if (!userMotion) setMotion(OSR.matches ? 'reduced' : 'full', true); }; if (OSR.addEventListener) OSR.addEventListener('change', onOS); else if (OSR.addListener) OSR.addListener(onOS); }
+each(qa('[data-theme-btn]'), function (b) {
+  b.addEventListener('click', function () {
+    var t = b.getAttribute('data-theme-btn');
+    if (t === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t);
+    press('[data-theme-btn]', 'data-theme-btn', t);
+  });
+});
+each(qa('[data-layout-btn]'), function (b) {
+  b.addEventListener('click', function () {
+    var l = b.getAttribute('data-layout-btn');
+    document.body.classList.toggle('phones', l === 'phones');
+    press('[data-layout-btn]', 'data-layout-btn', l);
+    each(ORDER, function (f) { f.loading = false; mount(f, 'quiet'); });
+  });
+});
+
+setMotion(OSR && OSR.matches ? 'reduced' : 'full', false);
+each(ORDER, function (f) { mount(f, 'first'); enter(f, 'first'); });
+})();
+</script>
+</body>
+</html>
