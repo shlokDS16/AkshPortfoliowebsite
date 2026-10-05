@@ -6,8 +6,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
 
 ## Status snapshot
 - **Phase:** 0 complete (ADR-001 accepted, Phase 1 spec approved, Plan 1A written). Phase 1 not started.
-- **Last session:** 2026-10-04 - kickoff, research, ADR-001 + red team, agents, env template, rubrics, Plan 1A (7,007 lines), UI segment 1 comparison
-- **Next highest-value task:** `docs/design/design-dna.md` (tokens + component inventory) then Plan 1B (public pages + desk screens). Build: Task 3 under review; Task 4 next; Task 2 waits for Vercel creds. Build: Task 3 blocked on Docker Desktop crash (fix steps given); Task 2 waits for Vercel creds. WHY: Plan 1B needs all three. In parallel: Task 0 prerequisites by hand, then `superpowers:subagent-driven-development` on Plan 1A from Task 1 (does not depend on UI choices).
+- **Last session:** 2026-10-05 - all six UI segments decided; design-dna + component inventory written; Plan 1A Tasks 1, 3 complete and reviewed; Task 4 implemented (dc8243d) awaiting review; Docker fixed; session paused at Shlok's usage limit
+- **Next highest-value task:** (1) Review Plan 1A Task 4 (dc8243d) per the SDD ledger `.superpowers/sdd/2026-10-04-phase-1a-core/progress.md`; (2) ratify the 15 decisions in `docs/design/design-dna.md` section 17; (3) write Plan 1B. Credentials: Shlok's values are in `.env.local` (copied from an edited .env.example on 2026-10-05; verify keys). Task 2 (smoke deploy) can run once Vercel is linked. Build: Task 3 blocked on Docker Desktop crash (fix steps given); Task 2 waits for Vercel creds. WHY: Plan 1B needs all three. In parallel: Task 0 prerequisites by hand, then `superpowers:subagent-driven-development` on Plan 1A from Task 1 (does not depend on UI choices).
 - **Blocked on:** credentials in `.env.local` (REQUIRED-P1 in `.env.example`); Mobbin MCP needs a paid plan (Q7)
 
 ## Phase 0 - Kickoff and planning
@@ -31,7 +31,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
 Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public site looks like a desk. Exit: deployed preview, Aksh has used it for 3 days.
 - [x] 1.1a Scaffold Next.js 16.3.8 + pnpm + Tailwind v4 + shadcn + Vitest + Playwright + CI (Plan 1A Task 1, commits 55e4f08, 826c87a, branch phase-1a, reviewed)
 - [ ] 1.1b Smoke deploy to Vercel (Plan 1A Task 2) — waits for Vercel credentials
-- [ ] 1.2 Supabase project, migrations 0001 (identity, catalog, research, compliance tables), RLS, generated types
+- [x] 1.2a Migration 20261005000001_core.sql: tables, identity, append-only, RLS, grants; 98 pgTAP (Task 3, reviewed)
+- [~] 1.2b Migration 20261005000002_publish.sql: invoker views, publish_revision gate, unpublish, heartbeat_ages, generated types, CI db job; 252 pgTAP (Task 4, dc8243d, AWAITING REVIEW)
 - [ ] 1.3 `src/lib/env.ts` (zod), Supabase clients (server/browser/service/public), `proxy.ts` session refresh
 - [ ] 1.4 Admin auth (magic link, `ADMIN_EMAIL` gate), `/desk` shell
 - [ ] 1.5 `research` module: items + revisions service, TDD
