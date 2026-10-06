@@ -1,6 +1,6 @@
 import { splitThesisBody } from "./body";
 import { fiscalYearEnd } from "./figures";
-import type { CaseFile } from "./schema";
+import { EMPTY_CASEFILE, validateCaseFile, type CaseFile } from "./schema";
 import { httpUrl } from "./safe";
 
 /** Editor checklist "File structure": chips and readings must line up with Aksh's text. */
@@ -26,4 +26,11 @@ export function checkCaseFile(bodyMd: string, cf: CaseFile): string[] {
   }
   for (const s of cf.sources) if (s.url && !httpUrl(s.url)) problems.add(`${s.id} has a link that is not an http or https address, so readers will not see it.`);
   return [...problems];
+}
+
+/** Shared by the editor checklist and publishCheckedAction: a new item's {} reads as an empty file. */
+export function fileProblems(bodyMd: string, structured: unknown): string[] {
+  const raw = structured && typeof structured === "object" && Object.keys(structured).length > 0 ? structured : EMPTY_CASEFILE;
+  const result = validateCaseFile(raw);
+  return result.ok ? checkCaseFile(bodyMd, result.data) : result.issues;
 }

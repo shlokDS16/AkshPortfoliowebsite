@@ -73,6 +73,11 @@ export function createFakeComplianceRepo(context: PublishContext | null): FakeCo
       if (repo.latestRevision !== undefined) return repo.latestRevision;
       return repo.context?.item.id === itemId ? repo.context.revision.id : null;
     },
+    async listAllowances(itemId) {
+      return repo.allowances
+        .filter((a) => a.itemId === itemId)
+        .map((a) => ({ sentenceHash: a.sentenceHash, reason: a.reason, createdAt: "2026-10-06T05:00:00.000Z" }));
+    },
     async addAllowance(actorId, itemId, sentenceHash, reason) {
       repo.actors.push(actorId);
       if (repo.sqlRefusesAllowance) return false;

@@ -2,5 +2,7 @@
 // index.ts is the server-side entry.
 export { LINT_FIELDS, POLICY_VERSION, RULE_TITLES } from "./rules";
 export type { LintAllowed, LintField, LintFinding, LintInput, LintResult, LintRule } from "./rules";
+export { allowableHashes } from "./decision";
 export type { DecisionRow, GateDecision, GateFailure } from "./decision";
 export type { BlockedItem } from "./blocked";
+export type { AllowanceRecord, AnnotatedBody, BodyFlag, BodySegment, ChecklistItem, ChecklistState } from "./preview";

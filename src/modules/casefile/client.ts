@@ -1,6 +1,6 @@
 // Browser-safe entry point (the editor's live facts-sheet check). No server-only imports here.
 export { parseFactsSheet, serializeFactsSheet, SHEET_LEGEND, type SheetError } from "./sheet";
-export { checkCaseFile } from "./check";
+export { checkCaseFile, fileProblems } from "./check";
 export {
   CASEFILE_SCHEMA, PERIOD_RE, scenarioBreaksRule9, caseFileSchema, EMPTY_CASEFILE, validateCaseFile, readCaseFile,
   type CaseFile, type CfExhibit, type CfFact, type CfScenario, type CfSource, type CfTest,

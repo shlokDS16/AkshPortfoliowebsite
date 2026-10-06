@@ -9,10 +9,12 @@ import { InvalidInputError, ItemNotFoundError } from "@/lib/errors";
 import { isUuid } from "@/lib/ids";
 import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { fileProblems } from "@/modules/casefile/client";
 import { requireAdmin, type AdminIdentity } from "@/modules/identity";
 import type { GateDecision } from "./decision";
 import { createGateRpc } from "./gate-rpc";
-import { allowFlaggedSentence, PublishContextNotFoundError, runPublishGate, type PublishDeps } from "./publish";
+import { FileStructureError, HandCheckRequiredError } from "./errors";
+import { allowFlaggedSentence, PublishContextNotFoundError, runPublishGate, type PublishDeps, type PublishOptions } from "./publish";
 import { createSupabaseComplianceRepo } from "./repo";
 
 /**
@@ -41,12 +43,12 @@ const itemPath = (itemId: string) => (isUuid(itemId) ? `/desk/items/${itemId}` :
  * The only publish entry point. The lint is computed on the server from stored rows (a caller cannot supply
  * one) and publish_revision() decides. A failed gate RECORDS a fail row and returns it; it does not throw.
  */
-export async function publishRevision(itemId: string, revisionId: string): Promise<GateDecision> {
+export async function publishRevision(itemId: string, revisionId: string, options: PublishOptions = {}): Promise<GateDecision> {
   const admin = await requireAdmin();
   assertIds(itemId, revisionId);
   let decision: GateDecision;
   try {
-    decision = await runPublishGate(await deps(admin), itemId, revisionId);
+    decision = await runPublishGate(await deps(admin), itemId, revisionId, options);
   } catch (error) {
     throw error instanceof PublishContextNotFoundError ? new ItemNotFoundError(itemId) : error;
   }
@@ -66,15 +68,27 @@ export async function unpublishItem(itemId: string): Promise<{ slug: string | nu
   return { slug };
 }
 
-export async function publishRevisionAction(itemId: string, revisionId: string): Promise<void> {
-  await requireAdmin();
+/**
+ * The editor's "Run the publishing gate". Server backstops for what the checklist previews: the rule 4 hand check
+ * (D16) and the file structure are refused with a fixed code and record nothing. Everything else is decided and
+ * recorded by the database gate, pass or fail. There is no override of any rule.
+ */
+export async function publishCheckedAction(itemId: string, revisionId: string, formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  if (!isUuid(itemId) || !isUuid(revisionId)) failTo(itemPath(itemId), new ItemNotFoundError(String(itemId)), "compliance");
   let decision: GateDecision;
   try {
-    decision = await publishRevision(itemId, revisionId);
+    const ctx = await (await deps(admin)).repo.loadPublishContext(itemId, revisionId);
+    if (!ctx) throw new ItemNotFoundError(itemId);
+    const rule4 = formData.get("rule4") === "on";
+    if (ctx.item.companyId && !rule4) throw new HandCheckRequiredError();
+    const isFile = ctx.item.kind === "thesis" || ctx.item.kind === "case_study";
+    if (isFile && fileProblems(ctx.revision.bodyMd, ctx.revision.structured).length > 0) throw new FileStructureError();
+    decision = await publishRevision(itemId, revisionId, { handChecks: ctx.item.companyId ? { rule4 } : {} });
   } catch (error) {
     failTo(itemPath(itemId), error, "compliance");
   }
-  // A failure is shown by the gate panel from the recorded decision; a pass is confirmed.
+  // A failure is shown from the recorded decision (notes beside the sentences and the decision panel); a pass is confirmed.
   if (decision.verdict === "pass") doneTo(itemPath(itemId), "published", "#gate");
   redirect(`${itemPath(itemId)}#gate`);
 }
@@ -111,4 +125,19 @@ export async function allowSentenceAction(itemId: string, sentenceHash: string, 
   if (!allowed) failTo(itemPath(itemId), new InvalidInputError(), "compliance");
   revalidatePath(itemPath(itemId));
   doneTo(itemPath(itemId), "allowance-saved", "#gate");
+}
+
+/** Takes an allowance back: through the gate RPC as the verified admin (authenticated cannot delete lint_allowances). */
+export async function removeAllowanceAction(itemId: string, sentenceHash: string): Promise<void> {
+  const admin = await requireAdmin();
+  if (!isUuid(itemId)) failTo("/desk/items", new ItemNotFoundError(String(itemId)), "compliance");
+  if (!/^[0-9a-f]{64}$/.test(sentenceHash)) failTo(itemPath(itemId), new InvalidInputError(), "compliance");
+  try {
+    const { gate, actorId } = await deps(admin);
+    await gate.removeAllowance(actorId, itemId, sentenceHash);
+  } catch (error) {
+    failTo(itemPath(itemId), error, "compliance");
+  }
+  revalidatePath(itemPath(itemId));
+  doneTo(itemPath(itemId), "allowance-removed", "#gate");
 }

@@ -34,7 +34,7 @@ vi.mock("./gate-rpc", () => ({
   },
 }));
 
-import { allowSentenceAction, publishRevision, publishRevisionAction, unpublishItem, unpublishItemAction } from "./actions";
+import { allowSentenceAction, publishCheckedAction, publishRevision, removeAllowanceAction, unpublishItem, unpublishItemAction } from "./actions";
 
 const ITEM = "0b6f3c1e-8a2d-4f5b-9c7e-1d2a3b4c5d6e";
 const REV = "7e8d9c0b-1a2b-4c3d-8e4f-5a6b7c8d9e0f";
@@ -100,7 +100,8 @@ describe("every action checks the admin first", () => {
   it.each([
     ["publishRevision", () => publishRevision(ITEM, REV)],
     ["unpublishItem", () => unpublishItem(ITEM)],
-    ["publishRevisionAction", () => publishRevisionAction(ITEM, REV)],
+    ["publishCheckedAction", () => publishCheckedAction(ITEM, REV, form())],
+    ["removeAllowanceAction", () => removeAllowanceAction(ITEM, sentenceHash("x"))],
     ["unpublishItemAction", () => unpublishItemAction(ITEM)],
     ["allowSentenceAction", () => allowSentenceAction(ITEM, sentenceHash("x"), form({ reason: "educational" }))],
   ])("%s calls requireAdmin before opening a database client", async (_name, run) => {
@@ -142,7 +143,8 @@ describe("ids are validated before anything is read or written", () => {
   });
 
   it("sends the form actions to a fixed error code, not to a raw message", async () => {
-    expect(param(await target(() => publishRevisionAction("nope", REV)), "error")).toBe("item-not-found");
+    expect(param(await target(() => publishCheckedAction("nope", REV, form())), "error")).toBe("item-not-found");
+    expect(param(await target(() => removeAllowanceAction("nope", sentenceHash("x"))), "error")).toBe("item-not-found");
     expect(param(await target(() => unpublishItemAction("nope")), "error")).toBe("item-not-found");
     expect(param(await target(() => allowSentenceAction("nope", sentenceHash("x"), form({ reason: "educational" }))), "error")).toBe("item-not-found");
     expect(repo.allowances).toHaveLength(0);
@@ -174,27 +176,73 @@ describe("publishRevision", () => {
   });
 });
 
-describe("publishRevisionAction", () => {
+describe("publishCheckedAction (the editor's Run the publishing gate; the only form route to publish)", () => {
+  const COMPANY = "6f1c2a8e-5d7b-4c1e-9a3f-2b8d7e6c5a41";
+  const named = (bodyMd: string, kind: PublishContext["item"]["kind"] = "learning"): PublishContext => {
+    const base = context(bodyMd);
+    return { ...base, item: { ...base.item, kind, companyId: COMPANY, holdsPosition: "no", dataAsOf: "2026-01-31" }, companyName: "Kaveri Pumps (fictional)" };
+  };
+
   it("confirms a pass and opens the gate section", async () => {
-    expect(await target(() => publishRevisionAction(ITEM, REV))).toBe(`/desk/items/${ITEM}?notice=published#gate`);
+    expect(await target(() => publishCheckedAction(ITEM, REV, form()))).toBe(`/desk/items/${ITEM}?notice=published#gate`);
+    expect(repo.published[0].lintResult).toMatchObject({ handChecks: {} });
   });
 
   it("shows a failure on the gate panel, with no error banner", async () => {
     repo.context = context("You should buy the leader now.");
-    expect(await target(() => publishRevisionAction(ITEM, REV))).toBe(`/desk/items/${ITEM}#gate`);
+    expect(await target(() => publishCheckedAction(ITEM, REV, form()))).toBe(`/desk/items/${ITEM}#gate`);
+    expect(repo.published).toHaveLength(1);
   });
 
   it("maps a missing revision to the not-found code", async () => {
     repo.context = null;
-    expect(param(await target(() => publishRevisionAction(ITEM, randomUUID())), "error")).toBe("item-not-found");
+    expect(param(await target(() => publishCheckedAction(ITEM, randomUUID(), form())), "error")).toBe("item-not-found");
+  });
+
+  it("refuses a company file without the rule-4 hand check, with a fixed code and no recorded decision", async () => {
+    repo.context = named("Margins held.");
+    expect(param(await target(() => publishCheckedAction(ITEM, REV, form())), "error")).toBe("hand-check-required");
+    expect(repo.published).toHaveLength(0);
+  });
+
+  it("records the hand check inside the decision when it is ticked", async () => {
+    repo.context = named("Margins held.");
+    await target(() => publishCheckedAction(ITEM, REV, form({ rule4: "on" })));
+    expect(repo.published[0].lintResult).toMatchObject({ handChecks: { rule4: true } });
+  });
+
+  it("needs no hand check when no company is named, and ignores a stray tick", async () => {
+    await target(() => publishCheckedAction(ITEM, REV, form({ rule4: "on" })));
+    expect(repo.published[0].lintResult).toMatchObject({ handChecks: {} });
+  });
+
+  it("refuses a company file whose structure does not line up, before the gate runs", async () => {
+    repo.context = named("Margins held.", "thesis");
+    expect(param(await target(() => publishCheckedAction(ITEM, REV, form({ rule4: "on" }))), "error")).toBe("file-structure");
+    expect(repo.published).toHaveLength(0);
   });
 
   it("never leaks a raw database error", async () => {
     vi.spyOn(repo, "callPublishRevision").mockRejectedValueOnce(new DbError("compliance.publish_revision", "XX000", 'relation "private.settings" is gone'));
-    const to = await target(() => publishRevisionAction(ITEM, REV));
+    const to = await target(() => publishCheckedAction(ITEM, REV, form()));
     expect(param(to, "error")).toBe("save-failed");
     expect(decodeURIComponent(to)).not.toMatch(/private\.settings/);
     expect(console.error).toHaveBeenCalledWith("compliance action failed", { name: "DbError", op: "compliance.publish_revision", code: "XX000" });
+  });
+});
+
+describe("removeAllowanceAction (through the gate RPC as the verified admin; never the cookie client)", () => {
+  const hash = sentenceHash("Why I avoid target prices.");
+  it("removes the allowance and returns to the gate", async () => {
+    repo.allowances.push({ itemId: ITEM, sentenceHash: hash, reason: "Educational use." });
+    repo.actors.length = 0;
+    expect(await target(() => removeAllowanceAction(ITEM, hash))).toBe(`/desk/items/${ITEM}?notice=allowance-removed#gate`);
+    expect(repo.allowances).toHaveLength(0);
+    expect(repo.actors).toEqual(["u-1"]);
+  });
+
+  it("refuses a hash that is not a sha-256 digest", async () => {
+    expect(param(await target(() => removeAllowanceAction(ITEM, "'; drop table items; --")), "error")).toBe("invalid-input");
   });
 });
 

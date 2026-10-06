@@ -213,3 +213,17 @@ describe("decisionFromRow", () => {
     expect(decisionFromRow({ ...row({ failures: [], lint: {} }), verdict: "weird" }).verdict).toBe("fail");
   });
 });
+
+describe("hand checks (D16)", () => {
+  it("records the rule-4 hand check inside the gate decision's lint result", async () => {
+    const repo = createFakeComplianceRepo(context({ title: "Hand check", slug: "hand-check" }, "Margins held through the cycle."));
+    await runPublishGate(deps(repo), ITEM, REV, { handChecks: { rule4: true } });
+    expect(repo.published[0].lintResult).toMatchObject({ passed: true, revisionId: REV, handChecks: { rule4: true } });
+  });
+
+  it("records an empty hand-check map when none is given", async () => {
+    const repo = createFakeComplianceRepo(context());
+    await runPublishGate(deps(repo), ITEM, REV);
+    expect(repo.published[0].lintResult).toMatchObject({ handChecks: {} });
+  });
+});

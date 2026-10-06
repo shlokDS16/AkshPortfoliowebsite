@@ -21,6 +21,11 @@ const ERRORS = {
   "body-too-long": "This revision is too long (200,000 characters max). Start a new item or shorten it.", // = BODY_TOO_LONG_MESSAGE (research/schema.ts; a test keeps them equal)
   "capture-not-refilable": "This capture is already filed, or is still being filed. Reload in a minute.",
   "save-failed": "Could not save. Try again.",
+  "hand-check-required": "Tick the rule 4 check before running the gate on a file that names a company.",
+  "file-structure": "The file's view, tests and facts do not line up yet. The checklist names what is missing.",
+  "facts-sheet-invalid": "The facts sheet has a problem; the line is marked in the editor.",
+  "name-not-screened": "Screen this name on the New names tab first.",
+  "no-figure-date": "This file has no dated figure yet, so there is nothing to set Figures to.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -36,6 +41,11 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   INVALID_INPUT: "invalid-input",
   ACCESS_DENIED: "access-denied",
   CAPTURE_NOT_REFILABLE: "capture-not-refilable",
+  HAND_CHECK_REQUIRED: "hand-check-required",
+  FILE_STRUCTURE: "file-structure",
+  FACTS_SHEET_INVALID: "facts-sheet-invalid",
+  NAME_NOT_SCREENED: "name-not-screened",
+  NO_FIGURE_DATE: "no-figure-date",
 };
 
 /**
@@ -70,7 +80,10 @@ const NOTICES = {
   "revision-saved": "Revision saved.",
   published: "Published.",
   unpublished: "Unpublished. The item is private again and can be edited.",
-  "allowance-saved": "Sentence allowed. Publish again to re-run the gate.",
+  "allowance-saved": "Sentence allowed. Run the publishing gate again.",
+  "allowance-removed": "Allowance removed. Run the publishing gate again.",
+  "company-public": "Company made public. It is listed only once a file that names it passes the gate.",
+  "figures-to-set": "Figures to updated to the latest figure date. Run the publishing gate again.",
   refiled: "Filed.",
   "revision-pending-gate":
     "Revision saved. This item is public, so the new revision is waiting for the publishing gate; the public page still shows the previous one.",

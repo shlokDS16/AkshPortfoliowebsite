@@ -1,5 +1,5 @@
 import type { Json } from "@/lib/supabase/database.types";
-import { decisionFromRow, type GateDecision } from "./decision";
+import { allowableHashes, decisionFromRow, type GateDecision } from "./decision";
 import { lintText } from "./lint";
 import { buildLintInput } from "./lint-input";
 import { POLICY_VERSION } from "./policy";
@@ -9,6 +9,8 @@ export type { PublishContext };
 /** `actorId` is the admin requireAdmin() verified for this request (ADR-003); the SQL re-checks it. */
 export type GateDeps = { repo: ComplianceRepo; gate: GateRpc; actorId: string };
 export type PublishDeps = GateDeps & { today: () => string };
+/** Manual checks Aksh ticked (rule 4, D16). Kept inside reasons.lint as the audit record; the SQL reads only passed, revisionId and policyVersion. */
+export type PublishOptions = { handChecks?: Record<string, boolean> };
 
 export class PublishContextNotFoundError extends Error {
   constructor(itemId: string, revisionId: string) {
@@ -23,7 +25,7 @@ export class PublishContextNotFoundError extends Error {
  * to gate_decisions and returned, never raised. The slug is the SQL function's business (ruling R5): a
  * collision comes back as a recorded `slug` failure like any other rule. There is no override.
  */
-export async function runPublishGate(deps: PublishDeps, itemId: string, revisionId: string): Promise<GateDecision> {
+export async function runPublishGate(deps: PublishDeps, itemId: string, revisionId: string, options: PublishOptions = {}): Promise<GateDecision> {
   const ctx = await deps.repo.loadPublishContext(itemId, revisionId);
   if (!ctx) throw new PublishContextNotFoundError(itemId, revisionId);
   const lint = lintText(buildLintInput(ctx, deps.today()));
@@ -32,7 +34,7 @@ export async function runPublishGate(deps: PublishDeps, itemId: string, revision
     itemId,
     revisionId,
     policyVersion: POLICY_VERSION,
-    lintResult: lint as unknown as Json,
+    lintResult: { ...lint, handChecks: options.handChecks ?? {} } as unknown as Json,
   });
   return decisionFromRow(row);
 }
@@ -46,12 +48,7 @@ export async function runPublishGate(deps: PublishDeps, itemId: string, revision
 export async function allowFlaggedSentence(deps: GateDeps, itemId: string, sentenceHash: string, reason: string): Promise<boolean> {
   const { repo, gate, actorId } = deps;
   const [decision, latestRevisionId] = await Promise.all([getLatestDecision(repo, itemId), repo.latestRevisionId(itemId)]);
-  const flagged =
-    decision !== null &&
-    latestRevisionId !== null &&
-    decision.revisionId === latestRevisionId &&
-    decision.failures.some((f) => f.rule === "1" && f.sentenceHash === sentenceHash);
-  if (!flagged) return false;
+  if (!allowableHashes(decision, latestRevisionId).has(sentenceHash)) return false;
   return gate.addAllowance(actorId, itemId, sentenceHash, reason);
 }
 

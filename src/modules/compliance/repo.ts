@@ -4,6 +4,7 @@ import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 import type { HoldsPosition, ItemKind, Visibility } from "@/modules/research";
 import type { DecisionRow } from "./decision";
+import type { AllowanceRecord } from "./preview";
 
 /** Everything lintText() needs for one revision of one item, loaded by the server, never supplied by a client. */
 export type PublishContext = {
@@ -32,6 +33,8 @@ export interface ComplianceRepo {
   latestDecision(itemId: string): Promise<DecisionRow | null>;
   /** The id of the item's newest revision (highest rev_no), or null when it has none. */
   latestRevisionId(itemId: string): Promise<string | null>;
+  /** The item's allowances with their reasons, oldest first (the editor shows them beside the sentence). Removal is GateRpc.removeAllowance only. */
+  listAllowances(itemId: string): Promise<AllowanceRecord[]>;
 }
 
 /**
@@ -115,6 +118,11 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         .maybeSingle();
       if (error) throw dbError("compliance.latestRevisionId", error);
       return data?.id ?? null;
+    },
+    async listAllowances(itemId) {
+      const { data, error } = await db.from("lint_allowances").select("sentence_hash, reason, created_at").eq("item_id", itemId).order("created_at");
+      if (error) throw dbError("compliance.listAllowances", error);
+      return (data ?? []).map((r) => ({ sentenceHash: r.sentence_hash, reason: r.reason, createdAt: r.created_at }));
     },
   };
 }

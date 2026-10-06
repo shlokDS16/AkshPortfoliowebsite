@@ -89,3 +89,9 @@ export function decisionFromRow(row: DecisionRow): GateDecision {
     allowedBy: reasons.lint.allowedBy,
   };
 }
+
+/** Rule 1 hashes the latest recorded decision flagged on the item's newest revision: the only sentences an allowance may cover. */
+export function allowableHashes(decision: GateDecision | null, latestRevisionId: string | null): Set<string> {
+  if (!decision || !latestRevisionId || decision.revisionId !== latestRevisionId) return new Set();
+  return new Set(decision.failures.flatMap((f) => (f.rule === "1" && f.sentenceHash ? [f.sentenceHash] : [])));
+}

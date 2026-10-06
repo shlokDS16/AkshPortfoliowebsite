@@ -53,9 +53,22 @@ describe("noticeText", () => {
     expect(noticeText("details-saved")).toBe("Details saved.");
     expect(noticeText("published")).toBe("Published.");
     expect(noticeText("unpublished")).toMatch(/private again/);
-    expect(noticeText("allowance-saved")).toMatch(/Publish again/);
+    expect(noticeText("allowance-saved")).toBe("Sentence allowed. Run the publishing gate again.");
+    expect(noticeText("allowance-removed")).toBe("Allowance removed. Run the publishing gate again.");
+    expect(noticeText("company-public")).toMatch(/listed only once a file that names it passes the gate/);
+    expect(noticeText("figures-to-set")).toMatch(/Figures to/);
     expect(noticeText("<script>alert(1)</script>")).toBeNull();
     expect(noticeText("constructor")).toBeNull();
     expect(noticeText(undefined)).toBeNull();
+  });
+});
+
+describe("editor and gate codes", () => {
+  it("shows fixed text for each new error code", () => {
+    expect(errorText("hand-check-required")).toMatch(/rule 4 check/);
+    expect(errorText("file-structure")).toMatch(/view, tests and facts do not line up/);
+    expect(errorText("facts-sheet-invalid")).toBe("The facts sheet has a problem; the line is marked in the editor.");
+    expect(errorText("name-not-screened")).toBe("Screen this name on the New names tab first.");
+    expect(errorText("no-figure-date")).toMatch(/no dated figure/);
   });
 });

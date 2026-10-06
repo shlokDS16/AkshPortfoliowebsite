@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { KAVERI } from "@/test/fixtures/casefile";
-import { checkCaseFile } from "./check";
+import { checkCaseFile, fileProblems } from "./check";
 import { parseFactsSheet } from "./sheet";
 import { inlineText, parseInline, parseProse, splitThesisBody } from "./body";
 
@@ -60,5 +60,17 @@ describe("thesis body template (D6)", () => {
     // Earlier points that are not the reading's figure never warn.
     const other = { ...later, tests: later.tests.map((t) => (t.id === "T1" ? { ...t, current: 999 } : t)) };
     expect(checkCaseFile(body, other)).toEqual([]);
+  });
+});
+
+describe("fileProblems (the editor checklist and the publish action share it)", () => {
+  it("treats an empty structured object as an empty file and reports what is missing", () => {
+    expect(fileProblems("Margins held.", {})).toEqual(['Write each test as "- T1: …" under "What would prove me wrong".']);
+    expect(fileProblems("x", { schema: "casefile/1" }).length).toBeGreaterThan(0);
+  });
+
+  it("is clean for the seed file", () => {
+    const cf = parseFactsSheet(KAVERI.revisions[1].sheet).caseFile;
+    expect(fileProblems(KAVERI.revisions[1].bodyMd, cf)).toEqual([]);
   });
 });
