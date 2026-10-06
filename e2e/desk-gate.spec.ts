@@ -1,22 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
-import { clearMailbox, ensureUser, requireStack, tokenHashFor } from "./support/auth";
-import { E2E_ADMIN_EMAIL } from "./support/stack";
 
+// Runs signed in as the admin (storage state from the `setup` project).
 // The local database is not reset between runs, so titles carry a run suffix.
 const RUN = Date.now().toString(36);
 const ITEM_URL = /\/desk\/items\/([0-9a-f-]{36})$/;
-
-test.beforeAll(async () => {
-  const stack = requireStack();
-  await ensureUser(stack, E2E_ADMIN_EMAIL);
-  await clearMailbox(stack);
-});
-
-async function signIn(page: Page) {
-  const hash = await tokenHashFor(requireStack(), E2E_ADMIN_EMAIL);
-  await page.goto(`/auth/confirm?token_hash=${hash}&type=magiclink&next=/desk/items`);
-  await expect(page).toHaveURL(/\/desk\/items$/);
-}
 
 async function createItem(page: Page, title: string): Promise<string> {
   await page.getByLabel("Kind").selectOption("learning");
@@ -36,7 +23,7 @@ async function saveRevision(page: Page, body: string, reason: string) {
 const gate = (page: Page) => page.locator("#gate");
 
 test("a blocked publish names the rule and highlights the sentence; an allowance then lets it through; unpublish retracts", async ({ page }) => {
-  await signIn(page);
+  await page.goto("/desk/items");
   await createItem(page, `Reading a capex cycle ${RUN}`);
   await page.getByLabel("Learning objective").fill("Recognise the late stage of a capex cycle.");
   await page.getByRole("button", { name: "Save details" }).click();
@@ -88,7 +75,7 @@ test("a blocked publish names the rule and highlights the sentence; an allowance
 });
 
 test("a failed attempt stays on the record and survives a reload", async ({ page }) => {
-  await signIn(page);
+  await page.goto("/desk/items");
   await createItem(page, `Recorded failure ${RUN}`);
   await page.getByLabel("Learning objective").fill("See how a failure is recorded.");
   await page.getByRole("button", { name: "Save details" }).click();
@@ -112,7 +99,7 @@ test("a failed attempt stays on the record and survives a reload", async ({ page
 });
 
 test("an item without a learning objective is blocked by rule 6 in plain English", async ({ page }) => {
-  await signIn(page);
+  await page.goto("/desk/items");
   await createItem(page, `No objective ${RUN}`);
   await saveRevision(page, "A neutral sentence.", "draft");
   await gate(page).getByRole("button", { name: /^Publish revision #2$/ }).click();
@@ -122,7 +109,7 @@ test("an item without a learning objective is blocked by rule 6 in plain English
 });
 
 test("error text is never taken from the URL; only fixed codes show", async ({ page }) => {
-  await signIn(page);
+  await page.goto("/desk/items");
   await page.goto("/desk/items?error=Your%20account%20is%20compromised");
   await expect(page.locator("p[role=alert]")).toHaveCount(0);
   await page.goto("/desk/items?error=title-required");

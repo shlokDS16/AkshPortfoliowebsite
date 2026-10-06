@@ -8,7 +8,7 @@ import { HealthStrip } from "./health-strip";
 export default async function DeskLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
   return (
-    <div className="mx-auto max-w-3xl px-4 py-4">
+    <div className="mx-auto w-full max-w-3xl px-4 py-4">
       <header className="mb-4 flex items-center justify-between gap-2 text-sm">
         <nav className="flex gap-4">
           <Link href="/desk">Today</Link>

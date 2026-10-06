@@ -1,23 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import { clearMailbox, ensureUser, requireStack, tokenHashFor } from "./support/auth";
+import { requireStack } from "./support/auth";
 import { publishCurrentRevisionAsAdmin } from "./support/items";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
 
+// Runs signed in as the admin (storage state from the `setup` project).
 // The local database is not reset between runs, so titles carry a run suffix.
 const RUN = Date.now().toString(36);
 const ITEM_URL = /\/desk\/items\/([0-9a-f-]{36})$/;
-
-test.beforeAll(async () => {
-  const stack = requireStack();
-  await ensureUser(stack, E2E_ADMIN_EMAIL);
-  await clearMailbox(stack);
-});
-
-async function signIn(page: Page) {
-  const hash = await tokenHashFor(requireStack(), E2E_ADMIN_EMAIL);
-  await page.goto(`/auth/confirm?token_hash=${hash}&type=magiclink&next=/desk/items`);
-  await expect(page).toHaveURL(/\/desk\/items$/);
-}
 
 async function createItem(page: Page, title: string, kind = "learning"): Promise<string> {
   await page.getByLabel("Kind").selectOption(kind);
@@ -33,15 +22,19 @@ async function saveRevision(page: Page, body: string, reason: string) {
   await page.getByRole("button", { name: "Save revision" }).click();
 }
 
-test("signed-out visitors cannot reach the item screens", async ({ page }) => {
-  await page.goto("/desk/items");
-  await expect(page).toHaveURL(/\/login$/);
-  await page.goto("/desk/items/00000000-0000-4000-8000-000000000000");
-  await expect(page).toHaveURL(/\/login$/);
+test.describe("signed out", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("signed-out visitors cannot reach the item screens", async ({ page }) => {
+    await page.goto("/desk/items");
+    await expect(page).toHaveURL(/\/login$/);
+    await page.goto("/desk/items/00000000-0000-4000-8000-000000000000");
+    await expect(page).toHaveURL(/\/login$/);
+  });
 });
 
 test("create an item, save details and revisions, and read the diff", async ({ page }) => {
-  await signIn(page);
+  await page.goto("/desk/items");
   const title = `How capex cycles turn ${RUN}`;
   await createItem(page, title);
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
@@ -76,7 +69,7 @@ test("create an item, save details and revisions, and read the diff", async ({ p
 });
 
 test("an empty title and an unknown item give plain messages", async ({ page }) => {
-  await signIn(page);
+  await page.goto("/desk/items");
   await page.getByLabel("Title").evaluate((input: HTMLInputElement) => (input.required = false));
   await page.getByLabel("Title").fill("   ");
   await page.getByRole("button", { name: "Create item" }).click();
@@ -90,7 +83,7 @@ test("an empty title and an unknown item give plain messages", async ({ page }) 
 
 test("a revision on a public item waits for the gate and its details stay locked", async ({ page }) => {
   const stack = requireStack();
-  await signIn(page);
+  await page.goto("/desk/items");
   const title = `Working capital discipline ${RUN}`;
   const itemId = await createItem(page, title);
   await page.getByLabel("Learning objective").fill("Read a cash conversion cycle.");
@@ -123,4 +116,23 @@ test("a revision on a public item waits for the gate and its details stay locked
   await page.getByRole("button", { name: "Save details" }).click();
   await expect(page.locator("p[role=alert]")).toHaveText("This item is public. Unpublish it before changing its details.");
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
+});
+
+test.describe("phone width", () => {
+  test.use({ viewport: { width: 375, height: 667 } });
+
+  // Regression: an unbreakable diff line used to widen the whole desk (the layout wrapper shrink-wrapped
+  // its content inside the flex body), pushing buttons off screen. The diff now scrolls on its own.
+  test("a long revision line scrolls inside the diff and nothing scrolls sideways", async ({ page }) => {
+    await page.goto("/desk/items");
+    await createItem(page, `Narrow screen ${RUN}`);
+    await saveRevision(page, "A".repeat(10) + " " + "unbreakable-".repeat(30), "long line");
+    await expect(page.getByRole("status")).toHaveText("Revision saved.");
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.getByRole("link", { name: "diff" }).first().click();
+    await expect(page.getByTestId("diff")).toBeVisible();
+    const after = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(after).toBeLessThanOrEqual(0);
+  });
 });

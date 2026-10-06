@@ -3,11 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
-import { ensureUser, requireStack, tokenHashFor } from "./support/auth";
+import { requireStack, tokenHashFor } from "./support/auth";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
 
-// The capture screen against the LOCAL stack. The local database is not reset between runs, so every
-// symbol and text carries a run suffix. `db` reads back as the signed-in admin (RLS applies).
+// The capture screen against the LOCAL stack, signed in through the `setup` project's storage state.
+// The local database is not reset between runs, so every symbol and text carries a run suffix.
+// `db` reads back as the signed-in admin (RLS applies).
 const RUN = Date.now().toString(36).toUpperCase();
 const QUEUE_KEY = "desk.captureQueue.v1";
 const REJECTED_KEY = "desk.captureRejected.v1";
@@ -21,17 +22,10 @@ let db: Db;
 
 test.beforeAll(async () => {
   const stack = requireStack();
-  await ensureUser(stack, E2E_ADMIN_EMAIL);
   db = createClient<Database>(stack.apiUrl, stack.publishableKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { error } = await db.auth.verifyOtp({ token_hash: await tokenHashFor(stack, E2E_ADMIN_EMAIL), type: "magiclink" });
   if (error) throw error;
 });
-
-async function signIn(page: Page, next = "/desk") {
-  const hash = await tokenHashFor(requireStack(), E2E_ADMIN_EMAIL);
-  await page.goto(`/auth/confirm?token_hash=${hash}&type=magiclink&next=${next}`);
-  await expect(page).toHaveURL(new RegExp(`${next}$`));
-}
 
 const box = (page: Page) => page.getByRole("textbox", { name: "Capture" });
 
@@ -42,7 +36,7 @@ async function captureCount(rawText: string): Promise<number> {
 }
 
 test("the box is focused, Enter saves and clears, Shift+Enter adds a line", async ({ page }) => {
-  await signIn(page);
+  await page.goto("/desk");
   await expect(box(page)).toBeFocused();
 
   await box(page).pressSequentially(`first line ${RUN}`);
@@ -60,7 +54,7 @@ test("the box is focused, Enter saves and clears, Shift+Enter adds a line", asyn
 });
 
 test("a t: capture shows under its company and creates the thesis item", async ({ page }) => {
-  await signIn(page);
+  await page.goto("/desk");
   const symbol = `E2E${RUN}T`;
   await box(page).fill(`t: $${symbol} deal wins slowing`);
   await box(page).press("Enter");
@@ -73,7 +67,7 @@ test("a t: capture shows under its company and creates the thesis item", async (
 });
 
 test("offline: saved on this device, then synced exactly once when back online", async ({ page, context }) => {
-  await signIn(page);
+  await page.goto("/desk");
   const text = `offline thought ${RUN}`;
   await context.setOffline(true);
   await box(page).fill(text);
@@ -96,7 +90,7 @@ test("offline: saved on this device, then synced exactly once when back online",
 });
 
 test("two offline t: captures for one new company sync in order into one thesis with two revisions", async ({ page, context }) => {
-  await signIn(page);
+  await page.goto("/desk");
   const symbol = `E2E${RUN}Q`;
   await context.setOffline(true);
   await box(page).fill(`t: $${symbol} first view`);
@@ -115,7 +109,7 @@ test("two offline t: captures for one new company sync in order into one thesis 
 
 test("a capture the server permanently refuses is kept with its text until dismissed", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await signIn(page);
+  await page.goto("/desk");
   const tooLong = `${"x".repeat(20_001)} ${RUN}`;
   await box(page).fill(tooLong);
   await box(page).press("Enter");
@@ -146,7 +140,7 @@ test("blocked browser storage shows a notice, and capturing still works online",
       throw new DOMException("blocked", "SecurityError");
     };
   });
-  await signIn(page);
+  await page.goto("/desk");
   await expect(page.getByRole("alert").filter({ hasText: "Offline saving is unavailable on this device" })).toBeVisible();
   const text = `blocked storage ${RUN}`;
   await box(page).fill(text);
@@ -157,7 +151,7 @@ test("blocked browser storage shows a notice, and capturing still works online",
 
 test("an unreadable stored capture is kept raw under Needs attention, with Copy and Dismiss, and the box still works", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await signIn(page);
+  await page.goto("/desk");
   await page.evaluate((key) => localStorage.setItem(`${key}:broken`, "{not json but my thought"), QUEUE_KEY);
   await page.reload();
   await expect(box(page)).toBeFocused();
@@ -181,7 +175,7 @@ test("an unreadable stored capture is kept raw under Needs attention, with Copy 
 });
 
 test("changes made in another tab show up here through the storage event", async ({ page, context }) => {
-  await signIn(page);
+  await page.goto("/desk");
   const other = await context.newPage();
   await other.goto("/desk");
   await expect(other.getByRole("textbox", { name: "Capture" })).toBeFocused();
@@ -217,14 +211,18 @@ test.describe("phone width", () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
   test("the box is focused and nothing scrolls sideways", async ({ page }) => {
-    await signIn(page);
+    await page.goto("/desk");
     await expect(box(page)).toBeFocused();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });
 });
 
-test("signed-out visitors are sent to login", async ({ page }) => {
-  await page.goto("/desk");
-  await expect(page).toHaveURL(/\/login$/);
+test.describe("signed out", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("signed-out visitors are sent to login", async ({ page }) => {
+    await page.goto("/desk");
+    await expect(page).toHaveURL(/\/login$/);
+  });
 });

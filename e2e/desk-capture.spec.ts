@@ -5,7 +5,7 @@ import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
 import { createCaptureDeps, listCapturesSince, saveCapture } from "@/modules/capture";
 import { createSupabaseCatalogRepo, ensureCompany } from "@/modules/catalog";
-import { ensureUser, requireStack, tokenHashFor } from "./support/auth";
+import { requireStack, tokenHashFor } from "./support/auth";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
 
 // Runs the capture module's real Supabase repos against the LOCAL stack as the signed-in admin, so RLS,
@@ -18,7 +18,6 @@ let db: Db;
 
 test.beforeAll(async () => {
   const stack = requireStack();
-  await ensureUser(stack, E2E_ADMIN_EMAIL);
   db = createClient<Database>(stack.apiUrl, stack.publishableKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { error } = await db.auth.verifyOtp({ token_hash: await tokenHashFor(stack, E2E_ADMIN_EMAIL), type: "magiclink" });
   if (error) throw error;

@@ -32,8 +32,6 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm exec playwright test --project=anon
 
   db:
     runs-on: ubuntu-latest
@@ -46,3 +44,34 @@ jobs:
       - run: supabase start
       - run: supabase db reset
       - run: supabase test db
+
+  # Every Playwright project (anon, setup, desk-mobile, desk-desktop) against a LOCAL Supabase stack.
+  # No repository secrets and no hosted project: playwright.config.ts reads the local URL and keys
+  # from `supabase status -o env`, refuses a non-local API URL, then builds and starts the app with
+  # that explicit env (NEXT_PUBLIC_* are inlined at build time, so the build happens in the web server step).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.102.0
+      - run: supabase start
+      - run: supabase db reset
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

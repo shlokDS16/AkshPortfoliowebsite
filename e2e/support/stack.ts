@@ -5,6 +5,8 @@ export const E2E_ADMIN_EMAIL = "admin@desk.test";
 export const E2E_CRON_SECRET = "e2e-only-cron-secret-0123456789abcdef0123";
 export const E2E_PORT = 3100;
 export const E2E_SITE_URL = `http://127.0.0.1:${E2E_PORT}`;
+/** Written by the `setup` project, read by the desk projects. Git-ignored (e2e/.auth/). */
+export const ADMIN_STATE = "e2e/.auth/admin.json";
 
 export type LocalStack = { apiUrl: string; publishableKey: string; secretKey: string; mailpitUrl: string };
 
