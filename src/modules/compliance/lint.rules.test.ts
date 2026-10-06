@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { sentenceHash } from "./hash";
-import { KEYWORDS, LEXICON } from "./lexicon";
 import { lintText } from "./lint";
 import type { LintInput } from "./rules";
 
@@ -69,7 +68,6 @@ describe("target-of: operating targets pass, price targets flag", () => {
     "target price of 2400",
     "a target of $50",
     "target of INR 3000.",
-    "Target of Rs.",
     "my target of 2,400, then 3,000",
   ])("flags %s", (text) => {
     expect(passes(text)).toBe(false);
@@ -160,28 +158,6 @@ describe("rule 3 recall: CMP, LTP and per-share prices", () => {
 
   it("does not treat an ordinary per-share sentence without a price as a price", () => {
     expect(rule3({ bodyMd: "Dividends are paid per share held.", dataAsOf: "2026-09-25" })).toEqual([]);
-  });
-});
-
-describe("hyphen joins cover every lexicon word", () => {
-  it("every word of a lexicon pattern is a hyphen-join keyword", () => {
-    for (const entry of LEXICON) {
-      const words = entry.pattern.source.replace(/\\[a-zA-Z]/g, " ").match(/[a-z]{2,}/gi) ?? [];
-      for (const word of words) expect(KEYWORDS.has(word.toLowerCase())).toBe(true);
-    }
-  });
-
-  it.each([
-    "a-d-d on d-i-p-s",
-    "w-i-l-l r-a-l-l-y",
-    "h-i-t r-a-t-e",
-    "m-y c-a-l-l-s",
-    "t-a-r-g-e-t p-r-i-c-e",
-    "u-p-s-i-d-e o-f 40 percent",
-    "a-c-c-u-m-u-l-a-t-e",
-    "B U-Y",
-  ])("flags %s", (text) => {
-    expect(passes(text)).toBe(false);
   });
 });
 

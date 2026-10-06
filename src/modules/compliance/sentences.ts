@@ -8,11 +8,35 @@ const SINGLE_LINE_BLOCK = /^\s*(?:#{1,6}(?:\s|$)|\|)/;
 
 const NUMBERED_PREFIX = /^\s*\d+[.)]\s+/;
 
-/** Splits one block at sentence ends, keeping a "1. " list number attached to its item. */
+// A full stop after one of these does not end a sentence ("Rs. 2,400", "Ltd. reported", "Sl. No. 1").
+// Case-insensitive group first, then ambiguous short words that count only when capitalised.
+const ABBREVIATION = /^(?:rs|approx|vs|viz|etc|e\.g|i\.e)\.$/i;
+const CAPITALISED_ABBREVIATION = /^(?:No|Nos|Sl|Ltd|Pvt|Co|Corp|Inc|Mr|Mrs|Ms|Dr|St|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.$/;
+const INITIAL = /^[A-Z]\.$/;
+
+function endsWithAbbreviation(piece: string): boolean {
+  const token = piece.slice(piece.lastIndexOf(" ") + 1).replace(/^[("'[]+/, "");
+  return ABBREVIATION.test(token) || CAPITALISED_ABBREVIATION.test(token) || INITIAL.test(token);
+}
+
+/**
+ * Splits one block at sentence ends, except after an abbreviation or single initial, and keeps a "1. "
+ * list number attached to its item. Decimals ("2.5x", "2,400.50") never split: no whitespace follows the dot.
+ */
 function splitBlock(block: string): string[] {
   const prefix = NUMBERED_PREFIX.exec(block)?.[0] ?? "";
-  const [first = "", ...rest] = block.slice(prefix.length).split(/(?<=[.!?])\s+/);
-  return [prefix + first, ...rest];
+  const sentences: string[] = [];
+  let open: string[] = [];
+  for (const piece of block.slice(prefix.length).split(/(?<=[.!?])\s+/)) {
+    open.push(piece);
+    if (!endsWithAbbreviation(piece)) {
+      sentences.push(open.join(" "));
+      open = [];
+    }
+  }
+  if (open.length > 0) sentences.push(open.join(" "));
+  if (sentences.length > 0) sentences[0] = prefix + sentences[0];
+  return sentences;
 }
 
 /**
