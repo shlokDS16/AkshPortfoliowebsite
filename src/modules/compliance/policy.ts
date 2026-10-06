@@ -9,6 +9,7 @@ export const RULE_TITLES: Record<string, string> = {
   "6": "Rule 6: educational framing",
   structure: "Thesis structure",
   slug: "Slug",
+  revision: "Newer revision exists",
   company: "Linked company",
   theme: "Linked theme",
   policy: "Policy version",

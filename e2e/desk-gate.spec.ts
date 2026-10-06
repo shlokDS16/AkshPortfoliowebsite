@@ -98,6 +98,17 @@ test("a failed attempt stays on the record and survives a reload", async ({ page
   await page.goto(page.url().split("?")[0].split("#")[0]);
   await expect(gate(page).getByText("Blocked by the gate, revision #2")).toBeVisible();
   await expect(gate(page).getByTestId("flagged-sentence")).toHaveText("Accumulate on dips.");
+  // Times are India time, not UTC.
+  await expect(gate(page).getByTestId("gate-decision").locator("p").first()).toContainText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2} IST/);
+  await expect(gate(page).getByRole("button", { name: "Allow sentence" })).toBeVisible();
+  await expect(page.getByTestId("stale-decision")).toHaveCount(0);
+
+  // A newer revision makes the decision history: it stays readable, but no sentence can be allowed from it.
+  await saveRevision(page, "Accumulate on dips, patiently.", "second draft");
+  await expect(gate(page).getByTestId("stale-decision")).toContainText("This decision was made on revision #2");
+  await expect(gate(page).getByTestId("flagged-sentence")).toHaveText("Accumulate on dips.");
+  await expect(gate(page).getByRole("button", { name: "Allow sentence" })).toHaveCount(0);
+  await expect(gate(page).getByRole("button", { name: /^Publish revision #3$/ })).toBeVisible();
 });
 
 test("an item without a learning objective is blocked by rule 6 in plain English", async ({ page }) => {

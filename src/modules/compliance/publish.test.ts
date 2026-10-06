@@ -99,6 +99,16 @@ describe("runPublishGate", () => {
     ]);
   });
 
+  it("surfaces a newer-revision failure from publish_revision unchanged", async () => {
+    const repo = createFakeComplianceRepo(context());
+    repo.newerRevisionExists = true;
+    const decision = await runPublishGate(deps(repo), ITEM, REV);
+    expect(decision.verdict).toBe("fail");
+    expect(decision.failures).toEqual([
+      { rule: "revision", message: "A newer revision exists; publish the latest.", field: null, sentence: null, match: null, sentenceHash: null },
+    ]);
+  });
+
   it("throws when the item or revision does not exist", async () => {
     const repo = createFakeComplianceRepo(null);
     await expect(runPublishGate(deps(repo), ITEM, REV)).rejects.toBeInstanceOf(PublishContextNotFoundError);
@@ -137,6 +147,33 @@ describe("decisionFromRow", () => {
       }),
     );
     expect(decision.failures.map((f) => f.rule)).toEqual(["6"]);
+  });
+
+  it("hides a SQL failure only when the lint has the same whole-item finding for the same rule and field", () => {
+    const sqlRule3 = { rule: "3", message: "A case study needs data_as_of at least 30 days old." };
+    const sentenceRule3 = { rule: "3", field: "body", sentence: "It trades at Rs. 2,400.", sentenceHash: "c".repeat(64), match: "Rs. 2,400", message: "m" };
+    const wholeItemRule3 = { rule: "3", field: null, sentence: null, sentenceHash: null, match: null, message: "n" };
+    const shown = (findings: unknown[]) =>
+      decisionFromRow(row({ failures: [sqlRule3], lint: { findings, allowedBy: [] } })).failures.map((f) => `${f.rule}:${f.field ?? "-"}:${f.sentence ? "sentence" : "item"}`);
+    // A sentence-level rule 3 finding does not explain the SQL data-as-of failure: both are shown.
+    expect(shown([sentenceRule3])).toEqual(["3:body:sentence", "3:-:item"]);
+    // The lint's own whole-item rule 3 finding does.
+    expect(shown([wholeItemRule3])).toEqual(["3:-:item"]);
+    // Same rule on a different field does not.
+    expect(shown([{ ...wholeItemRule3, field: "body" }])).toEqual(["3:body:item", "3:-:item"]);
+  });
+
+  it("never hides a SQL failure of a rule the lint does not model (slug, revision, company)", () => {
+    const decision = decisionFromRow(
+      row({
+        failures: [
+          { rule: "revision", message: "A newer revision exists; publish the latest." },
+          { rule: "slug", message: "taken" },
+        ],
+        lint: { findings: [{ rule: "1", field: "body", sentence: "Buy.", sentenceHash: "a".repeat(64), match: "buy", message: "m" }], allowedBy: [] },
+      }),
+    );
+    expect(decision.failures.map((f) => f.rule)).toEqual(["1", "revision", "slug"]);
   });
 
   it("keeps a revision-mismatch failure even when findings exist", () => {

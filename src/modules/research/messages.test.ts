@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { DbError } from "@/lib/supabase/errors";
-import { ItemNotFoundError, PublicItemLockedError } from "./errors";
+import { InvalidInputError, ItemNotFoundError, PublicItemLockedError } from "./errors";
 import { errorCode, errorText, logShape, noticeText } from "./messages";
 
 describe("logShape", () => {
@@ -23,6 +23,7 @@ describe("errorCode and errorText", () => {
     expect(errorCode(result.error)).toBe("choose-kind");
     expect(errorCode(new PublicItemLockedError("x"))).toBe("public-item-locked");
     expect(errorCode(new ItemNotFoundError("x"))).toBe("item-not-found");
+    expect(errorCode(new InvalidInputError())).toBe("invalid-input");
   });
 
   it("falls back to a generic code for unknown validation text and for non-typed errors", () => {
@@ -41,7 +42,7 @@ describe("errorCode and errorText", () => {
   });
 
   it("round-trips: every typed error's code has fixed text equal to its own message", () => {
-    for (const error of [new PublicItemLockedError(), new ItemNotFoundError("x")]) {
+    for (const error of [new PublicItemLockedError(), new ItemNotFoundError("x"), new InvalidInputError()]) {
       expect(errorText(errorCode(error))).toBe(error.message);
     }
   });

@@ -32,6 +32,7 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   PUBLIC_ITEM_LOCKED: "public-item-locked",
   REVISION_APPEND_ONLY: "append-only",
   ITEM_RULE: "item-rule",
+  INVALID_INPUT: "invalid-input",
   ACCESS_DENIED: "access-denied",
 };
 

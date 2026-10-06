@@ -6,6 +6,13 @@ export function istDate(at: Date | string): string {
   return istFormat.format(new Date(at));
 }
 
+const istTimeFormat = new Intl.DateTimeFormat("en-GB", { timeZone: IST, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/** "2026-10-05 00:30 IST": a timestamp as Aksh reads it, to the minute. */
+export function istDateTime(at: Date | string): string {
+  return `${istDate(at)} ${istTimeFormat.format(new Date(at))} IST`;
+}
+
 export function addDays(isoDate: string, days: number): string {
   const date = new Date(`${isoDate}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);

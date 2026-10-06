@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(35);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -51,8 +51,6 @@ insert into public.items (id, kind, title, visibility, learning_objective) value
   ('d5000000-0000-4000-8000-000000000005', 'learning', 'Clients item', 'clients', 'Learn E.');
 insert into public.item_revisions (id, item_id, body_md, change_reason) values
   ('e1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'public v1', 'first cut'),
-  ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'public v2', 'second cut'),
-  ('e1000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000001', 'public v3', 'unreviewed draft note'),
   ('e2000000-0000-4000-8000-000000000001', 'd2000000-0000-4000-8000-000000000002', 'boundary body', null),
   ('e3000000-0000-4000-8000-000000000001', 'd3000000-0000-4000-8000-000000000003', 'lagged body', null),
   ('e4000000-0000-4000-8000-000000000001', 'd4000000-0000-4000-8000-000000000004', 'private body', 'private note'),
@@ -181,10 +179,16 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+-- Revisions 2 and 3 are added only now: publish_revision() refuses a revision with a newer sibling,
+-- so 2 is gated while it is the latest, then the ungated 3 lands after it.
+insert into public.item_revisions (id, item_id, body_md, change_reason) values
+  ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'public v2', 'second cut');
 select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-000000000001',
     'e1000000-0000-4000-8000-000000000002', 'pol-1',
     '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"pol-1"}'::jsonb)),
   'pass', 'precondition: revision 2 passes the gate');
+insert into public.item_revisions (id, item_id, body_md, change_reason) values
+  ('e1000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000001', 'public v3', 'unreviewed draft note');
 reset role;
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
@@ -195,6 +199,8 @@ select results_eq($$
   select rev_no from public.public_item_revisions
    where item_id = 'd1000000-0000-4000-8000-000000000001' order by rev_no
 $$, array[1, 2], 'anon: revision history lists 1 and 2 but not the ungated 3');
+select is_empty($$ select 1 from public.public_item_revisions where change_reason = 'unreviewed draft note' $$,
+  'anon: the ungated revision 3 and its change_reason stay hidden');
 
 -- A 30-day-old public item is also hidden at the base table by the anon policy.
 select is_empty($$ select id from public.items where id = 'd3000000-0000-4000-8000-000000000003' $$,

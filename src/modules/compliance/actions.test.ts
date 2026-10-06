@@ -184,22 +184,69 @@ describe("unpublishItem", () => {
 });
 
 describe("allowSentenceAction", () => {
-  const hash = sentenceHash("Why I avoid target prices.");
+  const SENTENCE = "Why I avoid target prices.";
+  const hash = sentenceHash(SENTENCE);
+  const OLDER_REV = "5a5a5a5a-1111-4222-8333-444444444444";
+  const OTHER_ITEM = "0c0c0c0c-2222-4333-8444-555555555555";
+  const allow = (h: string, reason = "Educational use of the phrase.") => allowSentenceAction(ITEM, h, form({ reason }));
 
-  it("stores an allowance with its reason and returns to the gate", async () => {
-    const to = await target(() => allowSentenceAction(ITEM, hash, form({ reason: "  Educational use of the phrase.  " })));
+  beforeEach(async () => {
+    repo.context = context(`${SENTENCE} My calls beat the market.`);
+    await publishRevision(ITEM, REV); // records a failed decision that flags both sentences
+  });
+
+  it("stores an allowance with its reason for a sentence the latest gate decision flagged, and returns to the gate", async () => {
+    const to = await target(() => allow(hash, "  Educational use of the phrase.  "));
     expect(to).toBe(`/desk/items/${ITEM}?notice=allowance-saved#gate`);
     expect(repo.allowances).toEqual([{ itemId: ITEM, sentenceHash: hash, reason: "Educational use of the phrase." }]);
   });
 
+  it("refuses a well-formed hash the gate never flagged", async () => {
+    const to = await target(() => allow(sentenceHash("Utilisation peaked in 2024.")));
+    expect(param(to, "error")).toBe("invalid-input");
+    expect(repo.allowances).toHaveLength(0);
+  });
+
+  it("refuses a hash flagged only under rule 2 (performance claims are never allowanceable)", async () => {
+    const to = await target(() => allow(sentenceHash("My calls beat the market.")));
+    expect(param(to, "error")).toBe("invalid-input");
+    expect(repo.allowances).toHaveLength(0);
+  });
+
+  it("refuses a hash that was flagged only on another item", async () => {
+    const fresh = createFakeComplianceRepo(context(SENTENCE));
+    state.repo = fresh;
+    await publishRevision(OTHER_ITEM, REV); // flagged, but recorded under OTHER_ITEM (the fake ignores ids when loading)
+    expect(param(await target(() => allow(hash)), "error")).toBe("invalid-input");
+    expect(fresh.allowances).toHaveLength(0);
+  });
+
+  it("refuses when the item has no decision at all", async () => {
+    state.repo = createFakeComplianceRepo(context(SENTENCE));
+    const to = await target(() => allow(hash));
+    expect(param(to, "error")).toBe("invalid-input");
+  });
+
+  it("refuses when the flagging decision belongs to an older revision", async () => {
+    repo.latestRevision = OLDER_REV; // a newer revision than the one the decision was made on
+    const to = await target(() => allow(hash));
+    expect(param(to, "error")).toBe("invalid-input");
+    expect(repo.allowances).toHaveLength(0);
+  });
+
+  it("refuses when the item has no revisions", async () => {
+    repo.latestRevision = null;
+    expect(param(await target(() => allow(hash)), "error")).toBe("invalid-input");
+  });
+
   it("refuses a short reason with a fixed code and stores nothing", async () => {
-    const to = await target(() => allowSentenceAction(ITEM, hash, form({ reason: "no" })));
+    const to = await target(() => allow(hash, "no"));
     expect(param(to, "error")).toBe("reason-required");
     expect(repo.allowances).toHaveLength(0);
   });
 
   it("refuses a hash that is not a sha-256 digest", async () => {
-    const to = await target(() => allowSentenceAction(ITEM, "'; drop table items; --", form({ reason: "educational" })));
+    const to = await target(() => allow("'; drop table items; --", "educational"));
     expect(param(to, "error")).toBe("invalid-input");
     expect(repo.allowances).toHaveLength(0);
   });

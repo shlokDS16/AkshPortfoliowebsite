@@ -7,9 +7,9 @@ import { CACHE_TAGS } from "@/lib/cache-tags";
 import { istDate } from "@/lib/dates";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
-import { doneTo, failTo, isItemId, ItemNotFoundError } from "@/modules/research";
+import { doneTo, failTo, InvalidInputError, isItemId, ItemNotFoundError } from "@/modules/research";
 import type { GateDecision } from "./decision";
-import { PublishContextNotFoundError, runPublishGate } from "./publish";
+import { allowFlaggedSentence, PublishContextNotFoundError, runPublishGate } from "./publish";
 import { createSupabaseComplianceRepo } from "./repo";
 
 async function deps() {
@@ -86,18 +86,21 @@ const allowanceInput = z.object({
   reason: z.string().trim().min(3, "Give a reason of at least 3 characters.").max(500),
 });
 
-/** A sentence allowance for rule 1, never a rule override (publishing-rules; no other rule consults it). */
+/** A sentence allowance for rule 1, never a rule override (publishing-rules; no other rule consults it). It must match a sentence the latest gate decision flagged. */
 export async function allowSentenceAction(itemId: string, sentenceHash: string, formData: FormData): Promise<void> {
   await requireAdmin();
   if (!isItemId(itemId)) failTo("/desk/items", new ItemNotFoundError(String(itemId)), "compliance");
   const reason = formData.get("reason");
   const parsed = allowanceInput.safeParse({ sentenceHash, reason: typeof reason === "string" ? reason : "" });
   if (!parsed.success) failTo(itemPath(itemId), parsed.error, "compliance");
+  let allowed: boolean;
   try {
-    await (await deps()).repo.addAllowance(itemId, parsed.data.sentenceHash, parsed.data.reason);
+    allowed = await allowFlaggedSentence((await deps()).repo, itemId, parsed.data.sentenceHash, parsed.data.reason);
   } catch (error) {
     failTo(itemPath(itemId), error, "compliance");
   }
+  // The hash is client-visible in the bound arguments: only a sentence the gate flagged can be allowed.
+  if (!allowed) failTo(itemPath(itemId), new InvalidInputError(), "compliance");
   revalidatePath(itemPath(itemId));
   doneTo(itemPath(itemId), "allowance-saved", "#gate");
 }

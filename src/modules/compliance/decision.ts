@@ -52,6 +52,17 @@ const reasonsSchema = z.object({
     .default({ findings: [], allowedBy: [] }),
 });
 
+// A SQL re-check is hidden only when the lint already reports the same thing, as a whole-item finding
+// (no sentence) for the same rule and the same field. The SQL failures carry no field, so each rule has
+// the field the lint uses for it. Anything else (a sentence-level rule 3 finding next to the SQL "case study
+// needs an older data_as_of") is shown as well, so one explanation never hides another.
+const SQL_RULE_FIELD: Record<string, string | null> = { "3": null, "5": null, "6": "learningObjective" };
+
+function explainedByLint(failure: { rule: string }, findings: readonly GateFailure[]): boolean {
+  if (!Object.hasOwn(SQL_RULE_FIELD, failure.rule)) return false;
+  return findings.some((l) => l.rule === failure.rule && l.sentence === null && l.field === SQL_RULE_FIELD[failure.rule]);
+}
+
 // The SQL's generic failure when the lint did not pass; the lint's own findings explain it better.
 const LINT_NOT_PASSED = "The text lint did not pass.";
 
@@ -64,7 +75,7 @@ export function decisionFromRow(row: DecisionRow): GateDecision {
   const lintFailures: GateFailure[] = reasons.lint.findings;
   const sqlFailures: GateFailure[] = reasons.failures
     .filter((f) => !(f.rule === "lint" && f.message === LINT_NOT_PASSED && lintFailures.length > 0))
-    .filter((f) => f.rule === "lint" || !lintFailures.some((l) => l.rule === f.rule))
+    .filter((f) => !explainedByLint(f, lintFailures))
     .map((f) => ({ ...f, field: null, sentence: null, match: null, sentenceHash: null }));
   const failures = [...lintFailures, ...sqlFailures];
   return {

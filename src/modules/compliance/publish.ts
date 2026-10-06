@@ -50,6 +50,23 @@ export async function runPublishGate(deps: PublishDeps, itemId: string, revision
   return decisionFromRow(row);
 }
 
+/**
+ * Records a rule 1 sentence allowance, but only for a sentence the gate actually flagged: the latest recorded
+ * decision must belong to the item's newest revision and carry a rule 1 failure with this exact hash.
+ * Without this a crafted request could pre-clear language that was never flagged. Returns false when refused.
+ */
+export async function allowFlaggedSentence(repo: ComplianceRepo, itemId: string, sentenceHash: string, reason: string): Promise<boolean> {
+  const [decision, latestRevisionId] = await Promise.all([getLatestDecision(repo, itemId), repo.latestRevisionId(itemId)]);
+  const flagged =
+    decision !== null &&
+    latestRevisionId !== null &&
+    decision.revisionId === latestRevisionId &&
+    decision.failures.some((f) => f.rule === "1" && f.sentenceHash === sentenceHash);
+  if (!flagged) return false;
+  await repo.addAllowance(itemId, sentenceHash, reason);
+  return true;
+}
+
 export async function getLatestDecision(repo: ComplianceRepo, itemId: string): Promise<GateDecision | null> {
   const row = await repo.latestDecision(itemId);
   return row ? decisionFromRow(row) : null;

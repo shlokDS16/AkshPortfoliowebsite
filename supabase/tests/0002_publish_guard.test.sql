@@ -23,8 +23,7 @@ insert into public.items (id, kind, title, company_id, theme_id, learning_object
    'cccccccc-0000-4000-8000-000000000001', 'eeeeeeee-0000-4000-8000-000000000001', 'Learn.', 'no', current_date - 60);
 insert into public.item_revisions (id, item_id, body_md) values
   ('e2000000-0000-4000-8000-000000000001', 'd2000000-0000-4000-8000-000000000002', 'private v1'),
-  ('e1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'public v1'),
-  ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'public v2');
+  ('e1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'public v1');
 
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -84,6 +83,9 @@ select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-
 select is(current_setting('app.publish_gate', true), 'off', 'the gate is closed again after publish_revision returns');
 
 -- A public item cannot change what it shows except through the gate.
+-- Revision 2 is added only now: publish_revision() refuses a revision that has a newer sibling.
+insert into public.item_revisions (id, item_id, body_md) values
+  ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'public v2');
 select throws_ok($$ update public.items set current_revision_id = 'e1000000-0000-4000-8000-000000000002'
   where id = 'd1000000-0000-4000-8000-000000000001' $$,
   '42501', null, 'advancing a public item outside the gate is blocked');

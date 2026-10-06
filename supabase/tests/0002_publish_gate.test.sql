@@ -65,7 +65,6 @@ insert into public.items (id, kind, title, learning_objective) values
 
 insert into public.item_revisions (id, item_id, body_md) values
   ('e1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'v1'),
-  ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'v2'),
   ('e2000000-0000-4000-8000-000000000001', 'd2000000-0000-4000-8000-000000000002', 'note'),
   ('e3000000-0000-4000-8000-000000000001', 'd3000000-0000-4000-8000-000000000003', 'case'),
   ('e4000000-0000-4000-8000-000000000001', 'd4000000-0000-4000-8000-000000000004', 'case'),
@@ -150,6 +149,9 @@ select is((select slug from public.items where id = 'dc000000-0000-4000-8000-000
   'item-dc0000', 'a symbol-only title falls back to "item" in the slug');
 
 -- Later revisions of a public item are gated every time and never unpublish it.
+-- Revision 2 is added only now: publish_revision() refuses a revision that has a newer sibling.
+insert into public.item_revisions (id, item_id, body_md) values
+  ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'v2');
 select is(public.test_verdict('d1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000002', false),
   'fail', 'a later revision whose lint failed is rejected');
 select results_eq($$

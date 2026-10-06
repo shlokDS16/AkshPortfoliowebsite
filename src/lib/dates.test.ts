@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { addDays, istDate, istDayStartUtc } from "./dates";
+import { addDays, istDate, istDateTime, istDayStartUtc } from "./dates";
 
 describe("dates", () => {
   it("gives the calendar date in India", () => {
     expect(istDate("2026-10-04T19:00:00Z")).toBe("2026-10-05"); // 00:30 IST next day
     expect(istDate("2026-10-04T18:00:00Z")).toBe("2026-10-04"); // 23:30 IST
+  });
+
+  it("formats a timestamp as India time to the minute, on a 24-hour clock", () => {
+    expect(istDateTime("2026-10-04T19:00:00Z")).toBe("2026-10-05 00:30 IST");
+    expect(istDateTime("2026-10-04T18:29:59Z")).toBe("2026-10-04 23:59 IST");
+    expect(istDateTime("2026-10-04T18:30:00Z")).toBe("2026-10-05 00:00 IST"); // midnight is 00, never 24
+    expect(istDateTime("2026-10-04T06:45:00+00:00")).toBe("2026-10-04 12:15 IST");
   });
 
   it("adds and subtracts days across month ends", () => {

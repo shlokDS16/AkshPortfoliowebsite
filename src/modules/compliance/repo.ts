@@ -31,6 +31,8 @@ export interface ComplianceRepo {
   callPublishRevision(args: { itemId: string; revisionId: string; policyVersion: string; lintResult: Json }): Promise<DecisionRow>;
   callUnpublish(itemId: string): Promise<string | null>;
   latestDecision(itemId: string): Promise<DecisionRow | null>;
+  /** The id of the item's newest revision (highest rev_no), or null when it has none. */
+  latestRevisionId(itemId: string): Promise<string | null>;
   addAllowance(itemId: string, sentenceHash: string, reason: string): Promise<void>;
 }
 
@@ -108,6 +110,17 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         .maybeSingle();
       if (error) throw dbError("compliance.latestDecision", error);
       return data;
+    },
+    async latestRevisionId(itemId) {
+      const { data, error } = await db
+        .from("item_revisions")
+        .select("id")
+        .eq("item_id", itemId)
+        .order("rev_no", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw dbError("compliance.latestRevisionId", error);
+      return data?.id ?? null;
     },
     async addAllowance(itemId, sentenceHash, reason) {
       const { error } = await db

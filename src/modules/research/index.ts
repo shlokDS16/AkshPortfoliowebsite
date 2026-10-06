@@ -23,6 +23,7 @@ export type { DiffLine, Item, ItemPatch, ItemWithHistory, NewItemRow, NewRevisio
 export {
   AccessDeniedError,
   AppendOnlyError,
+  InvalidInputError,
   ItemNotFoundError,
   ItemRuleError,
   PublicItemLockedError,

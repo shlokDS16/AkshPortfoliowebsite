@@ -7,4 +7,4 @@ export type { LintAllowed, LintField, LintFinding, LintInput, LintResult, LintRu
 export { normaliseSentence, splitSentences } from "./sentences";
 export { decisionFromRow, type DecisionRow, type GateDecision, type GateFailure } from "./decision";
 export { createSupabaseComplianceRepo, type ComplianceRepo, type PublishContext } from "./repo";
-export { getLatestDecision, PublishContextNotFoundError, runPublishGate, type PublishDeps } from "./publish";
+export { allowFlaggedSentence, getLatestDecision, PublishContextNotFoundError, runPublishGate, type PublishDeps } from "./publish";

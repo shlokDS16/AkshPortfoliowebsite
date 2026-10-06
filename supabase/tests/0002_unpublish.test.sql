@@ -16,7 +16,6 @@ insert into public.items (id, kind, title, learning_objective) values
   ('d2000000-0000-4000-8000-000000000002', 'learning', 'Never published', 'Learn.');
 insert into public.item_revisions (id, item_id, body_md) values
   ('e1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'v1'),
-  ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'v2'),
   ('e2000000-0000-4000-8000-000000000001', 'd2000000-0000-4000-8000-000000000002', 'v1');
 
 set local role authenticated;
@@ -26,6 +25,9 @@ select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-
     'e1000000-0000-4000-8000-000000000001', 'pol-1',
     '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"pol-1"}'::jsonb)),
   'pass', 'precondition: u1 is published');
+-- Revision 2 is added only now: publish_revision() refuses a revision that has a newer sibling.
+insert into public.item_revisions (id, item_id, body_md) values
+  ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'v2');
 
 -- Backdate the first publish (owner, gate open) so "republishing keeps the first date" is observable.
 reset role;

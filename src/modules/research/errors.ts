@@ -40,6 +40,15 @@ export class ItemRuleError extends ResearchError {
   }
 }
 
+/** A request the server refuses because it does not match anything it recorded (for example a crafted POST). */
+export class InvalidInputError extends ResearchError {
+  readonly code = "INVALID_INPUT";
+  constructor() {
+    super("Check the fields and try again.");
+    this.name = "InvalidInputError";
+  }
+}
+
 /** Row-level security or a privilege check refused the call (SQLSTATE 42501 outside the item guard). */
 export class AccessDeniedError extends ResearchError {
   readonly code = "ACCESS_DENIED";

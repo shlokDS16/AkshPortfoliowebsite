@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { istDateTime } from "@/lib/dates";
 import { Input } from "@/components/ui/input";
 import { RULE_TITLES, type GateDecision, type LintField } from "@/modules/compliance/client";
 import { allowSentenceAction, publishRevisionAction, unpublishItemAction } from "@/modules/compliance/actions";
@@ -40,6 +41,8 @@ type Props = {
 
 export function GatePanel({ item, latest, current, decision, decisionRevNo }: Props) {
   const isPublic = item.visibility === "public";
+  // A decision made on an older revision is history, not a basis for allowing a sentence.
+  const stale = decision !== null && decision.revisionId !== latest?.id;
   const candidate = latest && (!isPublic || latest.id !== current?.id) ? latest : null;
   return (
     <section id="gate" className="space-y-3 rounded border p-3">
@@ -66,9 +69,14 @@ export function GatePanel({ item, latest, current, decision, decisionRevNo }: Pr
         <div data-testid="gate-decision" data-verdict={decision.verdict} className="space-y-2 text-sm">
           <p className="font-medium">
             {decision.verdict === "pass" ? "Passed the gate" : "Blocked by the gate"}
-            {decisionRevNo !== null ? `, revision #${decisionRevNo}` : ""} ({decision.decidedAt.slice(0, 16).replace("T", " ")} UTC,{" "}
-            {decision.policyVersion})
+            {decisionRevNo !== null ? `, revision #${decisionRevNo}` : ""} ({istDateTime(decision.decidedAt)}, {decision.policyVersion})
           </p>
+          {stale ? (
+            <p data-testid="stale-decision" className="text-muted-foreground">
+              This decision was made on {decisionRevNo !== null ? `revision #${decisionRevNo}` : "an earlier revision"}. Publish the latest revision to run
+              the gate on it.
+            </p>
+          ) : null}
           <ul className="space-y-3">
             {decision.failures.map((failure, index) => (
               <li key={index} data-testid="gate-failure" data-rule={failure.rule} className="rounded border border-red-600 p-2">
@@ -89,7 +97,7 @@ export function GatePanel({ item, latest, current, decision, decisionRevNo }: Pr
                     ) : null}
                   </>
                 ) : null}
-                {failure.sentenceHash && failure.rule === "1" ? (
+                {failure.sentenceHash && failure.rule === "1" && !stale ? (
                   <form action={allowSentenceAction.bind(null, item.id, failure.sentenceHash)} className="mt-2 flex gap-2">
                     <Input name="reason" aria-label="Reason for allowing this sentence" placeholder="Why this is educational usage" required minLength={3} />
                     <Button type="submit" size="sm" variant="outline">
