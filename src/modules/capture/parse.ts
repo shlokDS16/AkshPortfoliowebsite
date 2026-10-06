@@ -22,7 +22,7 @@ const CURLY_QUOTES = String.fromCharCode(0x201c, 0x2018);
 const WS = /\s/.source;
 const DOLLAR = /\$/.source;
 const START = `(^|[${WS}([{"'${CURLY_QUOTES},/])`;
-const SYMBOL_RE = new RegExp(`${START}${DOLLAR}([A-Za-z][A-Za-z0-9&-]{0,19})(?![A-Za-z0-9&-])`, "g");
+const SYMBOL_RE = new RegExp(`${START}${DOLLAR}([A-Za-z0-9][A-Za-z0-9&-]{0,19})(?![A-Za-z0-9&-])`, "g");
 const THEME_RE = new RegExp(`${START}#([A-Za-z][A-Za-z0-9-]{0,47})(?![A-Za-z0-9-])`, "g");
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 const TITLE_MAX = 120;
@@ -64,7 +64,9 @@ function trimUrl(url: string): string {
       break;
     }
   }
-  return url.slice(0, end);
+  const trimmed = url.slice(0, end);
+  // A bare scheme ("https://", or "https://..." trimmed down) is not a URL.
+  return /^https?:\/\/$/i.test(trimmed) ? "" : trimmed;
 }
 
 export function parseCapture(raw: string): ParsedCapture {
@@ -74,7 +76,12 @@ export function parseCapture(raw: string): ParsedCapture {
   const firstLine = (body.split(/\r?\n/)[0] ?? "").trim();
   // Mask URLs (same length) so a "#fragment" or "$" inside one is never read as a token.
   const masked = body.replace(URL_RE, (m) => " ".repeat(m.length));
-  const symbols = unique([...masked.matchAll(SYMBOL_RE)].map((m) => m[2].replace(/[&-]+$/, "").toUpperCase()));
+  // NSE symbols may start with a digit (5PAISA, 360ONE) but must contain a letter, so "$500" is a price.
+  const symbols = unique(
+    [...masked.matchAll(SYMBOL_RE)]
+      .map((m) => m[2].replace(/[&-]+$/, "").toUpperCase())
+      .filter((sym) => /[A-Z]/.test(sym)),
+  );
   const themes = unique([...masked.matchAll(THEME_RE)].map((m) => m[2].replace(/-+$/, "").toLowerCase()));
   const urls = unique([...body.matchAll(URL_RE)].map((m) => trimUrl(m[0])));
   const title = truncate(firstLine.replace(URL_RE, "").replace(/\s+/g, " ").trim(), TITLE_MAX) || "Untitled capture";

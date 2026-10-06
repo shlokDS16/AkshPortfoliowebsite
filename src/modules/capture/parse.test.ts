@@ -76,7 +76,7 @@ describe("parseCapture: robustness", () => {
   });
 
   it("does not treat a dollar followed by digits as a symbol", () => {
-    expect(parseCapture("$500 move, $5M deal, $1").symbols).toEqual([]);
+    expect(parseCapture("$500 move, $2400, $1, $2,400, $1.5bn, (at $500), $5-").symbols).toEqual([]);
   });
 
   it("rejects symbols longer than 20 characters instead of truncating", () => {
@@ -220,5 +220,21 @@ describe("parseCapture: urls and titles", () => {
       // A well-formed string survives a UTF-8 round trip unchanged; a lone surrogate does not.
       expect(new TextDecoder().decode(new TextEncoder().encode(title))).toBe(title);
     }
+  });
+});
+
+describe("parseCapture: digit-leading symbols and bare schemes", () => {
+  it("accepts NSE symbols that start with a digit and contain a letter", () => {
+    expect(parseCapture("$5PAISA $3mindia ($20MICRONS) $360ONE.").symbols).toEqual([
+      "5PAISA",
+      "3MINDIA",
+      "20MICRONS",
+      "360ONE",
+    ]);
+  });
+
+  it("does not emit a bare scheme as a URL", () => {
+    expect(parseCapture("see https:// and http://... and https://!").urls).toEqual([]);
+    expect(parseCapture("https://a.com and https://").urls).toEqual(["https://a.com"]);
   });
 });
