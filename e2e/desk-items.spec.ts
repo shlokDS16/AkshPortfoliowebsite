@@ -34,14 +34,14 @@ test("create an item, save details and revisions, and read the diff", async ({ p
   await page.getByLabel("Holds position").selectOption("no");
   await page.getByLabel("Data as of").fill("2026-08-01");
   await page.getByRole("button", { name: "Save details" }).click();
-  await expect(page.getByRole("status")).toHaveText("Details saved.");
+  await expect(page.getByRole("status").filter({ hasText: "Details saved." })).toHaveText("Details saved.");
   await page.reload();
   await expect(page.getByLabel("Learning objective")).toHaveValue("Recognise a capex peak.");
   await expect(page.getByLabel("Holds position")).toHaveValue("no");
   await expect(page.getByLabel("Data as of")).toHaveValue("2026-08-01");
 
   await saveRevision(page, "line a\nline b", "first draft");
-  await expect(page.getByRole("status")).toHaveText("Revision saved.");
+  await expect(page.getByRole("status").filter({ hasText: "Revision saved." })).toHaveText("Revision saved.");
   await saveRevision(page, "line a\nline c", "swap b for c");
   await expect(page.getByText("current revision #3")).toBeVisible();
 
@@ -77,7 +77,7 @@ test("a revision on a public item waits for the gate and its details stay locked
   const itemId = await createItem(page, title);
   await page.getByLabel("Learning objective").fill("Read a cash conversion cycle.");
   await page.getByRole("button", { name: "Save details" }).click();
-  await expect(page.getByRole("status")).toHaveText("Details saved.");
+  await expect(page.getByRole("status").filter({ hasText: "Details saved." })).toHaveText("Details saved.");
   await saveRevision(page, "published text", "ready");
   await expect(page.getByText("current revision #2")).toBeVisible();
 
@@ -91,7 +91,7 @@ test("a revision on a public item waits for the gate and its details stay locked
   await expect(page.getByText("This item is public. Unpublish it to change these details")).toBeVisible();
 
   await saveRevision(page, "published text, amended", "update after results");
-  await expect(page.getByRole("status")).toContainText("waiting for the publishing gate");
+  await expect(page.getByRole("status").filter({ hasText: "waiting for the publishing gate" })).toContainText("waiting for the publishing gate");
   await expect(page.getByTestId("pending-gate")).toContainText("1 revision is waiting for the publishing gate");
   await expect(page.getByTestId("pending-gate")).toContainText("revision #2");
   await expect(page.getByText("current revision #2")).toBeVisible();
@@ -127,7 +127,7 @@ test.describe("phone width", () => {
     await page.goto("/desk/items");
     await createItem(page, `Narrow screen ${RUN}`);
     await saveRevision(page, "A".repeat(10) + " " + "unbreakable-".repeat(30), "long line");
-    await expect(page.getByRole("status")).toHaveText("Revision saved.");
+    await expect(page.getByRole("status").filter({ hasText: "Revision saved." })).toHaveText("Revision saved.");
     await expectNoSidewaysScroll(page);
     await page.getByRole("link", { name: "diff" }).first().click();
     await expect(page.getByTestId("diff")).toBeVisible();

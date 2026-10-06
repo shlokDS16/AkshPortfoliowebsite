@@ -7,14 +7,17 @@ const listCapturesSince = vi.fn();
 vi.mock("@/modules/identity", () => ({ requireAdmin: vi.fn(async () => ({ email: "admin@desk.test" })) }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn(async () => ({})) }));
 vi.mock("@/modules/compliance", () => ({ listBlockedItems: vi.fn(async () => []) }));
-vi.mock("./desk-data", () => ({ namesToReview: vi.fn(async () => 0) }));
+vi.mock("./desk-data", () => ({
+  namesToReview: vi.fn(async () => 0),
+  knownTokens: vi.fn(async () => ({ symbols: [], themes: [], ignoredSymbols: [], ignoredThemes: [] })),
+}));
 vi.mock("@/modules/capture/actions", () => ({ refileCaptureAction: vi.fn() }));
 vi.mock("@/modules/capture", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/capture")>()),
   listCapturesSince: (...args: unknown[]) => listCapturesSince(...args),
 }));
 // The real box needs the app router; the page only has to place it.
-vi.mock("./capture-box", () => ({ CaptureBox: () => createElement("div", { "data-testid": "capture-box" }, "BOX") }));
+vi.mock("@/components/desk/private/capture-bar", () => ({ CaptureBar: () => createElement("div", { "data-testid": "capture-box" }, "BOX") }));
 
 import DeskHome from "./page";
 

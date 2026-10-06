@@ -1,12 +1,20 @@
 import Link from "next/link";
 import { formatTime } from "@/lib/format";
 import { filingErrorText, parseCapture, type TodayGroup } from "@/modules/capture";
+import type { KnownTokenLists } from "@/modules/catalog";
+import { CaptureText } from "./capture-text";
 
 const KIND_WORD = { note: "private note", thesis: "thesis", learning: "learning note", process: "process note" } as const;
 
 /** Today's captures grouped by company (spec s5), newest first; kind and time per row (segment 4 C). */
-export function TodayList({ groups }: { groups: TodayGroup[] }) {
+export function TodayList({ groups, known }: { groups: TodayGroup[]; known: KnownTokenLists }) {
   if (groups.length === 0) return null;
+  const sets = {
+    symbols: new Set(known.symbols),
+    themes: new Set(known.themes),
+    ignoredSymbols: new Set(known.ignoredSymbols),
+    ignoredThemes: new Set(known.ignoredThemes),
+  };
   return (
     <div className="space-y-4">
       {groups.map((group) => (
@@ -19,10 +27,10 @@ export function TodayList({ groups }: { groups: TodayGroup[] }) {
                   <p className="whitespace-pre-wrap text-body text-ink">
                     {e.itemId ? (
                       <Link href={`/desk/items/${e.itemId}`} className="text-ink no-underline hover:underline">
-                        {e.rawText}
+                        <CaptureText raw={e.rawText} known={sets} />
                       </Link>
                     ) : (
-                      e.rawText
+                      <CaptureText raw={e.rawText} known={sets} />
                     )}
                   </p>
                   <p className="text-small text-ink-muted">

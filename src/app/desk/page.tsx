@@ -1,3 +1,4 @@
+import { CaptureBar } from "@/components/desk/private/capture-bar";
 import { NeedsYouCard } from "@/components/desk/private/needs-you-card";
 import { QueuedCard } from "@/components/desk/private/queued-card";
 import { TodayList } from "@/components/desk/private/today-list";
@@ -19,8 +20,7 @@ import {
 import { refileCaptureAction } from "@/modules/capture/actions";
 import { listBlockedItems, type BlockedItem } from "@/modules/compliance";
 import { requireAdmin } from "@/modules/identity";
-import { CaptureBox } from "./capture-box";
-import { namesToReview } from "./desk-data";
+import { knownTokens, namesToReview } from "./desk-data";
 
 /** Name only in the log: a database message can carry row data. */
 async function read<T>(label: string, load: () => Promise<T>, fallback: T): Promise<T> {
@@ -40,10 +40,11 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
   const db = await createSupabaseServerClient();
   const now = new Date();
   const today = istDate(now);
-  const [entries, blocked, names] = await Promise.all([
+  const [entries, blocked, names, known] = await Promise.all([
     read<CaptureListEntry[] | null>("captures", () => listCapturesSince(db, istDayStartUtc(addDays(today, -29))), null),
     read<BlockedItem[]>("blocked items", () => listBlockedItems(db), []),
     namesToReview(),
+    knownTokens(),
   ]);
   const unfiled = (entries ?? []).filter((e) => needsRefile(e, now) || e.parseError === "thesis-full");
   const groups = entries === null ? [] : groupTodayByCompany(entries, today);
@@ -59,7 +60,7 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
         </p>
       ) : null}
       {noticeMessage ? <p className="rounded-sm border border-rule px-3 py-2 text-small text-ink">{noticeMessage}</p> : null}
-      <CaptureBox />
+      <CaptureBar known={known} />
       <QueuedCard />
       {entries === null ? (
         <p role="alert" className="text-small text-ink-muted">
@@ -103,7 +104,7 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
           ) : null}
         </Tray>
         <Tray title="Today" count={groups.reduce((n, g) => n + g.entries.length, 0)} empty={{ body: "Nothing captured yet today." }}>
-          <TodayList groups={groups} />
+          <TodayList groups={groups} known={known} />
         </Tray>
       </div>
       {entries === null ? null : (

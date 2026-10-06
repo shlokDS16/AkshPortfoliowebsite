@@ -20,3 +20,6 @@ export {
 export { createMemoryStorage, resolveStorage, resolveStorageInfo, webStorage, type StorageLike } from "./storage";
 export { rejectionText, submitErrorText, type SubmitErrorCode } from "./messages";
 export type { CaptureSource } from "./types";
+export { captureSpans, type CaptureSpan, type CaptureSpanKind } from "./parse";
+export { highlightCapture, type CaptureToken, type CaptureTokenKind, type KnownTokens } from "./highlight";
+export { captureReceipt, insertToken, receiptLabel, type CaptureReceiptModel, type ReceiptChip, type TokenKey } from "./compose";

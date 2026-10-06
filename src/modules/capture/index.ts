@@ -1,4 +1,4 @@
-export { CAPTURE_KINDS, parseCapture, type CaptureKind, type ParsedCapture } from "./parse";
+export { CAPTURE_KINDS, captureSpans, parseCapture, type CaptureKind, type CaptureSpan, type CaptureSpanKind, type ParsedCapture } from "./parse";
 export {
   CAPTURE_SOURCES,
   type CaptureAttachment,

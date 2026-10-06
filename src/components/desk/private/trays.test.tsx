@@ -91,7 +91,7 @@ const GROUPS: TodayGroup[] = [
 
 describe("TodayList and QueuedCard", () => {
   it("lists today's captures grouped by company with kind, time and a plain filing note", () => {
-    render(<TodayList groups={GROUPS} />);
+    render(<TodayList groups={GROUPS} known={{ symbols: ["KAVPUMP"], themes: [], ignoredSymbols: [], ignoredThemes: [] }} />);
     expect(screen.getByRole("heading", { name: "KAVPUMP" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "No company" })).toBeInTheDocument();
     const rows = screen.getAllByRole("listitem");
@@ -103,7 +103,7 @@ describe("TodayList and QueuedCard", () => {
   });
 
   it("renders nothing for no groups", () => {
-    const { container } = render(<TodayList groups={[]} />);
+    const { container } = render(<TodayList groups={[]} known={{ symbols: ["KAVPUMP"], themes: [], ignoredSymbols: [], ignoredThemes: [] }} />);
     expect(container).toBeEmptyDOMElement();
   });
 

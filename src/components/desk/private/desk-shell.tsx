@@ -6,10 +6,10 @@ import { DeskTabs } from "./desk-tabs";
 import { LivenessStrip } from "./liveness-strip";
 import { OfflineStrip } from "./offline-strip";
 
-type Props = { names: number; liveness: LivenessState; signOut: () => Promise<void>; children: ReactNode };
+type Props = { names: number; liveness: LivenessState; signOut: () => Promise<void>; capture?: ReactNode; children: ReactNode };
 
 /** Private chrome (design-dna 8.4): "Desk" + mono "private", tabs, strips. Never indexed. */
-export function DeskShell({ names, liveness, signOut, children }: Props) {
+export function DeskShell({ names, liveness, signOut, capture, children }: Props) {
   return (
     <>
       <header className="sticky top-0 z-(--z-top-bar) h-(--top-bar-h) border-b border-rule bg-paper">
@@ -20,6 +20,7 @@ export function DeskShell({ names, liveness, signOut, children }: Props) {
           <span className="rounded-sm border border-rule-strong px-1 font-mono text-mono-label uppercase text-ink-muted">private</span>
           <DeskTabs names={names} variant="top" />
           <div className="flex-1" />
+          {capture}
           <form action={signOut}>
             <Button type="submit" variant="ghost" size="sm">
               Sign out

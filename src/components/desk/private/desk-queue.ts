@@ -73,3 +73,13 @@ export function dismissCorrupt(key: string): void {
   deskQueue().queue.dismissCorrupt(key);
   notify({ kind: "dismissed" });
 }
+
+export type CaptureOutcome = "sent" | "queued" | "dropped";
+
+/** Where a capture ended up after a flush: on the server, still waiting on this device, or refused for good. */
+export function outcomeOf(clientId: string): CaptureOutcome {
+  const { queue } = deskQueue();
+  if (queue.list().some((entry) => entry.clientId === clientId)) return "queued";
+  if (queue.listRejected().some((entry) => entry.clientId === clientId)) return "dropped";
+  return "sent";
+}

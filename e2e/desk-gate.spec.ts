@@ -17,7 +17,7 @@ async function saveRevision(page: Page, body: string, reason: string) {
   await page.getByLabel("Body (Markdown)").fill(body);
   await page.getByLabel("Change reason").fill(reason);
   await page.getByRole("button", { name: "Save revision" }).click();
-  await expect(page.getByRole("status")).toContainText("Revision saved");
+  await expect(page.getByRole("status").filter({ hasText: "Revision saved" })).toContainText("Revision saved");
 }
 
 const gate = (page: Page) => page.locator("#gate");
@@ -27,7 +27,7 @@ test("a blocked publish names the rule and highlights the sentence; an allowance
   await createItem(page, `Reading a capex cycle ${RUN}`);
   await page.getByLabel("Learning objective").fill("Recognise the late stage of a capex cycle.");
   await page.getByRole("button", { name: "Save details" }).click();
-  await expect(page.getByRole("status")).toHaveText("Details saved.");
+  await expect(page.getByRole("status").filter({ hasText: "Details saved." })).toHaveText("Details saved.");
 
   // Blocked: rule 1, exact sentence, the matched word highlighted.
   await saveRevision(page, "Utilisation peaked in 2024. You should buy the leader now.", "first draft");
@@ -49,10 +49,10 @@ test("a blocked publish names the rule and highlights the sentence; an allowance
   await expect(gate(page).getByTestId("flagged-sentence")).toHaveText("Why I avoid target prices.");
   await gate(page).getByLabel("Reason for allowing this sentence").fill("Educational use of the phrase.");
   await gate(page).getByRole("button", { name: "Allow sentence" }).click();
-  await expect(page.getByRole("status")).toContainText("Sentence allowed");
+  await expect(page.getByRole("status").filter({ hasText: "Sentence allowed" })).toContainText("Sentence allowed");
 
   await gate(page).getByRole("button", { name: /^Publish revision #3$/ }).click();
-  await expect(page.getByRole("status")).toHaveText("Published.");
+  await expect(page.getByRole("status").filter({ hasText: "Published." })).toHaveText("Published.");
   await expect(gate(page).getByTestId("gate-decision")).toHaveAttribute("data-verdict", "pass");
   await expect(gate(page).getByText(/Allowed as educational usage: "Why I avoid target prices."/)).toBeVisible();
   await expect(page.getByTestId("visibility")).toHaveText("Public");
@@ -67,7 +67,7 @@ test("a blocked publish names the rule and highlights the sentence; an allowance
 
   // Retraction: private again, editable again.
   await gate(page).getByRole("button", { name: "Unpublish" }).click();
-  await expect(page.getByRole("status")).toContainText("private again");
+  await expect(page.getByRole("status").filter({ hasText: "private again" })).toContainText("private again");
   await expect(page.getByTestId("visibility")).toHaveText("Private");
   await expect(page.getByLabel("Title")).toBeEnabled();
   await expect(page.getByTestId("pending-gate")).toHaveCount(0);

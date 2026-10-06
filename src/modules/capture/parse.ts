@@ -68,21 +68,52 @@ function trimUrl(url: string): string {
   return /^https?:\/\/$/i.test(trimmed) ? "" : trimmed;
 }
 
-export function parseCapture(raw: string): ParsedCapture {
+export type CaptureSpanKind = "prefix" | "symbol" | "theme" | "url";
+/** A token exactly as parseCapture reads it, placed in the raw text (start inclusive, end exclusive). */
+export type CaptureSpan = { kind: CaptureSpanKind; start: number; end: number; value: string };
+
+// One scanner for parseCapture and the highlighter, so colour and filing can never disagree.
+function scan(raw: string): { kind: CaptureKind; body: string; spans: CaptureSpan[] } {
   const prefix = PREFIX_RE.exec(raw);
   const kind: CaptureKind = prefix ? (PREFIXES[prefix[1].toLowerCase()] ?? "note") : "note";
-  const body = (prefix ? raw.slice(prefix[0].length) : raw).trim();
-  const firstLine = (body.split(/\r?\n/)[0] ?? "").trim();
+  const rest = prefix ? raw.slice(prefix[0].length) : raw;
+  const bodyStart = raw.length - rest.length + (rest.length - rest.trimStart().length);
+  const body = rest.trim();
+  const spans: CaptureSpan[] = [];
+  if (prefix) {
+    const at = prefix[0].indexOf(prefix[1]);
+    spans.push({ kind: "prefix", start: at, end: at + 2, value: prefix[1].toLowerCase() });
+  }
   // Mask URLs (same length) so a "#fragment" or "$" inside one is never read as a token.
   const masked = body.replace(URL_RE, (m) => " ".repeat(m.length));
-  // NSE symbols may start with a digit (5PAISA, 360ONE) but must contain a letter, so "$500" is a price.
-  const symbols = unique(
-    [...masked.matchAll(SYMBOL_RE)]
-      .map((m) => m[2].replace(/[&-]+$/, "").toUpperCase())
-      .filter((sym) => /[A-Z]/.test(sym) && !AMOUNT_RE.test(sym)),
-  );
-  const themes = unique([...masked.matchAll(THEME_RE)].map((m) => m[2].replace(/-+$/, "").toLowerCase()));
-  const urls = unique([...body.matchAll(URL_RE)].map((m) => trimUrl(m[0])));
+  for (const m of masked.matchAll(SYMBOL_RE)) {
+    const token = m[2].replace(/[&-]+$/, "");
+    const value = token.toUpperCase();
+    // NSE symbols may start with a digit (5PAISA, 360ONE) but must contain a letter, so "$500" is a price.
+    if (!/[A-Z]/.test(value) || AMOUNT_RE.test(value)) continue;
+    const start = bodyStart + m.index + m[1].length;
+    spans.push({ kind: "symbol", start, end: start + 1 + token.length, value });
+  }
+  for (const m of masked.matchAll(THEME_RE)) {
+    const token = m[2].replace(/-+$/, "");
+    const start = bodyStart + m.index + m[1].length;
+    spans.push({ kind: "theme", start, end: start + 1 + token.length, value: token.toLowerCase() });
+  }
+  for (const m of body.matchAll(URL_RE)) {
+    const url = trimUrl(m[0]);
+    if (url) spans.push({ kind: "url", start: bodyStart + m.index, end: bodyStart + m.index + url.length, value: url });
+  }
+  return { kind, body, spans: spans.sort((a, b) => a.start - b.start) };
+}
+
+export function captureSpans(raw: string): CaptureSpan[] {
+  return scan(raw).spans;
+}
+
+export function parseCapture(raw: string): ParsedCapture {
+  const { kind, body, spans } = scan(raw);
+  const values = (k: CaptureSpanKind) => unique(spans.filter((s) => s.kind === k).map((s) => s.value));
+  const firstLine = (body.split(/\r?\n/)[0] ?? "").trim();
   const title = truncateUnits(firstLine.replace(URL_RE, "").replace(/\s+/g, " ").trim(), TITLE_MAX) || "Untitled capture";
-  return { kind, symbols, themes, urls, title, firstLine, body };
+  return { kind, symbols: values("symbol"), themes: values("theme"), urls: values("url"), title, firstLine, body };
 }

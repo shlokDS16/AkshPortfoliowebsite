@@ -42,6 +42,15 @@ describe("DeskShell", () => {
     expect(screen.getAllByRole("link", { name: "Names" })).toHaveLength(2); // no count when zero
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   });
+
+  it("places the capture dock in the top bar", () => {
+    renderWithMotion(
+      <DeskShell names={0} liveness={{ status: "ok" }} signOut={async () => {}} capture={<button type="button">Capture dock</button>}>
+        <p>body</p>
+      </DeskShell>,
+    );
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "Capture dock" })).toBeInTheDocument();
+  });
 });
 
 describe("LivenessStrip", () => {
