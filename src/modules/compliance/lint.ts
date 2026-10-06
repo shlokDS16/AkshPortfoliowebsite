@@ -1,6 +1,7 @@
 import { addDays } from "@/lib/dates";
 import type { HoldsPosition, ItemKind } from "@/modules/research";
 import { LEXICON, PRICE_NUMBER } from "./lexicon";
+import { matchViews } from "./normalise";
 import { POLICY_VERSION } from "./policy";
 import { sentenceHash, splitSentences } from "./sentences";
 
@@ -96,6 +97,14 @@ function dataIsLagged(input: LintInput): boolean {
   return input.dataAsOf !== null && input.dataAsOf <= addDays(input.today, -30);
 }
 
+function firstMatch(pattern: RegExp, views: readonly string[]): RegExpExecArray | null {
+  for (const view of views) {
+    const match = pattern.exec(view);
+    if (match) return match;
+  }
+  return null;
+}
+
 const structural = (rule: LintRule, message: string, field: LintField | null = null): LintFinding => ({
   rule,
   field,
@@ -113,9 +122,11 @@ export function lintText(input: LintInput): LintResult {
 
   for (const unit of collectUnits(input)) {
     for (const sentence of splitSentences(unit.text)) {
+      // Hash and report the sentence as typed; match against its folded views (normalise.ts).
       const hash = sentenceHash(sentence);
+      const views = matchViews(sentence);
       for (const entry of LEXICON) {
-        const match = entry.pattern.exec(sentence);
+        const match = firstMatch(entry.pattern, views);
         if (!match || unit.citedQuote) continue;
         if (entry.rule === "1" && input.allowances.has(hash)) {
           allowedBy.push({ rule: "1", field: unit.field, sentence, sentenceHash: hash, match: match[0] });
@@ -123,7 +134,7 @@ export function lintText(input: LintInput): LintResult {
           findings.push({ rule: entry.rule, field: unit.field, sentence, sentenceHash: hash, match: match[0], message: entry.message });
         }
       }
-      const price = checkPrices ? PRICE_NUMBER.exec(sentence) : null;
+      const price = checkPrices ? firstMatch(PRICE_NUMBER, views) : null;
       if (price) {
         findings.push({
           rule: "3",
