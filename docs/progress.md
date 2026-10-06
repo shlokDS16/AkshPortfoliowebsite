@@ -5,7 +5,7 @@
 Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked (say why) · `[-]` dropped (say why)
 
 ## Status snapshot
-- **Phase:** 1 in progress. Plan 1A (backend core) 10/14 tasks complete and reviewed: 1, 3-11. Task 2 (deploy) waits for Vercel login; 12-14 next. Plan 1B (UI, 16 tasks) written and ratified; starts after Plan 1A or interleaved (never concurrently).
+- **Phase:** 1 in progress. Plan 1A (backend core) complete and reviewed except Task 2 (deploy: needs Vercel re-login + rotated sb_secret_ key). Final whole-branch review running. Plan 1B (UI, 16 tasks) next, with binding errata (docs/plans/2026-10-07-phase-1b-errata.md, in progress).
 - **Last session:** 2026-10-06 - env normalised; provider changes (OCR.space, NSE bhavcopy); migrations 0001-0003 pushed to hosted Supabase (signups off, admin email seeded); Plan 1A Tasks 4-11 built and reviewed; Plan 1B written.
 - **Next highest-value task:** (1) Review Plan 1A Task 4 (dc8243d) per the SDD ledger `.superpowers/sdd/2026-10-04-phase-1a-core/progress.md`; (2) ratify the 15 decisions in `docs/design/design-dna.md` section 17; (3) write Plan 1B. Credentials: Shlok's values are in `.env.local` (copied from an edited .env.example on 2026-10-05; verify keys). Task 2 (smoke deploy) can run once Vercel is linked. Build: Task 3 blocked on Docker Desktop crash (fix steps given); Task 2 waits for Vercel creds. WHY: Plan 1B needs all three. In parallel: Task 0 prerequisites by hand, then `superpowers:subagent-driven-development` on Plan 1A from Task 1 (does not depend on UI choices).
 - **Blocked on:** credentials in `.env.local` (REQUIRED-P1 in `.env.example`); Mobbin MCP needs a paid plan (Q7)
@@ -23,7 +23,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
 - [x] `docs/compliance/publishing-rules.md`, `docs/rubrics.md`
 - [x] Phase 1 spec drafted → `docs/specs/2026-10-04-phase-1-core-design.md`
 - [x] Shlok approves ADR-001 + Phase 1 spec (2026-10-04)
-- [x] Plan 1A written (tasks 1.1-1.7, 1.10) → `docs/plans/2026-10-04-phase-1a-core.md` (not yet executed)
+- [x] Plan 1A written (tasks 1.1-1.7, 1.10) → `docs/plans/2026-10-04-phase-1a-core.md` (executed 2026-10-06; Tasks 1, 3-14 complete and reviewed; Task 2 deploy pending)
 - [ ] Plan 1B (tasks 1.8, 1.9, 1.11) after UI segments 1-3 are chosen
 - [ ] Download official SEBI circular PDFs into `docs/compliance/`
 
