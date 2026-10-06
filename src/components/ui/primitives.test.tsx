@@ -47,6 +47,9 @@ describe("Button link variant", () => {
         <Button variant="link" size="sm">
           small link
         </Button>
+        <Button variant="link" size="icon" aria-label="icon link">
+          x
+        </Button>
       </div>,
     );
     for (const name of ["default link", "small link"]) {
@@ -56,6 +59,12 @@ describe("Button link variant", () => {
       expect(classes).toContain("pointer-coarse:h-11");
       for (const gone of ["h-9", "h-8", "px-4", "px-3"]) expect(classes).not.toContain(gone);
     }
+    // icon is deliberately left out of the compound variant: it stays square.
+    const icon = screen.getByRole("button", { name: "icon link" }).className.split(/\s+/);
+    expect(icon).toContain("size-9");
+    expect(icon).toContain("pointer-coarse:size-11");
+    expect(icon).not.toContain("h-auto");
+    expect(icon).not.toContain("px-0");
   });
 });
 

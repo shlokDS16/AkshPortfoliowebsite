@@ -22,6 +22,7 @@ const buttonVariants = cva(
     },
     // Text-link buttons carry no padding or fixed height at any size; the size classes come later in the
     // class list, so a plain `h-auto px-0` in the variant would lose the merge. Coarse pointers keep 44 px.
+    // size="icon" is intentionally excluded: a link icon button stays a square target (size-9, coarse size-11).
     compoundVariants: [{ variant: "link", size: ["default", "sm"], class: "h-auto px-0 pointer-coarse:h-11" }],
     defaultVariants: { variant: "default", size: "default" },
   },
