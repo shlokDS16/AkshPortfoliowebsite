@@ -537,6 +537,10 @@ No overshoot, no springs, nothing longer than 300 ms, no stagger longer than 500
 16. **No Devanagari font in v1**; no theme toggle in v1 (follows the OS; `.light` / `.dark` classes on `<html>` override for testing).
 17. **StubCompanyList** interpreted as the private "New names" screener (stub companies created by unknown `$SYM` captures).
 
+**Ratified 2026-10-06 (controller):** items 2-12 and 14-17 as written. Two changes, which override the token values elsewhere in this file wherever they conflict:
+- **Item 1 changed:** reading body is **17 px phone / 18 px desktop** (line-height 1.6), closer to the B+ page Shlok chose (16.5/17) than to the hybrid's 18/19.5. Title scale moves down one step to match (phone 21 / desktop 23). Implementers update the `@theme` block in section 18 accordingly in the first UI task.
+- **Item 13 changed:** the disclosure heading is **"Disclosure"**, not "Read this first", so it no longer collides with the "Read first" notes on file pages.
+
 ---
 
 ## 18. Tailwind v4 `@theme` block (paste into `src/app/globals.css`)
