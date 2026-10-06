@@ -104,7 +104,7 @@ select is((select count(*) from pg_class c join pg_namespace n on n.oid = c.reln
   4::bigint, 'all four public views run with security_invoker');
 select columns_are('public', 'public_items', array['id', 'kind', 'slug', 'title', 'company_id', 'theme_id',
   'published_at', 'data_as_of', 'learning_objective', 'holds_position', 'revision_id', 'rev_no', 'body_md',
-  'structured', 'schema_version', 'revised_at'], 'public_items exposes exactly the contracted columns');
+  'structured', 'schema_version', 'revised_at', 'file_no'], 'public_items exposes exactly the contracted columns');
 select columns_are('public', 'public_item_revisions', array['id', 'item_id', 'rev_no', 'body_md', 'structured',
   'change_reason', 'created_at'], 'public_item_revisions exposes exactly the contracted columns');
 select columns_are('public', 'public_companies', array['id', 'slug', 'name', 'nse_symbol', 'bse_code', 'isin', 'sector'],
