@@ -18,7 +18,8 @@ export type LocalStack = { apiUrl: string; publishableKey: string; secretKey: st
 export function readLocalStack(): LocalStack | null {
   let out: string;
   try {
-    out = execFileSync("supabase", ["status", "-o", "env"], {
+    // The project's pinned CLI (devDependency), never whatever `supabase` is first on PATH.
+    out = execFileSync("pnpm", ["exec", "supabase", "status", "-o", "env"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       shell: process.platform === "win32",

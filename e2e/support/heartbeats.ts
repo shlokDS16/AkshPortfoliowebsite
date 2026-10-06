@@ -8,7 +8,7 @@ import type { LocalStack } from "./stack";
 const sinceMinutes = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
 function runSql(sql: string): void {
-  execFileSync("supabase", ["db", "query", "--local", process.platform === "win32" ? `"${sql}"` : sql], {
+  execFileSync("pnpm", ["exec", "supabase", "db", "query", "--local", process.platform === "win32" ? `"${sql}"` : sql], {
     stdio: "ignore",
     shell: process.platform === "win32",
   });

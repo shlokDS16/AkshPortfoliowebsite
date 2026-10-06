@@ -19,7 +19,7 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
-    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",
+    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts && prettier --no-semi --write src/lib/supabase/database.types.ts",
     "db:push": "supabase db push"
   },
   "dependencies": {
@@ -45,7 +45,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
-    "supabase": "^2.119.0",
+    "prettier": "3.9.9",
+    "supabase": "2.119.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.3"

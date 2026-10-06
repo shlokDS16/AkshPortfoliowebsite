@@ -33,6 +33,7 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  # One Supabase CLI everywhere: 2.119.0, the exact devDependency (`pnpm supabase ...` locally).
   db:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -40,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.102.0
+          version: 2.119.0 # = the "supabase" devDependency in package.json; bump both together
       - run: supabase start
       - run: supabase db reset
       - run: supabase test db
@@ -62,7 +63,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.102.0
+          version: 2.119.0 # = the "supabase" devDependency in package.json; bump both together
       - run: supabase start
       - run: supabase db reset
       - run: pnpm exec playwright install --with-deps chromium
