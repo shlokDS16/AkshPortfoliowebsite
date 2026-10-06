@@ -1,5 +1,6 @@
 import { isPastLag } from "@/lib/dates";
 import { isRecord } from "@/lib/records";
+import { isIsoDate, latestFigureDate } from "@/modules/casefile/client";
 import { LEXICON, PRICE_NUMBER } from "./lexicon";
 import { matchViews } from "./normalise";
 import { sentenceHash } from "./hash";
@@ -107,6 +108,21 @@ export function lintText(input: LintInput): LintResult {
   }
   if (input.kind === "case_study" && !dataIsLagged(input)) {
     findings.push(structural("3", "A case study needs a data as-of date at least 30 days old."));
+  }
+  // Rule 3a, Figures to covers every figure (computed here, server-side, from the stored structured data; ADR-003).
+  // Aksh's prose may quote a figure, so a figure dated after data_as_of must not reach a public page at all.
+  const figuresTo = isIsoDate(input.dataAsOf) ? input.dataAsOf : null;
+  const latest = latestFigureDate(input.structured);
+  if (latest !== null && (figuresTo === null || latest > figuresTo)) {
+    findings.push(
+      structural(
+        "3",
+        figuresTo === null
+          ? `A figure is dated ${latest}, but this file has no 'Figures to' date. Set 'Figures to' to ${latest} or later, or remove the figure.`
+          : `A figure is dated ${latest}, after this file's 'Figures to' date (${figuresTo}). Move 'Figures to' forward or remove the figure.`,
+        "structured",
+      ),
+    );
   }
 
   return { revisionId: input.revisionId, passed: findings.length === 0, policyVersion: POLICY_VERSION, findings, allowedBy };

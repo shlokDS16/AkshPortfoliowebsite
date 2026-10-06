@@ -40,3 +40,13 @@ export function buildSeedSnapshot(today = "2026-10-06"): PublicSnapshot {
     today,
   };
 }
+
+/**
+ * DEFENCE-IN-DEPTH fixture. Models a state the publish gate (rule 3a) makes impossible: figures dated after the
+ * file's data_as_of (FY26 facts of 31 Mar 2026 against a Figures-to of 1 Mar 2026, with today 15 Apr 2026). It checks
+ * that the public builders still mask a withheld figure if such a revision ever reached the database.
+ */
+export function buildFiguresAfterDataAsOfSnapshot(): PublicSnapshot {
+  const s = buildSeedSnapshot("2026-04-15");
+  return { ...s, items: s.items.map((i) => (i.fileNo !== null ? { ...i, dataAsOf: "2026-03-01" } : i)) };
+}

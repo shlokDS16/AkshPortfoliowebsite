@@ -8,3 +8,4 @@ export {
 export { KILL_HEADING_RE, inlineText, parseInline, parseProse, splitThesisBody, type Condition, type Inline, type ProseBlock } from "./body";
 export { fiscalYearEnd, formatFigure, parseNumber } from "./figures";
 export { isIsoDate, isLagged, withheldUntil } from "./lag";
+export { figureDates, latestFigureDate } from "./figure-dates";

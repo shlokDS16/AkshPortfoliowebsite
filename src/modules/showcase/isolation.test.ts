@@ -1,9 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const ROOT = resolve("src");
-const FROM = /(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']/g;
+// Anchored to this file (src/modules/showcase), not the working directory.
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+// import/export ... from "x", bare import "x", dynamic import("x") and require("x").
+const FROM = /(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']|(?:import|require)\s*\(\s*["']([^"']+)["']\s*\)/g;
 
 function resolveSpec(spec: string, from: string): string | null {
   const base = spec.startsWith("@/") ? join(ROOT, spec.slice(2)) : spec.startsWith(".") ? resolve(dirname(from), spec) : null;
@@ -21,7 +24,7 @@ function closure(entry: string): Map<string, string> {
     const text = readFileSync(file, "utf8");
     seen.set(file, text);
     for (const m of text.matchAll(FROM)) {
-      const next = resolveSpec(m[1] ?? m[2], file);
+      const next = resolveSpec(m[1] ?? m[2] ?? m[3], file);
       if (next) queue.push(next);
     }
   }
@@ -31,6 +34,11 @@ function closure(entry: string): Map<string, string> {
 describe("rule 10: public code paths use only the cookie-less public client", () => {
   const files = closure(join(ROOT, "modules/showcase/index.ts"));
   const names = [...files.keys()].map((f) => f.slice(ROOT.length + 1).replaceAll("\\", "/"));
+
+  it("the walker sees static, re-export, side-effect, dynamic and require specifiers", () => {
+    const text = `import a from "@/a"; export { b } from "./b"; import "./c"; const d = await import("@/lib/supabase/service"); const e = require("./e");`;
+    expect([...text.matchAll(FROM)].map((m) => m[1] ?? m[2] ?? m[3])).toEqual(["@/a", "./b", "./c", "@/lib/supabase/service", "./e"]);
+  });
 
   it("walks the real import graph (guards the walker itself)", () => {
     expect(names).toEqual(expect.arrayContaining(["modules/showcase/queries.ts", "modules/casefile/view.ts", "modules/capture/streak-view.ts", "lib/supabase/public.ts"]));

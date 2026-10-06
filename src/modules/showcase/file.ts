@@ -2,7 +2,7 @@ import { istDate } from "@/lib/dates";
 import { formatFileNo } from "@/lib/format";
 import type { RevisionDiffData } from "@/lib/view-types";
 import {
-  buildExhibits, buildFactGroups, buildKillTests, buildScenario, buildSourceList, buildViewBlocks, fullTextOf, isLagged, readCaseFile, sentenceDiff,
+  buildExhibits, buildFactGroups, buildKillTests, buildScenario, buildSourceList, buildViewBlocks, fullTextOf, readCaseFile, sentenceDiff,
   splitThesisBody,
 } from "@/modules/casefile";
 import { readingMinutes } from "./notes";
@@ -53,8 +53,8 @@ export function buildFileView(s: PublicSnapshot, companySlug: string): FileView 
     factCount: cf.facts.length,
     sources: buildSourceList(cf),
     exhibits: buildExhibits(fileNo, company.name, cf, s.today),
-    // Rule 4: a scenario table is public only once the file's dataAsOf is 30 days old (IST), like every other figure.
-    scenario: isLagged(item.dataAsOf, s.today) ? buildScenario(cf, revNo, item.dataAsOf) : null,
+    // Rule 4: files() only yields a file whose dataAsOf is 30 days old (IST), so its scenario table is public like every other figure.
+    scenario: buildScenario(cf, revNo, item.dataAsOf),
     diff,
     log: revs
       .slice(0, revNo)

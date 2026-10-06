@@ -3,6 +3,8 @@ import { lintText } from "./lint";
 import type { LintInput } from "./rules";
 import { POLICY_VERSION } from "./policy";
 import { sentenceHash } from "./hash";
+import { parseFactsSheet } from "@/modules/casefile/client";
+import { KAVERI } from "@/test/fixtures/casefile";
 
 const base: LintInput = {
   revisionId: "5b1d9c1e-0a53-4f3e-8c53-2d6a9a7e1f10",
@@ -241,5 +243,46 @@ describe("lintText: structural rules", () => {
   it("never lets an allowance clear a structural finding", () => {
     const result = lint({ kind: "thesis", allowances: new Set([sentenceHash("Capacity additions slowed after utilisation peaked.")]) });
     expect(result.findings).toContainEqual(expect.objectContaining({ rule: "structure" }));
+  });
+});
+
+describe("lintText: rule 3a, Figures to covers every figure", () => {
+  const cf = parseFactsSheet(KAVERI.revisions[1].sheet).caseFile; // latest figure date: 2026-03-31
+  const thesis = { kind: "thesis" as const, bodyMd: "View.\n\n## What would prove me wrong\nIf margins shrink.", companyId: "c1", holdsPosition: "no" as const };
+  const run = (structured: unknown, dataAsOf: string | null) => lint({ ...thesis, structured: structured as Record<string, unknown>, dataAsOf });
+  const msg = (latest: string, to: string) =>
+    `A figure is dated ${latest}, after this file's 'Figures to' date (${to}). Move 'Figures to' forward or remove the figure.`;
+  const finding = (r: ReturnType<typeof run>) => r.findings.filter((f) => f.rule === "3" && f.field === "structured");
+
+  it("fails with a fixed rule 3 message when a fact is dated after data_as_of", () => {
+    const later = { ...cf, facts: [...cf.facts, { ...cf.facts[0], id: "F9", asOf: "2026-09-30" }] };
+    const result = run(later, "2026-08-22");
+    expect(result.passed).toBe(false);
+    expect(finding(result)).toEqual([{ rule: "3", field: "structured", sentence: null, sentenceHash: null, match: null, message: msg("2026-09-30", "2026-08-22") }]);
+  });
+
+  it("passes when the latest figure is dated on or before data_as_of", () => {
+    expect(finding(run(cf, "2026-03-31"))).toEqual([]);
+    expect(finding(run(cf, "2026-08-22"))).toEqual([]);
+    expect(run(cf, "2026-08-22").passed).toBe(true);
+  });
+
+  it("covers a test reading date and an exhibit period end, not only facts", () => {
+    const reading = { ...cf, tests: [{ ...cf.tests[0], readingAsOf: "2026-08-01" }, ...cf.tests.slice(1)] };
+    expect(finding(run(reading, "2026-07-31"))[0].message).toBe(msg("2026-08-01", "2026-07-31"));
+    const exhibit = { ...cf, exhibits: [{ ...cf.exhibits[0], points: [...cf.exhibits[0].points, { period: "Q1 FY27", value: 150 }] }] };
+    expect(finding(run(exhibit, "2026-06-29"))[0].message).toBe(msg("2026-06-30", "2026-06-29"));
+    expect(finding(run(exhibit, "2026-06-30"))).toEqual([]);
+  });
+
+  it("fails when there are dated figures and no Figures to date", () => {
+    expect(finding(run(cf, null))).toHaveLength(1);
+    expect(finding(run({}, null))).toEqual([]);
+  });
+
+  it("is never cleared by an allowance", () => {
+    const later = { ...cf, facts: [...cf.facts, { ...cf.facts[0], id: "F9", asOf: "2026-09-30" }] };
+    const result = lint({ ...thesis, structured: later as unknown as Record<string, unknown>, dataAsOf: "2026-08-22", allowances: new Set(["x"]) });
+    expect(finding(result)).toHaveLength(1);
   });
 });

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ViewBlockData } from "@/lib/view-types";
 import { badDates, countDates } from "@/test/iso-dates";
-import { buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
+import { lintText } from "@/modules/compliance";
+import { figureDates, parseFactsSheet } from "@/modules/casefile/client";
+import { KAVERI } from "@/test/fixtures/casefile";
+import { buildFiguresAfterDataAsOfSnapshot, buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
 import { buildFileView, buildShareCard } from "./file";
 import type { PublicSnapshot } from "./types";
 
@@ -66,9 +69,9 @@ function withSourceUrl(url: string): PublicSnapshot {
   };
 }
 
-describe("carried rules on the public file view", () => {
+describe("carried rules on the public file view (defence in depth: figures dated after data_as_of, which publish rule 3a blocks)", () => {
   // FY26 figures are dated 31 Mar 2026: 15 days old on 15 Apr 2026, so withheld until 30 Apr 2026.
-  const early = buildFileView(buildSeedSnapshot("2026-04-15"), "kavpump")!;
+  const early = buildFileView(buildFiguresAfterDataAsOfSnapshot(), "kavpump")!;
 
   it("rule 1: tests are built for the public audience, so a withheld reading cannot show which side of the line it is on", () => {
     expect(early.tests.map((t) => [t.status, t.reading, t.meter])).toEqual([["no_data", null, null], ["no_data", null, null], ["no_data", null, null]]);
@@ -91,9 +94,11 @@ describe("carried rules on the public file view", () => {
   });
 
   it("rule 4: the scenario table is public only once dataAsOf is 30 days old in IST (22 Aug + 30 = 21 Sep)", () => {
-    expect(buildFileView(buildSeedSnapshot("2026-09-20"), "kavpump")?.scenario).toBeNull();
+    // Before that day the whole file is withheld, so its scenario cannot reach a page either.
+    expect(buildFileView(buildSeedSnapshot("2026-09-20"), "kavpump")).toBeNull();
     expect(buildFileView(buildSeedSnapshot("2026-09-21"), "kavpump")?.scenario).toMatchObject({ frozenAtRev: 2, dataAsOf: "2026-08-22" });
-    expect(early.scenario).toBeNull();
+    expect(early.scenario).toMatchObject({ frozenAtRev: 2, dataAsOf: "2026-03-01" }); // lagged in this fixture
+    expect(buildShareCard(buildSeedSnapshot("2026-09-20"), "kavpump")).toBeNull();
   });
 
   it("rule 5: LedgerRow values[i] is null wherever withheld[i] is set", () => {
@@ -134,5 +139,33 @@ describe("carried rules on the public file view", () => {
       expect(chipsOf(v.view).every((c) => c.card.source.url === undefined)).toBe(true);
       expect(v.exhibits.flatMap((x) => x.ledger.periods).every((p) => p.source.url === undefined)).toBe(true);
     }
+  });
+});
+
+describe("a realistic file: today at least 30 days after dataAsOf, every figure dated at or before dataAsOf", () => {
+  const view = live();
+  const cf = parseFactsSheet(KAVERI.revisions[1].sheet).caseFile;
+
+  it("meets the publish gate's rule 3a, so the gate would have let it through", () => {
+    expect(view.dataAsOf).toBe("2026-08-22");
+    expect(figureDates(cf).length).toBeGreaterThan(5);
+    expect(figureDates(cf).every((d) => d <= view.dataAsOf)).toBe(true);
+    const lint = lintText({
+      revisionId: "r", kind: "thesis", title: "T", slug: "t", learningObjective: "Learn to read a file.", bodyMd: "V.\n\n## What would prove me wrong\n- T1: x.",
+      structured: cf as unknown as Record<string, unknown>, changeReason: null, companyName: null, companyOneLiner: null, themeName: null,
+      companyId: "c1", holdsPosition: "no", dataAsOf: view.dataAsOf, today: "2026-10-06", allowances: new Set(),
+    });
+    expect(lint.findings.filter((f) => f.field === "structured")).toEqual([]);
+  });
+
+  it("the whole view carries no figure of a fact dated after dataAsOf, and shows the ones that are old enough", () => {
+    const json = JSON.stringify(view);
+    const after = cf.facts.filter((f) => f.asOf > view.dataAsOf);
+    expect(after).toEqual([]);
+    for (const f of after) expect(json).not.toContain(String(f.value));
+    // Every fact is old enough here, so its figure is on the page (guards against a vacuous pass).
+    expect(cf.facts.length).toBe(4);
+    expect(view.factGroups.flatMap((g) => g.rows).every((r) => r.value !== null && r.withheldUntil === null)).toBe(true);
+    expect(json).toContain("2,150");
   });
 });

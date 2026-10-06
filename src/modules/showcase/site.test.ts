@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { badDates, countDates } from "@/test/iso-dates";
-import { buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
+import { buildFiguresAfterDataAsOfSnapshot, buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
 import { buildHomeStats, buildRegister, buildSiteChrome, buildWhatChanged } from "./site";
 
 const s = buildSeedSnapshot();
@@ -45,9 +45,9 @@ describe("site view models", () => {
   });
 
   describe("carried rules", () => {
-    it("rule 1: a reading still under the 30-day lag counts as no_data, never as met or not met", () => {
-      // FY26 figures (31 Mar 2026) are 15 days old on 15 Apr 2026.
-      const early = buildSeedSnapshot("2026-04-15");
+    it("rule 1 (defence in depth): a reading still under the 30-day lag counts as no_data, never as met or not met", () => {
+      // FY26 figures (31 Mar 2026) are 15 days old on 15 Apr 2026; the gate would block this state (rule 3a).
+      const early = buildFiguresAfterDataAsOfSnapshot();
       expect(buildRegister(early).map((f) => f.tests)).toEqual([
         { met: 0, watching: 0, not_met: 0, no_data: 3 },
         { met: 0, watching: 0, not_met: 0, no_data: 2 },
@@ -63,6 +63,16 @@ describe("site view models", () => {
       expect(buildWhatChanged(undated, 10).some((e) => e.fileNo === "01")).toBe(false);
     });
 
+    it("rules 3 and 4, defence in depth: a file whose dataAsOf is under 30 days old on today is not a file", () => {
+      // 22 Aug + 30 days = 21 Sep.
+      expect(buildRegister(buildSeedSnapshot("2026-09-20")).map((f) => f.fileNo)).toEqual([]);
+      expect(buildRegister(buildSeedSnapshot("2026-09-21")).map((f) => f.fileNo)).toEqual(["01", "02"]);
+      const young = buildSiteChrome(buildSeedSnapshot("2026-09-20"));
+      expect(young.counts.files).toBe(0);
+      expect(buildWhatChanged(buildSeedSnapshot("2026-09-20"), 10).some((e) => e.fileNo !== null)).toBe(false);
+      expect(buildHomeStats(buildSeedSnapshot("2026-09-20"))).toMatchObject({ files: 0, lastRevised: null });
+    });
+
     it("rule 2: every date handed to the site views is a real calendar date", () => {
       const models = [buildSiteChrome(s), buildRegister(s), buildWhatChanged(s, 10), buildHomeStats(s)];
       expect(countDates(models)).toBeGreaterThan(10);
@@ -72,6 +82,28 @@ describe("site view models", () => {
     it("rule 2: a malformed capture day or today never becomes a view date", () => {
       expect(() => buildSiteChrome({ ...s, today: "2026-02-30" })).toThrow();
       expect(buildSiteChrome({ ...s, captureDays: [] }).streak.lastEntry).toBeNull();
+    });
+  });
+
+  describe("what changed", () => {
+    it("a note revision after the first with no reason reads 'Revised.', the first reads 'First version.'", () => {
+      const note = s.items.find((i) => i.slug === "how-to-read-receivable-days")!;
+      const revisions = [
+        ...s.revisions.filter((r) => r.itemId !== note.id),
+        { id: "rn0a", itemId: note.id, revNo: 1, bodyMd: "a", structured: {}, changeReason: null, createdAt: "2026-09-01T05:00:00Z" },
+        { id: "rn0b", itemId: note.id, revNo: 2, bodyMd: "b", structured: {}, changeReason: null, createdAt: "2026-09-02T05:00:00Z" },
+      ];
+      const items = s.items.map((i) => (i.id === note.id ? { ...i, revisionId: "rn0b" } : i));
+      const entries = buildWhatChanged({ ...s, items, revisions }, 10).filter((e) => e.subject.href === "/notes/how-to-read-receivable-days");
+      expect(entries.map((e) => [e.detail, e.text])).toEqual([["Learning note · R2", "Revised."], ["Learning note · R1", "First version."]]);
+    });
+
+    it("stops after `limit` entries: older revisions are not diffed", () => {
+      expect(buildWhatChanged(s, 1)).toHaveLength(1);
+      expect(buildWhatChanged(s, 0)).toEqual([]);
+      // A revision beyond the limit whose body would throw when read is never touched.
+      const poisoned = { ...s, revisions: s.revisions.map((r) => (r.id === "r2a" ? { ...r, get bodyMd(): string { throw new Error("diffed"); } } : r)) };
+      expect(() => buildWhatChanged(poisoned, 1)).not.toThrow();
     });
   });
 });
