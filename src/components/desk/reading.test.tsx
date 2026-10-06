@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
-import { FACT_GROUPS, READ_FIRST, SOURCES, USED_IN, VIEW_BLOCKS } from "@/test/fixtures/desk-ui";
+import { describe, expect, it, vi } from "vitest";
+import type { ViewBlockData } from "@/lib/view-types";
+import { CHIP_F1, FACT_GROUPS, READ_FIRST, SOURCES, USED_IN, VIEW_BLOCKS } from "@/test/fixtures/desk-ui";
 import { expectNoMotion, expectTokenOnly, mockMatchMedia, renderWithMotion } from "@/test/ui";
 import { BlockHeader } from "./block-header";
 import { FactTable } from "./fact-table";
@@ -54,6 +55,30 @@ describe("ViewBlock", () => {
     expectTokenOnly(container);
   });
 
+  it("a withheld card never prints the figure, the prior or the quote, in the DOM or the accessible name (rule 3)", async () => {
+    mockMatchMedia();
+    const withheld: ViewBlockData[] = [
+      {
+        kind: "p",
+        inline: [
+          "Orders look strong ",
+          { chip: { ...CHIP_F1, chipId: "F9", card: { ...CHIP_F1.card, withheldUntil: "2026-10-25" } } },
+          ".",
+        ],
+      },
+    ];
+    renderWithMotion(<ViewBlock blocks={withheld} />);
+    await userEvent.click(screen.getByRole("button", { name: "S1 p. 131" }));
+    const card = screen.getByRole("region", { name: "Source for a withheld figure" });
+    expect(card).toHaveTextContent("[withheld until 25 Oct 2026]");
+    expect(card).toHaveTextContent("Annual report 2025-26");
+    for (const secret of ["1,284", "1,102", "Revenue from operations", "FY25"]) {
+      expect(card.textContent).not.toContain(secret);
+      expect(card.getAttribute("aria-label")).not.toContain(secret);
+    }
+    expect(card.querySelector("blockquote")).toBeNull();
+  });
+
   it("explains an empty view", () => {
     render(<ViewBlock blocks={[]} />);
     expect(screen.getByText(/No view written yet/)).toBeInTheDocument();
@@ -68,6 +93,28 @@ describe("FactTable and SourceList", () => {
     expect(screen.getByText("[withheld until 25 Oct 2026]")).toBeInTheDocument();
     expectTokenOnly(container);
     expectNoMotion(container);
+  });
+
+  it("two groups with the same title render without a key collision", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<FactTable groups={[FACT_GROUPS[0], { ...FACT_GROUPS[0] }]} />);
+    expect(screen.getAllByText("FY26")).toHaveLength(2);
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("links only http(s) sources and says the link opens a new tab", () => {
+    render(
+      <SourceList
+        sources={[
+          { ...SOURCES[0], url: "https://example.com/ar.pdf" },
+          { ...SOURCES[1], url: "javascript:alert(1)" },
+        ]}
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Annual report 2025-26 (fictional seed data) (opens in a new tab)" });
+    expect(link).toHaveAttribute("href", "https://example.com/ar.pdf");
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getByText("Q1 FY27 presentation (fictional seed data)", { exact: false })).toBeInTheDocument();
   });
 
   it("lists sources with type and filing date, and explains an empty list", () => {

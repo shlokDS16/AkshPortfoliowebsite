@@ -16,8 +16,8 @@ export function FactTable({ groups }: { groups: FactGroup[] }) {
   }
   return (
     <div className="space-y-(--block-gap)">
-      {groups.map((group) => (
-        <Table key={group.title} className="max-desk:block">
+      {groups.map((group, g) => (
+        <Table key={`${g}-${group.title}`} className="max-desk:block">
           <caption className="mb-2 text-left text-subtitle text-ink desk:text-subtitle-desk">
             {group.title}{" "}
             <span className="text-small font-normal text-ink-muted">

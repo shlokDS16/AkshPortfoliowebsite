@@ -1,4 +1,5 @@
 import { formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { MeterData } from "@/lib/view-types";
 
 const clamp = (v: number) => Math.min(100, Math.max(0, v));
@@ -8,9 +9,15 @@ const clamp = (v: number) => Math.min(100, Math.max(0, v));
  * label, 12 px ink dot for the current reading, hollow ring for the prior. Figures never move.
  */
 export function ThresholdMeter({ meter }: { meter: MeterData }) {
-  const at = (v: number) => clamp(((v - meter.min) / (meter.max - meter.min)) * 100);
+  // An inverted or empty range is normalised, never NaN: a zero span puts every mark at the start.
+  const lo = Math.min(meter.min, meter.max);
+  const span = Math.max(meter.min, meter.max) - lo;
+  const at = (v: number) => (span > 0 ? clamp(((v - lo) / span) * 100) : 0);
   const pct = (v: number) => `${at(v).toFixed(2)}%`;
-  const [from, to] = meter.direction === "below" ? [meter.min, meter.threshold] : [meter.threshold, meter.max];
+  const [from, to] = meter.direction === "below" ? [lo, meter.threshold] : [meter.threshold, lo + span];
+  const labelAt = at(meter.threshold);
+  // Centred on the tick, except near the ends, where it hangs inward so it stays inside the track.
+  const labelShift = labelAt < 12 ? "translate-x-0" : labelAt > 88 ? "-translate-x-full" : "-translate-x-1/2";
   const current = meter.current === null ? "not disclosed" : `${formatNumber(meter.current)} ${meter.unit}`;
   return (
     <div role="img" aria-label={`${meter.labels.threshold}; current ${current}`} className="w-full min-w-40">
@@ -27,7 +34,7 @@ export function ThresholdMeter({ meter }: { meter: MeterData }) {
       </div>
       <div className="relative mt-1 h-4 text-caption tabular-nums">
         <span className="absolute left-0 text-ink-muted">{meter.labels.min}</span>
-        <span className="absolute -translate-x-1/2 font-medium whitespace-nowrap text-neel" style={{ left: pct(meter.threshold) }}>
+        <span className={cn("absolute font-medium whitespace-nowrap text-neel", labelShift)} style={{ left: pct(meter.threshold) }}>
           {meter.labels.threshold}
         </span>
         <span className="absolute right-0 text-ink-muted">{meter.labels.max}</span>

@@ -17,7 +17,7 @@ describe("KillCriteriaTable", () => {
     expect(within(rows[0]).getByText("T1")).toHaveClass("text-ink-muted");
     expect(within(rows[0]).getByText("Watching")).toBeInTheDocument();
     expect(within(rows[0]).getByText("Data to 31 Mar 2026")).toBeInTheDocument();
-    expect(within(rows[2]).getAllByText("Not disclosed yet").length).toBeGreaterThan(0);
+    expect(within(rows[2]).getAllByText("Not disclosed yet")).toHaveLength(1);
     expectTokenOnly(container);
   });
 
@@ -39,6 +39,14 @@ describe("KillCriteriaTable", () => {
     expect(container.querySelector("[data-tick]")).toBeNull();
   });
 
+  it("a withheld reading shows the marker and no empty box", () => {
+    mockMatchMedia();
+    mockIntersectionObserver();
+    render(<KillCriteriaTable tests={[{ ...KILL_TESTS[2], withheldUntil: "2026-10-25" }]} />);
+    expect(screen.getByText("[withheld until 25 Oct 2026]")).toBeInTheDocument();
+    expect(screen.queryByText("Not disclosed yet")).toBeNull();
+  });
+
   it("explains an empty test list", () => {
     render(<KillCriteriaTable tests={[]} />);
     expect(screen.getByText(/No tests yet/)).toBeInTheDocument();
@@ -55,5 +63,38 @@ describe("ThresholdMeter", () => {
     expect(container.querySelector("[data-mark='met-zone']")?.getAttribute("style")).toContain("left: 64.29%");
     expect(screen.getByText("Test 1 line: 150 days")).toHaveClass("text-neel");
     expectTokenOnly(container);
+  });
+
+  it("direction below shades from the scale start to the threshold", () => {
+    const { container } = render(<ThresholdMeter meter={KILL_TESTS[1].meter!} />);
+    const zone = container.querySelector("[data-mark='met-zone']")?.getAttribute("style");
+    expect(zone).toContain("left: 0%");
+    expect(zone).toContain("width: 40%");
+    expect(container.querySelector("[data-mark='current']")?.getAttribute("style")).toContain("left: 57%");
+  });
+
+  it("never prints NaN for an empty or inverted range", () => {
+    const base = KILL_TESTS[0].meter!;
+    for (const range of [{ min: 100, max: 100 }, { min: 200, max: 60 }]) {
+      const { container, unmount } = render(<ThresholdMeter meter={{ ...base, ...range }} />);
+      expect(container.innerHTML).not.toContain("NaN");
+      unmount();
+    }
+    const { container } = render(<ThresholdMeter meter={{ ...base, min: 200, max: 60 }} />);
+    expect(container.querySelector("[data-mark='threshold']")?.getAttribute("style")).toContain("left: 64.29%");
+  });
+
+  it("keeps the threshold label inside the track at the extremes", () => {
+    const base = KILL_TESTS[0].meter!;
+    const label = (threshold: number) => {
+      const { unmount } = render(<ThresholdMeter meter={{ ...base, threshold }} />);
+      const el = screen.getByText(base.labels.threshold);
+      const cls = el.className;
+      unmount();
+      return cls;
+    };
+    expect(label(base.min)).toContain("translate-x-0");
+    expect(label(base.max)).toContain("-translate-x-full");
+    expect(label(130)).toContain("-translate-x-1/2");
   });
 });

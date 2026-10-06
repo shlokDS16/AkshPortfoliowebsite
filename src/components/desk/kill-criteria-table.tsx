@@ -9,6 +9,9 @@ import { AsOf, Withheld } from "./as-of";
 import { EmptyState } from "./empty-state";
 import { ThresholdMeter } from "./threshold-meter";
 
+/** The dashed "Not disclosed yet" box stands in for a meter that cannot exist; it is the only such text, and never shown for a withheld reading. */
+const emptyBox = (t: KillTest) => !t.meter && t.status === "no_data" && !t.withheldUntil && t.reading === null;
+
 /** "I would be wrong if": statuses are shapes + words, readings carry their data date (rule 3). */
 export function KillCriteriaTable({ tests }: { tests: KillTest[] }) {
   if (tests.length === 0) {
@@ -46,13 +49,17 @@ export function KillCriteriaTable({ tests }: { tests: KillTest[] }) {
               <TD className="font-mono text-mono-id text-ink-muted max-desk:inline max-desk:p-0 max-desk:pr-2">{t.id}</TD>
               <TD className="text-body text-ink-body max-desk:inline max-desk:p-0">{t.condition}</TD>
               <TD className="max-desk:mt-2 max-desk:block max-desk:p-0">
-                {t.withheldUntil ? <Withheld availableOn={t.withheldUntil} /> : <span className="tabular-nums">{t.reading ?? "Not disclosed yet"}</span>}
+                {t.withheldUntil ? (
+                  <Withheld availableOn={t.withheldUntil} />
+                ) : t.reading !== null || !emptyBox(t) ? (
+                  <span className="tabular-nums">{t.reading ?? "Not disclosed yet"}</span>
+                ) : null}
                 {t.meter && !t.withheldUntil ? (
                   <div className="mt-2">
                     <ThresholdMeter meter={t.meter} />
                   </div>
                 ) : null}
-                {!t.meter && t.status === "no_data" ? (
+                {emptyBox(t) ? (
                   <div className="mt-2 rounded-sm border border-dashed border-rule-strong px-2 py-1 text-caption text-ink-muted">Not disclosed yet</div>
                 ) : null}
               </TD>
