@@ -48,3 +48,4 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - 2026-10-06: Task 9 complete (publish gate service, retraction, desk gate panel; allowances bound to flagged sentences; latest-only publish via migration 0003, pushed to hosted). Q8 logged (forged lint_result via direct RPC; decide before launch). Plan 1A 8/14.
 - 2026-10-06: Task 10 complete (capture grammar parser; brackets/quotes/commas, digit-leading NSE symbols like 5PAISA, money amounts like $5M excluded, linear URL trim). Plan 1A 9/14.
 - 2026-10-06: Task 11 complete (catalog stubs via one ensureStub helper, race-tolerant; saveCapture verbatim-first and idempotent by clientId; submitCapture with fixed error codes; real-DB e2e on the local stack). Plan 1A 10/14.
+- 2026-10-06: Task 11 complete (verbatim capture log, shared race-tolerant stub helper, idempotent save; review approved). Plan 1A 10/14.
