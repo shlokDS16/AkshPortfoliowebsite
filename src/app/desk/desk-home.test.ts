@@ -6,6 +6,9 @@ const listCapturesSince = vi.fn();
 
 vi.mock("@/modules/identity", () => ({ requireAdmin: vi.fn(async () => ({ email: "admin@desk.test" })) }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn(async () => ({})) }));
+vi.mock("@/modules/compliance", () => ({ listBlockedItems: vi.fn(async () => []) }));
+vi.mock("./desk-data", () => ({ namesToReview: vi.fn(async () => 0) }));
+vi.mock("@/modules/capture/actions", () => ({ refileCaptureAction: vi.fn() }));
 vi.mock("@/modules/capture", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/capture")>()),
   listCapturesSince: (...args: unknown[]) => listCapturesSince(...args),
@@ -16,7 +19,7 @@ vi.mock("./capture-box", () => ({ CaptureBox: () => createElement("div", { "data
 import DeskHome from "./page";
 
 async function render(): Promise<string> {
-  return renderToStaticMarkup(await DeskHome());
+  return renderToStaticMarkup(await DeskHome({ searchParams: Promise.resolve({}) }));
 }
 
 afterEach(() => vi.restoreAllMocks());

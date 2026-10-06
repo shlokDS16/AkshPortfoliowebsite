@@ -96,6 +96,14 @@ export function createMemoryResearchRepo(): MemoryResearchRepo {
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
       return theses[0] ?? null;
     },
+    async findRevisionContaining(text, sinceIso, untilIso) {
+      const hit = revisions
+        .filter((r) => r.createdAt >= sinceIso && r.createdAt <= untilIso)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .slice(0, 50)
+        .find((r) => r.bodyMd.includes(text));
+      return hit ? { itemId: hit.itemId } : null;
+    },
     async listRecentItems(limit) {
       return [...items.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, limit);
     },

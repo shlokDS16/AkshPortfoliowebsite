@@ -61,5 +61,7 @@ export interface ResearchRepo {
   getItem(id: string): Promise<Item | null>;
   listRevisions(itemId: string): Promise<Revision[]>;
   findThesisForCompany(companyId: string): Promise<Item | null>;
+  /** The first revision (oldest first, at most 50 read) created in the window whose text contains `text`. */
+  findRevisionContaining(text: string, sinceIso: string, untilIso: string): Promise<{ itemId: string } | null>;
   listRecentItems(limit: number): Promise<Item[]>;
 }

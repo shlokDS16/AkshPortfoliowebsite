@@ -1,5 +1,6 @@
 export {
   addRevisionInput,
+  BODY_TOO_LONG_MESSAGE,
   appendRevisionInput,
   createItemInput,
   updateItemMetaInput,

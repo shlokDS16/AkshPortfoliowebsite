@@ -2,48 +2,30 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Textarea } from "@/components/ui/textarea";
-import { submitCapture } from "@/modules/capture/actions";
 import {
-  createCaptureQueue,
+  deskQueue,
+  dismissCorrupt,
+  dismissRejected,
+  enqueueCapture,
+  flushDeskQueue,
+  QUEUE_EVENT,
+} from "@/components/desk/private/desk-queue";
+import { Textarea } from "@/components/ui/textarea";
+import {
   isCaptureStorageKey,
   rejectionText,
-  resolveStorageInfo,
-  webStorage,
   type CaptureQueue,
-  type CaptureSource,
   type CorruptCapture,
   type FlushOptions,
-  type LockRunner,
-  type QueuedCapture,
   type RejectedCapture,
-  type SendVerdict,
 } from "@/modules/capture/client";
 import { RejectedList, type AttentionItem } from "./rejected-list";
 
-const LOCK_NAME = "desk-capture-flush";
 const RETRY_MS = 30_000;
-
-function detectSource(): CaptureSource {
-  return window.matchMedia("(pointer: coarse)").matches ? "mobile" : "web";
-}
-
-/** One flush at a time across tabs where the browser supports it; within a tab the queue is single-flight. */
-const withLock: LockRunner = async (fn) => {
-  if (typeof navigator !== "undefined" && navigator.locks) return await navigator.locks.request(LOCK_NAME, fn);
-  return fn();
-};
-
-async function sendToServer(entry: QueuedCapture): Promise<SendVerdict> {
-  const response = await submitCapture({ clientId: entry.clientId, rawText: entry.rawText, source: entry.source });
-  if (response.ok) return "sent";
-  return response.retry ? "retry" : { outcome: "drop", reason: response.code };
-}
 
 export function CaptureBox() {
   const router = useRouter();
   const ref = useRef<HTMLTextAreaElement>(null);
-  const queueRef = useRef<CaptureQueue | null>(null);
   const [text, setText] = useState("");
   const [saved, setSaved] = useState(false);
   const [waiting, setWaiting] = useState(0);
@@ -51,14 +33,11 @@ export function CaptureBox() {
   const [corrupt, setCorrupt] = useState<CorruptCapture[]>([]);
   const [durable, setDurable] = useState(true);
 
-  /** Created on first use in the browser (never during render), so there is exactly one per mount. */
+  /** The tab's one queue (desk-queue.ts), shared with the strips and cards; browser only. */
   const getQueue = useCallback((): CaptureQueue => {
-    if (!queueRef.current) {
-      const info = resolveStorageInfo(() => webStorage(window.localStorage));
-      queueRef.current = createCaptureQueue(info.storage, { withLock });
-      if (!info.durable) setDurable(false);
-    }
-    return queueRef.current;
+    const { queue, durable: storageDurable } = deskQueue();
+    if (!storageDurable) setDurable(false);
+    return queue;
   }, []);
 
   const syncView = useCallback(() => {
@@ -71,7 +50,7 @@ export function CaptureBox() {
 
   const flush = useCallback(
     async (options?: FlushOptions) => {
-      const result = await getQueue().flush(sendToServer, options);
+      const result = await flushDeskQueue(options);
       syncView();
       if (result.sent > 0) {
         setSaved(true);
@@ -79,7 +58,7 @@ export function CaptureBox() {
       }
       return result;
     },
-    [getQueue, router, syncView],
+    [router, syncView],
   );
 
   useEffect(() => {
@@ -95,13 +74,18 @@ export function CaptureBox() {
     };
   }, [flush]);
 
-  // Another tab queued, sent, rejected or dismissed something: show the same counts and lists here.
+  // Another tab queued, sent, rejected or dismissed something (storage), or the queue changed from this
+  // tab outside the box (QUEUE_EVENT): show the same counts and lists here.
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (isCaptureStorageKey(event.key)) syncView();
     };
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener(QUEUE_EVENT, syncView);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(QUEUE_EVENT, syncView);
+    };
   }, [syncView]);
 
   // A server that is down (not just offline) never fires "online": keep trying while something waits.
@@ -123,7 +107,7 @@ export function CaptureBox() {
     const rawText = text;
     if (rawText.trim() === "") return;
     // Queue first: the thought is on the device before any network call (spec s9).
-    getQueue().enqueue({ clientId: crypto.randomUUID(), rawText, source: detectSource(), queuedAt: new Date().toISOString() });
+    enqueueCapture(rawText);
     setText("");
     setSaved(false);
     syncView(); // from here the note is on the device, and the status says so
@@ -146,19 +130,13 @@ export function CaptureBox() {
       id: entry.clientId,
       note: rejectionText(entry.reason),
       text: entry.rawText,
-      onDismiss: () => {
-        getQueue().dismissRejected(entry.clientId);
-        syncView();
-      },
+      onDismiss: () => dismissRejected(entry.clientId),
     })),
     ...corrupt.map((entry) => ({
       id: entry.key,
       note: "This device could not read a stored capture. The raw saved data is below; it may still hold your text.",
       text: entry.rawValue,
-      onDismiss: () => {
-        getQueue().dismissCorrupt(entry.key);
-        syncView();
-      },
+      onDismiss: () => dismissCorrupt(entry.key),
     })),
   ];
 

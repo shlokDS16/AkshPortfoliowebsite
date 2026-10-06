@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
-import { createCaptureDeps, listCapturesSince, saveCapture } from "@/modules/capture";
+import { createCaptureDeps, listCapturesSince, refileCapture, saveCapture } from "@/modules/capture";
 import { createSupabaseCatalogRepo, ensureCompany } from "@/modules/catalog";
 import { requireStack, tokenHashFor } from "./support/auth";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
@@ -112,4 +112,29 @@ test("the database still refuses to rewrite or delete a stored capture", async (
   expect(removal.error?.message ?? "").toMatch(/never deleted|permission denied|denied/i);
   const { data } = await db.from("captures").select("raw_text").eq("id", captureId).single();
   expect(data?.raw_text).toBe(`immutable ${RUN}`);
+});
+
+test("refile files a failed capture, and links an item whose capture link was lost", async () => {
+  const deps = createCaptureDeps(db);
+
+  const outage = { ...deps, research: { ...deps.research, insertItem: () => Promise.reject(new Error("simulated outage")) } };
+  const failedText = `refile after outage ${RUN}`;
+  const failed = await saveCapture(outage, entry(failedText));
+  expect(failed).toMatchObject({ itemId: null, parseError: "filing-failed" });
+  const refiled = await refileCapture(deps, failed.captureId, new Date());
+  const { data: filedRow } = await db.from("captures").select("item_id, parsed").eq("id", failed.captureId).single();
+  expect(filedRow?.item_id).toBe(refiled.itemId);
+  expect(filedRow?.parsed).not.toHaveProperty("error");
+
+  // The item is written but the capture row is never linked to it (a killed function): no parse is recorded.
+  const lostText = `refile after lost link ${RUN}`;
+  const unlinked = { ...deps, captures: { ...deps.captures, attach: () => Promise.reject(new Error("simulated blip")) } };
+  const lost = await saveCapture(unlinked, entry(lostText));
+  expect(lost).toMatchObject({ parseError: "link-failed" });
+  const linked = await refileCapture(deps, lost.captureId, new Date(Date.now() + 11 * 60_000));
+  expect(linked.itemId).toBe(lost.itemId);
+  const { count } = await db.from("items").select("id", { count: "exact", head: true }).eq("title", lostText);
+  expect(count).toBe(1);
+  const { data: lostRow } = await db.from("captures").select("item_id").eq("id", lost.captureId).single();
+  expect(lostRow?.item_id).toBe(lost.itemId);
 });

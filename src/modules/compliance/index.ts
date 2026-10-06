@@ -9,3 +9,4 @@ export { normaliseSentence, splitSentences } from "./sentences";
 export { decisionFromRow, type DecisionRow, type GateDecision, type GateFailure } from "./decision";
 export { createSupabaseComplianceRepo, type ComplianceRepo, type GateRpc, type PublishContext } from "./repo";
 export { allowFlaggedSentence, getLatestDecision, PublishContextNotFoundError, runPublishGate, type GateDeps, type PublishDeps } from "./publish";
+export { latestFailures, listBlockedItems, type BlockedItem } from "./blocked";

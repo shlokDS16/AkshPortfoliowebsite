@@ -2,10 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { errorShape } from "@/lib/errors";
+import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
+import { isItemId } from "@/modules/research";
 import { createCaptureDeps } from "./deps";
 import { submitErrorCode, submitErrorText, type FilingErrorCode, type SubmitErrorCode } from "./messages";
+import { CaptureNotRefilableError, refileCapture } from "./refile";
 import { saveCapture, saveCaptureInput } from "./service";
 import type { CaptureSource } from "./types";
 
@@ -45,4 +48,17 @@ export async function submitCapture(input: SubmitCaptureInput): Promise<SubmitCa
     console.error("capture action failed", errorShape(error));
     return failure("save-failed", true);
   }
+}
+
+/** Files a stored capture again (the "File it now" button on a Needs you card). */
+export async function refileCaptureAction(captureId: string): Promise<void> {
+  await requireAdmin();
+  if (!isItemId(captureId)) failTo("/desk", new CaptureNotRefilableError(), "capture");
+  try {
+    await refileCapture(createCaptureDeps(await createSupabaseServerClient()), captureId, new Date());
+  } catch (error) {
+    failTo("/desk", error, "capture");
+  }
+  revalidatePath("/desk");
+  doneTo("/desk", "refiled");
 }

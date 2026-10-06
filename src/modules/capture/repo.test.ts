@@ -23,6 +23,12 @@ describe("toListEntry", () => {
     expect(toListEntry(row(null)).parseError).toBeNull();
   });
 
+  it("tells a capture that was never parsed from one parsed without an error", () => {
+    expect(toListEntry(row(null)).parsedMissing).toBe(true);
+    expect(toListEntry(row({ kind: "note" })).parsedMissing).toBe(false);
+    expect(toListEntry(row({ error: "thesis-full" }))).toMatchObject({ parseError: "thesis-full", parsedMissing: false });
+  });
+
   it("maps the company join", () => {
     expect(toListEntry(row({}))).toMatchObject({ companySymbol: "TCS", companyName: "Tata Consultancy", companyId: "co1" });
     expect(toListEntry({ ...row({}), companies: null })).toMatchObject({ companySymbol: null, companyName: null });

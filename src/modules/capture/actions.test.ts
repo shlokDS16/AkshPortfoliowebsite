@@ -14,6 +14,11 @@ const requireAdmin = vi.fn(async () => {
 const revalidatePath = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath: (path: string) => revalidatePath(path) }));
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  },
+}));
 vi.mock("@/modules/identity", () => ({ requireAdmin: () => requireAdmin() }));
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => {
@@ -23,7 +28,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("./deps", () => ({ createCaptureDeps: () => state.deps }));
 
-import { submitCapture } from "./actions";
+import { refileCaptureAction, submitCapture } from "./actions";
 
 let captures: MemoryCaptureRepo;
 let research: MemoryResearchRepo;
@@ -109,5 +114,32 @@ describe("submitCapture", () => {
     const result = await submitCapture(entry("a thought"));
     expect(result).toMatchObject({ ok: true, itemId: null, parseError: "filing-failed" });
     expect(captures.records).toHaveLength(1);
+  });
+});
+
+describe("refileCaptureAction", () => {
+  it("files a failed capture, refreshes the desk and confirms with a fixed notice code", async () => {
+    state.deps = { captures, research: { ...research, insertItem: () => Promise.reject(new Error("db down")) }, catalog: createMemoryCatalogRepo() };
+    const failed = await submitCapture(entry("a thought"));
+    if (!failed.ok) throw new Error("expected the capture to be stored");
+    state.deps = { captures, research, catalog: createMemoryCatalogRepo() };
+    order.length = 0;
+    await expect(refileCaptureAction(failed.captureId)).rejects.toThrow("NEXT_REDIRECT:/desk?notice=refiled");
+    expect(order[0]).toBe("requireAdmin");
+    expect(revalidatePath).toHaveBeenCalledWith("/desk");
+    expect(captures.records[0].itemId).not.toBeNull();
+  });
+
+  it("sends a filed capture and a crafted id back with a fixed error code, never free text", async () => {
+    const saved = await submitCapture(entry("filed fine"));
+    if (!saved.ok) throw new Error("expected the capture to be stored");
+    await expect(refileCaptureAction(saved.captureId)).rejects.toThrow("NEXT_REDIRECT:/desk?error=capture-not-refilable");
+    await expect(refileCaptureAction("not-an-id")).rejects.toThrow("NEXT_REDIRECT:/desk?error=capture-not-refilable");
+  });
+
+  it("does nothing when the admin check fails", async () => {
+    requireAdmin.mockRejectedValueOnce(new Error("NEXT_REDIRECT:/login"));
+    await expect(refileCaptureAction(randomUUID())).rejects.toThrow("NEXT_REDIRECT:/login");
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

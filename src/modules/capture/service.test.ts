@@ -212,6 +212,18 @@ describe("saveCapture", () => {
     });
   });
 
+  it("records thesis-full, not filing-failed, when a t: append would pass the 200,000-character limit", async () => {
+    const { deps, captures, research } = setup();
+    await saveCapture(deps, input("t: $BIGCO first view"));
+    const [revision] = research.revisions;
+    revision.bodyMd = "x".repeat(199_990);
+    const result = await saveCapture(deps, input(`t: $BIGCO ${"y".repeat(100)}`));
+    expect(result).toMatchObject({ itemId: null, duplicate: false, parseError: "thesis-full" });
+    expect(captures.records[1]).toMatchObject({ itemId: null, parsed: expect.objectContaining({ error: "thesis-full" }) });
+    expect(research.revisions).toHaveLength(1); // nothing was added to the thesis
+    expect(captures.records[1].rawText).toContain("yyyy"); // and the text is still stored
+  });
+
   it("stores URLs on the capture for Phase 2 ingestion", async () => {
     const { deps, captures } = setup();
     await saveCapture(deps, input("read https://example.com/ar.pdf"));

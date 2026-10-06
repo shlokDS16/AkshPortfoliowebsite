@@ -18,6 +18,7 @@ export {
 } from "./messages";
 export { saveCapture, saveCaptureInput, type SaveCaptureDeps, type SaveCaptureInput, type SaveCaptureResult } from "./service";
 export { createSupabaseCaptureRepo } from "./repo";
+export { CaptureNotRefilableError, needsRefile, refileCapture, REFILE_AFTER_MS } from "./refile";
 export { createCaptureDeps, listCapturesSince } from "./deps";
 export { groupTodayByCompany, type TodayGroup } from "./today";
 export { captureStreak, type Streak } from "./streak";

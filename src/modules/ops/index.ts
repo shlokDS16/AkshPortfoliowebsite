@@ -14,3 +14,4 @@ export {
   type PublicHealth,
 } from "./health";
 export { DAILY_STEPS, PUMP_STEPS, runDaily, runPump } from "./schedule";
+export { getLiveness, livenessFromReport, type LivenessState } from "./liveness";

@@ -18,6 +18,8 @@ const ERRORS = {
   "append-only": "Revisions are append-only: an existing revision cannot be changed or deleted. Save a new revision instead.",
   "item-rule": "The database rejected these values. Check the fields (title, kind, linked company or theme) and try again.",
   "access-denied": "You are not allowed to do that. Sign in again as the admin.",
+  "body-too-long": "This revision is too long (200,000 characters max). Start a new item or shorten it.", // = BODY_TOO_LONG_MESSAGE (research/schema.ts; a test keeps them equal)
+  "capture-not-refilable": "This capture is already filed, or is still being filed. Reload in a minute.",
   "save-failed": "Could not save. Try again.",
 } as const;
 
@@ -33,6 +35,7 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   ITEM_RULE: "item-rule",
   INVALID_INPUT: "invalid-input",
   ACCESS_DENIED: "access-denied",
+  CAPTURE_NOT_REFILABLE: "capture-not-refilable",
 };
 
 /**
@@ -68,6 +71,7 @@ const NOTICES = {
   published: "Published.",
   unpublished: "Unpublished. The item is private again and can be edited.",
   "allowance-saved": "Sentence allowed. Publish again to re-run the gate.",
+  refiled: "Filed.",
   "revision-pending-gate":
     "Revision saved. This item is public, so the new revision is waiting for the publishing gate; the public page still shows the previous one.",
 } as const;

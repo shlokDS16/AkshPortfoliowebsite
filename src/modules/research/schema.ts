@@ -12,6 +12,9 @@ export type ItemStatus = (typeof ITEM_STATUSES)[number];
 export type HoldsPosition = (typeof HOLDS_POSITIONS)[number];
 export type RevisionAuthor = (typeof REVISION_AUTHORS)[number];
 
+/** The one text for a revision past the body limit; capture filing and messages.ts recognise it. */
+export const BODY_TOO_LONG_MESSAGE = "This revision is too long (200,000 characters max). Start a new item or shorten it.";
+
 const structured = z.record(z.string(), z.unknown());
 const itemId = z.guid();
 
@@ -21,7 +24,7 @@ export { isUuid as isItemId } from "@/lib/ids";
 export const createItemInput = z.object({
   kind: z.enum(ITEM_KINDS, "Choose a kind"),
   title: z.string().trim().min(1, "Title is required").max(200),
-  bodyMd: z.string().max(200_000).default(""),
+  bodyMd: z.string().max(200_000, BODY_TOO_LONG_MESSAGE).default(""),
   companyId: z.guid().nullable().default(null),
   themeId: z.guid().nullable().default(null),
   learningObjective: z.string().trim().min(1).max(300).nullable().default(null),
@@ -32,7 +35,7 @@ export type CreateItemInput = z.input<typeof createItemInput>;
 
 export const addRevisionInput = z.object({
   itemId,
-  bodyMd: z.string().max(200_000),
+  bodyMd: z.string().max(200_000, BODY_TOO_LONG_MESSAGE),
   structured: structured.default({}),
   changeReason: z.string().trim().max(300).nullable().default(null),
   author: z.enum(REVISION_AUTHORS).default("aksh"),

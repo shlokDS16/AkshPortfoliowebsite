@@ -24,6 +24,8 @@ export type CaptureListEntry = {
   companySymbol: string | null;
   companyName: string | null;
   parseError: FilingErrorCode | null;
+  /** No parse was ever recorded: a function killed mid-filing, or a lost link. */
+  parsedMissing: boolean;
 };
 
 export type CaptureAttachment = {
@@ -35,6 +37,7 @@ export type CaptureAttachment = {
 
 export interface CaptureRepo {
   findByClientId(clientId: string): Promise<CaptureRecord | null>;
+  findById(id: string): Promise<CaptureRecord | null>;
   insertRaw(input: { rawText: string; source: CaptureSource; clientId: string }): Promise<CaptureRecord>;
   attach(id: string, patch: CaptureAttachment): Promise<void>;
   listSince(sinceIso: string): Promise<CaptureListEntry[]>;

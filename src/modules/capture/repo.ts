@@ -54,6 +54,7 @@ export function toListEntry(r: ListRow): CaptureListEntry {
     companySymbol: r.companies?.nse_symbol ?? null,
     companyName: r.companies?.name ?? null,
     parseError: asFilingError(asRecord(r.parsed)?.error),
+    parsedMissing: asRecord(r.parsed) === null,
   };
 }
 
@@ -62,6 +63,11 @@ export function createSupabaseCaptureRepo(db: Db): CaptureRepo {
     async findByClientId(clientId) {
       const { data, error } = await db.from("captures").select(CAPTURE_COLUMNS).eq("client_id", clientId).maybeSingle();
       if (error) throw dbError("capture.findByClientId", error);
+      return data ? toRecord(data) : null;
+    },
+    async findById(id) {
+      const { data, error } = await db.from("captures").select(CAPTURE_COLUMNS).eq("id", id).maybeSingle();
+      if (error) throw dbError("capture.findById", error);
       return data ? toRecord(data) : null;
     },
     async insertRaw({ rawText, source, clientId }) {

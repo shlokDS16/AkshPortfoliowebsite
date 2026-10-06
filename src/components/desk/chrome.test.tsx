@@ -181,6 +181,12 @@ describe("StreakStrip", () => {
     expectTokenOnly(container);
     expectNoMotion(container);
   });
+
+  it("the desk variant says what Aksh logged and carries no last-entry line", () => {
+    render(<StreakStrip {...STREAK} variant="desk" />);
+    expect(screen.getByText("Logged research on 22 of the last 30 days.")).toBeInTheDocument();
+    expect(screen.queryByText(/Last entry/)).toBeNull();
+  });
 });
 
 describe("matchMedia", () => {

@@ -126,6 +126,18 @@ export function createSupabaseResearchRepo(db: Db): ResearchRepo {
       if (error) throw toDeskError("research.findThesisForCompany", error);
       return data ? toItem(data) : null;
     },
+    async findRevisionContaining(text, sinceIso, untilIso) {
+      const { data, error } = await db
+        .from("item_revisions")
+        .select("item_id, body_md")
+        .gte("created_at", sinceIso)
+        .lte("created_at", untilIso)
+        .order("created_at", { ascending: true })
+        .limit(50);
+      if (error) throw toDeskError("research.findRevisionContaining", error);
+      const hit = data.find((r) => r.body_md.includes(text));
+      return hit ? { itemId: hit.item_id } : null;
+    },
     async listRecentItems(limit) {
       const { data, error } = await db
         .from("items")

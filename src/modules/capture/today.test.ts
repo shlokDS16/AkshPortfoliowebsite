@@ -11,6 +11,7 @@ const capture = (id: string, createdAt: string, company: { id: string; symbol: s
   companySymbol: company?.symbol ?? null,
   companyName: company?.symbol ?? null,
   parseError: null,
+  parsedMissing: false,
 });
 
 describe("groupTodayByCompany", () => {

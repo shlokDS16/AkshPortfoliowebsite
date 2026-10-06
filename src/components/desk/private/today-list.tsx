@@ -1,0 +1,41 @@
+import Link from "next/link";
+import { formatTime } from "@/lib/format";
+import { filingErrorText, parseCapture, type TodayGroup } from "@/modules/capture";
+
+const KIND_WORD = { note: "private note", thesis: "thesis", learning: "learning note", process: "process note" } as const;
+
+/** Today's captures grouped by company (spec s5), newest first; kind and time per row (segment 4 C). */
+export function TodayList({ groups }: { groups: TodayGroup[] }) {
+  if (groups.length === 0) return null;
+  return (
+    <div className="space-y-4">
+      {groups.map((group) => (
+        <div key={group.key}>
+          <h3 className="font-mono text-mono-label uppercase text-ink-muted">{group.label}</h3>
+          <ol className="divide-y divide-rule">
+            {group.entries.map((e) => (
+              <li key={e.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 py-(--row-y)">
+                <div>
+                  <p className="whitespace-pre-wrap text-body text-ink">
+                    {e.itemId ? (
+                      <Link href={`/desk/items/${e.itemId}`} className="text-ink no-underline hover:underline">
+                        {e.rawText}
+                      </Link>
+                    ) : (
+                      e.rawText
+                    )}
+                  </p>
+                  <p className="text-small text-ink-muted">
+                    {KIND_WORD[parseCapture(e.rawText).kind]}
+                    {e.parseError ? <span className="text-warn"> · {filingErrorText(e.parseError)}</span> : null}
+                  </p>
+                </div>
+                <span className="text-small tabular-nums text-ink-muted">{formatTime(e.createdAt)}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+    </div>
+  );
+}

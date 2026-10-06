@@ -13,6 +13,9 @@ export function createMemoryCaptureRepo(): MemoryCaptureRepo {
     async findByClientId(clientId) {
       return records.find((r) => r.clientId === clientId) ?? null;
     },
+    async findById(id) {
+      return records.find((r) => r.id === id) ?? null;
+    },
     async insertRaw({ rawText, source, clientId }) {
       if (records.some((r) => r.clientId === clientId)) {
         throw new DbError("capture.insertRaw", "23505", "duplicate key value violates unique constraint");
@@ -56,6 +59,7 @@ export function createMemoryCaptureRepo(): MemoryCaptureRepo {
           companySymbol: null,
           companyName: null,
           parseError: asFilingError(r.parsed?.error),
+          parsedMissing: r.parsed === null,
         }));
     },
   };

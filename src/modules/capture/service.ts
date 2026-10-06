@@ -1,8 +1,8 @@
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import { errorShapeText } from "@/lib/errors";
 import { isUniqueViolation } from "@/lib/supabase/errors";
 import { ensureCompany, ensureTheme, type CatalogRepo, type Company, type Theme } from "@/modules/catalog";
-import { appendRevision, createItem, type ResearchRepo } from "@/modules/research";
+import { appendRevision, BODY_TOO_LONG_MESSAGE, createItem, type ResearchRepo } from "@/modules/research";
 import { asFilingError, CAPTURE_TOO_LONG_MESSAGE, EMPTY_CAPTURE_MESSAGE, type FilingErrorCode } from "./messages";
 import { parseCapture, type CaptureKind, type ParsedCapture } from "./parse";
 import { clipUnits } from "./text";
@@ -41,7 +41,10 @@ const duplicateOf = (record: CaptureRecord): SaveCaptureResult => ({
 
 type Filed = { itemId: string; company: Company | null; theme: Theme | null };
 
-async function fileCapture(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<Filed> {
+/** A thesis append past the body limit is not a failure to retry: filing it again would fail the same way. */
+const bodyTooLong = (e: unknown) => e instanceof ZodError && e.issues.some((i) => i.message === BODY_TOO_LONG_MESSAGE);
+
+export async function fileCapture(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<Filed> {
   const company = parsed.symbols[0] ? await ensureCompany(deps.catalog, parsed.symbols[0]) : null;
   const theme = parsed.themes[0] ? await ensureTheme(deps.catalog, parsed.themes[0]) : null;
   if (parsed.kind === "thesis" && company) {
@@ -88,14 +91,13 @@ export async function saveCapture(deps: SaveCaptureDeps, input: SaveCaptureInput
     filed = await fileCapture(deps, parsed);
   } catch (error) {
     console.error("capture filing failed", errorShapeText(error));
+    const code: FilingErrorCode = bodyTooLong(error) ? "thesis-full" : "filing-failed";
     try {
-      await deps.captures.attach(capture.id, {
-        parsed: { ...parsed, error: "filing-failed", errorDetail: errorShapeText(error) },
-      });
+      await deps.captures.attach(capture.id, { parsed: { ...parsed, error: code, errorDetail: errorShapeText(error) } });
     } catch {
       // The raw text is already stored; the failure marker is a convenience, not the record.
     }
-    return { captureId: capture.id, itemId: null, kind: parsed.kind, duplicate: false, parseError: "filing-failed" };
+    return { captureId: capture.id, itemId: null, kind: parsed.kind, duplicate: false, parseError: code };
   }
 
   try {

@@ -13,7 +13,7 @@ if (process.env.CI && !stack) {
 const spec = (names: string) => new RegExp(`[\\\\/](?:${names})\\.spec\\.ts$`);
 
 const desk = {
-  testMatch: spec("desk-[a-z-]+"),
+  testMatch: spec("desk-[a-z0-9-]+"),
   dependencies: ["setup"],
 };
 

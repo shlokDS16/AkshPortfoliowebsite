@@ -35,9 +35,10 @@ export function submitErrorCode(error: ZodError): Exclude<SubmitErrorCode, "save
 
 /**
  * What a saved capture records when it could not be filed. `filing-failed`: the text is stored but no
- * item exists. `link-failed`: the item exists but the capture row was not linked to it.
+ * item exists. `link-failed`: the item exists but the capture row was not linked to it. `thesis-full`: the
+ * thesis is at its length limit, so the text was not added (filing it again would fail the same way).
  */
-export const FILING_ERRORS = ["filing-failed", "link-failed"] as const;
+export const FILING_ERRORS = ["filing-failed", "link-failed", "thesis-full"] as const;
 export type FilingErrorCode = (typeof FILING_ERRORS)[number];
 
 export function asFilingError(value: unknown): FilingErrorCode | null {
@@ -47,6 +48,8 @@ export function asFilingError(value: unknown): FilingErrorCode | null {
 const FILING_TEXT: Record<FilingErrorCode, string> = {
   "filing-failed": "Saved, but not filed as an item yet.",
   "link-failed": "Filed as an item; the link back to this capture is missing.",
+  "thesis-full":
+    "Saved, but the thesis is at its length limit (200,000 characters), so this was not added. Start a new item or shorten the thesis.",
 };
 
 export function filingErrorText(code: FilingErrorCode): string {
