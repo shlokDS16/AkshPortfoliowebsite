@@ -27,8 +27,10 @@ export {
   ItemRuleError,
   PublicItemLockedError,
   ResearchError,
+  toResearchError,
 } from "./errors";
 export { diffRevisions } from "./diff";
-export { noticeText, userMessage } from "./messages";
+export { errorCode, errorText, noticeText, type ErrorCode, type ItemNoticeCode } from "./messages";
+export { doneTo, failTo } from "./redirects";
 export { createSupabaseResearchRepo } from "./repo";
 export { addRevision, appendRevision, createItem, getItemWithHistory, listRecentItems, updateItemMeta } from "./service";

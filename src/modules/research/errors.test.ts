@@ -21,6 +21,18 @@ describe("toResearchError", () => {
     expect(error.message).toBe("This item is public. Unpublish it before changing its details.");
   });
 
+  it("maps only the frozen-columns guard to the locked-item error; other guard messages are a generic rule error", () => {
+    for (const message of [
+      "items: only publish_revision() can make an item public",
+      "items: published_at is stamped only by publish_revision()",
+      "items: only publish_revision() can publish",
+    ]) {
+      const error = toResearchError("research.insertItem", { code: "42501", message }, "item-1");
+      expect(error).toBeInstanceOf(ItemRuleError);
+      expect(error.message).not.toMatch(/Unpublish/);
+    }
+  });
+
   it("maps a row-level-security 42501 to access denied, not to the locked-item error", () => {
     const error = toResearchError("research.insertItem", {
       code: "42501",
@@ -41,6 +53,10 @@ describe("toResearchError", () => {
     expect(error.message).toMatch(/append-only/);
   });
 
+  it("maps a raised not-found (P0002) to not-found", () => {
+    expect(toResearchError("op", { code: "P0002", message: "unpublish_item: item x not found" }, "x")).toBeInstanceOf(ItemNotFoundError);
+  });
+
   it("maps a missing single row (PGRST116) to not-found", () => {
     expect(toResearchError("op", { code: "PGRST116", message: "0 rows" }, "item-1")).toBeInstanceOf(ItemNotFoundError);
   });
@@ -52,7 +68,7 @@ describe("toResearchError", () => {
   });
 
   it("keeps SQL text out of every typed message", () => {
-    const cases = ["42501", "23514", "23503", "P0001", "PGRST116"].map((code) =>
+    const cases = ["42501", "23514", "23503", "P0001", "P0002", "PGRST116"].map((code) =>
       toResearchError("op", { code, message: "SELECT secret FROM private.settings" }),
     );
     for (const error of cases) expect(error.message).not.toMatch(/SELECT|private\.settings/);

@@ -15,7 +15,8 @@ const CAPITALISED_ABBREVIATION = /^(?:No|Nos|Sl|Ltd|Pvt|Co|Corp|Inc|Mr|Mrs|Ms|Dr
 const INITIAL = /^[A-Z]\.$/;
 
 function endsWithAbbreviation(piece: string): boolean {
-  const token = piece.slice(piece.lastIndexOf(" ") + 1).replace(/^[("'[]+/, "");
+  // The last whitespace-delimited token, whatever the whitespace (space, tab, NBSP).
+  const token = (/\S+$/.exec(piece)?.[0] ?? "").replace(/^[("'[]+/, "");
   return ABBREVIATION.test(token) || CAPITALISED_ABBREVIATION.test(token) || INITIAL.test(token);
 }
 

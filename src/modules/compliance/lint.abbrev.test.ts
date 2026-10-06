@@ -42,6 +42,17 @@ describe("Rs. amounts: rule 3 now sees the whole sentence", () => {
   });
 });
 
+describe("Rs. amounts split by a non-breaking space", () => {
+  const nbsp = String.fromCharCode(0xa0);
+  const tab = String.fromCharCode(9);
+  it.each([`Priced at Rs.${nbsp}2400 per share.`, `Priced at${nbsp}Rs. 2400 per share.`, `Priced at${tab}Rs. 2400 per share.`])(
+    "flags rule 3 with a company named and recent data: %j",
+    (text) => {
+      expect(rule3(text)).not.toEqual([]);
+    },
+  );
+});
+
 describe("target-of with Rs.", () => {
   it.each(["Target of Rs. 2400", "A target of Rs. 2,400 per share.", "Target price of Rs. 3000", "target of " + R + " 2,400"])("flags %s", (text) => {
     expect(passes(text)).toBe(false);

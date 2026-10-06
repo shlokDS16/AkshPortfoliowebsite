@@ -40,12 +40,14 @@ vi.mock("next/navigation", () => ({
 describe("getAdmin within one request scope", () => {
   beforeEach(() => {
     vi.resetModules();
+    scope.memos.length = 0;
     claims.getClaims.mockClear();
     claims.maybeSingle.mockClear();
   });
 
   it("checks the claims and reads the profile once however many callers ask", async () => {
     const { getAdmin, requireAdmin } = await import("./admin");
+    expect(scope.memos).toHaveLength(1); // exactly one per-request memo: getAdmin() and requireAdmin() share it
     const first = await getAdmin();
     const second = await getAdmin();
     const third = await requireAdmin(); // what the layout, the page and an action each call

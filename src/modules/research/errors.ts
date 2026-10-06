@@ -49,17 +49,24 @@ export class AccessDeniedError extends ResearchError {
   }
 }
 
+const FROZEN_COLUMNS_GUARD = "items: a public item changes only through publish_revision()";
+
 /**
  * Turns a Postgres error into a typed error with a plain-English message; anything unknown
  * stays a DbError (whose text is for logs only, never for the UI).
- * The item guard raises 42501 with a message starting "items:"; RLS also uses 42501.
+ * The item guard raises 42501 with a message starting "items:"; RLS also uses 42501. Only the
+ * frozen-columns message means "this item is public"; P0002 is what publish_revision()/unpublish_item() raise.
  */
 export function toResearchError(op: string, error: { message: string; code?: string }, itemId?: string): Error {
   switch (error.code) {
     case "PGRST116":
       return new ItemNotFoundError(itemId ?? "");
     case "42501":
-      return error.message.startsWith("items:") ? new PublicItemLockedError(itemId) : new AccessDeniedError();
+      if (error.message.startsWith(FROZEN_COLUMNS_GUARD)) return new PublicItemLockedError(itemId);
+      // The other publish-guard messages ("only publish_revision() can ...") are a rule, not a locked item.
+      return error.message.startsWith("items:") ? new ItemRuleError() : new AccessDeniedError();
+    case "P0002":
+      return new ItemNotFoundError(itemId ?? "");
     case "23514":
     case "23503":
       return new ItemRuleError();

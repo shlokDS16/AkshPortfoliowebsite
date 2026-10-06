@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DbError } from "@/lib/supabase/errors";
 import { createMemoryResearchRepo, type MemoryResearchRepo } from "@/test/fakes/research-repo";
 
@@ -56,6 +56,10 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("every action checks the admin first", () => {
   it("stops before touching the database when requireAdmin redirects", async () => {
     requireAdmin.mockImplementationOnce(async () => {
@@ -87,7 +91,7 @@ describe("createItemAction", () => {
   it("sends a validation message back to the list", async () => {
     const to = await target(() => createItemAction(form({ kind: "note", title: "  " })));
     expect(to).toMatch(/^\/desk\/items\?error=/);
-    expect(errorOf(to)).toBe("Title is required");
+    expect(errorOf(to)).toBe("title-required");
     expect(repo.items.size).toBe(0);
   });
 });
@@ -106,20 +110,20 @@ describe("updateItemMetaAction", () => {
     const { item } = await (await import("./service")).createItem(repo, { kind: "learning", title: "T" });
     repo.setVisibility(item.id, "public");
     const to = await target(() => updateItemMetaAction(item.id, form({ title: "New" })));
-    expect(errorOf(to)).toBe("This item is public. Unpublish it before changing its details.");
+    expect(errorOf(to)).toBe("public-item-locked");
   });
 
   it("treats a malformed id as not found without touching the repo", async () => {
     const to = await target(() => updateItemMetaAction("not-a-uuid", form({ title: "T" })));
     expect(to).toMatch(/^\/desk\/items\?error=/);
-    expect(errorOf(to)).toBe("This item could not be found.");
+    expect(errorOf(to)).toBe("item-not-found");
     expect(createRepo).not.toHaveBeenCalled();
   });
 
   it("never leaks a raw database error", async () => {
     vi.spyOn(repo, "getItem").mockRejectedValueOnce(new DbError("research.getItem", "XX000", 'relation "private.settings" does not exist'));
     const to = await target(() => updateItemMetaAction(randomUUID(), form({ title: "T" })));
-    expect(errorOf(to)).toBe("Could not save. Try again.");
+    expect(errorOf(to)).toBe("save-failed");
     expect(decodeURIComponent(to)).not.toMatch(/private\.settings/);
     expect(console.error).toHaveBeenCalledWith("research action failed", { name: "DbError", op: "research.getItem", code: "XX000" });
   });

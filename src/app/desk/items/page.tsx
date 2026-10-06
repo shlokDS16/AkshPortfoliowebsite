@@ -4,12 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
-import { createSupabaseResearchRepo, ITEM_KINDS, listRecentItems } from "@/modules/research";
+import { createSupabaseResearchRepo, errorText, ITEM_KINDS, listRecentItems } from "@/modules/research";
 import { createItemAction } from "@/modules/research/actions";
 
 export default async function ItemsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await requireAdmin();
   const { error } = await searchParams;
+  const errorMessage = errorText(error);
   const items = await listRecentItems(createSupabaseResearchRepo(await createSupabaseServerClient()));
   return (
     <div className="space-y-6">
@@ -30,9 +31,9 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
         </div>
         <Button type="submit">Create item</Button>
       </form>
-      {error ? (
+      {errorMessage ? (
         <p role="alert" className="rounded border border-red-600 px-3 py-2 text-sm text-red-700">
-          {error}
+          {errorMessage}
         </p>
       ) : null}
       {items.length === 0 ? <p className="text-sm text-muted-foreground">No items yet. Create the first one above.</p> : null}

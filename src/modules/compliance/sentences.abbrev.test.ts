@@ -24,6 +24,13 @@ describe("splitSentences is abbreviation-aware", () => {
     expect(splitSentences(text)).toEqual([text]);
   });
 
+  it("merges after an abbreviation whatever whitespace precedes it (NBSP, tab)", () => {
+    const nbsp = String.fromCharCode(0xa0);
+    expect(splitSentences(`Priced at${nbsp}Rs. 2400 per share.`)).toEqual([`Priced at${nbsp}Rs. 2400 per share.`]);
+    const tab = String.fromCharCode(9);
+    expect(splitSentences(`Priced at${tab}Rs. 2400 per share.`)).toEqual([`Priced at${tab}Rs. 2400 per share.`]);
+  });
+
   it("keeps single capital initials with the name", () => {
     expect(splitSentences("Written by S. K. Goenka. Next sentence.")).toEqual(["Written by S. K. Goenka.", "Next sentence."]);
   });
