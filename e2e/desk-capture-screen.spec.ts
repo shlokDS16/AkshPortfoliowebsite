@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
 import type { Database } from "@/lib/supabase/database.types";
@@ -10,6 +11,11 @@ import { E2E_ADMIN_EMAIL } from "./support/stack";
 const RUN = Date.now().toString(36).toUpperCase();
 const QUEUE_KEY = "desk.captureQueue.v1";
 const REJECTED_KEY = "desk.captureRejected.v1";
+const CORRUPT_KEY = "desk.captureCorrupt.v1";
+
+/** One localStorage key per capture: how many keys start with this prefix. */
+const storedCount = (page: Page, prefix: string) =>
+  page.evaluate((p) => Object.keys(localStorage).filter((k) => k.startsWith(`${p}:`)).length, prefix);
 
 let db: Db;
 
@@ -74,13 +80,13 @@ test("offline: saved on this device, then synced exactly once when back online",
   await box(page).press("Enter");
   await expect(page.getByText(/saved on this device, will sync \(1 waiting\)/i)).toBeVisible();
   await expect(box(page)).toHaveValue("");
-  expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "[]").length, QUEUE_KEY)).toBe(1);
+  expect(await storedCount(page, QUEUE_KEY)).toBe(1);
   expect(await captureCount(text)).toBe(0);
 
   await context.setOffline(false);
   await expect(page.getByText("Saved.", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("region", { name: "Today" })).toContainText(text);
-  expect(await page.evaluate((key) => localStorage.getItem(key), QUEUE_KEY)).toBe("[]");
+  expect(await storedCount(page, QUEUE_KEY)).toBe(0);
   expect(await captureCount(text)).toBe(1);
 
   // A reload must not send it again.
@@ -117,8 +123,9 @@ test("a capture the server permanently refuses is kept with its text until dismi
   const attention = page.getByRole("region", { name: "Needs attention" });
   await expect(attention).toBeVisible();
   await expect(attention).toContainText("too long to capture");
-  await expect(attention.getByTestId("rejected-text")).toHaveText(tooLong);
-  expect(await page.evaluate((key) => localStorage.getItem(key), QUEUE_KEY)).toBe("[]");
+  await expect(attention.getByTestId("attention-text")).toHaveText(tooLong);
+  expect(await storedCount(page, QUEUE_KEY)).toBe(0);
+  expect(await storedCount(page, REJECTED_KEY)).toBe(1);
 
   await attention.getByRole("button", { name: "Copy text" }).click();
   await expect(attention.getByText("Copied.")).toBeVisible();
@@ -128,7 +135,7 @@ test("a capture the server permanently refuses is kept with its text until dismi
   await expect(page.getByRole("region", { name: "Needs attention" })).toBeVisible();
   await page.getByRole("button", { name: "Dismiss" }).click();
   await expect(page.getByRole("region", { name: "Needs attention" })).toHaveCount(0);
-  expect(await page.evaluate((key) => localStorage.getItem(key), REJECTED_KEY)).toBe("[]");
+  expect(await storedCount(page, REJECTED_KEY)).toBe(0);
   await page.reload();
   await expect(page.getByRole("region", { name: "Needs attention" })).toHaveCount(0);
 });
@@ -148,17 +155,62 @@ test("blocked browser storage shows a notice, and capturing still works online",
   expect(await captureCount(text)).toBe(1);
 });
 
-test("a corrupt queue in storage does not break the box", async ({ page }) => {
+test("an unreadable stored capture is kept raw under Needs attention, with Copy and Dismiss, and the box still works", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await signIn(page);
-  await page.evaluate((key) => localStorage.setItem(key, "{not json"), QUEUE_KEY);
+  await page.evaluate((key) => localStorage.setItem(`${key}:broken`, "{not json but my thought"), QUEUE_KEY);
   await page.reload();
   await expect(box(page)).toBeFocused();
-  expect(await page.evaluate((key) => localStorage.getItem(`${key}.corrupt`), QUEUE_KEY)).toBe("{not json");
+
+  const attention = page.getByRole("region", { name: "Needs attention" });
+  await expect(attention.getByTestId("attention-text")).toHaveText("{not json but my thought");
+  expect(await storedCount(page, QUEUE_KEY)).toBe(0);
+  expect(await storedCount(page, CORRUPT_KEY)).toBe(1);
+  await attention.getByRole("button", { name: "Copy text" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("{not json but my thought");
+
   const text = `after corruption ${RUN}`;
   await box(page).fill(text);
   await box(page).press("Enter");
   await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
   expect(await captureCount(text)).toBe(1);
+
+  await attention.getByRole("button", { name: "Dismiss" }).click();
+  await expect(attention).toHaveCount(0);
+  expect(await storedCount(page, CORRUPT_KEY)).toBe(0);
+});
+
+test("changes made in another tab show up here through the storage event", async ({ page, context }) => {
+  await signIn(page);
+  const other = await context.newPage();
+  await other.goto("/desk");
+  await expect(other.getByRole("textbox", { name: "Capture" })).toBeFocused();
+
+  const clientId = randomUUID();
+  const rejectedId = randomUUID();
+  await other.evaluate(
+    ([queueKey, rejectedKey, id, rid, run]) => {
+      const base = { source: "web", queuedAt: new Date().toISOString() };
+      localStorage.setItem(`${queueKey}:${id}`, JSON.stringify({ ...base, clientId: id, rawText: `from another tab ${run}` }));
+      localStorage.setItem(
+        `${rejectedKey}:${rid}`,
+        JSON.stringify({ ...base, clientId: rid, rawText: `refused elsewhere ${run}`, reason: "too-long", rejectedAt: new Date().toISOString() }),
+      );
+    },
+    [QUEUE_KEY, REJECTED_KEY, clientId, rejectedId, RUN],
+  );
+  await expect(page.getByText(/will sync \(1 waiting\)/i)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Needs attention" }).getByTestId("attention-text")).toHaveText(`refused elsewhere ${RUN}`);
+
+  await other.evaluate(
+    ([queueKey, rejectedKey, id, rid]) => {
+      localStorage.removeItem(`${queueKey}:${id}`);
+      localStorage.removeItem(`${rejectedKey}:${rid}`);
+    },
+    [QUEUE_KEY, REJECTED_KEY, clientId, rejectedId],
+  );
+  await expect(page.getByRole("region", { name: "Needs attention" })).toHaveCount(0);
+  await expect(page.getByText(/will sync/i)).toHaveCount(0);
 });
 
 test.describe("phone width", () => {

@@ -1,16 +1,40 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  CORRUPT_KEY,
   createCaptureQueue,
-  createMemoryStorage,
+  isCaptureStorageKey,
   QUEUE_KEY,
   REJECTED_KEY,
-  resolveStorage,
-  resolveStorageInfo,
   type QueuedCapture,
   type SendOutcome,
   type SendVerdict,
-  type StorageLike,
 } from "./queue";
+import { createMemoryStorage, resolveStorage, resolveStorageInfo, webStorage, type StorageLike } from "./storage";
+
+const qk = (clientId: string) => `${QUEUE_KEY}:${clientId}`;
+const rk = (clientId: string) => `${REJECTED_KEY}:${clientId}`;
+const corruptKeys = (storage: StorageLike) => storage.keys().filter((k) => k.startsWith(`${CORRUPT_KEY}:`));
+
+/**
+ * What a second tab can see: a snapshot taken when the tab last read, plus its own writes. The shared
+ * storage gets every write, so the other tab's changes are invisible here until a fresh view is made.
+ */
+function staleView(shared: StorageLike): StorageLike {
+  const view = createMemoryStorage();
+  for (const key of shared.keys()) view.setItem(key, shared.getItem(key) as string);
+  return {
+    getItem: (key) => view.getItem(key),
+    keys: () => view.keys(),
+    setItem: (key, value) => {
+      view.setItem(key, value);
+      shared.setItem(key, value);
+    },
+    removeItem: (key) => {
+      view.removeItem(key);
+      shared.removeItem(key);
+    },
+  };
+}
 
 const entry = (clientId: string, rawText = `note ${clientId}`): QueuedCapture => ({
   clientId,
@@ -49,6 +73,7 @@ function createMutex() {
 
 const failingStorage = (message: string): StorageLike => ({
   getItem: () => null,
+  keys: () => [],
   setItem: () => {
     throw new Error(message);
   },
@@ -117,7 +142,8 @@ describe("rejected captures (a drop never deletes text)", () => {
       { ...entry("bad", "line one\nline two"), reason: "invalid-capture", rejectedAt: "2026-10-04T07:00:00.000Z" },
     ]);
     // It is on the device, not just in memory.
-    expect(storage.getItem(REJECTED_KEY)).toContain("line two");
+    expect(storage.getItem(rk("bad"))).toContain("line two");
+    expect(storage.getItem(qk("bad"))).toBeNull();
     expect(createCaptureQueue(storage).listRejected()).toHaveLength(1);
   });
 
@@ -231,33 +257,216 @@ describe("single-flight flush", () => {
   });
 });
 
+describe("one key per capture (tabs cannot overwrite each other)", () => {
+  it("stores each capture under its own key", () => {
+    const storage = createMemoryStorage();
+    const queue = createCaptureQueue(storage);
+    queue.enqueue(entry("a"));
+    queue.enqueue(entry("b"));
+    expect(storage.keys().sort()).toEqual([qk("a"), qk("b")]);
+    queue.remove("a");
+    expect(storage.keys()).toEqual([qk("b")]);
+  });
+
+  it("lists oldest first by queuedAt, then clientId", () => {
+    const queue = createCaptureQueue(createMemoryStorage());
+    queue.enqueue({ ...entry("z"), queuedAt: "2026-10-04T06:00:00.000Z" });
+    queue.enqueue({ ...entry("b"), queuedAt: "2026-10-04T06:00:02.000Z" });
+    queue.enqueue({ ...entry("a"), queuedAt: "2026-10-04T06:00:02.000Z" });
+    expect(queue.list().map((e) => e.clientId)).toEqual(["z", "a", "b"]);
+  });
+
+  it("a remove in a tab with a stale view does not erase an entry another tab just queued", async () => {
+    const shared = createMemoryStorage();
+    createCaptureQueue(shared).enqueue(entry("x"));
+    const tabA = createCaptureQueue(staleView(shared)); // A has seen only X
+    createCaptureQueue(shared).enqueue(entry("y")); // tab B queues Y after A looked
+
+    tabA.remove("x");
+    expect(createCaptureQueue(shared).list().map((e) => e.clientId)).toEqual(["y"]);
+
+    const rec = recordingSend();
+    expect(await createCaptureQueue(shared).flush(rec.send)).toEqual({ sent: 1, dropped: 0, remaining: 0 });
+    expect(rec.seen).toEqual(["y"]);
+  });
+
+  it("a flush in a stale tab sends only what it saw, and the entry queued by the other tab is sent exactly once", async () => {
+    const shared = createMemoryStorage();
+    createCaptureQueue(shared).enqueue(entry("x"));
+    const tabA = createCaptureQueue(staleView(shared));
+    createCaptureQueue(shared).enqueue(entry("y"));
+
+    const rec = recordingSend();
+    await tabA.flush(rec.send); // sends X, removes only X
+    expect(createCaptureQueue(shared).list().map((e) => e.clientId)).toEqual(["y"]);
+    await createCaptureQueue(shared).flush(rec.send);
+    expect(rec.seen).toEqual(["x", "y"]);
+    expect(createCaptureQueue(shared).list()).toEqual([]);
+  });
+
+  it("a dismiss in a stale tab does not erase a capture another tab just rejected", async () => {
+    const shared = createMemoryStorage();
+    const setup = createCaptureQueue(shared);
+    setup.enqueue(entry("r1"));
+    await setup.flush(async () => "drop");
+    const tabA = createCaptureQueue(staleView(shared)); // A has seen only r1
+
+    const tabB = createCaptureQueue(shared);
+    tabB.enqueue(entry("r2"));
+    await tabB.flush(async () => "drop");
+
+    tabA.dismissRejected("r1");
+    expect(createCaptureQueue(shared).listRejected().map((e) => e.clientId)).toEqual(["r2"]);
+  });
+
+  it("a reject in a stale tab keeps what another tab rejected meanwhile", async () => {
+    const shared = createMemoryStorage();
+    const tabA = createCaptureQueue(staleView(shared)); // A sees an empty storage
+    const tabB = createCaptureQueue(shared);
+    tabB.enqueue(entry("r2"));
+    await tabB.flush(async () => "drop");
+
+    tabA.enqueue(entry("r1"));
+    await tabA.flush(async () => "drop");
+    expect(createCaptureQueue(shared).listRejected().map((e) => e.clientId)).toEqual(["r1", "r2"]);
+  });
+
+  it("a crash between writing the rejected copy and removing the queued one duplicates, never loses", async () => {
+    const shared = createMemoryStorage();
+    const writes: string[] = [];
+    const crashing: StorageLike = {
+      ...shared,
+      setItem: (key, value) => {
+        writes.push(`set ${key}`);
+        shared.setItem(key, value);
+      },
+      removeItem: (key) => {
+        writes.push(`remove ${key}`);
+        throw new Error("tab closed");
+      },
+    };
+    const queue = createCaptureQueue(crashing);
+    queue.enqueue(entry("a"));
+    await queue.flush(async () => "drop");
+    expect(writes.indexOf(`set ${rk("a")}`)).toBeLessThan(writes.indexOf(`remove ${qk("a")}`));
+    expect(shared.getItem(rk("a"))).not.toBeNull();
+  });
+});
+
+describe("a send that hangs", () => {
+  it("counts as a retry after the timeout, keeps the entry, and frees the queue", async () => {
+    vi.useFakeTimers();
+    try {
+      const queue = createCaptureQueue(createMemoryStorage(), { sendTimeoutMs: 15_000 });
+      queue.enqueue(entry("a"));
+      let settled = false;
+      const flushing = queue.flush(() => new Promise<SendVerdict>(() => {})).then((r) => {
+        settled = true;
+        return r;
+      });
+      await vi.advanceTimersByTimeAsync(14_999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await flushing).toEqual({ sent: 0, dropped: 0, remaining: 1 });
+      expect(queue.list().map((e) => e.clientId)).toEqual(["a"]);
+      // The queue is not wedged: the next flush sends it.
+      vi.useRealTimers();
+      expect(await queue.flush(async () => "sent")).toEqual({ sent: 1, dropped: 0, remaining: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not time out a send that answers in time", async () => {
+    vi.useFakeTimers();
+    try {
+      const queue = createCaptureQueue(createMemoryStorage(), { sendTimeoutMs: 15_000 });
+      queue.enqueue(entry("a"));
+      const flushing = queue.flush(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
+        return "sent";
+      });
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(await flushing).toEqual({ sent: 1, dropped: 0, remaining: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("storage robustness", () => {
-  it("backs up a corrupt queue, resets it, and warns without printing capture text", () => {
+  it("quarantines a corrupt entry raw under a timestamped key, and warns without printing capture text", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const storage = createMemoryStorage();
     const corrupt = '{"secret thesis text';
-    storage.setItem(QUEUE_KEY, corrupt);
-    expect(createCaptureQueue(storage).list()).toEqual([]);
-    expect(storage.getItem(`${QUEUE_KEY}.corrupt`)).toBe(corrupt);
+    storage.setItem(qk("bad"), corrupt);
+    storage.setItem(qk("ok"), JSON.stringify(entry("ok")));
+    const queue = createCaptureQueue(storage, { now: () => new Date("2026-10-04T08:00:00.000Z") });
+
+    expect(queue.list().map((e) => e.clientId)).toEqual(["ok"]);
+    expect(storage.getItem(qk("bad"))).toBeNull();
+    expect(storage.getItem(`${CORRUPT_KEY}:2026-10-04T08:00:00.000Z`)).toBe(corrupt);
+    expect(queue.listCorrupt()).toEqual([
+      { key: `${CORRUPT_KEY}:2026-10-04T08:00:00.000Z`, detectedAt: "2026-10-04T08:00:00.000Z", rawValue: corrupt },
+    ]);
     expect(warn).toHaveBeenCalled();
     expect(JSON.stringify(warn.mock.calls)).not.toContain("secret thesis text");
   });
 
-  it("keeps a backup when a valid list holds entries it cannot read", () => {
+  it("quarantines an entry that parses but is not a capture, or whose key does not match it", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const storage = createMemoryStorage();
-    const raw = JSON.stringify([entry("a"), { clientId: "x", rawText: 5 }]);
-    storage.setItem(QUEUE_KEY, raw);
-    expect(createCaptureQueue(storage).list().map((e) => e.clientId)).toEqual(["a"]);
-    expect(storage.getItem(`${QUEUE_KEY}.corrupt`)).toBe(raw);
+    storage.setItem(qk("x"), JSON.stringify({ clientId: "x", rawText: 5 }));
+    storage.setItem(qk("liar"), JSON.stringify(entry("someone-else")));
+    const queue = createCaptureQueue(storage);
+    expect(queue.list()).toEqual([]);
+    expect(queue.listCorrupt()).toHaveLength(2);
   });
 
-  it("a corrupt rejected list does not crash and is backed up under its own key", () => {
+  it("two corrupt values found in the same millisecond get distinct keys", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const storage = createMemoryStorage();
-    storage.setItem(REJECTED_KEY, "nope");
-    expect(createCaptureQueue(storage).listRejected()).toEqual([]);
-    expect(storage.getItem(`${REJECTED_KEY}.corrupt`)).toBe("nope");
+    storage.setItem(qk("a"), "nope-a");
+    storage.setItem(qk("b"), "nope-b");
+    const queue = createCaptureQueue(storage, { now: () => new Date("2026-10-04T08:00:00.000Z") });
+    queue.list();
+    expect(queue.listCorrupt().map((c) => c.rawValue).sort()).toEqual(["nope-a", "nope-b"]);
+  });
+
+  it("a corrupt rejected entry is quarantined too, and a dismissal removes only that value", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const storage = createMemoryStorage();
+    storage.setItem(rk("bad"), "nope");
+    const queue = createCaptureQueue(storage);
+    expect(queue.listRejected()).toEqual([]);
+    const [only] = queue.listCorrupt();
+    expect(only.rawValue).toBe("nope");
+    expect(queue.dismissCorrupt(only.key)).toEqual([]);
+    expect(corruptKeys(storage)).toEqual([]);
+  });
+
+  it("dismissCorrupt refuses a key outside the corrupt namespace", () => {
+    const storage = createMemoryStorage();
+    const queue = createCaptureQueue(storage);
+    queue.enqueue(entry("a"));
+    queue.dismissCorrupt(qk("a"));
+    expect(queue.list()).toHaveLength(1);
+  });
+
+  it("deletes an empty legacy whole-array key and keeps a non-empty one aside, raw", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const empty = createMemoryStorage();
+    empty.setItem(QUEUE_KEY, "[]");
+    createCaptureQueue(empty).list();
+    expect(empty.getItem(QUEUE_KEY)).toBeNull();
+
+    const full = createMemoryStorage();
+    const legacy = JSON.stringify([entry("old", "legacy words")]);
+    full.setItem(QUEUE_KEY, legacy);
+    const queue = createCaptureQueue(full);
+    expect(queue.list()).toEqual([]);
+    expect(full.getItem(QUEUE_KEY)).toBeNull();
+    expect(queue.listCorrupt().map((c) => c.rawValue)).toEqual([legacy]);
   });
 
   it("keeps entries for the session when a write fails, and reports the queue as not durable", async () => {
@@ -269,16 +478,64 @@ describe("storage robustness", () => {
     const rec = recordingSend();
     expect(await queue.flush(rec.send)).toEqual({ sent: 1, dropped: 0, remaining: 0 });
   });
+
+  it("carries entries that were already stored over to memory when a later write fails", () => {
+    const shared = createMemoryStorage();
+    createCaptureQueue(shared).enqueue(entry("a"));
+    let full = false;
+    const flaky: StorageLike = {
+      ...shared,
+      setItem: (key, value) => {
+        if (full) throw new Error("QuotaExceededError");
+        shared.setItem(key, value);
+      },
+    };
+    const queue = createCaptureQueue(flaky);
+    full = true;
+    queue.enqueue(entry("b"));
+    expect(queue.isDurable()).toBe(false);
+    expect(queue.list().map((e) => e.clientId)).toEqual(["a", "b"]);
+  });
 });
 
-describe("resolveStorage", () => {
-  it("falls back to memory when browser storage is blocked", () => {
+describe("isCaptureStorageKey", () => {
+  it("recognises the queue's keys, and a cleared storage, but not other sites' keys", () => {
+    expect(isCaptureStorageKey(qk("a"))).toBe(true);
+    expect(isCaptureStorageKey(rk("a"))).toBe(true);
+    expect(isCaptureStorageKey(`${CORRUPT_KEY}:2026-10-04`)).toBe(true);
+    expect(isCaptureStorageKey(null)).toBe(true);
+    expect(isCaptureStorageKey("theme")).toBe(false);
+  });
+});
+
+describe("storage helpers", () => {
+  it("webStorage lists keys through key(i)/length", () => {
+    const map = new Map<string, string>([
+      ["a", "1"],
+      ["b", "2"],
+    ]);
+    const fake = {
+      get length() {
+        return map.size;
+      },
+      key: (i: number) => [...map.keys()][i] ?? null,
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, v),
+      removeItem: (k: string) => void map.delete(k),
+    };
+    const storage = webStorage(fake);
+    expect(storage.keys()).toEqual(["a", "b"]);
+    storage.removeItem("a");
+    expect(storage.keys()).toEqual(["b"]);
+  });
+
+  it("resolveStorage falls back to memory when browser storage is blocked", () => {
     const storage = resolveStorage(() => failingStorage("SecurityError"));
     storage.setItem("k", "v");
     expect(storage.getItem("k")).toBe("v");
   });
 
-  it("says whether the storage survives a reload, so the UI can warn", () => {
+  it("resolveStorageInfo says whether the storage survives a reload, so the UI can warn", () => {
     expect(resolveStorageInfo(() => failingStorage("SecurityError")).durable).toBe(false);
     expect(resolveStorageInfo(() => undefined).durable).toBe(false);
     expect(

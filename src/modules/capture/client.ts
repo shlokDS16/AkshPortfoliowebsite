@@ -2,12 +2,12 @@
 export { parseCapture, type CaptureKind, type ParsedCapture } from "./parse";
 export {
   createCaptureQueue,
-  createMemoryStorage,
+  CORRUPT_KEY,
+  isCaptureStorageKey,
   QUEUE_KEY,
   REJECTED_KEY,
-  resolveStorage,
-  resolveStorageInfo,
   type CaptureQueue,
+  type CorruptCapture,
   type FlushResult,
   type LockRunner,
   type QueuedCapture,
@@ -15,7 +15,7 @@ export {
   type RejectedCapture,
   type SendOutcome,
   type SendVerdict,
-  type StorageLike,
 } from "./queue";
+export { createMemoryStorage, resolveStorage, resolveStorageInfo, webStorage, type StorageLike } from "./storage";
 export { rejectionText, submitErrorText, type SubmitErrorCode } from "./messages";
 export type { CaptureSource } from "./types";

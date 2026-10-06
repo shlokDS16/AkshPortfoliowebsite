@@ -1,25 +1,34 @@
 // Offline-first capture queue (spec s5, s9). Pure: storage and the cross-tab lock are injected.
+//
+// One storage key per capture (`<prefix>:<clientId>`). A tab never rewrites a list it read earlier, so
+// two tabs cannot overwrite each other's entries: every change is a single setItem or removeItem of
+// that capture's own key.
+import { createMemoryStorage, type StorageLike } from "./storage";
 import type { CaptureSource } from "./types";
 
 export const QUEUE_KEY = "desk.captureQueue.v1";
-/** Captures the server permanently refused. They are kept, never deleted, until the user dismisses them. */
+/** Captures the server permanently refused. Kept, never deleted, until the user dismisses them. */
 export const REJECTED_KEY = "desk.captureRejected.v1";
-const PROBE_KEY = "desk.storageProbe";
+/** Stored values that could not be read back. Kept raw (the text may still be recoverable) until dismissed. */
+export const CORRUPT_KEY = "desk.captureCorrupt.v1";
 const DEFAULT_REJECT_REASON = "invalid-capture";
+const DEFAULT_SEND_TIMEOUT_MS = 15_000;
 
 export type QueuedCapture = { clientId: string; rawText: string; source: CaptureSource; queuedAt: string };
 export type RejectedCapture = QueuedCapture & { reason: string; rejectedAt: string };
-export type StorageLike = {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-};
+/** `key` identifies it for dismissal; `rawValue` is exactly what was in storage. */
+export type CorruptCapture = { key: string; detectedAt: string; rawValue: string };
 export type SendOutcome = "sent" | "retry" | "drop";
 /** A send may say why it is dropping; a bare "drop" gets a generic reason. */
 export type SendVerdict = SendOutcome | { outcome: "drop"; reason: string };
 export type FlushResult = { sent: number; dropped: number; remaining: number };
 export type LockRunner = <T>(fn: () => Promise<T>) => Promise<T>;
-export type QueueOptions = { withLock?: LockRunner; now?: () => Date };
+export type QueueOptions = { withLock?: LockRunner; now?: () => Date; sendTimeoutMs?: number };
+
+/** True when a `storage` event key can concern the capture queue (null means the whole storage was cleared). */
+export function isCaptureStorageKey(key: string | null): boolean {
+  return key === null || key.startsWith("desk.capture");
+}
 
 function isQueued(value: unknown): value is QueuedCapture {
   if (value === null || typeof value !== "object") return false;
@@ -33,38 +42,9 @@ function isRejected(value: unknown): value is RejectedCapture {
   return typeof v.reason === "string" && typeof v.rejectedAt === "string";
 }
 
-export function createMemoryStorage(): StorageLike {
-  const map = new Map<string, string>();
-  return {
-    getItem: (key) => map.get(key) ?? null,
-    setItem: (key, value) => void map.set(key, value),
-    removeItem: (key) => void map.delete(key),
-  };
-}
-
-/**
- * localStorage when it works; memory otherwise (private mode, blocked site data). `durable` is false
- * for memory, so the screen can say plainly that nothing survives a reload on this device.
- */
-export function resolveStorageInfo(get: () => StorageLike | undefined): { storage: StorageLike; durable: boolean } {
-  try {
-    const storage = get();
-    if (storage) {
-      storage.setItem(PROBE_KEY, "1");
-      if (storage.getItem(PROBE_KEY) === "1") {
-        storage.removeItem(PROBE_KEY);
-        return { storage, durable: true };
-      }
-    }
-  } catch {
-    // fall through to memory
-  }
-  return { storage: createMemoryStorage(), durable: false };
-}
-
-export function resolveStorage(get: () => StorageLike | undefined): StorageLike {
-  return resolveStorageInfo(get).storage;
-}
+const entryKey = (prefix: string, clientId: string) => `${prefix}:${clientId}`;
+const byTime = (time: (e: QueuedCapture) => string) => (a: QueuedCapture, b: QueuedCapture) =>
+  time(a).localeCompare(time(b)) || a.clientId.localeCompare(b.clientId);
 
 export type CaptureQueue = ReturnType<typeof createCaptureQueue>;
 
@@ -73,13 +53,14 @@ const unlocked: LockRunner = (fn) => fn();
 export function createCaptureQueue(initial: StorageLike, options: QueueOptions = {}) {
   const withLock = options.withLock ?? unlocked;
   const now = options.now ?? (() => new Date());
+  const sendTimeoutMs = options.sendTimeoutMs ?? DEFAULT_SEND_TIMEOUT_MS;
   let storage = initial;
   let durable = true;
+  let legacyChecked = false;
   let inflight: Promise<FlushResult> | null = null;
 
   /** A failed write must not lose the entry: carry on in memory for this session and say so. */
-  function write(key: string, entries: unknown[]): void {
-    const value = JSON.stringify(entries);
+  function write(key: string, value: string): void {
     try {
       storage.setItem(key, value);
       return;
@@ -89,79 +70,152 @@ export function createCaptureQueue(initial: StorageLike, options: QueueOptions =
     if (durable) {
       durable = false;
       const memory = createMemoryStorage();
-      for (const k of [QUEUE_KEY, REJECTED_KEY]) {
-        try {
+      try {
+        for (const k of storage.keys()) {
+          if (!isCaptureStorageKey(k)) continue;
           const existing = storage.getItem(k);
           if (existing !== null) memory.setItem(k, existing);
-        } catch {
-          // unreadable too: start empty
         }
+      } catch {
+        // unreadable too: start empty
       }
       storage = memory;
     }
     storage.setItem(key, value);
   }
 
-  function read<T>(key: string, guard: (value: unknown) => value is T): T[] {
-    let raw: string | null = null;
+  function del(key: string): void {
     try {
-      raw = storage.getItem(key);
+      storage.removeItem(key);
+    } catch {
+      // a leftover entry is re-sent later; the server dedupes by clientId
+    }
+  }
+
+  function has(key: string): boolean {
+    try {
+      return storage.getItem(key) !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Moves unreadable stored data aside, raw, BEFORE removing it. The warning names the key, never content. */
+  function quarantine(key: string, raw: string): void {
+    const stamp = now().toISOString();
+    let target = entryKey(CORRUPT_KEY, stamp);
+    for (let n = 2; has(target); n++) target = `${entryKey(CORRUPT_KEY, stamp)}#${n}`;
+    write(target, raw);
+    del(key);
+    console.warn(`capture storage: unreadable data under ${key}; the raw value was kept under ${target}`);
+  }
+
+  /** The old single-array keys: an empty one is deleted, anything else is kept aside as corrupt. */
+  function dropLegacy(): void {
+    if (legacyChecked) return;
+    legacyChecked = true;
+    for (const key of [QUEUE_KEY, REJECTED_KEY]) {
+      let raw: string | null;
+      try {
+        raw = storage.getItem(key);
+      } catch {
+        continue;
+      }
+      if (raw === null) continue;
+      if (raw.trim() === "" || raw.trim() === "[]") del(key);
+      else quarantine(key, raw);
+    }
+  }
+
+  function storedKeys(prefix: string): string[] {
+    try {
+      return storage.keys().filter((k) => k.startsWith(`${prefix}:`));
     } catch {
       return [];
     }
-    if (!raw) return [];
-    let value: unknown;
-    try {
-      value = JSON.parse(raw);
-    } catch {
-      value = null;
-    }
-    const kept = Array.isArray(value) ? value.filter(guard) : [];
-    if (!Array.isArray(value) || kept.length !== value.length) {
-      // Unreadable (all or in part): keep the raw text aside; the warning carries no capture text.
-      try {
-        storage.setItem(`${key}.corrupt`, raw);
-      } catch {
-        // nothing more we can do on this device
-      }
-      console.warn(`capture storage: unreadable data under ${key}; a backup was kept under ${key}.corrupt`);
-      write(key, kept);
-    }
-    return kept;
   }
 
-  const list = () => read(QUEUE_KEY, isQueued);
-  const listRejected = () => read(REJECTED_KEY, isRejected);
+  function readEntries<T extends QueuedCapture>(prefix: string, guard: (value: unknown) => value is T): T[] {
+    dropLegacy();
+    const entries: T[] = [];
+    for (const key of storedKeys(prefix)) {
+      let raw: string | null;
+      try {
+        raw = storage.getItem(key);
+      } catch {
+        continue;
+      }
+      if (raw === null) continue; // removed by another tab since we listed the keys
+      let value: unknown;
+      try {
+        value = JSON.parse(raw);
+      } catch {
+        value = null;
+      }
+      // The key must name the entry, or removing "by clientId" would never remove it.
+      if (guard(value) && key === entryKey(prefix, value.clientId)) entries.push(value);
+      else quarantine(key, raw);
+    }
+    return entries;
+  }
+
+  const list = (): QueuedCapture[] => readEntries(QUEUE_KEY, isQueued).sort(byTime((e) => e.queuedAt));
+  const listRejected = (): RejectedCapture[] =>
+    readEntries(REJECTED_KEY, isRejected).sort(byTime((e) => (e as RejectedCapture).rejectedAt));
+
+  function listCorrupt(): CorruptCapture[] {
+    const out: CorruptCapture[] = [];
+    for (const key of storedKeys(CORRUPT_KEY)) {
+      let raw: string | null = null;
+      try {
+        raw = storage.getItem(key);
+      } catch {
+        // skip
+      }
+      if (raw !== null) out.push({ key, detectedAt: key.slice(CORRUPT_KEY.length + 1).replace(/#\d+$/, ""), rawValue: raw });
+    }
+    return out.sort((a, b) => a.key.localeCompare(b.key));
+  }
 
   function enqueue(entry: QueuedCapture): QueuedCapture[] {
-    const next = [...list().filter((e) => e.clientId !== entry.clientId), entry];
-    write(QUEUE_KEY, next);
-    return next;
+    write(entryKey(QUEUE_KEY, entry.clientId), JSON.stringify(entry));
+    return list();
   }
 
   function remove(clientId: string): QueuedCapture[] {
-    const next = list().filter((e) => e.clientId !== clientId);
-    write(QUEUE_KEY, next);
-    return next;
+    del(entryKey(QUEUE_KEY, clientId));
+    return list();
   }
 
   /** Written before the queue entry is removed: a crash in between duplicates, it never loses. */
   function reject(entry: QueuedCapture, reason: string): void {
-    const kept = listRejected().filter((e) => e.clientId !== entry.clientId);
-    write(REJECTED_KEY, [...kept, { ...entry, reason, rejectedAt: now().toISOString() }]);
+    const rejected: RejectedCapture = { ...entry, reason, rejectedAt: now().toISOString() };
+    write(entryKey(REJECTED_KEY, entry.clientId), JSON.stringify(rejected));
+    del(entryKey(QUEUE_KEY, entry.clientId));
   }
 
   function dismissRejected(clientId: string): RejectedCapture[] {
-    const next = listRejected().filter((e) => e.clientId !== clientId);
-    write(REJECTED_KEY, next);
-    return next;
+    del(entryKey(REJECTED_KEY, clientId));
+    return listRejected();
   }
 
-  async function sendOne(entry: QueuedCapture, send: (entry: QueuedCapture) => Promise<SendVerdict>) {
+  function dismissCorrupt(key: string): CorruptCapture[] {
+    if (key.startsWith(`${CORRUPT_KEY}:`)) del(key);
+    return listCorrupt();
+  }
+
+  /** A send that hangs counts as a retry, so one dead request cannot hold the queue (or the lock) forever. */
+  async function sendOne(entry: QueuedCapture, send: (entry: QueuedCapture) => Promise<SendVerdict>): Promise<SendVerdict> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<SendVerdict>((resolve) => {
+      timer = setTimeout(() => resolve("retry"), sendTimeoutMs);
+    });
     try {
-      return await send(entry);
+      return await Promise.race([send(entry), timeout]);
     } catch {
-      return "retry" as const;
+      return "retry";
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -177,14 +231,13 @@ export function createCaptureQueue(initial: StorageLike, options: QueueOptions =
       for (const entry of todo) {
         attempted.add(entry.clientId);
         // Another tab without the lock API may have sent it since we listed.
-        if (!list().some((e) => e.clientId === entry.clientId)) continue;
+        if (!has(entryKey(QUEUE_KEY, entry.clientId))) continue;
         const verdict = await sendOne(entry, send);
         if (verdict === "sent") {
           remove(entry.clientId);
           sent++;
         } else if (verdict === "drop" || (typeof verdict === "object" && verdict !== null && verdict.outcome === "drop")) {
           reject(entry, typeof verdict === "object" ? verdict.reason : DEFAULT_REJECT_REASON);
-          remove(entry.clientId);
           dropped++;
         } else {
           stopped = true; // retry or anything unrecognised: keep order, try again later
@@ -216,5 +269,15 @@ export function createCaptureQueue(initial: StorageLike, options: QueueOptions =
     return promise;
   }
 
-  return { list, enqueue, remove, flush, listRejected, dismissRejected, isDurable: () => durable };
+  return {
+    list,
+    enqueue,
+    remove,
+    flush,
+    listRejected,
+    dismissRejected,
+    listCorrupt,
+    dismissCorrupt,
+    isDurable: () => durable,
+  };
 }

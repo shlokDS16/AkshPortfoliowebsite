@@ -18,7 +18,7 @@ export function TodayList({ groups }: { groups: TodayGroup[] }) {
                 ) : (
                   entry.rawText
                 )}
-                {entry.parseError ? <span className="ml-2 text-xs text-red-700">({filingErrorText(entry.parseError)})</span> : null}
+                {entry.parseError ? <span className="ml-2 text-xs text-destructive">({filingErrorText(entry.parseError)})</span> : null}
               </li>
             ))}
           </ul>

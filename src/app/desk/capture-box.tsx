@@ -6,15 +6,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { submitCapture } from "@/modules/capture/actions";
 import {
   createCaptureQueue,
+  isCaptureStorageKey,
+  rejectionText,
   resolveStorageInfo,
+  webStorage,
   type CaptureQueue,
   type CaptureSource,
+  type CorruptCapture,
   type LockRunner,
   type QueuedCapture,
   type RejectedCapture,
   type SendVerdict,
 } from "@/modules/capture/client";
-import { RejectedList } from "./rejected-list";
+import { RejectedList, type AttentionItem } from "./rejected-list";
 
 const LOCK_NAME = "desk-capture-flush";
 const RETRY_MS = 30_000;
@@ -40,16 +44,16 @@ export function CaptureBox() {
   const ref = useRef<HTMLTextAreaElement>(null);
   const queueRef = useRef<CaptureQueue | null>(null);
   const [text, setText] = useState("");
-  const [saving, setSaving] = useState(0);
   const [saved, setSaved] = useState(false);
   const [waiting, setWaiting] = useState(0);
   const [rejected, setRejected] = useState<RejectedCapture[]>([]);
+  const [corrupt, setCorrupt] = useState<CorruptCapture[]>([]);
   const [durable, setDurable] = useState(true);
 
   /** Created on first use in the browser (never during render), so there is exactly one per mount. */
   const getQueue = useCallback((): CaptureQueue => {
     if (!queueRef.current) {
-      const info = resolveStorageInfo(() => window.localStorage);
+      const info = resolveStorageInfo(() => webStorage(window.localStorage));
       queueRef.current = createCaptureQueue(info.storage, { withLock });
       if (!info.durable) setDurable(false);
     }
@@ -60,6 +64,7 @@ export function CaptureBox() {
     const queue = getQueue();
     setWaiting(queue.list().length);
     setRejected(queue.listRejected());
+    setCorrupt(queue.listCorrupt());
     if (!queue.isDurable()) setDurable(false);
   }, [getQueue]);
 
@@ -84,6 +89,15 @@ export function CaptureBox() {
     };
   }, [flush]);
 
+  // Another tab queued, sent, rejected or dismissed something: show the same counts and lists here.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (isCaptureStorageKey(event.key)) syncView();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [syncView]);
+
   // A server that is down (not just offline) never fires "online": keep trying while something waits.
   useEffect(() => {
     if (waiting === 0) return;
@@ -106,12 +120,10 @@ export function CaptureBox() {
     getQueue().enqueue({ clientId: crypto.randomUUID(), rawText, source: detectSource(), queuedAt: new Date().toISOString() });
     setText("");
     setSaved(false);
-    setSaving((n) => n + 1);
-    syncView();
+    syncView(); // from here the note is on the device, and the status says so
     try {
       await flush();
     } finally {
-      setSaving((n) => n - 1);
       ref.current?.focus();
     }
   }
@@ -123,14 +135,29 @@ export function CaptureBox() {
     }
   }
 
-  function dismiss(clientId: string) {
-    getQueue().dismissRejected(clientId);
-    syncView();
-  }
+  const attention: AttentionItem[] = [
+    ...rejected.map((entry) => ({
+      id: entry.clientId,
+      note: rejectionText(entry.reason),
+      text: entry.rawText,
+      onDismiss: () => {
+        getQueue().dismissRejected(entry.clientId);
+        syncView();
+      },
+    })),
+    ...corrupt.map((entry) => ({
+      id: entry.key,
+      note: "This device could not read a stored capture. The raw saved data is below; it may still hold your text.",
+      text: entry.rawValue,
+      onDismiss: () => {
+        getQueue().dismissCorrupt(entry.key);
+        syncView();
+      },
+    })),
+  ];
 
   let status = "";
-  if (saving > 0) status = "Saving...";
-  else if (waiting > 0) status = `Saved on this device, will sync (${waiting} waiting).`;
+  if (waiting > 0) status = `Saved on this device, will sync (${waiting} waiting).`;
   else if (saved) status = "Saved.";
 
   return (
@@ -157,7 +184,7 @@ export function CaptureBox() {
           kept only until you close or reload this page.
         </p>
       )}
-      <RejectedList entries={rejected} onDismiss={dismiss} />
+      <RejectedList items={attention} />
     </div>
   );
 }
