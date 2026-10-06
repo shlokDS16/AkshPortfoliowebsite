@@ -163,3 +163,62 @@ describe("parseCapture: robustness", () => {
     expect(performance.now() - worst).toBeLessThan(50);
   });
 });
+
+describe("parseCapture: token boundaries", () => {
+  const curly = String.fromCharCode(0x201c, 0x201d, 0x2018);
+
+  it.each([
+    ["($TCS)", ["TCS"], []],
+    ['("#moat")', [], ["moat"]],
+    ["$TCS,$INFY", ["TCS", "INFY"], []],
+    ["$TCS/$INFY", ["TCS", "INFY"], []],
+    ["[#capex]", [], ["capex"]],
+    [`${curly[0]}#moat${curly[1]} and ${curly[2]}$TCS`, ["TCS"], ["moat"]],
+    ["{$TCS} 'x' '#moat'", ["TCS"], ["moat"]],
+  ])("%j", (raw, symbols, themes) => {
+    const parsed = parseCapture(raw);
+    expect(parsed.symbols).toEqual(symbols);
+    expect(parsed.themes).toEqual(themes);
+  });
+
+  it("keeps a URL with a fragment as a URL and never a theme", () => {
+    const parsed = parseCapture("https://a.com/#x and (https://b.com/p#y)");
+    expect(parsed.themes).toEqual([]);
+    expect(parsed.urls).toEqual(["https://a.com/#x", "https://b.com/p#y"]);
+  });
+
+  it("does not read C#, a#b or user$x as tokens", () => {
+    const parsed = parseCapture("C# a#b user$x me@$y");
+    expect(parsed.symbols).toEqual([]);
+    expect(parsed.themes).toEqual([]);
+  });
+});
+
+describe("parseCapture: urls and titles", () => {
+  it("trims long runs of trailing punctuation in linear time", () => {
+    const start = performance.now();
+    const parsed = parseCapture(`https://a.com/${".".repeat(100_000)}x https://b.com/${"!?.".repeat(30_000)}`);
+    expect(performance.now() - start).toBeLessThan(250);
+    expect(parsed.urls[1]).toBe("https://b.com/");
+  });
+
+  it("keeps a balanced closing bracket and trims an unbalanced one", () => {
+    const wiki = "https://en.wikipedia.org/wiki/Moat_(economics)";
+    expect(parseCapture(wiki).urls).toEqual([wiki]);
+    expect(parseCapture(`${wiki}.`).urls).toEqual([wiki]);
+    expect(parseCapture(`(see ${wiki})`).urls).toEqual([wiki]);
+    expect(parseCapture("(see https://a.com/x)").urls).toEqual(["https://a.com/x"]);
+    expect(parseCapture("[https://a.com/x]").urls).toEqual(["https://a.com/x"]);
+    expect(parseCapture("https://a.com/a[1]").urls).toEqual(["https://a.com/a[1]"]);
+  });
+
+  it("never splits a surrogate pair when truncating the title", () => {
+    const emoji = String.fromCodePoint(0x1f600);
+    for (let pad = 112; pad <= 118; pad++) {
+      const title = parseCapture(`${"a".repeat(pad)}${emoji}${emoji} tail`).title;
+      expect(Array.from(title).length).toBeLessThanOrEqual(120);
+      // A well-formed string survives a UTF-8 round trip unchanged; a lone surrogate does not.
+      expect(new TextDecoder().decode(new TextEncoder().encode(title))).toBe(title);
+    }
+  });
+});
