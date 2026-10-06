@@ -56,9 +56,12 @@ describe("RegisterTable", () => {
     expect(screen.getAllByRole("row")).toHaveLength(3);
     expect(screen.getByRole("link", { name: "Kaveri Pumps (fictional)" })).toHaveAttribute("href", "/companies/kavpump");
     expect(screen.getByRole("columnheader", { name: "Figures to" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    const heldHeight = container.querySelector<HTMLElement>("[data-register]")?.style.minHeight;
     await userEvent.type(screen.getByRole("searchbox", { name: "Find a file" }), "zzz");
     expect(screen.getByRole("status")).toHaveTextContent('No file matches "zzz". Search covers company names, symbols and sectors.');
-    expect(container.querySelector<HTMLElement>("[data-register]")?.style.minHeight).not.toBe("");
+    expect(heldHeight).toMatch(/^\d/);
+    expect(container.querySelector<HTMLElement>("[data-register]")?.style.minHeight).toBe(heldHeight);
     expectTokenOnly(container);
   });
 
@@ -73,9 +76,15 @@ describe("RegisterTable", () => {
 
   it("reorders instantly under reduced motion", async () => {
     mockMatchMedia({ reducedMotion: true });
-    renderWithMotion(<RegisterTable files={REGISTER} />, { reducedMotion: true });
+    // Kaveri is older than Sahyadri here, so "Last revised" and "Company" give different orders.
+    const files = [{ ...REGISTER[0], revisedOn: "2026-08-01" }, REGISTER[1]];
+    renderWithMotion(<RegisterTable files={files} />, { reducedMotion: true });
+    expect(screen.getAllByRole("row")[1]).toHaveTextContent("Sahyadri Cold Chain (fictional)");
     await userEvent.click(screen.getByRole("radio", { name: "Company" }));
-    expect(screen.getAllByRole("row")[1]).toHaveTextContent("Kaveri Pumps (fictional)");
+    const rows = screen.getAllByRole("row");
+    expect(rows[1]).toHaveTextContent("Kaveri Pumps (fictional)");
+    expect(rows[2]).toHaveTextContent("Sahyadri Cold Chain (fictional)");
+    for (const row of rows.slice(1)) expect(row.getAttribute("style") ?? "").not.toMatch(/transform|translate/);
   });
 
   it("explains an empty register", () => {

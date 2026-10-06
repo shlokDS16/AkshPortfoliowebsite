@@ -18,8 +18,8 @@ export function WhatChangedList({ entries }: { entries: WhatChangedEntry[] }) {
         </div>
       ) : (
         <ol className="mt-3">
-          {entries.map((e) => (
-            <li key={`${e.on}-${e.subject.href}-${e.text}`} className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-b border-rule py-(--row-y) text-body">
+          {entries.map((e, i) => (
+            <li key={`${i}-${e.on}-${e.subject.href}-${e.text}`} className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-b border-rule py-(--row-y) text-body">
               <span className="text-small tabular-nums text-ink-muted">{formatDate(e.on)}</span>
               <div>
                 <p>

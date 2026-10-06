@@ -28,6 +28,7 @@ export function RegisterTable({ files, searchable = true }: { files: RegisterFil
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<RegisterSort>("revised");
   const rows = useMemo(() => sortFiles(filterFiles(files, q), sort), [files, q, sort]);
+  const noMatch = files.length > 0 && rows.length === 0;
   const hold = { minHeight: `${Math.max(files.length, 1) * 3.25 + 2.5}rem` } as CSSProperties;
   return (
     <section aria-labelledby="files-heading">
@@ -105,11 +106,9 @@ export function RegisterTable({ files, searchable = true }: { files: RegisterFil
             </tbody>
           </Table>
         )}
-        {files.length > 0 && rows.length === 0 ? (
-          <p role="status" className="py-6 text-small text-ink-muted">
-            No file matches &quot;{q}&quot;. Search covers company names, symbols and sectors.
-          </p>
-        ) : null}
+        <p role="status" className={noMatch ? "py-6 text-small text-ink-muted" : undefined}>
+          {noMatch ? `No file matches "${q}". Search covers company names, symbols and sectors.` : null}
+        </p>
       </div>
     </section>
   );
