@@ -22,6 +22,24 @@ async function scrollTo(y: number) {
   });
 }
 
+/** Every translateY percentage an element's style attribute takes (none = 0), so a slide shows as in-between values. */
+function recordTranslateY(el: HTMLElement) {
+  const read = () => {
+    const match = /translateY\((-?[\d.]+)%\)/.exec(el.getAttribute("style") ?? "");
+    return match ? Number(match[1]) : 0;
+  };
+  const written = [read()];
+  const observer = new MutationObserver(() => written.push(read()));
+  observer.observe(el, { attributes: true, attributeFilter: ["style"] });
+  return {
+    values: () => {
+      observer.takeRecords().forEach(() => written.push(read()));
+      return written;
+    },
+    stop: () => observer.disconnect(),
+  };
+}
+
 describe("TopBar", () => {
   it("home: wordmark and Find a file; file: back to Files on phone", () => {
     const { container, rerender } = render(<TopBar variant="home" />);
@@ -134,21 +152,22 @@ describe("TabBar", () => {
     await waitFor(() => expect(nav()).not.toHaveAttribute("inert"));
   });
 
-  it("under reduced motion it still hides on scroll down, instantly and inert, and returns on scroll up", async () => {
+  it("under reduced motion it still hides on scroll down, inert and without a slide, and returns on scroll up", async () => {
     mockMatchMedia({ reducedMotion: true });
     await scrollTo(0);
     renderWithMotion(<TabBar current="desk" counts={{ files: 0, notes: 0 }} hideOnScroll />, { reducedMotion: true });
     await scrollTo(0);
-    await scrollTo(600);
     const nav = screen.getByRole("navigation", { name: "Main", hidden: true });
-    const style = () => nav.getAttribute("style") ?? "";
-    // Inside the 60 ms scroll tick plus 100 ms: a 180 ms slide could not have finished, a jump has.
-    await waitFor(() => expect(style()).toContain("translateY(100%)"), { timeout: 100 });
-    expect(nav).toHaveAttribute("inert");
-    expect(style()).not.toMatch(/transition/);
+    const seen = recordTranslateY(nav);
+    await scrollTo(600);
+    await waitFor(() => expect(nav).toHaveAttribute("inert"));
+    await waitFor(() => expect(seen.values()).toContain(100));
     await scrollTo(400);
-    await waitFor(() => expect(style()).not.toContain("translateY(100%)"), { timeout: 100 });
-    expect(nav).not.toHaveAttribute("inert");
+    await waitFor(() => expect(nav).not.toHaveAttribute("inert"));
+    await waitFor(() => expect(nav.getAttribute("style") ?? "").not.toContain("translateY(100%)"));
+    // Deterministic "instant": every written value is the rest position or the hidden one, never between.
+    expect(seen.values().every((y) => y === 0 || y === 100)).toBe(true);
+    seen.stop();
   });
 });
 
