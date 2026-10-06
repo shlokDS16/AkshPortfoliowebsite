@@ -1,5 +1,5 @@
 // Client-safe entry: constants and types only, no server-only or node imports. UI code (the gate review
-// panel, the editor) imports from "@/modules/compliance/rules"; index.ts is the server-side entry.
+// panel, the editor) imports from "@/modules/compliance/client"; index.ts is the server-side entry.
 import type { HoldsPosition, ItemKind } from "@/modules/research";
 
 export { POLICY_VERSION, RULE_TITLES } from "./policy";

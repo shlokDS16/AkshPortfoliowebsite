@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseComplianceRepo, getLatestDecision } from "@/modules/compliance";
 import { requireAdmin } from "@/modules/identity";
-import { createSupabaseResearchRepo, getItemWithHistory, isItemId, noticeText } from "@/modules/research";
+import { createSupabaseResearchRepo, errorText, getItemWithHistory, isItemId, noticeText } from "@/modules/research";
+import { GatePanel } from "./gate-panel";
 import { History } from "./history";
 import { MetaForm } from "./meta-form";
 import { RevisionForm } from "./revision-form";
@@ -16,10 +18,15 @@ export default async function ItemPage({ params, searchParams }: Props) {
   const { id } = await params;
   const { error, notice, from, to } = await searchParams;
   if (!isItemId(id)) notFound();
-  const history = await getItemWithHistory(createSupabaseResearchRepo(await createSupabaseServerClient()), id);
+  const db = await createSupabaseServerClient();
+  const [history, decision] = await Promise.all([
+    getItemWithHistory(createSupabaseResearchRepo(db), id),
+    getLatestDecision(createSupabaseComplianceRepo(db), id),
+  ]);
   if (!history) notFound();
   const { item, revisions, current, pending } = history;
   const isPublic = item.visibility === "public";
+  const errorMessage = errorText(error);
   const noticeMessage = noticeText(notice);
   return (
     <article className="space-y-6">
@@ -30,9 +37,9 @@ export default async function ItemPage({ params, searchParams }: Props) {
           {current ? ` · current revision #${current.revNo}` : ""}
         </p>
       </header>
-      {error ? (
+      {errorMessage ? (
         <p role="alert" className="rounded border border-red-600 px-3 py-2 text-sm text-red-700">
-          {error}
+          {errorMessage}
         </p>
       ) : null}
       {noticeMessage ? (
@@ -40,12 +47,19 @@ export default async function ItemPage({ params, searchParams }: Props) {
           {noticeMessage}
         </p>
       ) : null}
-      {pending.length > 0 ? (
+      {isPublic && pending.length > 0 ? (
         <p data-testid="pending-gate" className="rounded border border-amber-600 px-3 py-2 text-sm">
           {pending.length} {pending.length === 1 ? "revision is" : "revisions are"} waiting for the publishing gate. The public page still
           shows revision #{current?.revNo}.
         </p>
       ) : null}
+      <GatePanel
+        item={item}
+        latest={revisions[0] ?? null}
+        current={current}
+        decision={decision}
+        decisionRevNo={decision ? (revisions.find((r) => r.id === decision.revisionId)?.revNo ?? null) : null}
+      />
       <MetaForm item={item} />
       <RevisionForm itemId={item.id} latest={revisions[0] ?? null} isPublic={isPublic} />
       <History
