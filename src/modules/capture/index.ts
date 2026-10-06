@@ -9,7 +9,9 @@ export {
 } from "./types";
 export {
   asFilingError,
+  filingErrorText,
   FILING_ERRORS,
+  rejectionText,
   submitErrorText,
   type FilingErrorCode,
   type SubmitErrorCode,
@@ -17,3 +19,5 @@ export {
 export { saveCapture, saveCaptureInput, type SaveCaptureDeps, type SaveCaptureInput, type SaveCaptureResult } from "./service";
 export { createSupabaseCaptureRepo } from "./repo";
 export { createCaptureDeps, listCapturesSince } from "./deps";
+export { groupTodayByCompany, type TodayGroup } from "./today";
+export { captureStreak, type Streak } from "./streak";

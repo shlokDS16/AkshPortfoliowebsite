@@ -1,3 +1,5 @@
+import type { FilingErrorCode } from "./messages";
+
 export const CAPTURE_SOURCES = ["web", "mobile", "api"] as const;
 export type CaptureSource = (typeof CAPTURE_SOURCES)[number];
 
@@ -21,7 +23,7 @@ export type CaptureListEntry = {
   companyId: string | null;
   companySymbol: string | null;
   companyName: string | null;
-  parseError: string | null;
+  parseError: FilingErrorCode | null;
 };
 
 export type CaptureAttachment = {

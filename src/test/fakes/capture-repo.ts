@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { DbError } from "@/lib/supabase/errors";
-import type { CaptureRecord, CaptureRepo } from "@/modules/capture";
+import { asFilingError, type CaptureRecord, type CaptureRepo } from "@/modules/capture";
 
 export type MemoryCaptureRepo = CaptureRepo & { records: CaptureRecord[] };
 
@@ -55,7 +55,7 @@ export function createMemoryCaptureRepo(): MemoryCaptureRepo {
           companyId: r.companyId,
           companySymbol: null,
           companyName: null,
-          parseError: typeof r.parsed?.error === "string" ? r.parsed.error : null,
+          parseError: asFilingError(r.parsed?.error),
         }));
     },
   };

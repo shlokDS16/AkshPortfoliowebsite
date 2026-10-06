@@ -1,4 +1,6 @@
 // Quick-capture grammar (spec s5). Pure: runs in the browser and again on the server.
+import { truncateUnits } from "./text";
+
 export const CAPTURE_KINDS = ["note", "thesis", "learning", "process"] as const;
 export type CaptureKind = (typeof CAPTURE_KINDS)[number];
 
@@ -27,16 +29,11 @@ const THEME_RE = new RegExp(`${START}#([A-Za-z][A-Za-z0-9-]{0,47})(?![A-Za-z0-9-
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 // Digits plus only a money or magnitude suffix ("$5M", "$500cr") are amounts, not symbols.
 const AMOUNT_RE = /^\d+(K|M|MN|MM|B|BN|CR|CRS|L|LAKH|LAKHS|T|TN)$/;
+// UTF-16 units, like the item schema's .max(); the schema allows 200, the title keeps well inside it.
 const TITLE_MAX = 120;
 
 function unique(values: string[]): string[] {
   return [...new Set(values.filter((v) => v.length > 0))];
-}
-
-// Code-point aware, so an emoji at the boundary is never split.
-function truncate(text: string, max: number): string {
-  const chars = Array.from(text);
-  return chars.length > max ? `${chars.slice(0, max - 3).join("").trimEnd()}...` : text;
 }
 
 // Linear end-trim (a regex like /[.,]+$/ is quadratic on long runs). A closing bracket is kept
@@ -86,6 +83,6 @@ export function parseCapture(raw: string): ParsedCapture {
   );
   const themes = unique([...masked.matchAll(THEME_RE)].map((m) => m[2].replace(/-+$/, "").toLowerCase()));
   const urls = unique([...body.matchAll(URL_RE)].map((m) => trimUrl(m[0])));
-  const title = truncate(firstLine.replace(URL_RE, "").replace(/\s+/g, " ").trim(), TITLE_MAX) || "Untitled capture";
+  const title = truncateUnits(firstLine.replace(URL_RE, "").replace(/\s+/g, " ").trim(), TITLE_MAX) || "Untitled capture";
   return { kind, symbols, themes, urls, title, firstLine, body };
 }

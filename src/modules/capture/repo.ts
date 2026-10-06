@@ -1,7 +1,8 @@
 import type { Json, TablesUpdate } from "@/lib/supabase/database.types";
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
-import type { CaptureRecord, CaptureRepo, CaptureSource } from "./types";
+import { asFilingError } from "./messages";
+import type { CaptureListEntry, CaptureRecord, CaptureRepo, CaptureSource } from "./types";
 
 const CAPTURE_COLUMNS = "id, raw_text, parsed, item_id, company_id, theme_id, source, client_id, created_at";
 const LIST_COLUMNS = "id, raw_text, created_at, item_id, company_id, parsed, companies(nse_symbol, name)";
@@ -34,6 +35,30 @@ const toRecord = (r: CaptureRow): CaptureRecord => ({
   clientId: r.client_id,
   createdAt: r.created_at,
 });
+
+type ListRow = {
+  id: string;
+  raw_text: string;
+  created_at: string;
+  item_id: string | null;
+  company_id: string | null;
+  parsed: Json | null;
+  companies: { nse_symbol: string | null; name: string | null } | null;
+};
+
+/** `parsed.error` crosses to the UI only as a known code; anything else becomes null. */
+export function toListEntry(r: ListRow): CaptureListEntry {
+  return {
+    id: r.id,
+    rawText: r.raw_text,
+    createdAt: r.created_at,
+    itemId: r.item_id,
+    companyId: r.company_id,
+    companySymbol: r.companies?.nse_symbol ?? null,
+    companyName: r.companies?.name ?? null,
+    parseError: asFilingError(asRecord(r.parsed)?.error),
+  };
+}
 
 export function createSupabaseCaptureRepo(db: Db): CaptureRepo {
   return {
@@ -68,19 +93,7 @@ export function createSupabaseCaptureRepo(db: Db): CaptureRepo {
         .order("created_at", { ascending: false })
         .limit(LIST_LIMIT);
       if (error) throw dbError("capture.listSince", error);
-      return data.map((r) => {
-        const parsed = asRecord(r.parsed);
-        return {
-          id: r.id,
-          rawText: r.raw_text,
-          createdAt: r.created_at,
-          itemId: r.item_id,
-          companyId: r.company_id,
-          companySymbol: r.companies?.nse_symbol ?? null,
-          companyName: r.companies?.name ?? null,
-          parseError: typeof parsed?.error === "string" ? parsed.error : null,
-        };
-      });
+      return data.map(toListEntry);
     },
   };
 }

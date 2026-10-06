@@ -9,7 +9,7 @@ import { ensureUser, requireStack, tokenHashFor } from "./support/auth";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
 
 // Runs the capture module's real Supabase repos against the LOCAL stack as the signed-in admin, so RLS,
-// the unique constraints and the raw_text trigger are exercised for real. There is no capture screen yet.
+// the unique constraints and the raw_text trigger are exercised for real.
 // The local database is not reset between runs, so symbols and text carry a run suffix.
 const RUN = Date.now().toString(36).toUpperCase();
 const entry = (rawText: string, clientId: string = randomUUID()) => ({ rawText, source: "web" as const, clientId });

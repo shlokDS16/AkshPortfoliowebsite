@@ -36,7 +36,7 @@ test("magic link: the form answers alike for everyone, and only the admin gets a
 
   await page.goto(await latestEmailLink(stack, E2E_ADMIN_EMAIL));
   await expect(page).toHaveURL(/\/desk$/);
-  await expect(page.getByText(`Signed in as ${E2E_ADMIN_EMAIL}.`)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Capture" })).toBeVisible();
 
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -48,7 +48,7 @@ test("confirm route: an admin token hash signs in, and next= cannot leave the de
   const hash = await tokenHashFor(requireStack(), E2E_ADMIN_EMAIL);
   await page.goto(`/auth/confirm?token_hash=${hash}&type=magiclink&next=//evil.example/x`);
   await expect(page).toHaveURL(`${baseURL}/desk`);
-  await expect(page.getByText(`Signed in as ${E2E_ADMIN_EMAIL}.`)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Capture" })).toBeVisible();
 });
 
 test("a signed-in non-admin is signed straight back out", async ({ page }) => {

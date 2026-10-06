@@ -212,6 +212,14 @@ describe("parseCapture: urls and titles", () => {
     expect(parseCapture("https://a.com/a[1]").urls).toEqual(["https://a.com/a[1]"]);
   });
 
+  it("keeps the title within 120 UTF-16 units (what the item schema counts), emoji included", () => {
+    const emoji = String.fromCodePoint(0x1f600);
+    const title = parseCapture(emoji.repeat(150)).title;
+    expect(title.length).toBeLessThanOrEqual(120);
+    expect(title.endsWith("...")).toBe(true);
+    expect(new TextDecoder().decode(new TextEncoder().encode(title))).toBe(title);
+  });
+
   it("never splits a surrogate pair when truncating the title", () => {
     const emoji = String.fromCodePoint(0x1f600);
     for (let pad = 112; pad <= 118; pad++) {

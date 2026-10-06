@@ -21,6 +21,11 @@ export function submitErrorText(code: SubmitErrorCode): string {
   return SUBMIT_ERRORS[code];
 }
 
+/** Plain-English reason for a rejected capture; an unknown code gets the generic malformed text. */
+export function rejectionText(code: string): string {
+  return Object.hasOwn(SUBMIT_ERRORS, code) ? SUBMIT_ERRORS[code as SubmitErrorCode] : SUBMIT_ERRORS["invalid-capture"];
+}
+
 export function submitErrorCode(error: ZodError): Exclude<SubmitErrorCode, "save-failed"> {
   const messages = new Set(error.issues.map((issue) => issue.message));
   if (messages.has(EMPTY_CAPTURE_MESSAGE)) return "empty-capture";
@@ -37,4 +42,13 @@ export type FilingErrorCode = (typeof FILING_ERRORS)[number];
 
 export function asFilingError(value: unknown): FilingErrorCode | null {
   return FILING_ERRORS.find((code) => code === value) ?? null;
+}
+
+const FILING_TEXT: Record<FilingErrorCode, string> = {
+  "filing-failed": "Saved, but not filed as an item yet.",
+  "link-failed": "Filed as an item; the link back to this capture is missing.",
+};
+
+export function filingErrorText(code: FilingErrorCode): string {
+  return FILING_TEXT[code];
 }

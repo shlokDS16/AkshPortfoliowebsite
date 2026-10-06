@@ -83,6 +83,21 @@ describe("saveCapture", () => {
     expect(captures.records[1].itemId).toBe(captures.records[0].itemId);
   });
 
+  it("files an emoji-heavy first line: limits count UTF-16 units like the item schema", async () => {
+    const { deps, research } = setup();
+    const emoji = String.fromCodePoint(0x1f600);
+    const note = await saveCapture(deps, input(emoji.repeat(150)));
+    expect(note.parseError).toBeNull();
+    expect(research.items.get(note.itemId ?? "")?.title.length).toBeLessThanOrEqual(200);
+
+    await saveCapture(deps, input("t: $TCS first"));
+    const revised = await saveCapture(deps, input(`t: $TCS ${emoji.repeat(400)}`));
+    expect(revised.parseError).toBeNull();
+    const reason = (await research.listRevisions(revised.itemId ?? ""))[0].changeReason ?? "";
+    expect(reason.length).toBeGreaterThan(0);
+    expect(reason.length).toBeLessThanOrEqual(300);
+  });
+
   it("files l: as learning and p: as process", async () => {
     const { deps, research } = setup();
     const learning = await saveCapture(deps, input("l: how float works"));

@@ -4,6 +4,7 @@ import { ensureCompany, ensureTheme, type CatalogRepo, type Company, type Theme 
 import { appendRevision, createItem, type ResearchRepo } from "@/modules/research";
 import { asFilingError, CAPTURE_TOO_LONG_MESSAGE, EMPTY_CAPTURE_MESSAGE, type FilingErrorCode } from "./messages";
 import { parseCapture, type CaptureKind, type ParsedCapture } from "./parse";
+import { clipUnits } from "./text";
 import { CAPTURE_SOURCES, type CaptureRecord, type CaptureRepo } from "./types";
 
 export const saveCaptureInput = z.object({
@@ -25,6 +26,7 @@ export type SaveCaptureResult = {
   parseError: FilingErrorCode | null;
 };
 
+// UTF-16 units, matching the research schema's changeReason .max(300).
 const REASON_MAX = 300;
 
 const duplicateOf = (record: CaptureRecord): SaveCaptureResult => ({
@@ -50,7 +52,7 @@ async function fileCapture(deps: SaveCaptureDeps, parsed: ParsedCapture): Promis
   if (parsed.kind === "thesis" && company) {
     const existing = await deps.research.findThesisForCompany(company.id);
     if (existing) {
-      const changeReason = Array.from(parsed.firstLine).slice(0, REASON_MAX).join("").trim() || null;
+      const changeReason = clipUnits(parsed.firstLine, REASON_MAX).trim() || null;
       await appendRevision(deps.research, { itemId: existing.id, appendMd: parsed.body, changeReason });
       return { itemId: existing.id, company, theme };
     }

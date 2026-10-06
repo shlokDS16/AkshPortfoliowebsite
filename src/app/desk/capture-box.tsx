@@ -1,0 +1,163 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { submitCapture } from "@/modules/capture/actions";
+import {
+  createCaptureQueue,
+  resolveStorageInfo,
+  type CaptureQueue,
+  type CaptureSource,
+  type LockRunner,
+  type QueuedCapture,
+  type RejectedCapture,
+  type SendVerdict,
+} from "@/modules/capture/client";
+import { RejectedList } from "./rejected-list";
+
+const LOCK_NAME = "desk-capture-flush";
+const RETRY_MS = 30_000;
+
+function detectSource(): CaptureSource {
+  return window.matchMedia("(pointer: coarse)").matches ? "mobile" : "web";
+}
+
+/** One flush at a time across tabs where the browser supports it; within a tab the queue is single-flight. */
+const withLock: LockRunner = async (fn) => {
+  if (typeof navigator !== "undefined" && navigator.locks) return await navigator.locks.request(LOCK_NAME, fn);
+  return fn();
+};
+
+async function sendToServer(entry: QueuedCapture): Promise<SendVerdict> {
+  const response = await submitCapture({ clientId: entry.clientId, rawText: entry.rawText, source: entry.source });
+  if (response.ok) return "sent";
+  return response.retry ? "retry" : { outcome: "drop", reason: response.code };
+}
+
+export function CaptureBox() {
+  const router = useRouter();
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const queueRef = useRef<CaptureQueue | null>(null);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(0);
+  const [saved, setSaved] = useState(false);
+  const [waiting, setWaiting] = useState(0);
+  const [rejected, setRejected] = useState<RejectedCapture[]>([]);
+  const [durable, setDurable] = useState(true);
+
+  /** Created on first use in the browser (never during render), so there is exactly one per mount. */
+  const getQueue = useCallback((): CaptureQueue => {
+    if (!queueRef.current) {
+      const info = resolveStorageInfo(() => window.localStorage);
+      queueRef.current = createCaptureQueue(info.storage, { withLock });
+      if (!info.durable) setDurable(false);
+    }
+    return queueRef.current;
+  }, []);
+
+  const syncView = useCallback(() => {
+    const queue = getQueue();
+    setWaiting(queue.list().length);
+    setRejected(queue.listRejected());
+    if (!queue.isDurable()) setDurable(false);
+  }, [getQueue]);
+
+  const flush = useCallback(async () => {
+    const result = await getQueue().flush(sendToServer);
+    syncView();
+    if (result.sent > 0) {
+      setSaved(true);
+      router.refresh();
+    }
+    return result;
+  }, [getQueue, router, syncView]);
+
+  useEffect(() => {
+    ref.current?.focus();
+    const first = window.setTimeout(() => void flush(), 0);
+    const onOnline = () => void flush();
+    window.addEventListener("online", onOnline);
+    return () => {
+      window.clearTimeout(first);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [flush]);
+
+  // A server that is down (not just offline) never fires "online": keep trying while something waits.
+  useEffect(() => {
+    if (waiting === 0) return;
+    const timer = window.setInterval(() => void flush(), RETRY_MS);
+    return () => window.clearInterval(timer);
+  }, [waiting, flush]);
+
+  // Without durable storage the queue lives in this page only: warn before it is closed.
+  useEffect(() => {
+    if (durable || waiting === 0) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [durable, waiting]);
+
+  async function submit() {
+    const rawText = text;
+    if (rawText.trim() === "") return;
+    // Queue first: the thought is on the device before any network call (spec s9).
+    getQueue().enqueue({ clientId: crypto.randomUUID(), rawText, source: detectSource(), queuedAt: new Date().toISOString() });
+    setText("");
+    setSaved(false);
+    setSaving((n) => n + 1);
+    syncView();
+    try {
+      await flush();
+    } finally {
+      setSaving((n) => n - 1);
+      ref.current?.focus();
+    }
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      void submit();
+    }
+  }
+
+  function dismiss(clientId: string) {
+    getQueue().dismissRejected(clientId);
+    syncView();
+  }
+
+  let status = "";
+  if (saving > 0) status = "Saving...";
+  else if (waiting > 0) status = `Saved on this device, will sync (${waiting} waiting).`;
+  else if (saved) status = "Saved.";
+
+  return (
+    <div className="space-y-2">
+      <Textarea
+        ref={ref}
+        aria-label="Capture"
+        value={text}
+        onChange={(event) => {
+          setText(event.target.value);
+          setSaved(false);
+        }}
+        onKeyDown={onKeyDown}
+        rows={3}
+        placeholder="What did you find? $SYMBOL links a company, #theme a theme, t: thesis, l: learning, p: process"
+        className="text-base"
+      />
+      <p role="status" className="min-h-5 text-xs text-muted-foreground">
+        {status}
+      </p>
+      {durable ? null : (
+        <p role="alert" className="text-xs text-destructive">
+          Offline saving is unavailable on this device (browser storage is blocked or full). Captures that cannot reach the desk are
+          kept only until you close or reload this page.
+        </p>
+      )}
+      <RejectedList entries={rejected} onDismiss={dismiss} />
+    </div>
+  );
+}
