@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { MotionRoot } from "@/components/ui/motion-root";
 import { PAPER } from "@/lib/theme-colors";
 import { plexMono, plexSans } from "./fonts";
 import "./globals.css";
@@ -26,7 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Skip to content
         </a>
-        {children}
+        <MotionRoot>{children}</MotionRoot>
       </body>
     </html>
   );

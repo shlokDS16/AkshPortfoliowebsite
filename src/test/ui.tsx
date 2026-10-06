@@ -1,3 +1,6 @@
+import { render, type RenderResult } from "@testing-library/react";
+import { domMax, LazyMotion, MotionConfig } from "motion/react";
+import type { ReactElement } from "react";
 import { expect, vi } from "vitest";
 import { PALETTE } from "./palette";
 
@@ -83,4 +86,13 @@ export function expectNoMotion(root: Element): void {
     expect(cls).not.toMatch(/\banimate-|\bstatus-tick\b|\btoast-in\b/);
     expect(el.hasAttribute("data-draw")).toBe(false);
   }
+}
+
+/** Synchronous domMax so layout animations exist in tests; "always" stands in for the OS setting. */
+export function renderWithMotion(ui: ReactElement, opts: { reducedMotion?: boolean } = {}): RenderResult {
+  return render(
+    <LazyMotion features={domMax} strict>
+      <MotionConfig reducedMotion={opts.reducedMotion ? "always" : "never"}>{ui}</MotionConfig>
+    </LazyMotion>,
+  );
 }
