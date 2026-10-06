@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { parsePublicEnv } from "./env";
+import { describe, expect, it, vi } from "vitest";
+import { isBuildPhase, parsePublicEnv } from "./env";
 
 const base = {
   NEXT_PUBLIC_SITE_URL: "https://desk.example.com/",
@@ -26,4 +26,13 @@ describe("parsePublicEnv", () => {
       expect(() => parsePublicEnv({ ...base, NEXT_PUBLIC_SUPABASE_URL: url })).toThrow(/NEXT_PUBLIC_SUPABASE_URL/);
     },
   );
+});
+
+describe("isBuildPhase", () => {
+  it("is true only while next build prerenders (NEXT_PHASE)", () => {
+    vi.stubEnv("NEXT_PHASE", "phase-production-build");
+    expect(isBuildPhase()).toBe(true);
+    vi.stubEnv("NEXT_PHASE", "phase-production-server");
+    expect(isBuildPhase()).toBe(false);
+  });
 });

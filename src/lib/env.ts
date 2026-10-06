@@ -48,3 +48,12 @@ export function publicEnv(): PublicEnv {
   });
   return cachedPublic;
 }
+
+/**
+ * True while `next build` prerenders pages (Next sets NEXT_PHASE in build/index.js). Public pages use it to
+ * render an "unavailable" state when CI builds without a database (Plan 1B D12); at runtime reads throw so
+ * ISR keeps serving the last good page.
+ */
+export function isBuildPhase(): boolean {
+  return process.env.NEXT_PHASE === "phase-production-build";
+}

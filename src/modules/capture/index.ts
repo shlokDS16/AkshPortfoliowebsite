@@ -21,3 +21,4 @@ export { createSupabaseCaptureRepo } from "./repo";
 export { createCaptureDeps, listCapturesSince } from "./deps";
 export { groupTodayByCompany, type TodayGroup } from "./today";
 export { captureStreak, type Streak } from "./streak";
+export { toStreakData } from "./streak-view";
