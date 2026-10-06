@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { serverEnv } from "@/lib/env.server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Db } from "@/lib/supabase/types";
@@ -44,7 +45,7 @@ export function safeNextPath(next: string | null | undefined, fallback = "/desk"
  * 'admin'. RLS lets only an admin read that row, so a non-admin gets no row at all.
  * getClaims() verifies the JWT; getSession() is never used for authorisation (pitfalls s2).
  */
-export async function getAdmin(deps: GetAdminDeps = {}): Promise<AdminIdentity | null> {
+async function resolveAdmin(deps: GetAdminDeps): Promise<AdminIdentity | null> {
   const db = deps.db ?? (await createSupabaseServerClient());
   const adminEmail = deps.adminEmail ?? serverEnv().ADMIN_EMAIL;
   const { data, error } = await db.auth.getClaims();
@@ -57,6 +58,17 @@ export async function getAdmin(deps: GetAdminDeps = {}): Promise<AdminIdentity |
   const { data: profile, error: profileError } = await db.from("profiles").select("role").eq("id", sub).maybeSingle();
   if (profileError || profile?.role !== "admin") return null;
   return { userId: sub, email: email.trim().toLowerCase() };
+}
+
+const getAdminForRequest = cache(() => resolveAdmin({}));
+
+/**
+ * With no deps (what pages, layouts and actions call) the answer is shared within one React
+ * request, so the layout, the page and an action make one claims check and one profile read.
+ * With explicit deps (sign-in confirmation, tests) it always asks afresh.
+ */
+export function getAdmin(deps?: GetAdminDeps): Promise<AdminIdentity | null> {
+  return deps ? resolveAdmin(deps) : getAdminForRequest();
 }
 
 /** Every desk page, layout and server action calls this (spec s9). */
