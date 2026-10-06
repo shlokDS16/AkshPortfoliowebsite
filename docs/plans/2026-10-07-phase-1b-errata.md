@@ -43,6 +43,13 @@ A1.6 **Login copy** (carried from the Plan 1A final review, Q9). The hosted magi
 and only works in the browser that requested it. The styled `/login` page (whichever task restyles it) shows a short
 same-browser instruction under the form.
 
+A1.7 **Toast keeps `role="status"`** (supersedes G12's Toast sentence and Task 2 correction 2; ratification
+ruling "gap-fill 6 REJECTED", `.superpowers/sdd/2026-10-06-phase-1b-ui/progress.md:5`). The Toast container is
+`<div role="status" aria-live="polite" aria-atomic="true" ...>` and its test asserts the role. Any task that mounts
+the Toast on a page whose Plan 1A e2e use a strict `page.getByRole("status")` changes those selectors to be specific
+(by accessible name or text, e.g. `getByRole("status").filter({ hasText: ... })` or `getByText`), never removes a
+status role. The rest of G12 stands (one `?notice=` status paragraph per item page; the capture status line on `/desk`).
+
 ## Global
 
 G1. **Start condition.** Plan 1B starts only after Plan 1A Task 14 is committed (its e2e reorganisation is still in the
