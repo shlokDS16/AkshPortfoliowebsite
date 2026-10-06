@@ -6,8 +6,42 @@ R1-R22 (`.superpowers/sdd/2026-10-06-phase-1b-ui/progress.md:3`), Plan 1A ledger
 (`.superpowers/sdd/2026-10-04-phase-1a-core/progress.md`). Real code checked at `phase-1a` 50f7841 plus the
 Plan 1A Task 14 working tree (`playwright.config.ts`, `e2e/*`).
 
-How to read: an implementer of Plan 1B Task N reads `## Global`, `## Task order` and `## Task N` only.
+How to read: an implementer of Plan 1B Task N reads `## Amendment A1`, `## Global`, `## Task order` and `## Task N` only.
 `P1234` = plan line. `file:12` = real code line. "Replace" means the plan's block is not built; the code here is.
+
+## Amendment A1 (2026-10-07, controller) - binding, overrides the sections below
+
+Plan 1A's final review added migration `20261007000004_hardening.sql` (already applied to the hosted project; never
+edit it). Every Plan 1B reference to `20261007000004_casefile.sql`, `0004_*` tests or "migration 0004" for Plan 1B work
+means the following instead:
+
+A1.1 **File names** (replaces G13). The Plan 1B migration is `supabase/migrations/20261007000005_casefile.sql`; its
+tests are `supabase/tests/0005_*.test.sql` (`0005_casefile`, `0005_names`). Existing `0004_*` test files belong to
+the hardening migration: do not rename or replace them.
+
+A1.2 **`publish_revision`** (replaces R2). Any redefinition starts from the 0004 body: signature
+`publish_revision(p_actor uuid, p_item_id uuid, p_revision_id uuid, p_policy_version text, p_lint_result jsonb)`, the
+`private.is_admin_user(p_actor)` check, the pinned policy version, IST dates, latest-only `revision` and recorded `slug`
+failures. Keep the 0004 privileges: EXECUTE revoked from public/anon/authenticated/service_role, then granted to
+service_role only.
+
+A1.3 **`private.is_lagged`** (replaces R19's migration part). 0004 already counts the lag in IST. Do NOT redefine it in
+0005 and do not create `0004_ist_lag`/`0005_ist_lag` tests for it (`0004_ist_lag.test.sql` exists). The TS `isLagged`
+mirror and its comment cite `20261007000004_hardening.sql`.
+
+A1.4 **`private.guard_publish_columns`** (replaces R3). Start from the 0004 body (line 176 of the hardening migration)
+and only add `file_no` to the frozen set. `private.guard_catalog_public_columns` (0004) already freezes companies'
+name/slug/nse_symbol/one_liner/sector/bse_code/isin and themes' name/slug while a public item links the row; the New
+names screen (Task 13) must not update those columns on a linked row (archive instead, or expect the trigger error).
+
+A1.5 **Gate calls** (ADR-003). Publish, unpublish and lint allowances run only through the existing server-only
+`src/modules/compliance/gate-rpc.ts` (service client, verified admin id as `p_actor`). Allowance writes use
+`public.add_lint_allowance` / `public.remove_lint_allowance`; authenticated cannot insert/update/delete
+`lint_allowances`. No other Plan 1B file imports `@/lib/supabase/service` (G2 stands).
+
+A1.6 **Login copy** (carried from the Plan 1A final review, Q9). The hosted magic link uses PKCE via `/auth/callback`
+and only works in the browser that requested it. The styled `/login` page (whichever task restyles it) shows a short
+same-browser instruction under the form.
 
 ## Global
 
