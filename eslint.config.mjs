@@ -3,8 +3,11 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 const NO_APP = { group: ["@/app/*", "@/app/**"], message: "Nothing imports app/* (spec s4)." };
+// ops has two extra, deliberately narrow entries: the service-free public health entry and the
+// server-only job entry (controller ruling R6). ops.graph.test.ts proves what each can reach.
+const OPS_ENTRY_POINTS = ["!@/modules/ops/health", "!@/modules/ops/jobs"];
 const MODULE_ENTRY_POINTS = {
-  group: ["@/modules/*/*", "@/modules/*/*/**", "!@/modules/*/index", "!@/modules/*/actions", "!@/modules/*/client"],
+  group: ["@/modules/*/*", "@/modules/*/*/**", "!@/modules/*/index", "!@/modules/*/actions", "!@/modules/*/client", ...OPS_ENTRY_POINTS],
   message: "Import a module through its index, actions or client entry point only (spec s4).",
 };
 const NO_SECRET_CLIENT = {

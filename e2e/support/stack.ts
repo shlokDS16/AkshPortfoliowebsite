@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 
 /** Matches supabase/seed.sql (private.settings admin_email). Local stack only. */
 export const E2E_ADMIN_EMAIL = "admin@desk.test";
+export const E2E_CRON_SECRET = "e2e-only-cron-secret-0123456789abcdef0123";
 export const E2E_PORT = 3100;
 export const E2E_SITE_URL = `http://127.0.0.1:${E2E_PORT}`;
 
@@ -44,6 +45,6 @@ export function appEnv(stack: LocalStack): Record<string, string> {
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: stack.publishableKey,
     SUPABASE_SECRET_KEY: stack.secretKey,
     ADMIN_EMAIL: E2E_ADMIN_EMAIL,
-    CRON_SECRET: "e2e-only-cron-secret-0123456789abcdef0123",
+    CRON_SECRET: E2E_CRON_SECRET,
   };
 }

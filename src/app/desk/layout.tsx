@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { requireAdmin } from "@/modules/identity";
 import { signOut } from "@/modules/identity/actions";
+import { HealthStrip } from "./health-strip";
 
 export default async function DeskLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
@@ -19,6 +20,7 @@ export default async function DeskLayout({ children }: { children: ReactNode }) 
           </Button>
         </form>
       </header>
+      <HealthStrip />
       {children}
     </div>
   );

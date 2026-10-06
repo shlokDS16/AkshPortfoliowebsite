@@ -8,6 +8,7 @@ const stack = readLocalStack();
 
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/support/global-setup.ts",
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
