@@ -1,4 +1,5 @@
 import { expect, vi } from "vitest";
+import { PALETTE } from "./palette";
 
 type MediaOptions = { reducedMotion?: boolean; dark?: boolean; coarse?: boolean; desk?: boolean };
 
@@ -37,7 +38,9 @@ export function mockIntersectionObserver(): { trigger(target: Element, isInterse
     observe(target: Element) {
       this.entry.targets.push(target);
     }
-    unobserve() {}
+    unobserve(target: Element) {
+      this.entry.targets = this.entry.targets.filter((t) => t !== target);
+    }
     disconnect() {
       this.entry.targets = [];
     }
@@ -57,8 +60,7 @@ export function mockIntersectionObserver(): { trigger(target: Element, isInterse
   };
 }
 
-const PALETTE = /\b(?:bg|text|border|ring|fill|stroke|outline|decoration|shadow)-(?:gray|zinc|neutral|stone|red|orange|amber|yellow|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|pink|rose|white|black)(?:-\d{2,3})?\b/;
-const RAW_COLOUR_STYLE = /(?:^|;)\s*(?:color|background(?:-color)?|border-color|fill|stroke)\s*:\s*(?!var\(|currentcolor|transparent|inherit)/i;
+const RAW_COLOUR_STYLE = /(?:^|;)\s*(?:color|background(?:-color)?|border-color|fill|stroke)\s*:\s*(?!\s|var\(|currentcolor|transparent|inherit)/i; // (?!\s): \s* must not backtrack past the space
 
 /** Dark mode by construction: only token classes, so the .dark / OS token swap recolours everything. */
 export function expectTokenOnly(root: Element): void {

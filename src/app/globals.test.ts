@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { GERU, OG, ON_GERU, PAPER } from "@/lib/theme-colors";
+import { DESK_TEXT } from "@/lib/utils";
 
 const css = readFileSync(new URL("./globals.css", import.meta.url), "utf8");
 
@@ -75,5 +76,11 @@ describe("globals.css tokens", () => {
       geru: light.get("geru"),
       onGeru: light.get("on-geru"),
     });
+  });
+
+  it("keeps cn's DESK_TEXT list equal to the --text-* font-size tokens", () => {
+    const tokens = [...blockAfter("@theme static {").matchAll(/--text-([a-z0-9]+(?:-[a-z0-9]+)*):/g)].map((m) => m[1]);
+    expect(tokens.length).toBeGreaterThan(20);
+    expect([...DESK_TEXT].sort()).toEqual([...new Set(tokens)].sort());
   });
 });

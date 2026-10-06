@@ -1,11 +1,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { PALETTE } from "@/test/palette";
 
 // Task 13 adds "src/app/desk" once Plan 1A's plain desk screens are replaced.
 const ROOTS = ["src/components", "src/app/(public)"];
-const PALETTE =
-  /\b(?:bg|text|border|ring|fill|stroke|outline|decoration|divide|from|via|to|shadow|caret|accent)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black)(?:-\d{2,3})?\b/;
 const HEX = /#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/;
 
 function walk(dir: string): string[] {
