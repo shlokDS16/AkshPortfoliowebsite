@@ -2,7 +2,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(46);
+select plan(50);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -22,7 +22,8 @@ grant execute on function public.test_lint(uuid, text, boolean), public.test_ver
 
 insert into public.companies (id, slug, name, visibility) values
   ('cccccccc-0000-4000-8000-000000000001', 'pub-co', 'Pub Co', 'public'),
-  ('cccccccc-0000-4000-8000-000000000002', 'priv-co', 'Priv Co', 'private');
+  ('cccccccc-0000-4000-8000-000000000002', 'priv-co', 'Priv Co', 'private'),
+  ('cccccccc-0000-4000-8000-000000000003', 'priv-co-3', 'Priv Co 3', 'private');
 insert into public.themes (id, slug, name, visibility) values
   ('eeeeeeee-0000-4000-8000-000000000001', 'pub-theme', 'Pub Theme', 'public'),
   ('eeeeeeee-0000-4000-8000-000000000002', 'priv-theme', 'Priv Theme', 'private');
@@ -56,7 +57,11 @@ insert into public.items (id, kind, title, learning_objective) values
   ('dc000000-0000-4000-8000-00000000000c', 'learning', '₹₹₹', 'Learn.');
 insert into public.items (id, kind, title, company_id, data_as_of) values
   ('dd000000-0000-4000-8000-00000000000d', 'case_study', 'Everything wrong',
-   'cccccccc-0000-4000-8000-000000000002', null);
+   'cccccccc-0000-4000-8000-000000000003', null);
+-- Two items whose generated slugs collide (same title, same first six id characters).
+insert into public.items (id, kind, title, learning_objective) values
+  ('f1000000-0000-4000-8000-000000000001', 'learning', 'Twin title', 'Learn.'),
+  ('f1000000-0000-4000-8000-000000000002', 'learning', 'Twin title', 'Learn.');
 
 insert into public.item_revisions (id, item_id, body_md) values
   ('e1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'v1'),
@@ -72,7 +77,9 @@ insert into public.item_revisions (id, item_id, body_md) values
   ('ea000000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-00000000000a', 'body'),
   ('eb000000-0000-4000-8000-000000000001', 'db000000-0000-4000-8000-00000000000b', 'body'),
   ('ec000000-0000-4000-8000-000000000001', 'dc000000-0000-4000-8000-00000000000c', 'body'),
-  ('ed000000-0000-4000-8000-000000000001', 'dd000000-0000-4000-8000-00000000000d', 'body');
+  ('ed000000-0000-4000-8000-000000000001', 'dd000000-0000-4000-8000-00000000000d', 'body'),
+  ('f1000000-0000-4000-8000-0000000000a1', 'f1000000-0000-4000-8000-000000000001', 'body'),
+  ('f1000000-0000-4000-8000-0000000000a2', 'f1000000-0000-4000-8000-000000000002', 'body');
 
 -- Slug helper (owner context; API roles cannot call it).
 select is(private.slugify('How Capex Cycles Turn!'), 'how-capex-cycles-turn', 'slugify lowercases and hyphenates');
@@ -120,10 +127,10 @@ select is((select verdict from public.publish_revision('d2000000-0000-4000-8000-
 select is(public.test_verdict('d1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001'),
   'pass', 'a clean learning item passes');
 select results_eq($$
-  select visibility, status, current_revision_id::text, published_at is not null
+  select visibility, status, current_revision_id::text, published_at = now()
     from public.items where id = 'd1000000-0000-4000-8000-000000000001'
 $$, $$ values ('public'::text, 'published'::text, 'e1000000-0000-4000-8000-000000000001'::text, true) $$,
-  'a pass sets visibility, status, current revision and published_at');
+  'a pass sets visibility, status, current revision and stamps published_at with now()');
 select is((select slug from public.items where id = 'd1000000-0000-4000-8000-000000000001'),
   'how-capex-cycles-turn-d10000', 'a null slug becomes slugify(title) plus the first six id characters');
 select results_eq($$
@@ -205,7 +212,6 @@ select is(public.test_verdict('da000000-0000-4000-8000-00000000000a', 'ea000000-
   'pass', 'and the theme item passes once its theme is public');
 
 -- Every failing rule is reported together.
-update public.companies set visibility = 'private' where id = 'cccccccc-0000-4000-8000-000000000002';
 select is(public.test_verdict('dd000000-0000-4000-8000-00000000000d', 'ed000000-0000-4000-8000-000000000001', false),
   'fail', 'an item that breaks every rule fails');
 select results_eq($$
@@ -214,6 +220,22 @@ select results_eq($$
    where g.revision_id = 'ed000000-0000-4000-8000-000000000001'
 $$, $$ values (array['3','5','6','company','lint']::text[]) $$,
   'all five failures are listed (rule 4 is deferred to Phase 3)');
+
+-- A generated slug that another item already holds is a recorded failure, not an exception.
+select is(public.test_verdict('f1000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-0000000000a1'),
+  'pass', 'the first of two same-titled items publishes');
+select is(public.test_verdict('f1000000-0000-4000-8000-000000000002', 'f1000000-0000-4000-8000-0000000000a2'),
+  'fail', 'the second one fails instead of raising a unique violation');
+select results_eq($$
+  select f ->> 'rule', f ->> 'message' like '%twin-title-f10000%'
+    from public.gate_decisions g, jsonb_array_elements(g.reasons -> 'failures') f
+   where g.revision_id = 'f1000000-0000-4000-8000-0000000000a2'
+$$, $$ values ('slug'::text, true) $$, 'the fail row names the slug conflict');
+select results_eq($$
+  select visibility, status, slug, current_revision_id::text from public.items
+   where id = 'f1000000-0000-4000-8000-000000000002'
+$$, $$ values ('private'::text, 'draft'::text, null::text, null::text) $$,
+  'the colliding item is left untouched');
 
 -- Callers and bad input raise; nothing is recorded for them.
 select throws_ok($$ select public.publish_revision('d1000000-0000-4000-8000-000000000001',

@@ -81,7 +81,11 @@ begin
   perform public.unpublish_item('d6000000-0000-4000-8000-000000000006');
 end $$;
 reset role;
+-- The catalog guard makes "public item, private company" unreachable; switch it off here to
+-- prove the view still hides the company on its own.
+alter table public.companies disable trigger companies_guard_visibility;
 update public.companies set visibility = 'private' where id = 'cccccccc-0000-4000-8000-00000000000c';
+alter table public.companies enable trigger companies_guard_visibility;
 
 -- Structure.
 select is((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace

@@ -57,16 +57,18 @@ as $$
   select btrim(regexp_replace(lower(coalesce(p_text, '')), '[^a-z0-9]+', '-', 'g'), '-');
 $$;
 
--- 13. Guard: only publish_revision() may make an item public or change what a public
--- item shows. The gate is a transaction-local setting that publish_revision sets for
--- its own update. It only counts when the caller is not an API role, so an API role
--- that sets the setting itself gains nothing.
+-- 13. Guard: only publish_revision() may make an item public, stamp published_at, or
+-- change what a public item shows. The gate is a transaction-local setting that
+-- publish_revision sets for its own update. It only counts when the current role is the
+-- owner of publish_revision (the role its SECURITY DEFINER body runs as), so no other
+-- role, present or future, gains anything by setting it.
 create function private.guard_publish_columns()
 returns trigger language plpgsql set search_path = ''
 as $$
 begin
   if coalesce(current_setting('app.publish_gate', true), '') = 'on'
-     and current_user not in ('anon', 'authenticated', 'service_role', 'authenticator') then
+     and current_user = (select pg_get_userbyid(p.proowner) from pg_proc p
+                          where p.oid = 'public.publish_revision(uuid, uuid, text, jsonb)'::regprocedure) then
     return new;
   end if;
   if tg_op = 'INSERT' then
@@ -74,6 +76,9 @@ begin
       raise exception 'items: only publish_revision() can make an item public' using errcode = '42501';
     end if;
     return new;
+  end if;
+  if new.published_at is distinct from old.published_at then
+    raise exception 'items: published_at is stamped only by publish_revision()' using errcode = '42501';
   end if;
   if new.status = 'published' and old.status is distinct from 'published' then
     raise exception 'items: only publish_revision() can publish' using errcode = '42501';
@@ -90,7 +95,6 @@ begin
     or new.data_as_of is distinct from old.data_as_of
     or new.holds_position is distinct from old.holds_position
     or new.status is distinct from old.status
-    or new.published_at is distinct from old.published_at
   ) then
     raise exception 'items: a public item changes only through publish_revision(); unpublish to edit details'
       using errcode = '42501';
@@ -102,6 +106,32 @@ $$;
 create trigger items_guard_publish
   before insert or update on public.items
   for each row execute function private.guard_publish_columns();
+
+-- A company or theme cannot leave 'public' while a public item still links to it (the
+-- public views would show a dangling reference). Unpublish those items first.
+create function private.guard_catalog_visibility()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+begin
+  if old.visibility = 'public' and new.visibility is distinct from 'public' and exists (
+    select 1 from public.items i
+     where i.visibility = 'public'
+       and ((tg_table_name = 'companies' and i.company_id = old.id)
+         or (tg_table_name = 'themes' and i.theme_id = old.id))
+  ) then
+    raise exception '%.%: public items still use it; unpublish them first', tg_table_name, old.slug
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger companies_guard_visibility
+  before update of visibility on public.companies
+  for each row execute function private.guard_catalog_visibility();
+create trigger themes_guard_visibility
+  before update of visibility on public.themes
+  for each row execute function private.guard_catalog_visibility();
 
 -- 14. The only publish path. Re-checks in SQL what the TypeScript lint already checked,
 -- records every decision (a failure is a recorded row, not an exception, so the audit
@@ -117,6 +147,7 @@ language plpgsql security definer set search_path = ''
 as $$
 declare
   v_item     public.items;
+  v_slug     text;
   v_failures jsonb := '[]'::jsonb;
   v_decision public.gate_decisions;
 begin
@@ -173,6 +204,16 @@ begin
       'rule', 'theme', 'message', 'The linked theme is not public.'));
   end if;
 
+  -- A first publish gets a generated slug; if another item already has it, that is a
+  -- recorded failure (never an exception, which would roll back the audit row).
+  v_slug := coalesce(v_item.slug,
+              coalesce(nullif(private.slugify(v_item.title), ''), 'item') || '-' || left(v_item.id::text, 6));
+  if v_item.slug is null
+     and exists (select 1 from public.items o where o.slug = v_slug and o.id <> v_item.id) then
+    v_failures := v_failures || jsonb_build_array(jsonb_build_object(
+      'rule', 'slug', 'message', format('The slug %s is already used by another item; rename this item.', v_slug)));
+  end if;
+
   insert into public.gate_decisions (item_id, revision_id, policy_version, verdict, reasons)
   values (
     p_item_id, p_revision_id, coalesce(p_policy_version, ''),
@@ -188,8 +229,7 @@ begin
            status = 'published',
            current_revision_id = p_revision_id,
            published_at = coalesce(published_at, now()),
-           slug = coalesce(slug,
-                    coalesce(nullif(private.slugify(title), ''), 'item') || '-' || left(id::text, 6))
+           slug = v_slug
      where id = p_item_id;
     perform set_config('app.publish_gate', 'off', true);
   end if;

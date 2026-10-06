@@ -2,11 +2,14 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(30);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
 insert into auth.users (id, email) values ('aaaaaaaa-0000-4000-8000-000000000001', 'admin@pgtap.test');
+-- An arbitrary role that inherits the admin session's privileges (a stand-in for any future API role).
+create role probe_member nologin in role authenticated;
+grant probe_member to postgres with set true;
 insert into public.companies (id, slug, name, visibility)
   values ('cccccccc-0000-4000-8000-000000000001', 'pub-co', 'Pub Co', 'public');
 insert into public.themes (id, slug, name, visibility)
@@ -46,6 +49,8 @@ select lives_ok($$
   update public.items set current_revision_id = 'e2000000-0000-4000-8000-000000000001'
    where id = 'd2000000-0000-4000-8000-000000000002'
 $$, 'admin can point a private item at one of its own revisions');
+select throws_ok($$ update public.items set published_at = '2020-01-01' where id = 'd2000000-0000-4000-8000-000000000002' $$,
+  '42501', null, 'admin cannot backdate published_at on a private item');
 select lives_ok($$ update public.items set visibility = 'clients' where id = 'd2000000-0000-4000-8000-000000000002' $$,
   'admin can move an item to clients (not public)');
 select lives_ok($$ update public.items set visibility = 'private' where id = 'd2000000-0000-4000-8000-000000000002' $$,
@@ -58,6 +63,18 @@ select throws_ok($$ update public.items set visibility = 'public' where id = 'd2
 select throws_ok($$ insert into public.items (kind, title, visibility) values ('note', 'y', 'public') $$,
   '42501', null, 'nor does it allow inserting a public item');
 select set_config('app.publish_gate', 'off', true);
+reset role;
+set local role probe_member;
+select set_config('request.jwt.claims',
+  '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select set_config('app.publish_gate', 'on', true);
+select throws_ok($$ update public.items set visibility = 'public' where id = 'd2000000-0000-4000-8000-000000000002' $$,
+  '42501', null, 'the gate setting is honoured only for the owner of publish_revision, not for any other role');
+select set_config('app.publish_gate', 'off', true);
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 
 -- Publish g1 through the gate.
 select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-000000000001',

@@ -2,7 +2,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(22);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -26,6 +26,15 @@ select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-
     'e1000000-0000-4000-8000-000000000001', 'pol-1',
     '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"pol-1"}'::jsonb)),
   'pass', 'precondition: u1 is published');
+
+-- Backdate the first publish (owner, gate open) so "republishing keeps the first date" is observable.
+reset role;
+select set_config('app.publish_gate', 'on', true);
+update public.items set published_at = now() - interval '5 days' where id = 'd1000000-0000-4000-8000-000000000001';
+select set_config('app.publish_gate', 'off', true);
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 
 select is(public.unpublish_item('d1000000-0000-4000-8000-000000000001'), 'retract-me-d10000',
   'unpublish returns the slug for cache purge');
@@ -77,12 +86,26 @@ select lives_ok($$ update public.items set title = 'Retract me, revised' where i
   'a retracted item can be edited');
 select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-000000000001',
     'e1000000-0000-4000-8000-000000000002', 'pol-1',
+    '{"passed":false,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"pol-1"}'::jsonb)),
+  'fail', 'a failed gate on a retracted item records a fail verdict');
+select results_eq($$
+  select visibility, status, current_revision_id::text,
+         (select count(*) from public.gate_decisions g
+           where g.revision_id = 'e1000000-0000-4000-8000-000000000002' and g.verdict = 'fail')
+    from public.items where id = 'd1000000-0000-4000-8000-000000000001'
+$$, $$ values ('private'::text, 'published'::text, 'e1000000-0000-4000-8000-000000000001'::text, 1::bigint) $$,
+  'the failed gate leaves the retracted item private on its old revision and records the fail row');
+select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-000000000001',
+    'e1000000-0000-4000-8000-000000000002', 'pol-1',
     '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"pol-1"}'::jsonb)),
   'pass', 'republishing a retracted item goes through the gate');
 select results_eq($$
   select visibility, current_revision_id::text, slug from public.items where id = 'd1000000-0000-4000-8000-000000000001'
 $$, $$ values ('public'::text, 'e1000000-0000-4000-8000-000000000002'::text, 'retract-me-d10000'::text) $$,
   'it is public again on the new revision and keeps its original slug');
+select ok((select published_at < now() - interval '4 days' from public.items
+            where id = 'd1000000-0000-4000-8000-000000000001'),
+  'republishing keeps the original first-publish date');
 reset role;
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
