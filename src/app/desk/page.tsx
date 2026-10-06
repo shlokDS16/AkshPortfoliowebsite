@@ -60,6 +60,7 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
       ) : null}
       {noticeMessage ? <p className="rounded-sm border border-rule px-3 py-2 text-small text-ink">{noticeMessage}</p> : null}
       <CaptureBox />
+      <QueuedCard />
       {entries === null ? (
         <p role="alert" className="text-small text-ink-muted">
           Could not load today&apos;s captures. New captures are still saved; reload to try again.
@@ -100,7 +101,6 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
               action={{ label: "Screen new names", href: "/desk/names" }}
             />
           ) : null}
-          <QueuedCard />
         </Tray>
         <Tray title="Today" count={groups.reduce((n, g) => n + g.entries.length, 0)} empty={{ body: "Nothing captured yet today." }}>
           <TodayList groups={groups} />

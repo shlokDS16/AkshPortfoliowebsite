@@ -2,6 +2,7 @@ import type { Json, Tables, TablesUpdate } from "@/lib/supabase/database.types";
 import { toDeskError } from "@/lib/errors";
 import { asRecord } from "@/lib/records";
 import type { Db } from "@/lib/supabase/types";
+import { bodyHoldsText } from "./match";
 import type { HoldsPosition, ItemKind, ItemStatus, RevisionAuthor, Visibility } from "./schema";
 import type { Item, ItemPatch, ResearchRepo, Revision } from "./types";
 
@@ -135,7 +136,7 @@ export function createSupabaseResearchRepo(db: Db): ResearchRepo {
         .order("created_at", { ascending: true })
         .limit(50);
       if (error) throw toDeskError("research.findRevisionContaining", error);
-      const hit = data.find((r) => r.body_md.includes(text));
+      const hit = data.find((r) => bodyHoldsText(r.body_md, text));
       return hit ? { itemId: hit.item_id } : null;
     },
     async listRecentItems(limit) {

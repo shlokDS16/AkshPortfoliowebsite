@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { PublicItemLockedError } from "@/lib/errors";
-import type { Item, ItemPatch, ResearchRepo, Revision, Visibility } from "@/modules/research";
+import { bodyHoldsText, type Item, type ItemPatch, type ResearchRepo, type Revision, type Visibility } from "@/modules/research";
 
 export type MemoryResearchRepo = ResearchRepo & {
   items: Map<string, Item>;
@@ -101,7 +101,7 @@ export function createMemoryResearchRepo(): MemoryResearchRepo {
         .filter((r) => r.createdAt >= sinceIso && r.createdAt <= untilIso)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
         .slice(0, 50)
-        .find((r) => r.bodyMd.includes(text));
+        .find((r) => bodyHoldsText(r.bodyMd, text));
       return hit ? { itemId: hit.itemId } : null;
     },
     async listRecentItems(limit) {

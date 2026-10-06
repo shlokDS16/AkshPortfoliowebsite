@@ -42,7 +42,7 @@ const duplicateOf = (record: CaptureRecord): SaveCaptureResult => ({
 type Filed = { itemId: string; company: Company | null; theme: Theme | null };
 
 /** A thesis append past the body limit is not a failure to retry: filing it again would fail the same way. */
-const bodyTooLong = (e: unknown) => e instanceof ZodError && e.issues.some((i) => i.message === BODY_TOO_LONG_MESSAGE);
+export const bodyTooLong = (e: unknown) => e instanceof ZodError && e.issues.some((i) => i.message === BODY_TOO_LONG_MESSAGE);
 
 export async function fileCapture(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<Filed> {
   const company = parsed.symbols[0] ? await ensureCompany(deps.catalog, parsed.symbols[0]) : null;

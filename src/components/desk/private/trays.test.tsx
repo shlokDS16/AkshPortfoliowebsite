@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CaptureListEntry, TodayGroup } from "@/modules/capture";
 import { expectTokenOnly } from "@/test/ui";
@@ -50,6 +50,25 @@ describe("NeedsYouCard", () => {
     const card = screen.getByRole("article");
     expect(within(card).getByRole("button", { name: "File it now" })).toHaveAttribute("type", "submit");
     expect(within(card).queryByRole("link")).toBeNull();
+  });
+});
+
+describe("the File it now button", () => {
+  it("disables itself while the action runs, so a double tap cannot fire twice", async () => {
+    let finish: () => void = () => {};
+    const action = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    render(<NeedsYouCard tone="warn" stateWord="Not filed" title="t" body="b" form={{ label: "File it now", action }} />);
+    const button = screen.getByRole("button", { name: "File it now" });
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    expect(button).toBeDisabled();
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    expect(action).toHaveBeenCalledTimes(1);
+    await act(async () => finish());
+    expect(button).toBeEnabled();
   });
 });
 

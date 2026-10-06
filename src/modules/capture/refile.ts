@@ -1,7 +1,7 @@
 import { DeskError } from "@/lib/errors";
 import { ensureCompany, ensureTheme } from "@/modules/catalog";
 import { parseCapture } from "./parse";
-import { fileCapture, type SaveCaptureDeps } from "./service";
+import { bodyTooLong, fileCapture, type SaveCaptureDeps } from "./service";
 import type { CaptureListEntry } from "./types";
 
 export const REFILE_AFTER_MS = 10 * 60_000;
@@ -23,6 +23,18 @@ export function needsRefile(entry: RefileView, now: Date): boolean {
   if (entry.itemId !== null) return false;
   if (entry.parseError === "filing-failed") return true;
   return entry.parsedMissing && now.getTime() - new Date(entry.createdAt).getTime() >= REFILE_AFTER_MS;
+}
+
+/** A thesis at its length limit would fail every time: record that so the row stops being offered for refiling. */
+async function fileCaptureOrMark(deps: SaveCaptureDeps, captureId: string, parsed: ReturnType<typeof parseCapture>) {
+  try {
+    return await fileCapture(deps, parsed);
+  } catch (error) {
+    if (bodyTooLong(error)) {
+      await deps.captures.attach(captureId, { parsed: { ...parsed, error: "thesis-full" } }).catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 /** Files a stored capture again. If an item already holds its text (the link was lost), links that item instead. */
@@ -48,7 +60,7 @@ export async function refileCapture(deps: SaveCaptureDeps, captureId: string, no
         company: parsed.symbols[0] ? await ensureCompany(deps.catalog, parsed.symbols[0]) : null,
         theme: parsed.themes[0] ? await ensureTheme(deps.catalog, parsed.themes[0]) : null,
       }
-    : await fileCapture(deps, parsed);
+    : await fileCaptureOrMark(deps, record.id, parsed);
   await deps.captures.attach(record.id, {
     parsed: { ...parsed },
     itemId: filed.itemId,

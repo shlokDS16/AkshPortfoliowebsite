@@ -77,6 +77,32 @@ describe("refileCapture", () => {
     expect(captures.records[0].itemId).toBe(saved.itemId);
   });
 
+  it("does not link a capture to an unrelated revision that only contains its short text", async () => {
+    const { deps, captures, research } = setup();
+    const other = await saveCapture(deps, input("I would buy more of this"));
+    const record = await captures.insertRaw({ rawText: "buy", source: "web", clientId: randomUUID() });
+    research.revisions[0].createdAt = after(record.createdAt, 2000).toISOString();
+
+    const { itemId } = await refileCapture(deps, record.id, after(record.createdAt, REFILE_AFTER_MS));
+    expect(itemId).not.toBe(other.itemId);
+    expect(research.items.size).toBe(2);
+    expect(research.items.get(itemId)?.title).toBe("buy");
+  });
+
+  it("records thesis-full when the thesis is at its limit, so the row stops being offered for refiling", async () => {
+    const { deps, captures, research } = setup();
+    await saveCapture(deps, input("t: $BIGCO first view"));
+    research.revisions[0].bodyMd = "x".repeat(199_990);
+    const record = await captures.insertRaw({ rawText: `t: $BIGCO ${"y".repeat(100)}`, source: "web", clientId: randomUUID() });
+    await captures.attach(record.id, { parsed: { error: "filing-failed" } });
+
+    await expect(refileCapture(deps, record.id, new Date())).rejects.toThrow();
+    const stored = await captures.findById(record.id);
+    expect(stored?.parsed).toMatchObject({ error: "thesis-full" });
+    expect(stored?.itemId).toBeNull();
+    await expect(refileCapture(deps, record.id, new Date())).rejects.toBeInstanceOf(CaptureNotRefilableError);
+  });
+
   it("throws for a capture that is already filed, one that does not exist, and a thesis-full capture", async () => {
     const { deps, captures } = setup();
     const filed = await saveCapture(deps, input("filed fine"));

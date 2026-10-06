@@ -1,19 +1,15 @@
 import { Info, TriangleAlert, WifiOff } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PendingButton } from "./pending-button";
 
 type Tone = "bad" | "warn" | "neutral";
-type Props = {
-  tone: Tone;
-  stateWord: string;
-  title: string;
-  body: string;
-  /** A link to where the problem is fixed. Never together with `form`. */
-  action?: { label: string; href: string };
-  /** A button that runs a server action (File it now). Never together with `action`. */
-  form?: { label: string; action: () => Promise<void> };
-};
+type Base = { tone: Tone; stateWord: string; title: string; body: string };
+type Props = Base &
+  (
+    | { /** A link to where the problem is fixed. */ action?: { label: string; href: string }; form?: never }
+    | { /** A button that runs a server action (File it now). */ form?: { label: string; action: () => Promise<void> }; action?: never }
+  );
 
 const RULE: Record<Tone, string> = { bad: "border-l-bad", warn: "border-l-warn", neutral: "border-l-ink-muted" };
 const WORD: Record<Tone, string> = { bad: "text-bad", warn: "text-warn", neutral: "text-ink-muted" };
@@ -40,7 +36,7 @@ export function NeedsYouCard({ tone, stateWord, title, body, action, form }: Pro
       ) : null}
       {form ? (
         <form action={form.action} className="mt-3">
-          <Button type="submit">{form.label}</Button>
+          <PendingButton>{form.label}</PendingButton>
         </form>
       ) : null}
     </article>

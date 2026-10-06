@@ -22,5 +22,6 @@ export {
 } from "./schema";
 export type { DiffLine, Item, ItemPatch, ItemWithHistory, NewItemRow, NewRevisionRow, ResearchRepo, Revision } from "./types";
 export { diffRevisions } from "./diff";
+export { bodyHoldsText } from "./match";
 export { createSupabaseResearchRepo } from "./repo";
 export { addRevision, appendRevision, createItem, getItemWithHistory, listRecentItems, updateItemMeta } from "./service";
