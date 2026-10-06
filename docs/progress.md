@@ -35,7 +35,7 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 - [~] 1.2b Migration 20261005000002_publish.sql: invoker views, publish_revision gate, unpublish, heartbeat_ages, generated types, CI db job; 252 pgTAP (Task 4, dc8243d, AWAITING REVIEW)
 - [ ] 1.3 `src/lib/env.ts` (zod), Supabase clients (server/browser/service/public), `proxy.ts` session refresh
 - [ ] 1.4 Admin auth (magic link, `ADMIN_EMAIL` gate), `/desk` shell
-- [ ] 1.5 `research` module: items + revisions service, TDD
+- [ ] 1.5 `research` module: items + revisions service, TDD - implemented 2026-10-06 (115 unit tests, 10 e2e green on the local stack); awaiting review
 - [ ] 1.6 `compliance` module: lint + `publish_item()` + `gate_decisions`, adversarial tests
 - [ ] 1.7 Quick capture (`t:` `l:` `$SYM` `#theme` grammar) + daily capture log
 - [x] 1.8 UI segments 1-6 decided with Shlok → `docs/design/decisions.md`. Segments 1 (B+ Labelled Blocks) and 2 (Register + What-changed + Read-first) DECIDED; ALL SIX SEGMENTS DECIDED 2026-10-05 (1 B+ Labelled Blocks; 2 Register+What-changed+Read-first; 3 Exhibits+Ledger+meters; 4 Trays+capture internals+gate notes; 5 Case files under Aksh's name; 6 Instrument+morph+draw-to-cap)
