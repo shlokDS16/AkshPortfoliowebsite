@@ -3,16 +3,17 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(23);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
 insert into auth.users (id, email) values ('aaaaaaaa-0000-4000-8000-000000000001', 'admin@pgtap.test');
 
 -- co-1 / th-1: linked by a public item. co-2 / th-2: linked only by a private item (stubs).
-insert into public.companies (id, slug, name, nse_symbol, sector, one_liner, visibility) values
-  ('cccccccc-0000-4000-8000-000000000001', 'co-1', 'Co 1', 'COONE', 'Industrials', 'Makes things.', 'public'),
-  ('cccccccc-0000-4000-8000-000000000002', 'co-2', 'Co 2', 'COTWO', null, null, 'private');
+insert into public.companies (id, slug, name, nse_symbol, sector, one_liner, bse_code, isin, visibility) values
+  ('cccccccc-0000-4000-8000-000000000001', 'co-1', 'Co 1', 'COONE', 'Industrials', 'Makes things.', '500001',
+   'INE000A01010', 'public'),
+  ('cccccccc-0000-4000-8000-000000000002', 'co-2', 'Co 2', 'COTWO', null, null, null, null, 'private');
 insert into public.themes (id, slug, name, visibility) values
   ('eeeeeeee-0000-4000-8000-000000000001', 'th-1', 'Theme 1', 'public'),
   ('eeeeeeee-0000-4000-8000-000000000002', 'th-2', 'Theme 2', 'private');
@@ -40,26 +41,31 @@ select throws_ok($$ update public.companies set one_liner = 'Will double.' where
   '23514', null, 'its one-liner is frozen');
 select throws_ok($$ update public.companies set sector = null where id = 'cccccccc-0000-4000-8000-000000000001' $$,
   '23514', null, 'its sector is frozen (clearing counts as a change)');
+select throws_ok($$ update public.companies set bse_code = '500002' where id = 'cccccccc-0000-4000-8000-000000000001' $$,
+  '23514', null, 'its BSE code (shown by public_companies) is frozen');
+select throws_ok($$ update public.companies set isin = null where id = 'cccccccc-0000-4000-8000-000000000001' $$,
+  '23514', null, 'its ISIN (shown by public_companies) is frozen');
 select throws_ok($$ update public.themes set name = 'Multibagger theme' where id = 'eeeeeeee-0000-4000-8000-000000000001' $$,
   '23514', 'themes.th-1: public items use it; unpublish them first',
   'renaming a theme that a public item links is rejected');
 select throws_ok($$ update public.themes set slug = 'th-one' where id = 'eeeeeeee-0000-4000-8000-000000000001' $$,
   '23514', null, 'its slug is frozen');
-select results_eq($$ select name, slug, nse_symbol, one_liner, sector from public.companies
+select results_eq($$ select name, slug, nse_symbol, one_liner, sector, bse_code, isin from public.companies
                       where id = 'cccccccc-0000-4000-8000-000000000001' $$,
-  $$ values ('Co 1'::text, 'co-1'::text, 'COONE'::text, 'Makes things.'::text, 'Industrials'::text) $$,
+  $$ values ('Co 1'::text, 'co-1'::text, 'COONE'::text, 'Makes things.'::text, 'Industrials'::text,
+             '500001'::text, 'INE000A01010'::text) $$,
   'none of the rejected updates changed the company');
 
 -- Allowed: columns outside the public text, no-op updates, and rows only private items use.
-select lives_ok($$ update public.companies set needs_review = false, bse_code = '500001'
-                    where id = 'cccccccc-0000-4000-8000-000000000001' $$,
-  'other columns of a linked company can change');
+select lives_ok($$ update public.companies set needs_review = false where id = 'cccccccc-0000-4000-8000-000000000001' $$,
+  'a column no public view shows (needs_review) can change on a linked company');
 select lives_ok($$ update public.companies set name = name, sector = sector where id = 'cccccccc-0000-4000-8000-000000000001' $$,
   'an update that changes no frozen value is allowed');
 select lives_ok($$ update public.themes set description_md = 'internal note' where id = 'eeeeeeee-0000-4000-8000-000000000001' $$,
   'a theme''s private description can change');
 select lives_ok($$ update public.companies set name = 'Co Two Ltd', sector = 'Energy', one_liner = 'Runs plants.',
-                    nse_symbol = 'COTWOLTD', slug = 'co-two' where id = 'cccccccc-0000-4000-8000-000000000002' $$,
+                    nse_symbol = 'COTWOLTD', slug = 'co-two', bse_code = '500003', isin = 'INE000B01010'
+                    where id = 'cccccccc-0000-4000-8000-000000000002' $$,
   'a company used only by a private item can be edited freely (New names screen)');
 select lives_ok($$ update public.themes set name = 'Theme Two', slug = 'theme-two' where id = 'eeeeeeee-0000-4000-8000-000000000002' $$,
   'a theme used only by a private item can be edited freely');
@@ -86,6 +92,9 @@ select set_config('request.jwt.claims',
 select lives_ok($$ update public.companies set name = 'Co One', one_liner = 'Makes more things.'
                     where id = 'cccccccc-0000-4000-8000-000000000001' $$,
   'the company can be renamed once its item is unpublished');
+select lives_ok($$ update public.companies set bse_code = '500009', isin = 'INE000C01010'
+                    where id = 'cccccccc-0000-4000-8000-000000000001' $$,
+  'and its identifiers can be corrected');
 select lives_ok($$ update public.themes set name = 'Theme One' where id = 'eeeeeeee-0000-4000-8000-000000000001' $$,
   'and so can the theme');
 select results_eq($$ select name from public.companies where id = 'cccccccc-0000-4000-8000-000000000001' $$,

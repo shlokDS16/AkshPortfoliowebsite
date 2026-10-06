@@ -55,7 +55,7 @@ select results_eq($$ select visibility from public.companies where id = 'ccccccc
 
 -- Allowed paths.
 -- (Its public text is frozen by 20261007000004; see 0004_catalog_columns.test.sql.)
-select lives_ok($$ update public.companies set bse_code = '500001' where id = 'cccccccc-0000-4000-8000-000000000001' $$,
+select lives_ok($$ update public.companies set needs_review = false where id = 'cccccccc-0000-4000-8000-000000000001' $$,
   'other columns of a used company can change');
 select lives_ok($$ update public.companies set visibility = 'private' where id = 'cccccccc-0000-4000-8000-000000000002' $$,
   'a company used only by a private item can go private');

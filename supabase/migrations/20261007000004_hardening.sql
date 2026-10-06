@@ -6,7 +6,7 @@
 --      The policy version is pinned in SQL. authenticated loses EXECUTE and lint_allowances writes, so an
 --      admin access token alone (for example one lifted by XSS) can no longer publish or forge a lint.
 --   I2 The 30-day lag is counted on the India calendar, not the caller's session timezone.
---   I3 A company's or theme's public text is frozen while a public item links it.
+--   I3 A company's or theme's public text and identifiers are frozen while a public item links it.
 --   Slug: private.slugify caps at 60 characters on a dash boundary.
 -- Spec: docs/specs/2026-10-04-phase-1-core-design.md s3; review .superpowers/sdd/2026-10-04-phase-1a-core.
 -- =============================================================================
@@ -286,8 +286,9 @@ begin
 end;
 $$;
 
--- 7. Public catalog text is frozen while a public item links the row (I3). The columns are the trigger
--- arguments: what public_companies / public_themes show and what the lint reads (rule 8).
+-- 7. Public catalog columns are frozen while a public item links the row (I3). The columns are the trigger
+-- arguments: everything public_companies / public_themes show (the text the lint reads under rule 8, plus
+-- the bse_code and isin identifiers); id is the key and visibility has its own guard.
 create function private.guard_catalog_public_columns()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
@@ -310,8 +311,9 @@ end;
 $$;
 
 create trigger companies_guard_public_columns
-  before update of name, slug, nse_symbol, one_liner, sector on public.companies
-  for each row execute function private.guard_catalog_public_columns('name', 'slug', 'nse_symbol', 'one_liner', 'sector');
+  before update of name, slug, nse_symbol, one_liner, sector, bse_code, isin on public.companies
+  for each row execute function private.guard_catalog_public_columns(
+    'name', 'slug', 'nse_symbol', 'one_liner', 'sector', 'bse_code', 'isin');
 create trigger themes_guard_public_columns
   before update of name, slug on public.themes
   for each row execute function private.guard_catalog_public_columns('name', 'slug');
