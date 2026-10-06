@@ -1,58 +1,9 @@
 import { addDays } from "@/lib/dates";
-import type { HoldsPosition, ItemKind } from "@/modules/research";
 import { LEXICON, PRICE_NUMBER } from "./lexicon";
 import { matchViews } from "./normalise";
-import { POLICY_VERSION } from "./policy";
-import { sentenceHash, splitSentences } from "./sentences";
-
-/** Every public text surface the lint scans (ADR-001 s8.3, publishing-rules rule 8). */
-export const LINT_FIELDS = [
-  "title",
-  "slug",
-  "learningObjective",
-  "body",
-  "structured",
-  "changeReason",
-  "companyName",
-  "companyOneLiner",
-  "themeName",
-] as const;
-export type LintField = (typeof LINT_FIELDS)[number];
-export type LintRule = "1" | "2" | "3" | "5" | "6" | "structure";
-
-/**
- * The optional public fields are required-but-nullable on purpose: a caller must decide what to pass
- * for each, so a new public surface cannot be forgotten by omission.
- */
-export type LintInput = {
-  kind: ItemKind;
-  title: string;
-  slug: string | null;
-  learningObjective: string | null;
-  bodyMd: string;
-  structured: Record<string, unknown>;
-  /** Change reason of the revision being gated; it becomes public with the revision. */
-  changeReason: string | null;
-  companyName: string | null;
-  companyOneLiner: string | null;
-  themeName: string | null;
-  companyId: string | null;
-  holdsPosition: HoldsPosition | null;
-  dataAsOf: string | null;
-  today: string;
-  /** sentence_hash values from lint_allowances for this item. Honoured for rule 1 only. */
-  allowances: ReadonlySet<string>;
-};
-export type LintFinding = {
-  rule: LintRule;
-  field: LintField | null;
-  sentence: string | null;
-  sentenceHash: string | null;
-  match: string | null;
-  message: string;
-};
-export type LintAllowed = { rule: "1"; field: LintField; sentence: string; sentenceHash: string; match: string };
-export type LintResult = { passed: boolean; policyVersion: string; findings: LintFinding[]; allowedBy: LintAllowed[] };
+import { sentenceHash } from "./hash";
+import { POLICY_VERSION, type LintAllowed, type LintField, type LintFinding, type LintInput, type LintResult, type LintRule } from "./rules";
+import { splitSentences } from "./sentences";
 
 type TextUnit = { field: LintField; text: string; citedQuote: boolean };
 
@@ -161,5 +112,5 @@ export function lintText(input: LintInput): LintResult {
     findings.push(structural("3", "A case study needs a data as-of date at least 30 days old."));
   }
 
-  return { passed: findings.length === 0, policyVersion: POLICY_VERSION, findings, allowedBy };
+  return { revisionId: input.revisionId, passed: findings.length === 0, policyVersion: POLICY_VERSION, findings, allowedBy };
 }

@@ -52,17 +52,21 @@ export function joinLetterRuns(text: string): string {
   });
 }
 
+// A keyword spans at most this many letters, and so at most this many letter-bearing segments. Capping the
+// window keeps the join linear in the token length (a pasted row of ISO dates is one huge token).
+const MAX_WINDOW = Math.max(...[...KEYWORDS].map((word) => word.length));
+
 function mergeToken(token: string): string {
   const segments = token.split(SPLIT_CHARS).filter(Boolean);
   const out: string[] = [];
   for (let i = 0; i < segments.length; ) {
     let end = i + 1;
-    for (let j = segments.length; j > i + 1; j--) {
-      const candidate = segments.slice(i, j).join("").replace(/[^A-Za-z]/g, "").toLowerCase();
-      if (KEYWORDS.has(candidate)) {
-        end = j;
-        break;
-      }
+    let letters = "";
+    const limit = Math.min(segments.length, i + MAX_WINDOW);
+    for (let j = i; j < limit; j++) {
+      letters += segments[j].replace(/[^A-Za-z]/g, "").toLowerCase();
+      if (letters.length > MAX_WINDOW) break;
+      if (j > i && KEYWORDS.has(letters)) end = j + 1; // keep the longest match
     }
     out.push(segments.slice(i, end).join(""));
     i = end;
@@ -78,9 +82,9 @@ export function joinHyphenSplits(text: string): string {
     .join(" ");
 }
 
-/** The full pre-pass. */
+/** The full pre-pass. Hyphen joins run first so "B U-Y" and "a-d-d on dips" are both seen as plain words. */
 export function normalise(text: string, invisibleAs: "" | " " = ""): string {
-  return joinHyphenSplits(joinLetterRuns(foldText(text, invisibleAs)));
+  return joinLetterRuns(joinHyphenSplits(foldText(text, invisibleAs)));
 }
 
 /**

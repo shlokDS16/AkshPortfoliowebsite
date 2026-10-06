@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { lintText, type LintInput } from "./lint";
-import { sentenceHash } from "./sentences";
+import { lintText } from "./lint";
+import type { LintInput } from "./rules";
+import { sentenceHash } from "./hash";
 
 // Evasion cases for the publishing-rules rule 1 lexicon (controller ruling: rule 1 beats the brief's
 // verbatim lexicon). Everything here must be flagged, except the bare-verb negatives and the documented
 // remaining gaps at the end.
 const base: LintInput = {
+  revisionId: "5b1d9c1e-0a53-4f3e-8c53-2d6a9a7e1f10",
   kind: "learning",
   title: "How capex cycles turn",
   slug: null,

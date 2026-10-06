@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { lintText, type LintInput } from "./lint";
+import { lintText } from "./lint";
+import type { LintInput } from "./rules";
 import { POLICY_VERSION } from "./policy";
-import { sentenceHash } from "./sentences";
+import { sentenceHash } from "./hash";
 
 const base: LintInput = {
+  revisionId: "5b1d9c1e-0a53-4f3e-8c53-2d6a9a7e1f10",
   kind: "learning",
   title: "How capex cycles turn",
   slug: "how-capex-cycles-turn",
@@ -24,7 +26,7 @@ const lint = (patch: Partial<LintInput>) => lintText({ ...base, ...patch });
 
 describe("lintText: clean educational text", () => {
   it("passes and stamps the policy version", () => {
-    expect(lint({})).toEqual({ passed: true, policyVersion: POLICY_VERSION, findings: [], allowedBy: [] });
+    expect(lint({})).toEqual({ revisionId: base.revisionId, passed: true, policyVersion: POLICY_VERSION, findings: [], allowedBy: [] });
   });
 
   it("passes when every optional public field is filled with clean text", () => {
