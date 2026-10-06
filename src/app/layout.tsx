@@ -1,29 +1,33 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { PAPER } from "@/lib/theme-colors";
+import { plexMono, plexSans } from "./fonts";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Aksh Research Desk",
-  description: "A student investor's research desk. Educational content only.",
+  title: { default: "Case files · Aksh Agrawal", template: "%s · Aksh Agrawal" },
+  description:
+    "Each file says what Aksh expected, what would prove him wrong, and every revision since. For learning, not advice.",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: PAPER.light },
+    { media: "(prefers-color-scheme: dark)", color: PAPER.dark },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en-IN" className={`${plexSans.variable} ${plexMono.variable}`}>
+      <body className="min-h-dvh">
+        <a
+          href="#main"
+          className="sr-only z-(--z-skip) rounded-sm bg-ink px-3 py-2 text-paper focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+        >
+          Skip to content
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

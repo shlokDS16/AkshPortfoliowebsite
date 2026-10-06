@@ -8,9 +8,14 @@ export function istDate(at: Date | string): string {
 
 const istTimeFormat = new Intl.DateTimeFormat("en-GB", { timeZone: IST, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
+/** "14:05": the time in India, to the minute. */
+export function istTime(at: Date | string): string {
+  return istTimeFormat.format(new Date(at));
+}
+
 /** "2026-10-05 00:30 IST": a timestamp as Aksh reads it, to the minute. */
 export function istDateTime(at: Date | string): string {
-  return `${istDate(at)} ${istTimeFormat.format(new Date(at))} IST`;
+  return `${istDate(at)} ${istTime(at)} IST`;
 }
 
 export function addDays(isoDate: string, days: number): string {

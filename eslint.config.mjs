@@ -23,6 +23,7 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   { files: ["src/app/**/*.{ts,tsx}"], rules: restrict(NO_APP, MODULE_ENTRY_POINTS, NO_SECRET_CLIENT) },
+  { files: ["src/components/**/*.{ts,tsx}"], rules: restrict(NO_APP, MODULE_ENTRY_POINTS, NO_SECRET_CLIENT) },
   {
     files: ["src/modules/**/*.{ts,tsx}"],
     ignores: ["src/modules/ops/**", GATE_RPC_FILE],

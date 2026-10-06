@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, istDate, istDateTime, istDayStartUtc, isPastLag, PUBLICATION_LAG_DAYS } from "./dates";
+import { addDays, istDate, istDateTime, istDayStartUtc, isPastLag, istTime, PUBLICATION_LAG_DAYS } from "./dates";
 
 describe("dates", () => {
   it("gives the calendar date in India", () => {
@@ -12,6 +12,10 @@ describe("dates", () => {
     expect(istDateTime("2026-10-04T18:29:59Z")).toBe("2026-10-04 23:59 IST");
     expect(istDateTime("2026-10-04T18:30:00Z")).toBe("2026-10-05 00:00 IST"); // midnight is 00, never 24
     expect(istDateTime("2026-10-04T06:45:00+00:00")).toBe("2026-10-04 12:15 IST");
+  });
+
+  it("gives the time in India to the minute", () => {
+    expect(istTime("2026-10-04T08:35:00Z")).toBe("14:05");
   });
 
   it("adds and subtracts days across month ends", () => {
