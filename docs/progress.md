@@ -37,7 +37,7 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 - [ ] 1.4 Admin auth (magic link, `ADMIN_EMAIL` gate), `/desk` shell
 - [ ] 1.5 `research` module: items + revisions service, TDD - implemented 2026-10-06 (115 unit tests, 10 e2e green on the local stack); awaiting review
 - [ ] 1.6 `compliance` module: lint + `publish_item()` + `gate_decisions`, adversarial tests
-- [ ] 1.7 Quick capture (`t:` `l:` `$SYM` `#theme` grammar) + daily capture log
+- [ ] 1.7 Quick capture (`t:` `l:` `$SYM` `#theme` grammar) + daily capture log — Plan 1A Tasks 10-11 done: parser, `saveCapture` (verbatim first, idempotent), catalog stubs, `submitCapture` action; capture screen and daily log are Plan 1B.
 - [x] 1.8 UI segments 1-6 decided with Shlok → `docs/design/decisions.md`. Segments 1 (B+ Labelled Blocks) and 2 (Register + What-changed + Read-first) DECIDED; ALL SIX SEGMENTS DECIDED 2026-10-05 (1 B+ Labelled Blocks; 2 Register+What-changed+Read-first; 3 Exhibits+Ledger+meters; 4 Trays+capture internals+gate notes; 5 Case files under Aksh's name; 6 Instrument+morph+draw-to-cap)
 - [ ] 1.9 Public pages: desk home, company page (thesis + revisions + sources), learning note, about/process, disclosures
 - [ ] 1.10 Three clocks: `/api/cron/daily` heartbeat, `/api/jobs/run` pump via `.github/workflows/pump.yml` (15 min), `/api/health` + external uptime monitor emailing Shlok + Aksh
