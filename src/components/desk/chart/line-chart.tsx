@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { formatNumber } from "@/lib/format";
 import type { LineChartData } from "@/lib/view-types";
-import { buildGeometry } from "./chart-geometry";
+import { buildGeometry, chartLabel } from "./chart-geometry";
 import { ChartReadout } from "./chart-readout";
 
 type Props = { data: LineChartData; height: { phone: number; desk: number } };
@@ -59,7 +59,7 @@ export function LineChart({ data, height }: Props) {
   return (
     <div role="group" aria-label="Chart readout: use the arrow keys" tabIndex={0} onKeyDown={onKeyDown} className="rounded-xs">
       <div ref={box} data-draw={draw ?? undefined} style={vars} className="chart h-(--chart-h) w-full desk:h-(--chart-h-desk)">
-        <svg role="img" aria-label={data.summary} viewBox={`0 0 ${g.width} ${g.height}`} preserveAspectRatio="xMinYMin meet" className="block size-full">
+        <svg role="img" aria-label={chartLabel(data)} viewBox={`0 0 ${g.width} ${g.height}`} preserveAspectRatio="xMinYMin meet" className="block size-full">
           <defs>
             <pattern id={hatch} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <line x1="0" y1="0" x2="0" y2="4" className="stroke-rule-strong" strokeWidth="1" />

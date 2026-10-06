@@ -1,3 +1,4 @@
+import { formatDate } from "@/lib/format";
 import type { LineChartData } from "@/lib/view-types";
 
 export const PAD = { left: 40, right: 16, top: 12, bottom: 24 } as const;
@@ -30,7 +31,7 @@ export function buildGeometry(data: LineChartData, width: number, height: number
     let d = "";
     let pen = false;
     s.points.forEach((p, i) => {
-      if (p.withheld && withheldFromX === null) withheldFromX = xAt(i);
+      if (p.withheld) withheldFromX = withheldFromX === null ? xAt(i) : Math.min(withheldFromX, xAt(i));
       if (p.y === null || p.withheld) {
         pen = false;
         return;
@@ -55,4 +56,15 @@ export function buildGeometry(data: LineChartData, width: number, height: number
     thresholds: data.thresholds.map((t) => ({ y: yAt(t.y), label: t.label })),
     capX: capIndex >= 0 ? xAt(capIndex) : null,
   };
+}
+
+/**
+ * The chart's accessible name. The author's summary may state a withheld figure, so when any point is withheld
+ * it is replaced by fixed copy built from metadata only (rule 3).
+ */
+export function chartLabel(data: LineChartData): string {
+  const dates = data.series.flatMap((s) => s.points.flatMap((p) => (p.withheld ? [p.withheldUntil] : [])));
+  if (dates.length === 0) return data.summary;
+  const earliest = dates.reduce((a, b) => (a <= b ? a : b));
+  return `${data.series[0]?.label ?? "Chart"}: some values withheld until ${formatDate(earliest)}`;
 }

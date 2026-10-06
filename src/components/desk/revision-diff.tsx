@@ -29,22 +29,22 @@ export function RevisionDiff({ data }: { data: RevisionDiffData | null }) {
               <span className="mr-2 text-label uppercase text-ink-muted">Reason</span>
               {data.reason}
             </p>
-            {data.groups.map((g) => (
-              <section key={g.location} className="mt-4">
+            {data.groups.map((g, gi) => (
+              <section key={`${gi}-${g.location}`} className="mt-4">
                 <h3 className="text-label uppercase text-ink-muted">{g.location}</h3>
                 {g.removed.length > 0 ? (
                   <div data-diff="removed" className="mt-1 border-l-2 border-dashed border-rule-strong pl-3 text-ink-muted">
                     <p className="text-caption">Removed</p>
-                    {g.removed.map((s) => (
-                      <p key={s}>{s}</p>
+                    {g.removed.map((s, i) => (
+                      <p key={`${i}-${s}`}>{s}</p>
                     ))}
                   </div>
                 ) : null}
                 {g.added.length > 0 ? (
                   <div data-diff="added" className="mt-1 border-l-2 border-ink bg-ins pl-3">
                     <p className="text-caption text-ink-muted">Added</p>
-                    {g.added.map((s) => (
-                      <p key={s}>{s}</p>
+                    {g.added.map((s, i) => (
+                      <p key={`${i}-${s}`}>{s}</p>
                     ))}
                   </div>
                 ) : null}

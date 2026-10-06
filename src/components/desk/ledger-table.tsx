@@ -55,8 +55,8 @@ export function LedgerTable({ periods, rows }: Props) {
         </tbody>
       </Table>
       <table className="block w-full text-data desk:hidden" style={cols}>
-        <thead className="block">
-          <tr data-key-row className="sticky top-[calc(var(--top-bar-h)+var(--index-h))] z-(--z-sticky-key) grid grid-cols-(--cols) border-b-[3px] border-double border-ink bg-paper py-1">
+        <thead data-key-row className="sticky top-[calc(var(--top-bar-h)+var(--index-h))] z-(--z-sticky-key) block bg-paper">
+          <tr className="grid grid-cols-(--cols) border-b-[3px] border-double border-ink py-1">
             {periods.map((p) => (
               <th key={p.label} scope="col" className={cn("px-1 text-right text-caption font-semibold text-ink", p.current && "bg-surface")}>
                 {p.label}

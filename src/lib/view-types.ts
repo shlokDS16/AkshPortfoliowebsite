@@ -61,7 +61,8 @@ export type ReadFirstNote = { title: string; href: string; minutes: number };
 export type UsedInRow = { fileNo: FileNo; company: string; where: string; href: string; since: ISODate };
 
 // ---- Exhibits and history (Task 5) ----
-export type ChartPoint = { x: string; y: number | null; withheld: boolean };
+/** Rule 3 at the type level: a withheld point carries no figure (y is null) and the date it clears. */
+export type ChartPoint = { x: string; y: number | null; withheld: false } | { x: string; y: null; withheld: true; withheldUntil: ISODate };
 export type ChartSeries = { kind: "subject" | "projection" | "benchmark"; label: string; points: ChartPoint[] };
 export type ChartThreshold = { y: number; label: string };
 export type LineChartData = {
@@ -73,6 +74,7 @@ export type LineChartData = {
   summary: string; // the chart's aria-label: states the finding
 };
 export type LedgerPeriod = { label: string; yearEnd: ISODate; source: SourceRef; current?: boolean };
+/** Parallel arrays cannot tie values[i] to withheld[i] in the type; builders must null values[i] when withheld[i] is set, and the ledger never reads a withheld cell's value. */
 export type LedgerRow = { label: string; unit: string; computed?: boolean; values: (string | null)[]; withheld: (ISODate | null)[] };
 export type ExhibitKeyMark = "subject" | "projection" | "benchmark" | "threshold" | "withheld";
 export type ExhibitData = {

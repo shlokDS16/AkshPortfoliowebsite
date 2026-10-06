@@ -2,12 +2,19 @@
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { ChartPoint } from "@/lib/view-types";
 import { EXHIBIT, SCENARIO } from "@/test/fixtures/desk-ui";
 import { expectTokenOnly, mockIntersectionObserver, mockMatchMedia, renderWithMotion } from "@/test/ui";
 import { LineChart } from "./chart/line-chart";
 import { Exhibit } from "./exhibit";
 import { LedgerTable } from "./ledger-table";
 import { ScenarioTable } from "./scenario-table";
+
+const withhold = (p: ChartPoint): ChartPoint => ({ x: p.x, y: null, withheld: true, withheldUntil: "2026-07-30" });
+const withFY26Withheld = {
+  ...EXHIBIT.chart,
+  series: [{ ...EXHIBIT.chart.series[0], points: EXHIBIT.chart.series[0].points.map((p, i) => (i === 4 ? withhold(p) : p)) }],
+};
 
 describe("Exhibit", () => {
   it("frames every figure: geru top rule and number, factual title, Chart/Table toggle, source and data-to footer", async () => {
@@ -21,7 +28,7 @@ describe("Exhibit", () => {
     expect(within(figure).getByText("Data to").nextSibling).toHaveTextContent("31 Mar 2026");
     await userEvent.click(screen.getByRole("radio", { name: "Table" }));
     // The ledger renders a desk table and a phone table; CSS (hidden / desk:hidden) leaves one in the accessibility tree.
-    expect(within(figure).getAllByRole("table").length).toBeGreaterThan(0);
+    expect(within(figure).getAllByRole("table")).toHaveLength(2);
     expect(container.querySelector("svg .stroke-geru, svg .fill-geru")).toBeNull();
     expectTokenOnly(container);
   });
@@ -34,11 +41,29 @@ describe("Exhibit", () => {
     expect(screen.getByRole("radio", { name: "Table" })).toHaveAttribute("aria-checked", "true");
   });
 
+  it("omits the Chart option when there is nothing to draw", () => {
+    mockMatchMedia();
+    renderWithMotion(<Exhibit data={{ ...EXHIBIT, chart: { ...EXHIBIT.chart, series: [] } }} />);
+    expect(screen.queryByRole("radio", { name: "Chart" })).toBeNull();
+  });
+
+  it("names each figure from its own identity so two exhibits on a page never share an id", () => {
+    mockMatchMedia();
+    renderWithMotion(
+      <>
+        <Exhibit data={EXHIBIT} />
+        <Exhibit data={{ ...EXHIBIT, n: 2, title: "Second exhibit" }} />
+      </>,
+    );
+    expect(screen.getByRole("figure", { name: EXHIBIT.title })).toBeInTheDocument();
+    expect(screen.getByRole("figure", { name: "Second exhibit" })).toBeInTheDocument();
+  });
+
   it("falls back to the table when the only real points are withheld", () => {
     mockMatchMedia();
     const allWithheld = {
       ...EXHIBIT,
-      chart: { ...EXHIBIT.chart, series: [{ ...EXHIBIT.chart.series[0], points: EXHIBIT.chart.series[0].points.map((p) => ({ ...p, withheld: true })) }] },
+      chart: { ...EXHIBIT.chart, series: [{ ...EXHIBIT.chart.series[0], points: EXHIBIT.chart.series[0].points.map(withhold) }] },
     };
     renderWithMotion(<Exhibit data={allWithheld} />);
     expect(screen.getByRole("radio", { name: "Table" })).toHaveAttribute("aria-checked", "true");
@@ -88,20 +113,26 @@ describe("LineChart", () => {
     expect(screen.getByText("FY26: 142 days")).toBeInTheDocument();
   });
 
-  it("rule 3: a withheld point shows no figure in the labels, the readout or the path, only the hatch", async () => {
+  it("rule 3: a withheld point shows no figure in any label, aria-label, title, the readout or the path, only the hatch", async () => {
     mockMatchMedia();
-    const data = {
-      ...EXHIBIT.chart,
-      series: [{ ...EXHIBIT.chart.series[0], points: EXHIBIT.chart.series[0].points.map((p, i) => (i === 4 ? { ...p, withheld: true } : p)) }],
-    };
-    const { container } = render(<LineChart data={data} height={{ phone: 200, desk: 240 }} />);
+    const { container } = render(<LineChart data={withFY26Withheld} height={{ phone: 200, desk: 240 }} />);
     expect(container.textContent).not.toContain("142");
-    expect(container.querySelector("[title]")).toBeNull();
+    for (const el of container.querySelectorAll("[aria-label], [title]")) {
+      expect(el.getAttribute("aria-label") ?? "").not.toContain("142");
+      expect(el.getAttribute("title") ?? "").not.toContain("142");
+    }
+    expect(container.querySelector("svg")).toHaveAttribute("aria-label", "Receivable days: some values withheld until 30 Jul 2026");
     expect(screen.getByText("withheld")).toBeInTheDocument();
     screen.getByRole("group", { name: /use the arrow keys/ }).focus();
     await userEvent.keyboard("{End}");
     expect(screen.getByText("FY25: 131 days")).toBeInTheDocument();
     expect(screen.queryByText(/FY26: /)).toBeNull();
+  });
+
+  it("keeps the author's finding as the accessible name when nothing is withheld", () => {
+    mockMatchMedia();
+    render(<LineChart data={EXHIBIT.chart} height={{ phone: 200, desk: 240 }} />);
+    expect(screen.getByRole("img", { name: EXHIBIT.chart.summary })).toBeInTheDocument();
   });
 });
 
@@ -109,7 +140,12 @@ describe("LedgerTable and ScenarioTable", () => {
   it("ledger: year end and source per column, shaded current column, sticky key row on phone", () => {
     const { container } = render(<LedgerTable periods={EXHIBIT.ledger.periods} rows={EXHIBIT.ledger.rows} />);
     expect(screen.getAllByText("31 Mar 2026").length).toBeGreaterThan(0);
-    expect(container.querySelector("[data-key-row]")).toHaveClass("sticky");
+    const key = container.querySelector("[data-key-row]")!;
+    expect(key.tagName).toBe("THEAD");
+    expect(key).toHaveClass("sticky", "bg-paper", "z-(--z-sticky-key)");
+    expect(key.className).toContain("top-[calc(var(--top-bar-h)+var(--index-h))]");
+    // A sticky row sticks only if no ancestor inside the component clips or scrolls.
+    for (let el: Element | null = key.parentElement; el; el = el.parentElement) expect(el.className).not.toMatch(/overflow/);
     expect(container.querySelector("[data-current]")).toHaveClass("bg-surface");
     expectTokenOnly(container);
   });

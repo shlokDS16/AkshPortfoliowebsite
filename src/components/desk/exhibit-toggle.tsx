@@ -32,10 +32,7 @@ export function ExhibitToggle({ chart, table, keyItems, defaultView, chartOk }: 
           aria-label="Show as"
           value={view}
           onValueChange={(v) => setView(v === "table" ? "table" : "chart")}
-          items={[
-            { value: "chart", label: "Chart" },
-            { value: "table", label: "Table" },
-          ]}
+          items={chartOk ? [{ value: "chart", label: "Chart" }, { value: "table", label: "Table" }] : [{ value: "table", label: "Table" }]}
         />
       </div>
       {!chartOk ? <p className="mt-2 text-small text-ink-muted">Chart could not be drawn. The table holds the same figures.</p> : null}
