@@ -35,10 +35,10 @@ test.describe("job routes", () => {
     const headers = { authorization: `Bearer ${CRON_SECRET}` };
     const daily = await request.get("/api/cron/daily", { headers });
     expect(daily.status()).toBe(200);
-    expect(await daily.json()).toMatchObject({ ok: true, results: [{ job: "heartbeat:daily", ok: true }] });
+    expect(await daily.json()).toEqual({ ok: true, results: [{ job: "heartbeat:daily", ok: true }] });
     const pump = await request.post("/api/jobs/run", { headers });
     expect(pump.status()).toBe(200);
-    expect(await pump.json()).toMatchObject({ ok: true, results: [{ job: "heartbeat:pump", ok: true }] });
+    expect(await pump.json()).toEqual({ ok: true, results: [{ job: "heartbeat:pump", ok: true }] });
 
     const health = await request.get("/api/health");
     expect(health.status()).toBe(200);
@@ -60,6 +60,17 @@ test.describe("/api/health", () => {
     expect(body.checks[0].ageSeconds).toBeGreaterThanOrEqual(300);
     expect(body.checks[0].ageSeconds).toBeLessThan(600);
     expect(JSON.stringify(body)).not.toContain("e2e seed");
+  });
+
+  test("is 500 when the pump's latest run failed, even though it is fresh", async ({ request }) => {
+    clearHeartbeats();
+    await seedHeartbeats(requireStack(), [
+      { job: "heartbeat:pump", minutesAgo: 5, ok: false },
+      { job: "heartbeat:daily", minutesAgo: 60 },
+    ]);
+    const response = await request.get("/api/health");
+    expect(response.status()).toBe(500);
+    expect(((await response.json()) as { checks: { ok: boolean }[] }).checks.map((c) => c.ok)).toEqual([false, true]);
   });
 
   test("is 500 when the pump has been silent for more than 2 hours", async ({ request }) => {
@@ -86,6 +97,16 @@ test.describe("desk red strip", () => {
     await page.goto("/desk");
     await expect(page.getByRole("link", { name: "Today" })).toBeVisible();
     await expect(page.getByTestId("health-strip")).toHaveCount(0);
+  });
+
+  test("names a fresh failed run instead of calling the clock late", async ({ page }) => {
+    clearHeartbeats();
+    await seedHeartbeats(requireStack(), [
+      { job: "heartbeat:pump", minutesAgo: 5, ok: false },
+      { job: "heartbeat:daily", minutesAgo: 60 },
+    ]);
+    await page.goto("/desk");
+    await expect(page.getByTestId("health-strip")).toContainText("the 15-minute pump's last run failed 5 min ago");
   });
 
   test("appears in plain English when the clocks are stale, and clears once they run again", async ({ page, request }) => {

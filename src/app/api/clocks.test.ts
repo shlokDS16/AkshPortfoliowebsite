@@ -12,7 +12,7 @@ const fake = vi.hoisted(() => ({
 vi.mock("@/modules/ops/job-deps", () => ({
   createJobHeartbeatRepo: () => ({
     record: async (beat: { job: string; ok: boolean; detail: string }) => void fake.beats.push(beat),
-    latestOk: async () => ({}),
+    latestRuns: async () => ({}),
   }),
 }));
 vi.mock("@/lib/supabase/public", () => ({
@@ -79,7 +79,7 @@ describe("POST /api/jobs/run", () => {
     const call = () => pump(new NextRequest("http://x/api/jobs/run", { method: "POST", headers: authed }));
     const response = await call();
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ ok: true, results: [{ job: "heartbeat:pump", ok: true }] });
+    expect(await response.json()).toEqual({ ok: true, results: [{ job: "heartbeat:pump", ok: true }] });
     await call();
     expect(fake.beats.map((b) => b.job)).toEqual(["heartbeat:pump", "heartbeat:pump"]);
   });

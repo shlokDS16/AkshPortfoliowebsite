@@ -34,6 +34,10 @@ export function readLocalStack(): LocalStack | null {
   const secretKey = values.get("SECRET_KEY");
   const mailpitUrl = values.get("MAILPIT_URL") ?? values.get("INBUCKET_URL");
   if (!apiUrl || !publishableKey || !secretKey || !mailpitUrl) return null;
+  // Defence in depth: the e2e helpers write with the secret key, so it must be the local stack.
+  if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+\/?$/.test(apiUrl)) {
+    throw new Error("supabase status reports a non-local API URL; refusing to run e2e against it.");
+  }
   return { apiUrl, publishableKey, secretKey, mailpitUrl };
 }
 

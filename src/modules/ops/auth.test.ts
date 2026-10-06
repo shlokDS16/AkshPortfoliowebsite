@@ -18,6 +18,10 @@ describe("isAuthorizedBearer", () => {
     expect(isAuthorizedBearer(header, SECRET)).toBe(false);
   });
 
+  it.each([[""], ["Bearer"], ["Bearer "], ["Bearer  "]])("rejects the empty or partial header %j against a real secret", (header) => {
+    expect(isAuthorizedBearer(header, SECRET)).toBe(false);
+  });
+
   it("rejects everything when the secret is empty", () => {
     expect(isAuthorizedBearer("Bearer ", "")).toBe(false);
   });

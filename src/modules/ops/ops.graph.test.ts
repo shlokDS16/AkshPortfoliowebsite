@@ -43,6 +43,12 @@ describe("the public /api/health import graph (controller ruling R6)", () => {
     });
   }
 
+  it("the browser-safe index reaches no node:crypto, so a client bundle can import it", () => {
+    for (const [file, source] of reachable(resolve(__dirname, "index.ts"))) {
+      expect(source, file).not.toMatch(/node:crypto|from "crypto"/);
+    }
+  });
+
   it("the job routes do reach the secret-key client (so this test can tell the difference)", () => {
     const files = reachable(resolve(SRC, "app/api/jobs/run/route.ts"));
     expect([...files.keys()]).toContain(SERVICE);

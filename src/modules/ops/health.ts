@@ -1,51 +1,65 @@
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
-import type { HeartbeatRepo } from "./heartbeat";
+import type { HeartbeatRepo, LatestRun } from "./heartbeat";
 
 // Public entry (@/modules/ops/health): everything here may run without the secret-key client.
-// Spec s8: the pump is unhealthy after 2 h, the daily job after 36 h.
+// Spec s8: the pump is unhealthy after 2 h, the daily job after 36 h, and either when its latest run failed.
 export const HEALTH_RULES = [
-  { job: "heartbeat:pump", maxAgeMinutes: 120, label: "the 15-minute pump" },
-  { job: "heartbeat:daily", maxAgeMinutes: 36 * 60, label: "the daily job" },
+  { job: "heartbeat:pump", maxAgeSeconds: 120 * 60, label: "the 15-minute pump" },
+  { job: "heartbeat:daily", maxAgeSeconds: 36 * 60 * 60, label: "the daily job" },
 ] as const;
 
-export type HealthCheck = {
+type Rule = (typeof HEALTH_RULES)[number];
+
+/** The one verdict for a clock, in whole seconds. Both the desk strip and the public monitor use it. */
+export type ClockCheck = {
   job: string;
   label: string;
-  lastOkAt: string | null;
-  ageMinutes: number | null;
-  maxAgeMinutes: number;
-  stale: boolean;
+  /** Age of the latest run, or null when the clock has never run. */
+  ageSeconds: number | null;
+  ok: boolean;
+  lastRunFailed: boolean;
 };
-export type HealthReport = { ok: boolean; checkedAt: string; checks: HealthCheck[] };
+export type HealthReport = { ok: boolean; checkedAt: string; checks: ClockCheck[] };
 
-/** Desk strip: age of the latest successful run per clock, read as the admin. */
-export function evaluateHealth(latest: Record<string, string | null>, now: Date): HealthReport {
-  const checks = HEALTH_RULES.map((rule): HealthCheck => {
-    const lastOkAt = latest[rule.job] ?? null;
-    const ageMinutes = lastOkAt === null ? null : Math.floor((now.getTime() - new Date(lastOkAt).getTime()) / 60_000);
-    return {
-      job: rule.job,
-      label: rule.label,
-      lastOkAt,
-      ageMinutes,
-      maxAgeMinutes: rule.maxAgeMinutes,
-      stale: ageMinutes === null || ageMinutes > rule.maxAgeMinutes,
-    };
-  });
-  return { ok: checks.every((c) => !c.stale), checkedAt: now.toISOString(), checks };
+function checkClock(rule: Rule, run: { ageSeconds: number; ok: boolean } | null): ClockCheck {
+  if (!run) return { job: rule.job, label: rule.label, ageSeconds: null, ok: false, lastRunFailed: false };
+  const ageSeconds = Math.max(0, Math.floor(run.ageSeconds));
+  return {
+    job: rule.job,
+    label: rule.label,
+    ageSeconds,
+    ok: run.ok && ageSeconds <= rule.maxAgeSeconds,
+    lastRunFailed: !run.ok,
+  };
 }
 
-const formatAge = (minutes: number) => (minutes < 120 ? `${minutes} min` : `${Math.round(minutes / 60)} h`);
+/** Desk strip: the latest run per clock, read as the admin. */
+export function evaluateHealth(latest: Record<string, LatestRun | null>, now: Date): HealthReport {
+  const checks = HEALTH_RULES.map((rule) => {
+    const run = latest[rule.job] ?? null;
+    return checkClock(rule, run && { ageSeconds: (now.getTime() - new Date(run.ranAt).getTime()) / 1000, ok: run.ok });
+  });
+  return { ok: checks.every((c) => c.ok), checkedAt: now.toISOString(), checks };
+}
+
+function formatAge(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return minutes < 120 ? `${minutes} min` : `${Math.round(minutes / 60)} h`;
+}
 
 export function describeStale(report: HealthReport): string[] {
   return report.checks
-    .filter((c) => c.stale)
-    .map((c) => (c.ageMinutes === null ? `${c.label} has never run` : `${c.label} last ran ${formatAge(c.ageMinutes)} ago`));
+    .filter((c) => !c.ok)
+    .map((c) => {
+      if (c.ageSeconds === null) return `${c.label} has never run`;
+      if (c.lastRunFailed) return `${c.label}'s last run failed ${formatAge(c.ageSeconds)} ago`;
+      return `${c.label} last ran ${formatAge(c.ageSeconds)} ago`;
+    });
 }
 
 export async function getHealthReport(repo: HeartbeatRepo, now: Date): Promise<HealthReport> {
-  return evaluateHealth(await repo.latestOk(HEALTH_RULES.map((rule) => rule.job)), now);
+  return evaluateHealth(await repo.latestRuns(HEALTH_RULES.map((rule) => rule.job)), now);
 }
 
 /** One row of public.heartbeat_ages(): the latest run per job, with no detail column. */
@@ -54,13 +68,12 @@ export type HeartbeatAgeRow = { job: string; age_seconds: number | string; ok: b
 export type PublicCheck = { job: string; ageSeconds: number | null; ok: boolean };
 export type PublicHealth = { ok: boolean; checks: PublicCheck[] };
 
-/** Public monitor: the latest run per clock must have succeeded and be inside its window. */
+/** Public monitor: the same per-clock verdict, trimmed to the contract (no label, no failure flag). */
 export function evaluatePublicHealth(rows: readonly HeartbeatAgeRow[]): PublicHealth {
   const checks = HEALTH_RULES.map((rule): PublicCheck => {
     const row = rows.find((r) => r.job === rule.job);
-    if (!row) return { job: rule.job, ageSeconds: null, ok: false };
-    const ageSeconds = Math.max(0, Math.floor(Number(row.age_seconds)));
-    return { job: rule.job, ageSeconds, ok: row.ok && ageSeconds <= rule.maxAgeMinutes * 60 };
+    const { job, ageSeconds, ok } = checkClock(rule, row ? { ageSeconds: Number(row.age_seconds), ok: row.ok } : null);
+    return { job, ageSeconds, ok };
   });
   return { ok: checks.every((c) => c.ok), checks };
 }

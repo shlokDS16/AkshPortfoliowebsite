@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ latest: {} as Record<string, string | null>, fail: false, serverClients: 0 }));
+const state = vi.hoisted(() => ({ latest: {} as Record<string, { ranAt: string; ok: boolean } | null>, fail: false, serverClients: 0 }));
 
 // The strip reads as the signed-in admin (session client, RLS). It must never ask for the service client.
 vi.mock("@/lib/supabase/server", () => ({
@@ -14,7 +14,7 @@ vi.mock("@/modules/ops", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/ops")>()),
   createSupabaseHeartbeatRepo: () => ({
     record: async () => undefined,
-    latestOk: async () => {
+    latestRuns: async () => {
       if (state.fail) throw new Error("connection refused: password=hunter2");
       return state.latest;
     },
@@ -23,7 +23,7 @@ vi.mock("@/modules/ops", async (importOriginal) => ({
 
 import { HealthStrip } from "./health-strip";
 
-const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+const ago = (minutes: number, ok = true) => ({ ranAt: new Date(Date.now() - minutes * 60_000).toISOString(), ok });
 const render = async () => renderToStaticMarkup(await HealthStrip());
 
 beforeEach(() => {
@@ -44,6 +44,11 @@ describe("HealthStrip", () => {
     expect(html).toContain('role="alert"');
     expect(html).toContain("the 15-minute pump last ran 5 h ago");
     expect(html).toContain("the daily job has never run");
+  });
+
+  it("says when a fresh run failed", async () => {
+    state.latest = { "heartbeat:pump": ago(5, false), "heartbeat:daily": ago(600) };
+    expect(await render()).toContain("the 15-minute pump&#x27;s last run failed 5 min ago");
   });
 
   it("reads through the session client", async () => {

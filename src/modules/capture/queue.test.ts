@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CORRUPT_KEY,
-  createCaptureQueue,
+  createCaptureQueue as createRealQueue,
+  type QueueOptions,
   isCaptureStorageKey,
   QUEUE_KEY,
   REJECTED_KEY,
@@ -10,6 +11,13 @@ import {
   type SendVerdict,
 } from "./queue";
 import { createMemoryStorage, resolveStorage, resolveStorageInfo, webStorage, type StorageLike } from "./storage";
+
+// Rejections and quarantines are stamped from the clock and sorted by it, so a real clock lets two
+// writes cross a millisecond under load and flips the order. Every queue here gets a fixed clock unless a
+// test passes its own.
+const FIXED_NOW = () => new Date("2026-10-04T09:00:00.000Z");
+const createCaptureQueue = (storage: StorageLike, options: QueueOptions = {}) =>
+  createRealQueue(storage, { now: FIXED_NOW, ...options });
 
 const qk = (clientId: string) => `${QUEUE_KEY}:${clientId}`;
 const rk = (clientId: string) => `${REJECTED_KEY}:${clientId}`;

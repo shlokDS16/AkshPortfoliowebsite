@@ -1,7 +1,6 @@
-// Safe entry: nothing here reaches the secret-key client or server secrets (see ./jobs for that).
-export { isAuthorizedBearer } from "./auth";
+// Browser-safe entry: nothing here reaches the secret-key client, server secrets or node:crypto (see ./jobs).
 export { runSteps, type RecordHeartbeat, type Step, type StepResult } from "./steps";
-export { createSupabaseHeartbeatRepo, type HeartbeatRepo } from "./heartbeat";
+export { createSupabaseHeartbeatRepo, type HeartbeatRepo, type LatestRun } from "./heartbeat";
 export {
   describeStale,
   evaluateHealth,
@@ -9,7 +8,7 @@ export {
   getHealthReport,
   getPublicHealth,
   HEALTH_RULES,
-  type HealthCheck,
+  type ClockCheck,
   type HealthReport,
   type PublicCheck,
   type PublicHealth,

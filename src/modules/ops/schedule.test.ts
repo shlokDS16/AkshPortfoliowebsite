@@ -6,7 +6,7 @@ function recordingRepo() {
   const beats: { job: string; ok: boolean; detail: string }[] = [];
   const repo: HeartbeatRepo = {
     record: async (beat) => void beats.push(beat),
-    latestOk: async () => ({}),
+    latestRuns: async () => ({}),
   };
   return { beats, repo };
 }
