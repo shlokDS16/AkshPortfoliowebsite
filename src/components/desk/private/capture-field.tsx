@@ -3,18 +3,11 @@
 import { useCallback, useMemo, useRef, type Ref, type RefObject } from "react";
 import { highlightCapture, insertToken, type KnownTokens, type TokenKey } from "@/modules/capture/client";
 import type { KnownTokenLists } from "@/modules/catalog";
+import { toKnownTokens } from "./known-tokens";
 import { TOKEN_CLASS } from "./token-class";
 
 export function useKnown(lists: KnownTokenLists): KnownTokens {
-  return useMemo(
-    () => ({
-      symbols: new Set(lists.symbols),
-      themes: new Set(lists.themes),
-      ignoredSymbols: new Set(lists.ignoredSymbols),
-      ignoredThemes: new Set(lists.ignoredThemes),
-    }),
-    [lists],
-  );
+  return useMemo(() => toKnownTokens(lists), [lists]);
 }
 
 export function useTokenInsert(ref: RefObject<HTMLTextAreaElement | null>, value: string, setValue: (v: string) => void) {
@@ -80,7 +73,7 @@ export function CaptureField({ id, value, onChange, onSubmit, known, placeholder
             onSubmit();
           }
         }}
-        className="relative block min-h-24 w-full resize-none rounded-sm border border-input bg-transparent px-3 py-2.5 text-body text-transparent caret-ink field-sizing-content placeholder:text-ink-muted"
+        className="relative block min-h-24 w-full resize-none rounded-sm border border-input bg-transparent px-3 py-2.5 text-body text-transparent caret-ink [scrollbar-width:none] field-sizing-content placeholder:text-ink-muted"
       />
     </div>
   );

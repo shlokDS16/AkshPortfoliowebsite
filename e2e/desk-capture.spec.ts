@@ -142,11 +142,10 @@ test("refile files a failed capture, and links an item whose capture link was lo
 test("c opens the capture sheet from any desk screen; the receipt says where it goes; Esc closes it", async ({ page }) => {
   await page.goto("/desk/items");
   const dialog = page.getByRole("dialog", { name: "Capture" });
-  // The key handler attaches on hydration, which `goto` does not wait for: press again until the sheet opens.
-  await expect(async () => {
-    await page.keyboard.press("c");
-    await expect(dialog).toBeVisible({ timeout: 1000 });
-  }).toPass();
+  // The dock marks its button once the key handler is attached (hydration), so `c` is pressed exactly once.
+  await expect(page.getByRole("button", { name: "Capture", exact: true })).toHaveAttribute("data-shortcuts", "ready");
+  await page.keyboard.press("c");
+  await expect(dialog).toBeVisible();
   await dialog.getByRole("textbox", { name: "Capture" }).fill("l: $NEWNAME dealer credit");
   await expect(dialog.getByText("$NEWNAME → New names")).toBeVisible();
   await page.keyboard.press("Escape");

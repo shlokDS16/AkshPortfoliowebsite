@@ -3,18 +3,14 @@ import { formatTime } from "@/lib/format";
 import { filingErrorText, parseCapture, type TodayGroup } from "@/modules/capture";
 import type { KnownTokenLists } from "@/modules/catalog";
 import { CaptureText } from "./capture-text";
+import { toKnownTokens } from "./known-tokens";
 
 const KIND_WORD = { note: "private note", thesis: "thesis", learning: "learning note", process: "process note" } as const;
 
 /** Today's captures grouped by company (spec s5), newest first; kind and time per row (segment 4 C). */
 export function TodayList({ groups, known }: { groups: TodayGroup[]; known: KnownTokenLists }) {
   if (groups.length === 0) return null;
-  const sets = {
-    symbols: new Set(known.symbols),
-    themes: new Set(known.themes),
-    ignoredSymbols: new Set(known.ignoredSymbols),
-    ignoredThemes: new Set(known.ignoredThemes),
-  };
+  const sets = toKnownTokens(known);
   return (
     <div className="space-y-4">
       {groups.map((group) => (

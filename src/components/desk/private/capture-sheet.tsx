@@ -4,7 +4,8 @@ import { Dialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { scrimMotion, sheetMotion } from "@/components/ui/motion-presets";
 import { Toast } from "@/components/ui/toast";
@@ -17,6 +18,11 @@ import { GrammarKeyRow } from "./grammar-key-row";
 import { NeedsAttention } from "./needs-attention";
 import { useCaptureSave } from "./use-capture-save";
 
+const noSubscribe = () => () => {};
+// The Toast is portaled to <body>: the sheet's header slot is a stacking context (z 30) that would cap the toast below the scrim.
+// Base UI leaves [aria-live] regions out of its aria-hidden pass, so the toast stays announced while the sheet is open.
+const useBody = () => useSyncExternalStore(noSubscribe, () => document.body, () => null);
+
 type Props = { open: boolean; onOpenChange(open: boolean): void; known: KnownTokens };
 
 /** Bottom sheet (phone) / top dialog (desktop): Base UI for focus trap and Esc, Motion for the slide (Base UI handbook). */
@@ -24,6 +30,7 @@ export function CaptureSheet({ open, onOpenChange, known }: Props) {
   const [value, setValue] = useState("");
   const field = useRef<HTMLTextAreaElement>(null);
   const reduced = usePrefersReducedMotion();
+  const body = useBody();
   const { toast, save } = useCaptureSave();
   const insert = useTokenInsert(field, value, setValue);
   const receipt = captureReceipt(value, known);
@@ -76,7 +83,7 @@ export function CaptureSheet({ open, onOpenChange, known }: Props) {
           ) : null}
         </AnimatePresence>
       </Dialog.Root>
-      <Toast message={toast} />
+      {body ? createPortal(<Toast message={toast} />, body) : null}
     </>
   );
 }

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QUEUE_KEY } from "@/modules/capture/client";
@@ -140,5 +140,64 @@ describe("CaptureDock", () => {
     renderWithMotion(<CaptureDock known={lists([])} />);
     await waitFor(() => expect(submitCapture).toHaveBeenCalledWith(expect.objectContaining({ clientId: "left" })));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it("the button is named Capture alone, lists its shortcuts, and marks itself once the keys are live", async () => {
+    mockMatchMedia({ desk: true });
+    renderWithMotion(<CaptureDock known={lists([])} />);
+    const button = screen.getByRole("button", { name: "Capture" });
+    expect(button).toHaveAttribute("aria-keyshortcuts", "c /");
+    await waitFor(() => expect(button).toHaveAttribute("data-shortcuts", "ready"));
+  });
+
+  it("the toast is not inside the header's stacking context and stays announced while the sheet is open", async () => {
+    mockMatchMedia({ coarse: true });
+    submitCapture.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderWithMotion(
+      <header>
+        <CaptureDock known={lists([])} />
+      </header>,
+      { reducedMotion: true },
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Capture" }));
+    await userEvent.type(await screen.findByRole("textbox", { name: "Capture" }), "on the train{Enter}");
+    const toast = (await screen.findByText("Saved on this phone. It will sync.")).closest('[role="status"]')!;
+    expect(toast.closest("header")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Capture" })).toBeInTheDocument();
+    expect(screen.getAllByRole("status")).toContain(toast); // getByRole skips aria-hidden subtrees
+  });
+
+  it("ignores c and / when the key was already handled, is repeating, or sits inside another overlay", async () => {
+    mockMatchMedia({ desk: true });
+    renderWithMotion(
+      <>
+        <div role="menu">
+          <button type="button">item</button>
+        </div>
+        <CaptureDock known={lists([])} />
+      </>,
+    );
+    const handled = (e: KeyboardEvent) => e.preventDefault();
+    document.addEventListener("keydown", handled, { once: true });
+    fireEvent.keyDown(document.body, { key: "c" });
+    fireEvent.keyDown(document.body, { key: "c", repeat: true });
+    fireEvent.keyDown(screen.getByRole("button", { name: "item" }), { key: "/" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.keyDown(document.body, { key: "/" });
+    expect(await screen.findByRole("dialog", { name: "Capture" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["Esc", async () => userEvent.keyboard("{Escape}")],
+    ["Close", async () => userEvent.click(screen.getByRole("button", { name: "Close" }))],
+  ])("%s returns focus to the Capture button", async (_name, dismiss) => {
+    mockMatchMedia({ desk: true });
+    renderWithMotion(<CaptureDock known={lists([])} />, { reducedMotion: true });
+    const button = screen.getByRole("button", { name: "Capture" });
+    await userEvent.click(button);
+    await screen.findByRole("dialog", { name: "Capture" });
+    await dismiss();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(button).toHaveFocus();
   });
 });
