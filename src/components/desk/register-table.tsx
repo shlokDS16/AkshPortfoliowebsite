@@ -10,6 +10,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Table, TD, TH } from "@/components/ui/table";
 import { formatDate } from "@/lib/format";
 import type { RegisterFile } from "@/lib/view-types";
+import { AsOf } from "./as-of";
 import { EmptyState } from "./empty-state";
 import { FileTitleTransition } from "./file-title-transition";
 import { IdMark } from "./id-mark";
@@ -71,7 +72,7 @@ export function RegisterTable({ files, searchable = true }: { files: RegisterFil
                   transition={{ duration: MOTION.slow, ease: EASE_SNAP }}
                   className="border-b border-rule max-desk:grid max-desk:grid-cols-[3rem_minmax(0,1fr)] max-desk:py-2"
                 >
-                  <TD className="max-desk:row-span-3 max-desk:p-0">
+                  <TD className="max-desk:row-span-5 max-desk:p-0">
                     <IdMark kind="file" value={f.fileNo} />
                   </TD>
                   <TD className="max-desk:p-0">
@@ -86,14 +87,19 @@ export function RegisterTable({ files, searchable = true }: { files: RegisterFil
                   <TD className="max-desk:hidden">
                     <IdMark kind="revision" value={`R${f.revNo}`} />
                   </TD>
-                  <TD className="tabular-nums max-desk:p-0 max-desk:text-small">
+                  <TD className="whitespace-nowrap tabular-nums max-desk:p-0 max-desk:text-small">
                     <span className="desk:hidden">R{f.revNo} · </span>
                     {formatDate(f.revisedOn)}
                   </TD>
-                  <TD className="max-desk:hidden">
+                  <TD className="max-desk:p-0 max-desk:pt-1">
                     <TestsInline counts={f.tests} />
                   </TD>
-                  <TD className="tabular-nums text-ink-muted max-desk:hidden">{formatDate(f.dataAsOf)}</TD>
+                  <TD className="whitespace-nowrap tabular-nums text-ink-muted max-desk:p-0 max-desk:text-small">
+                    <span className="max-desk:hidden">{formatDate(f.dataAsOf)}</span>
+                    <span className="desk:hidden">
+                      <AsOf date={f.dataAsOf} />
+                    </span>
+                  </TD>
                 </m.tr>
               ))}
             </tbody>

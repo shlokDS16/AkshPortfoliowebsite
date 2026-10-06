@@ -62,6 +62,15 @@ describe("RegisterTable", () => {
     expectTokenOnly(container);
   });
 
+  it("the phone card carries the test summary and the figures-to date (rule 3), not only the desk columns", () => {
+    mockMatchMedia();
+    renderWithMotion(<RegisterTable files={REGISTER} />);
+    const row = screen.getByRole("link", { name: "Kaveri Pumps (fictional)" }).closest("tr") as HTMLElement;
+    expect(within(row).getByRole("img", { name: "0 met, 1 watching, 1 not met, 1 no data" })).toBeInTheDocument();
+    expect(within(row).getByText("Figures to 30 Jun 2026")).toBeInTheDocument();
+    expect(row).toHaveTextContent("R2 · 20 Aug 2026");
+  });
+
   it("reorders instantly under reduced motion", async () => {
     mockMatchMedia({ reducedMotion: true });
     renderWithMotion(<RegisterTable files={REGISTER} />, { reducedMotion: true });
