@@ -30,6 +30,16 @@ const eslintConfig = defineConfig([
       message: "lib/ is a leaf: it must not import modules or app (spec s4).",
     }),
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/env.ts", "src/lib/env.server.ts"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        { object: "process", property: "env", message: "Read env only through src/lib/env.ts or env.server.ts (CLAUDE.md)." },
+      ],
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",

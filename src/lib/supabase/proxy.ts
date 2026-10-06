@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 import type { Database } from "./database.types";
@@ -10,6 +10,11 @@ import type { Database } from "./database.types";
  */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
+  // setAll can run several times per request, and @supabase/ssr sends the Cache-Control /
+  // Expires / Pragma headers on the first write only. Accumulate everything (cookies by
+  // name, last write wins) and rebuild the response from the full set each time.
+  const cookieWrites = new Map<string, { value: string; options: CookieOptions }>();
+  const headerWrites: Record<string, string> = {};
   const env = publicEnv();
   const supabase = createServerClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
     cookies: {
@@ -17,10 +22,14 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
         return request.cookies.getAll();
       },
       setAll(cookiesToSet, headers) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        cookiesToSet.forEach(({ name, value, options }) => {
+          request.cookies.set(name, value);
+          cookieWrites.set(name, { value, options });
+        });
+        Object.assign(headerWrites, headers);
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-        Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
+        cookieWrites.forEach(({ value, options }, name) => response.cookies.set(name, value, options));
+        Object.entries(headerWrites).forEach(([key, value]) => response.headers.set(key, value));
       },
     },
   });

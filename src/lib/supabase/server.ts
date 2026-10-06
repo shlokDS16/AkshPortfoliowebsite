@@ -14,6 +14,7 @@ export async function createSupabaseServerClient(): Promise<Db> {
       getAll() {
         return cookieStore.getAll();
       },
+      // The headers argument (no-store) is ignored: Server Components and Actions are dynamic and Next sets no-store itself.
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
