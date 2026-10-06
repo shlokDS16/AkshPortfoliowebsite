@@ -45,3 +45,4 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - 2026-10-06: Task 6 complete (magic-link admin auth; review approved, signups verified closed via live probe). Plan 1A 5/14 done (Tasks 1,3,4,5,6); Task 2 deploy deferred.
 - 2026-10-06: Task 7 complete (research module: items, append-only revisions, diff, desk item screens; review approved). Plan 1A 6/14.
 - 2026-10-06: Task 8 complete (compliance lint: normalising pre-pass, abbreviation-aware splitter, Indian price formats, false-positive guards; 423 tests; 3 review rounds). Plan 1B written (16 tasks) and its decisions ratified.
+- 2026-10-06: Task 9 complete (publish gate service, retraction, desk gate panel; allowances bound to flagged sentences; latest-only publish via migration 0003, pushed to hosted). Q8 logged (forged lint_result via direct RPC; decide before launch). Plan 1A 8/14.
