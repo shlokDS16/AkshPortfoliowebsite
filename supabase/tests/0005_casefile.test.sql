@@ -136,8 +136,8 @@ select is(public.test_publish('a6a6a6a6-0000-4000-8000-000000000007', 'b6000000-
 -- Public side.
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
-select ok((select file_no from public.public_items where id = 'a1000000-0000-4000-8000-000000000001') is not null,
-  'public_items exposes file_no');
+select ok((select file_no from public.public_items where id = 'a5000000-0000-4000-8000-000000000005') is not null,
+  'public_items exposes file_no (for a file whose data is past the 30-day lag)');
 select results_eq($$ select day from public.capture_days(30) order by day $$,
   $$ values ((now() at time zone 'Asia/Kolkata')::date - 5), ((now() at time zone 'Asia/Kolkata')::date) $$,
   'capture_days(30) returns the distinct IST dates inside the window and nothing else (D10)');

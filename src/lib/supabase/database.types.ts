@@ -115,6 +115,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          archived_at: string | null
           bse_code: string | null
           created_at: string
           id: string
@@ -128,6 +129,7 @@ export type Database = {
           visibility: string
         }
         Insert: {
+          archived_at?: string | null
           bse_code?: string | null
           created_at?: string
           id?: string
@@ -141,6 +143,7 @@ export type Database = {
           visibility?: string
         }
         Update: {
+          archived_at?: string | null
           bse_code?: string | null
           created_at?: string
           id?: string
@@ -154,6 +157,39 @@ export type Database = {
           visibility?: string
         }
         Relationships: []
+      }
+      company_aliases: {
+        Row: {
+          company_id: string
+          created_at: string
+          symbol: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          symbol: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          symbol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_aliases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_aliases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gate_decisions: {
         Row: {
@@ -251,6 +287,24 @@ export type Database = {
         }
         Relationships: []
       }
+      ignored_tokens: {
+        Row: {
+          created_at: string
+          kind: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          kind: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          kind?: string
+          token?: string
+        }
+        Relationships: []
+      }
       item_revisions: {
         Row: {
           author: string
@@ -308,6 +362,7 @@ export type Database = {
           created_at: string
           current_revision_id: string | null
           data_as_of: string | null
+          file_no: number | null
           holds_position: string | null
           id: string
           kind: string
@@ -326,6 +381,7 @@ export type Database = {
           created_at?: string
           current_revision_id?: string | null
           data_as_of?: string | null
+          file_no?: number | null
           holds_position?: string | null
           id?: string
           kind: string
@@ -344,6 +400,7 @@ export type Database = {
           created_at?: string
           current_revision_id?: string | null
           data_as_of?: string | null
+          file_no?: number | null
           holds_position?: string | null
           id?: string
           kind?: string
@@ -471,6 +528,7 @@ export type Database = {
       }
       themes: {
         Row: {
+          archived_at: string | null
           created_at: string
           description_md: string | null
           id: string
@@ -480,6 +538,7 @@ export type Database = {
           visibility: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           description_md?: string | null
           id?: string
@@ -489,6 +548,7 @@ export type Database = {
           visibility?: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           description_md?: string | null
           id?: string
@@ -563,6 +623,7 @@ export type Database = {
           body_md: string | null
           company_id: string | null
           data_as_of: string | null
+          file_no: number | null
           holds_position: string | null
           id: string | null
           kind: string | null
@@ -636,6 +697,12 @@ export type Database = {
           p_sentence_hash: string
         }
         Returns: boolean
+      }
+      capture_days: {
+        Args: { p_days?: number }
+        Returns: {
+          day: string
+        }[]
       }
       heartbeat_ages: {
         Args: Record<PropertyKey, never>

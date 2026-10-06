@@ -102,10 +102,10 @@ select ok((select archived_at is not null from public.companies where id = 'cccc
 
 -- A signed-in non-admin sees nothing and writes nothing.
 reset role;
-set local role authenticated;
-select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select is((select role from public.profiles where id = 'bbbbbbbb-0000-4000-8000-000000000002'), 'client',
   'the second user is a client');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select is((select count(*) from public.company_aliases), 0::bigint, 'a client reads no aliases');
 select is((select count(*) from public.ignored_tokens), 0::bigint, 'a client reads no ignored tokens');
 select throws_ok($$ insert into public.company_aliases (symbol, company_id)

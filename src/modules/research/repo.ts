@@ -11,7 +11,7 @@ const ITEM_COLUMNS =
   "id, kind, slug, title, company_id, theme_id, visibility, status, current_revision_id, published_at, data_as_of, learning_objective, holds_position, created_at, updated_at";
 const REVISION_COLUMNS = "id, item_id, rev_no, body_md, structured, schema_version, change_reason, author, created_at";
 
-type ItemRow = Omit<Tables<"items">, "search">;
+type ItemRow = Omit<Tables<"items">, "search" | "file_no">; // file_no is read by the public views (Plan 1B), not the desk repo
 type RevisionRow = Tables<"item_revisions">;
 
 function toItem(row: ItemRow): Item {
