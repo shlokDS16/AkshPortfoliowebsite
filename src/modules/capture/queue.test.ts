@@ -305,15 +305,50 @@ describe("a retry requested while a flush is in flight (the device came back onl
     expect(queue.list()).toEqual([]);
   });
 
-  it("asks for nothing extra when the run already sent everything", async () => {
+  it("a request made while the run still waits for the lock is cleared when the pass starts: no re-pass", async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const withLock = async <T,>(fn: () => Promise<T>): Promise<T> => {
+      await gate; // another tab holds the lock
+      return fn();
+    };
+    const queue = createCaptureQueue(createMemoryStorage(), { withLock });
+    queue.enqueue(entry("a"));
+    let calls = 0;
+    const send = (): Promise<SendVerdict> => {
+      calls++;
+      return Promise.resolve(calls > 3 ? "sent" : "retry"); // the cap turns a runaway re-pass into a failed assertion, not a hang
+    };
+    const running = queue.flush(send);
+    await tick();
+    const joined = queue.flush(send, { retryIfBusy: true }); // the run has not begun, so its attempt will be fresh
+    release();
+    expect(await joined).toEqual({ sent: 0, dropped: 0, remaining: 1 });
+    expect(await running).toEqual({ sent: 0, dropped: 0, remaining: 1 });
+    expect(calls).toBe(1);
+  });
+
+  it("a request left over from a run that sent everything does not make a later plain flush re-pass", async () => {
     const queue = createCaptureQueue(createMemoryStorage());
     queue.enqueue(entry("a"));
-    const rec = recordingSend();
-    const running = queue.flush(rec.send);
+    let releaseFirst: () => void = () => undefined;
+    const firstSend = (): Promise<SendVerdict> => new Promise<SendVerdict>((resolve) => (releaseFirst = () => resolve("sent")));
+    const first = queue.flush(firstSend);
     await tick();
-    const joined = queue.flush(rec.send, { retryIfBusy: true });
-    await Promise.all([running, joined]);
-    expect(rec.seen).toEqual(["a"]);
+    const joined = queue.flush(firstSend, { retryIfBusy: true }); // flag set, but the attempt will succeed
+    releaseFirst();
+    expect(await joined).toEqual({ sent: 1, dropped: 0, remaining: 0 });
+    await first;
+
+    queue.enqueue(entry("b"));
+    let calls = 0;
+    const failing = (): Promise<SendVerdict> => {
+      calls++;
+      return Promise.resolve(calls > 3 ? "sent" : "retry"); // capped: a leaked flag fails the assertion instead of looping
+    };
+    await queue.flush(failing);
+    expect(calls).toBe(1);
+    expect(queue.list().map((e) => e.clientId)).toEqual(["b"]);
   });
 
   it("makes exactly one extra pass: a second failure waits for the next trigger", async () => {
