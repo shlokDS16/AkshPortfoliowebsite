@@ -41,16 +41,20 @@ export async function mailCountFor(stack: LocalStack, email: string): Promise<nu
   return (await messagesTo(stack, email)).length;
 }
 
-/** Polls Mailpit for the newest message to `email` and returns the link in its text body. */
+/**
+ * Polls Mailpit for the newest message to `email` and returns its sign-in link: the token-hash link to
+ * /auth/confirm that supabase/templates/magic_link.html renders (final review I4).
+ */
 export async function latestEmailLink(stack: LocalStack, email: string): Promise<string> {
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
     const messages = await messagesTo(stack, email);
     if (messages.length > 0) {
       const res = await fetch(`${stack.mailpitUrl}/api/v1/message/${messages[0].ID}`);
-      const detail = (await res.json()) as { Text: string };
-      const link = /https?:\/\/\S+\/auth\/v1\/verify\S*/.exec(detail.Text)?.[0];
-      if (link) return link;
+      const detail = (await res.json()) as { Text?: string; HTML?: string };
+      const body = `${detail.Text ?? ""}\n${detail.HTML ?? ""}`;
+      const link = /https?:\/\/[^\s"'<>]+\/auth\/confirm\?[^\s"'<>]+/.exec(body)?.[0];
+      if (link) return link.replace(/&amp;/g, "&");
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }

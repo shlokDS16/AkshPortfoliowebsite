@@ -243,6 +243,12 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Magic Link: a token-hash link to /auth/confirm, not the PKCE ConfirmationURL, so a link requested on one
+# device or browser opens on another (final review I4). The hosted project's template must match.
+[auth.email.template.magic_link]
+subject = "Your sign-in link for Aksh Research Desk"
+content_path = "./supabase/templates/magic_link.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"
