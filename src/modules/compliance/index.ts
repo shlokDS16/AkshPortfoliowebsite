@@ -1,6 +1,7 @@
 // Server-side entry (the lint hashes sentences with node:crypto behind server-only). Client code imports
 // constants and types from "./client" instead.
 export { lintText } from "./lint";
+export { buildLintInput } from "./lint-input";
 export { sentenceHash } from "./hash";
 export { LINT_FIELDS, POLICY_VERSION, RULE_TITLES } from "./rules";
 export type { LintAllowed, LintField, LintFinding, LintInput, LintResult, LintRule } from "./rules";

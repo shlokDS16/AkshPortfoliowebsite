@@ -1,6 +1,7 @@
 import type { Json } from "@/lib/supabase/database.types";
 import { decisionFromRow, type GateDecision } from "./decision";
 import { lintText } from "./lint";
+import { buildLintInput } from "./lint-input";
 import { POLICY_VERSION } from "./policy";
 import type { ComplianceRepo, GateRpc, PublishContext } from "./repo";
 
@@ -25,24 +26,7 @@ export class PublishContextNotFoundError extends Error {
 export async function runPublishGate(deps: PublishDeps, itemId: string, revisionId: string): Promise<GateDecision> {
   const ctx = await deps.repo.loadPublishContext(itemId, revisionId);
   if (!ctx) throw new PublishContextNotFoundError(itemId, revisionId);
-  const lint = lintText({
-    revisionId: ctx.revision.id,
-    kind: ctx.item.kind,
-    title: ctx.item.title,
-    slug: ctx.item.slug,
-    learningObjective: ctx.item.learningObjective,
-    bodyMd: ctx.revision.bodyMd,
-    structured: ctx.revision.structured,
-    changeReason: ctx.revision.changeReason,
-    companyName: ctx.companyName,
-    companyOneLiner: ctx.companyOneLiner,
-    themeName: ctx.themeName,
-    companyId: ctx.item.companyId,
-    holdsPosition: ctx.item.holdsPosition,
-    dataAsOf: ctx.item.dataAsOf,
-    today: deps.today(),
-    allowances: new Set(ctx.allowances),
-  });
+  const lint = lintText(buildLintInput(ctx, deps.today()));
   const row = await deps.gate.callPublishRevision({
     actorId: deps.actorId,
     itemId,
