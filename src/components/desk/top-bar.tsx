@@ -19,7 +19,7 @@ export function TopBar({ variant, backHref = "/companies", backLabel = "Files" }
           <Wordmark />
         </Link>
         <div className="flex-1" />
-        <Link href="/companies#find" aria-label="Find a file" className="inline-flex min-h-11 items-center gap-2 text-ink no-underline">
+        <Link href="/companies#find" aria-label="Find a file" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 text-ink no-underline">
           <Search aria-hidden className="size-5" strokeWidth={1.5} />
           <span className="max-desk:sr-only">Find a file</span>
         </Link>

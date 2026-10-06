@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { FILE_SECTIONS, SITE_COUNTS, STREAK } from "@/test/fixtures/desk-ui";
+import { layoutHeadings } from "@/test/headings";
 import { expectNoMotion, expectTokenOnly, mockIntersectionObserver, mockMatchMedia, renderWithMotion } from "@/test/ui";
 import { DeskRail } from "./desk-rail";
 import { PhoneIndex } from "./phone-index";
@@ -9,6 +10,17 @@ import { ReadingHairline } from "./reading-hairline";
 import { StreakStrip } from "./streak-strip";
 import { TabBar } from "./tab-bar";
 import { TopBar } from "./top-bar";
+
+/** Motion's scroll tracking reads document.scrollingElement.scrollTop, which jsdom does not lay out. */
+async function scrollTo(y: number) {
+  Object.defineProperty(document, "scrollingElement", { value: document.documentElement, configurable: true });
+  Object.defineProperty(document.documentElement, "scrollTop", { value: y, configurable: true });
+  await act(async () => {
+    window.dispatchEvent(new Event("scroll"));
+    document.dispatchEvent(new Event("scroll"));
+    await new Promise((r) => setTimeout(r, 60));
+  });
+}
 
 describe("TopBar", () => {
   it("home: wordmark and Find a file; file: back to Files on phone", () => {
@@ -46,6 +58,7 @@ describe("DeskRail", () => {
 describe("PhoneIndex", () => {
   it("is a nav of in-page links; the indicator follows the section in view", () => {
     const io = mockIntersectionObserver();
+    const layout = layoutHeadings({ view: 20, tests: 900, facts: 1800, history: 2700 });
     renderWithMotion(
       <div>
         <PhoneIndex sections={FILE_SECTIONS} />
@@ -57,6 +70,7 @@ describe("PhoneIndex", () => {
     );
     const nav = screen.getByRole("navigation", { name: "On this page" });
     expect(within(nav).getByRole("link", { name: "View" })).toHaveAttribute("aria-current", "true");
+    layout.scrollTo(900);
     act(() => io.trigger(document.getElementById("tests")!, true));
     expect(within(nav).getByRole("link", { name: /Tests/ })).toHaveAttribute("aria-current", "true");
     expect(within(nav).getByRole("link", { name: /History/ })).toHaveTextContent("R2");
@@ -80,6 +94,20 @@ describe("ReadingHairline", () => {
     renderWithMotion(<ReadingHairline targetId="file-body" />);
     expect(document.querySelector("[data-hairline='js']")).not.toBeNull();
   });
+
+  it("falls back to page progress when the target element is missing, without an error", async () => {
+    vi.stubGlobal("CSS", { supports: () => false });
+    const errors: unknown[] = [];
+    const onError = (e: ErrorEvent) => errors.push(e.error);
+    window.addEventListener("error", onError);
+    renderWithMotion(<ReadingHairline targetId="no-such-element" />);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    window.removeEventListener("error", onError);
+    expect(document.querySelector("[data-hairline]")).not.toBeNull();
+    expect(errors).toEqual([]);
+  });
 });
 
 describe("TabBar", () => {
@@ -93,9 +121,24 @@ describe("TabBar", () => {
     expectTokenOnly(nav);
   });
 
-  it("renders under reduced motion without moving", () => {
+  it("hides and goes inert when scrolled down, and stays put under reduced motion", async () => {
+    mockMatchMedia();
+    await scrollTo(0);
+    const view = renderWithMotion(<TabBar current="desk" counts={{ files: 0, notes: 0 }} hideOnScroll />);
+    await scrollTo(0);
+    await scrollTo(300);
+    await waitFor(() => expect(screen.getByRole("navigation", { name: "Main", hidden: true })).toHaveAttribute("inert"));
+    await waitFor(() => expect(screen.getByRole("navigation", { name: "Main", hidden: true }).getAttribute("style") ?? "").toContain("translateY(100%)"));
+    view.unmount();
+
+    mockMatchMedia({ reducedMotion: true });
+    await scrollTo(0);
     renderWithMotion(<TabBar current="desk" counts={{ files: 0, notes: 0 }} hideOnScroll />, { reducedMotion: true });
-    expect(screen.getByRole("navigation", { name: "Main" }).getAttribute("style") ?? "").not.toContain("translateY(100%)");
+    await scrollTo(0);
+    await scrollTo(600);
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    expect(nav).not.toHaveAttribute("inert");
+    expect(nav.getAttribute("style") ?? "").not.toContain("translateY(100%)");
   });
 });
 

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { CountFlow } from "@/components/ui/count-flow";
 import { EASE_SNAP, MOTION } from "@/components/ui/motion-tokens";
+import { usePrefersReducedMotion } from "@/components/ui/use-reduced-motion";
 import type { TabCurrent } from "@/lib/view-types";
 
 type Props = { current: TabCurrent | null; counts: { files: number; notes: number }; hideOnScroll?: boolean };
@@ -21,17 +22,20 @@ const TABS = [
 
 /** Phone bottom bar; hides while scrolling down a file so at most three bars show (segment 2). */
 export function TabBar({ current, counts, hideOnScroll = false }: Props) {
-  const [hidden, setHidden] = useState(false);
+  const [scrolledAway, setScrolledAway] = useState(false);
+  const reduced = usePrefersReducedMotion();
+  const hidden = scrolledAway && !reduced; // reduced motion: the bar stays put, nothing slides
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, "change", (y) => {
     if (!hideOnScroll) return;
     const previous = scrollY.getPrevious() ?? 0;
     if (Math.abs(y - previous) < 4) return;
-    setHidden(y > previous && y > 80);
+    setScrolledAway(y > previous && y > 80);
   });
   return (
     <m.nav
       aria-label="Main"
+      inert={hidden}
       animate={{ y: hidden ? "100%" : "0%" }}
       transition={{ duration: MOTION.base, ease: EASE_SNAP }}
       className="fixed inset-x-0 bottom-0 z-(--z-tab-bar) border-t border-rule bg-paper pb-[env(safe-area-inset-bottom)] desk:hidden"
