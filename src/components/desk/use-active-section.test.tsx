@@ -6,7 +6,7 @@ import { mockIntersectionObserver } from "@/test/ui";
 import { useActiveSection } from "./use-active-section";
 
 const IDS = ["view", "tests", "facts", "history"];
-// Document offsets of the four headings; the hook's line is 107 px (fallback for scroll-margin-top 106 + 1).
+// Document offsets of the four headings; with no computed scroll-margin-top the hook's line is 1 px (0 + 1).
 const TOPS = { view: 200, tests: 1000, facts: 2000, history: 3000 };
 
 function mountHeadings() {
@@ -63,7 +63,7 @@ describe("useActiveSection", () => {
     const { result, unmount } = renderHook(() => useActiveSection(IDS));
     expect(result.current).toBe("view");
     unmount();
-    layout.scrollTo(750); // Tests top is now 250 <= 301: active only because the line is 300, not 106
+    layout.scrollTo(750); // Tests top is now 250 <= 301: active only because the line is 300, not 0
     const again = renderHook(() => useActiveSection(IDS));
     expect(again.result.current).toBe("tests");
   });

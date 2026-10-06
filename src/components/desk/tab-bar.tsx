@@ -22,22 +22,21 @@ const TABS = [
 
 /** Phone bottom bar; hides while scrolling down a file so at most three bars show (segment 2). */
 export function TabBar({ current, counts, hideOnScroll = false }: Props) {
-  const [scrolledAway, setScrolledAway] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const reduced = usePrefersReducedMotion();
-  const hidden = scrolledAway && !reduced; // reduced motion: the bar stays put, nothing slides
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, "change", (y) => {
     if (!hideOnScroll) return;
     const previous = scrollY.getPrevious() ?? 0;
     if (Math.abs(y - previous) < 4) return;
-    setScrolledAway(y > previous && y > 80);
+    setHidden(y > previous && y > 80);
   });
   return (
     <m.nav
       aria-label="Main"
       inert={hidden}
       animate={{ y: hidden ? "100%" : "0%" }}
-      transition={{ duration: MOTION.base, ease: EASE_SNAP }}
+      transition={reduced ? { duration: 0 } : { duration: MOTION.base, ease: EASE_SNAP }} // reduced motion: still hides, but jumps
       className="fixed inset-x-0 bottom-0 z-(--z-tab-bar) border-t border-rule bg-paper pb-[env(safe-area-inset-bottom)] desk:hidden"
     >
       <ul className="grid h-14 grid-cols-4">

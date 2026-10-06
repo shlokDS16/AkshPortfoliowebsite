@@ -121,24 +121,34 @@ describe("TabBar", () => {
     expectTokenOnly(nav);
   });
 
-  it("hides and goes inert when scrolled down, and stays put under reduced motion", async () => {
+  it("hides and goes inert when scrolled down, shows again when scrolled up", async () => {
     mockMatchMedia();
     await scrollTo(0);
-    const view = renderWithMotion(<TabBar current="desk" counts={{ files: 0, notes: 0 }} hideOnScroll />);
+    renderWithMotion(<TabBar current="desk" counts={{ files: 0, notes: 0 }} hideOnScroll />);
     await scrollTo(0);
     await scrollTo(300);
-    await waitFor(() => expect(screen.getByRole("navigation", { name: "Main", hidden: true })).toHaveAttribute("inert"));
-    await waitFor(() => expect(screen.getByRole("navigation", { name: "Main", hidden: true }).getAttribute("style") ?? "").toContain("translateY(100%)"));
-    view.unmount();
+    const nav = () => screen.getByRole("navigation", { name: "Main", hidden: true });
+    await waitFor(() => expect(nav()).toHaveAttribute("inert"));
+    await waitFor(() => expect(nav().getAttribute("style") ?? "").toContain("translateY(100%)"));
+    await scrollTo(200);
+    await waitFor(() => expect(nav()).not.toHaveAttribute("inert"));
+  });
 
+  it("under reduced motion it still hides on scroll down, instantly and inert, and returns on scroll up", async () => {
     mockMatchMedia({ reducedMotion: true });
     await scrollTo(0);
     renderWithMotion(<TabBar current="desk" counts={{ files: 0, notes: 0 }} hideOnScroll />, { reducedMotion: true });
     await scrollTo(0);
     await scrollTo(600);
-    const nav = screen.getByRole("navigation", { name: "Main" });
+    const nav = screen.getByRole("navigation", { name: "Main", hidden: true });
+    const style = () => nav.getAttribute("style") ?? "";
+    // Inside the 60 ms scroll tick plus 100 ms: a 180 ms slide could not have finished, a jump has.
+    await waitFor(() => expect(style()).toContain("translateY(100%)"), { timeout: 100 });
+    expect(nav).toHaveAttribute("inert");
+    expect(style()).not.toMatch(/transition/);
+    await scrollTo(400);
+    await waitFor(() => expect(style()).not.toContain("translateY(100%)"), { timeout: 100 });
     expect(nav).not.toHaveAttribute("inert");
-    expect(nav.getAttribute("style") ?? "").not.toContain("translateY(100%)");
   });
 });
 

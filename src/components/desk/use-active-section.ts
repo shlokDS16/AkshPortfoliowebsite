@@ -2,13 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-// globals.css: [data-section] { scroll-margin-top: top bar + index + 8px } = 52 + 46 + 8 (phone). Used only
-// when a heading carries no computed value (no stylesheet).
-const FALLBACK_OFFSET = 106;
-
+// The line is the heading's own scroll-margin-top (globals.css [data-section]); with no stylesheet it is 0.
 function offsetOf(heading: HTMLElement): number {
   const margin = Number.parseFloat(getComputedStyle(heading).scrollMarginTop);
-  return Number.isFinite(margin) ? margin : FALLBACK_OFFSET;
+  return Number.isFinite(margin) ? margin : 0;
 }
 
 /** The last heading at or above the line the bars leave free (its scroll-margin-top), else the first. */
