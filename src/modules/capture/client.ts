@@ -8,6 +8,7 @@ export {
   REJECTED_KEY,
   type CaptureQueue,
   type CorruptCapture,
+  type FlushOptions,
   type FlushResult,
   type LockRunner,
   type QueuedCapture,

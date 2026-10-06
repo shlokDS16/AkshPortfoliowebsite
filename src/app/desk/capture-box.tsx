@@ -13,6 +13,7 @@ import {
   type CaptureQueue,
   type CaptureSource,
   type CorruptCapture,
+  type FlushOptions,
   type LockRunner,
   type QueuedCapture,
   type RejectedCapture,
@@ -68,20 +69,25 @@ export function CaptureBox() {
     if (!queue.isDurable()) setDurable(false);
   }, [getQueue]);
 
-  const flush = useCallback(async () => {
-    const result = await getQueue().flush(sendToServer);
-    syncView();
-    if (result.sent > 0) {
-      setSaved(true);
-      router.refresh();
-    }
-    return result;
-  }, [getQueue, router, syncView]);
+  const flush = useCallback(
+    async (options?: FlushOptions) => {
+      const result = await getQueue().flush(sendToServer, options);
+      syncView();
+      if (result.sent > 0) {
+        setSaved(true);
+        router.refresh();
+      }
+      return result;
+    },
+    [getQueue, router, syncView],
+  );
 
   useEffect(() => {
     ref.current?.focus();
     const first = window.setTimeout(() => void flush(), 0);
-    const onOnline = () => void flush();
+    // Back online: if an attempt that began while offline is still in flight, it gets one more pass when it
+    // fails, so the user never waits for the 30 s timer after reconnecting.
+    const onOnline = () => void flush({ retryIfBusy: true });
     window.addEventListener("online", onOnline);
     return () => {
       window.clearTimeout(first);

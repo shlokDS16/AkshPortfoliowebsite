@@ -29,6 +29,16 @@ test.beforeAll(async () => {
 
 const box = (page: Page) => page.getByRole("textbox", { name: "Capture" });
 
+/**
+ * Opens the desk and waits until the page is interactive. The box takes focus in a mount effect, so "focused"
+ * means hydrated. `load` alone is not enough: typing, pressing Enter or going offline before hydration finishes
+ * leaves the text in the box with no submit handler attached (and an offline switch can kill chunks still loading).
+ */
+async function openDesk(page: Page) {
+  await page.goto("/desk");
+  await expect(box(page)).toBeFocused();
+}
+
 async function captureCount(rawText: string): Promise<number> {
   const { count, error } = await db.from("captures").select("id", { count: "exact", head: true }).eq("raw_text", rawText);
   if (error) throw error;
@@ -54,7 +64,7 @@ test("the box is focused, Enter saves and clears, Shift+Enter adds a line", asyn
 });
 
 test("a t: capture shows under its company and creates the thesis item", async ({ page }) => {
-  await page.goto("/desk");
+  await openDesk(page);
   const symbol = `E2E${RUN}T`;
   await box(page).fill(`t: $${symbol} deal wins slowing`);
   await box(page).press("Enter");
@@ -67,7 +77,7 @@ test("a t: capture shows under its company and creates the thesis item", async (
 });
 
 test("offline: saved on this device, then synced exactly once when back online", async ({ page, context }) => {
-  await page.goto("/desk");
+  await openDesk(page);
   const text = `offline thought ${RUN}`;
   await context.setOffline(true);
   await box(page).fill(text);
@@ -89,8 +99,33 @@ test("offline: saved on this device, then synced exactly once when back online",
   expect(await captureCount(text)).toBe(1);
 });
 
+test("coming back online while a send is still failing retries at once, not on the 30 s timer", async ({ page }) => {
+  // The first send is held open and then fails, the way a request that began while offline does when the
+  // connection returns before the failure is reported. The `online` event lands inside that window.
+  let first = true;
+  let sendInFlight: () => void = () => undefined;
+  const firstSendStarted = new Promise<void>((resolve) => (sendInFlight = resolve));
+  await page.route("**/desk", async (route) => {
+    if (route.request().method() !== "POST" || !first) return route.continue();
+    first = false;
+    sendInFlight();
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return route.abort("internetdisconnected");
+  });
+  await openDesk(page);
+  const text = `online mid-send ${RUN}`;
+  await box(page).fill(text);
+  await box(page).press("Enter");
+  await expect(page.getByText(/saved on this device, will sync \(1 waiting\)/i)).toBeVisible();
+  await firstSendStarted; // only an attempt that began before the event can be stale
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(page.getByText("Saved.", { exact: true })).toBeVisible({ timeout: 10_000 });
+  expect(await storedCount(page, QUEUE_KEY)).toBe(0);
+  expect(await captureCount(text)).toBe(1);
+});
+
 test("two offline t: captures for one new company sync in order into one thesis with two revisions", async ({ page, context }) => {
-  await page.goto("/desk");
+  await openDesk(page);
   const symbol = `E2E${RUN}Q`;
   await context.setOffline(true);
   await box(page).fill(`t: $${symbol} first view`);
@@ -109,7 +144,7 @@ test("two offline t: captures for one new company sync in order into one thesis 
 
 test("a capture the server permanently refuses is kept with its text until dismissed", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("/desk");
+  await openDesk(page);
   const tooLong = `${"x".repeat(20_001)} ${RUN}`;
   await box(page).fill(tooLong);
   await box(page).press("Enter");

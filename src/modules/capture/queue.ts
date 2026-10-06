@@ -23,6 +23,14 @@ export type SendOutcome = "sent" | "retry" | "drop";
 export type SendVerdict = SendOutcome | { outcome: "drop"; reason: string };
 export type FlushResult = { sent: number; dropped: number; remaining: number };
 export type LockRunner = <T>(fn: () => Promise<T>) => Promise<T>;
+export type FlushOptions = {
+  /**
+   * For a trigger that says "the network is back" (the `online` event). If a run is already in flight, that
+   * run may be an attempt that began while offline and is about to fail: ask it for one more pass right
+   * after it stops on a retry, instead of leaving the entry to the next timer tick.
+   */
+  retryIfBusy?: boolean;
+};
 export type QueueOptions = { withLock?: LockRunner; now?: () => Date; sendTimeoutMs?: number };
 
 /** True when a `storage` event key can concern the capture queue (null means the whole storage was cleared). */
@@ -58,6 +66,7 @@ export function createCaptureQueue(initial: StorageLike, options: QueueOptions =
   let durable = true;
   let legacyChecked = false;
   let inflight: Promise<FlushResult> | null = null;
+  let retryRequested = false;
 
   /** A failed write must not lose the entry: carry on in memory for this session and say so. */
   function write(key: string, value: string): void {
@@ -220,31 +229,36 @@ export function createCaptureQueue(initial: StorageLike, options: QueueOptions =
   }
 
   async function run(send: (entry: QueuedCapture) => Promise<SendVerdict>): Promise<FlushResult> {
-    const attempted = new Set<string>();
     let sent = 0;
     let dropped = 0;
-    let stopped = false;
-    // Entries queued while this run is going are picked up by the next pass instead of a second flush.
-    while (!stopped) {
-      const todo = list().filter((e) => !attempted.has(e.clientId));
-      if (todo.length === 0) break;
-      for (const entry of todo) {
-        attempted.add(entry.clientId);
-        // Another tab without the lock API may have sent it since we listed.
-        if (!has(entryKey(QUEUE_KEY, entry.clientId))) continue;
-        const verdict = await sendOne(entry, send);
-        if (verdict === "sent") {
-          remove(entry.clientId);
-          sent++;
-        } else if (verdict === "drop" || (typeof verdict === "object" && verdict !== null && verdict.outcome === "drop")) {
-          reject(entry, typeof verdict === "object" ? verdict.reason : DEFAULT_REJECT_REASON);
-          dropped++;
-        } else {
-          stopped = true; // retry or anything unrecognised: keep order, try again later
-          break;
+    let stopped: boolean;
+    do {
+      retryRequested = false;
+      stopped = false;
+      const attempted = new Set<string>();
+      // Entries queued while this run is going are picked up by the next pass instead of a second flush.
+      while (!stopped) {
+        const todo = list().filter((e) => !attempted.has(e.clientId));
+        if (todo.length === 0) break;
+        for (const entry of todo) {
+          attempted.add(entry.clientId);
+          // Another tab without the lock API may have sent it since we listed.
+          if (!has(entryKey(QUEUE_KEY, entry.clientId))) continue;
+          const verdict = await sendOne(entry, send);
+          if (verdict === "sent") {
+            remove(entry.clientId);
+            sent++;
+          } else if (verdict === "drop" || (typeof verdict === "object" && verdict !== null && verdict.outcome === "drop")) {
+            reject(entry, typeof verdict === "object" ? verdict.reason : DEFAULT_REJECT_REASON);
+            dropped++;
+          } else {
+            stopped = true; // retry or anything unrecognised: keep order, try again later
+            break;
+          }
         }
       }
-    }
+      // One more pass only when a retry was asked for during a pass that then stopped on a retry.
+    } while (stopped && retryRequested);
     // Same synchronous block as the last list(): a flush() arriving later starts a fresh run.
     inflight = null;
     return { sent, dropped, remaining: list().length };
@@ -256,8 +270,11 @@ export function createCaptureQueue(initial: StorageLike, options: QueueOptions =
    * matters because two parallel `t:` captures could create two theses for one company. The lock
    * extends that across tabs. Sends oldest first and stops at the first retry to keep order.
    */
-  function flush(send: (entry: QueuedCapture) => Promise<SendVerdict>): Promise<FlushResult> {
-    if (inflight) return inflight;
+  function flush(send: (entry: QueuedCapture) => Promise<SendVerdict>, flushOptions: FlushOptions = {}): Promise<FlushResult> {
+    if (inflight) {
+      if (flushOptions.retryIfBusy) retryRequested = true;
+      return inflight;
+    }
     // Started from a microtask so `inflight` is assigned before run() can clear it.
     const promise: Promise<FlushResult> = Promise.resolve()
       .then(() => withLock(() => run(send)))

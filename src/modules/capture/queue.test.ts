@@ -265,6 +265,103 @@ describe("single-flight flush", () => {
   });
 });
 
+describe("a retry requested while a flush is in flight (the device came back online mid-attempt)", () => {
+  /** A send whose first attempt stays pending until `failFirst()` (it began while the network was down). */
+  function stalledFirstSend() {
+    let failFirst: () => void = () => undefined;
+    let calls = 0;
+    const send = (): Promise<SendVerdict> => {
+      calls++;
+      if (calls === 1) return new Promise<SendVerdict>((resolve) => (failFirst = () => resolve("retry")));
+      return Promise.resolve("sent");
+    };
+    return { send, failFirst: () => failFirst(), calls: () => calls };
+  }
+
+  it("a plain flush that joins a run which then fails does not trigger another attempt", async () => {
+    const queue = createCaptureQueue(createMemoryStorage());
+    queue.enqueue(entry("a"));
+    const stalled = stalledFirstSend();
+    const running = queue.flush(stalled.send);
+    await tick();
+    const joined = queue.flush(stalled.send);
+    stalled.failFirst();
+    expect(await joined).toEqual({ sent: 0, dropped: 0, remaining: 1 });
+    expect(await running).toEqual({ sent: 0, dropped: 0, remaining: 1 });
+    expect(stalled.calls()).toBe(1);
+  });
+
+  it("a flush asking for a retry runs one more pass right after the stale attempt fails", async () => {
+    const queue = createCaptureQueue(createMemoryStorage());
+    queue.enqueue(entry("a"));
+    const stalled = stalledFirstSend();
+    const running = queue.flush(stalled.send);
+    await tick();
+    const joined = queue.flush(stalled.send, { retryIfBusy: true });
+    stalled.failFirst();
+    expect(await joined).toEqual({ sent: 1, dropped: 0, remaining: 0 });
+    expect(await running).toEqual({ sent: 1, dropped: 0, remaining: 0 });
+    expect(stalled.calls()).toBe(2);
+    expect(queue.list()).toEqual([]);
+  });
+
+  it("asks for nothing extra when the run already sent everything", async () => {
+    const queue = createCaptureQueue(createMemoryStorage());
+    queue.enqueue(entry("a"));
+    const rec = recordingSend();
+    const running = queue.flush(rec.send);
+    await tick();
+    const joined = queue.flush(rec.send, { retryIfBusy: true });
+    await Promise.all([running, joined]);
+    expect(rec.seen).toEqual(["a"]);
+  });
+
+  it("makes exactly one extra pass: a second failure waits for the next trigger", async () => {
+    const queue = createCaptureQueue(createMemoryStorage());
+    queue.enqueue(entry("a"));
+    let calls = 0;
+    let failFirst: () => void = () => undefined;
+    const send = (): Promise<SendVerdict> => {
+      calls++;
+      if (calls === 1) return new Promise<SendVerdict>((resolve) => (failFirst = () => resolve("retry")));
+      return Promise.resolve("retry");
+    };
+    const running = queue.flush(send);
+    await tick();
+    const joined = queue.flush(send, { retryIfBusy: true });
+    failFirst();
+    expect(await joined).toEqual({ sent: 0, dropped: 0, remaining: 1 });
+    expect(await running).toEqual({ sent: 0, dropped: 0, remaining: 1 });
+    expect(calls).toBe(2);
+  });
+
+  it("the extra pass happens inside the same lock hold", async () => {
+    let holds = 0;
+    const withLock = async <T,>(fn: () => Promise<T>): Promise<T> => {
+      holds++;
+      return fn();
+    };
+    const queue = createCaptureQueue(createMemoryStorage(), { withLock });
+    queue.enqueue(entry("a"));
+    const stalled = stalledFirstSend();
+    const running = queue.flush(stalled.send);
+    await tick();
+    void queue.flush(stalled.send, { retryIfBusy: true });
+    stalled.failFirst();
+    await running;
+    expect(holds).toBe(1);
+    expect(stalled.calls()).toBe(2);
+  });
+
+  it("a retry request with no run in flight is just a normal flush", async () => {
+    const queue = createCaptureQueue(createMemoryStorage());
+    queue.enqueue(entry("a"));
+    const rec = recordingSend();
+    expect(await queue.flush(rec.send, { retryIfBusy: true })).toEqual({ sent: 1, dropped: 0, remaining: 0 });
+    expect(rec.seen).toEqual(["a"]);
+  });
+});
+
 describe("one key per capture (tabs cannot overwrite each other)", () => {
   it("stores each capture under its own key", () => {
     const storage = createMemoryStorage();
