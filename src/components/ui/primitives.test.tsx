@@ -86,14 +86,14 @@ describe("Table", () => {
 
 describe("Toast", () => {
   afterEach(() => vi.useRealTimers());
-  it("announces politely without a status role and clears after 4 s", () => {
+  it("announces as a polite status and clears after 4 s", () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useToast());
     act(() => result.current[1]("Saved 14:05 · private note"));
     const { container, rerender } = render(<Toast message={result.current[0]} />);
     const region = container.firstElementChild!;
     expect(region).toHaveAttribute("aria-live", "polite");
-    expect(region).not.toHaveAttribute("role");
+    expect(region).toHaveAttribute("role", "status");
     expect(region).toHaveTextContent("Saved 14:05 · private note");
     act(() => vi.advanceTimersByTime(4000));
     rerender(<Toast message={result.current[0]} />);
