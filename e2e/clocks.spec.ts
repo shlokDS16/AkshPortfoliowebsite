@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { requireStack } from "./support/auth";
-import { clearHeartbeats, resetToFreshHeartbeats, seedHeartbeats } from "./support/heartbeats";
+import { clearHeartbeats, resetToFreshHeartbeats, seedHeartbeats, seedHeartbeatsDbTime } from "./support/heartbeats";
 import { E2E_CRON_SECRET as CRON_SECRET } from "./support/stack";
 
 // Anonymous checks of the two job routes and /api/health. They mutate the shared heartbeats table,
@@ -42,7 +42,11 @@ test.describe("job routes", () => {
 
 test.describe("/api/health", () => {
   test("is 200 with ages only when both clocks are fresh", async ({ request }) => {
-    await resetToFreshHeartbeats(requireStack());
+    clearHeartbeats();
+    seedHeartbeatsDbTime([
+      { job: "heartbeat:pump", minutesAgo: 5 },
+      { job: "heartbeat:daily", minutesAgo: 180 },
+    ]);
     const response = await request.get("/api/health");
     expect(response.status()).toBe(200);
     expect(response.headers()["cache-control"]).toBe("no-store");
@@ -52,10 +56,12 @@ test.describe("/api/health", () => {
       ["heartbeat:pump", true, "job,ageSeconds,ok"],
       ["heartbeat:daily", true, "job,ageSeconds,ok"],
     ]);
-    // Seeded 5 min ago by the host clock, aged by the database clock: allow 10 s of skew between them
-    // (the local Postgres runs in a Docker VM whose clock can lag the host's; an exact 300 flaked once).
-    expect(body.checks[0].ageSeconds).toBeGreaterThanOrEqual(290);
-    expect(body.checks[0].ageSeconds).toBeLessThan(600);
+    // Seeded and aged by the same (database) clock, so the age is the seed offset plus the few
+    // seconds this test took; no skew allowance is needed.
+    expect(body.checks[0].ageSeconds).toBeGreaterThanOrEqual(300);
+    expect(body.checks[0].ageSeconds).toBeLessThan(360);
+    expect(body.checks[1].ageSeconds).toBeGreaterThanOrEqual(10_800);
+    expect(body.checks[1].ageSeconds).toBeLessThan(10_860);
     expect(JSON.stringify(body)).not.toContain("e2e seed");
   });
 

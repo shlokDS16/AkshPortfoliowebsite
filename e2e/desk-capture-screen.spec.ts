@@ -213,16 +213,12 @@ test.describe("phone width", () => {
   test("the box is focused and nothing scrolls sideways", async ({ page }) => {
     await page.goto("/desk");
     await expect(box(page)).toBeFocused();
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflow).toBeLessThanOrEqual(0);
-  });
-});
-
-test.describe("signed out", () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
-
-  test("signed-out visitors are sent to login", async ({ page }) => {
-    await page.goto("/desk");
-    await expect(page).toHaveURL(/\/login$/);
+    // Under mobile emulation Chrome widens the layout viewport to fit overflowing content, so also pin its width.
+    const { client, scroll } = await page.evaluate(() => ({
+      client: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+    }));
+    expect(client).toBe(375);
+    expect(scroll).toBeLessThanOrEqual(client);
   });
 });

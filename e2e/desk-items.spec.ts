@@ -22,17 +22,6 @@ async function saveRevision(page: Page, body: string, reason: string) {
   await page.getByRole("button", { name: "Save revision" }).click();
 }
 
-test.describe("signed out", () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
-
-  test("signed-out visitors cannot reach the item screens", async ({ page }) => {
-    await page.goto("/desk/items");
-    await expect(page).toHaveURL(/\/login$/);
-    await page.goto("/desk/items/00000000-0000-4000-8000-000000000000");
-    await expect(page).toHaveURL(/\/login$/);
-  });
-});
-
 test("create an item, save details and revisions, and read the diff", async ({ page }) => {
   await page.goto("/desk/items");
   const title = `How capex cycles turn ${RUN}`;
@@ -118,6 +107,17 @@ test("a revision on a public item waits for the gate and its details stay locked
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 });
 
+// Under mobile emulation Chrome widens the layout viewport to fit overflowing content, which keeps
+// scrollWidth equal to clientWidth, so the layout width itself must also still be the phone's 375.
+async function expectNoSidewaysScroll(page: Page) {
+  const { client, scroll } = await page.evaluate(() => ({
+    client: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth,
+  }));
+  expect(client).toBe(375);
+  expect(scroll).toBeLessThanOrEqual(client);
+}
+
 test.describe("phone width", () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
@@ -128,11 +128,9 @@ test.describe("phone width", () => {
     await createItem(page, `Narrow screen ${RUN}`);
     await saveRevision(page, "A".repeat(10) + " " + "unbreakable-".repeat(30), "long line");
     await expect(page.getByRole("status")).toHaveText("Revision saved.");
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflow).toBeLessThanOrEqual(0);
+    await expectNoSidewaysScroll(page);
     await page.getByRole("link", { name: "diff" }).first().click();
     await expect(page.getByTestId("diff")).toBeVisible();
-    const after = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(after).toBeLessThanOrEqual(0);
+    await expectNoSidewaysScroll(page);
   });
 });

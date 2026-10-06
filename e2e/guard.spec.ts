@@ -12,6 +12,7 @@ test.beforeAll(async () => {
   await ensureUser(stack, OUTSIDER); // trigger assigns role 'client'
 });
 
+// Every signed-out redirect check lives here, so it runs once (in `anon`) and not once per desk viewport.
 test.describe("signed out", () => {
   for (const path of ["/desk", "/desk/items", "/desk/items/00000000-0000-4000-8000-000000000000"]) {
     test(`${path} sends the visitor to the sign-in page`, async ({ page }) => {

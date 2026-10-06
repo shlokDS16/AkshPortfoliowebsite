@@ -12,12 +12,6 @@ test.beforeAll(async () => {
   await clearMailbox(stack);
 });
 
-test("/desk redirects a signed-out visitor to /login", async ({ page }) => {
-  await page.goto("/desk");
-  await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-});
-
 test("magic link: the form answers alike for everyone, and only the admin gets a working link", async ({ page }) => {
   const stack = requireStack();
   const submit = async (email: string) => {
@@ -37,11 +31,6 @@ test("magic link: the form answers alike for everyone, and only the admin gets a
   await page.goto(await latestEmailLink(stack, E2E_ADMIN_EMAIL));
   await expect(page).toHaveURL(/\/desk$/);
   await expect(page.getByRole("textbox", { name: "Capture" })).toBeVisible();
-
-  await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page).toHaveURL(/\/login$/);
-  await page.goto("/desk");
-  await expect(page).toHaveURL(/\/login$/);
 });
 
 test("confirm route: an admin token hash signs in, and next= cannot leave the desk", async ({ page, baseURL }) => {

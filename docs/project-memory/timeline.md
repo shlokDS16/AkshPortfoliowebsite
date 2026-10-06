@@ -51,5 +51,4 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - 2026-10-06: Task 11 complete (verbatim capture log, shared race-tolerant stub helper, idempotent save; review approved). Plan 1A 10/14.
 - 2026-10-06: Task 12 implemented (capture screen: offline localStorage queue, single-flight flush + navigator.locks, rejected captures kept not dropped, storage-blocked notice, today by company, 30-day strip; title/reason limits now count UTF-16 units; listSince error mapped to fixed codes). Awaiting review. Plan 1A 11/14 pending review.
 - 2026-10-06: Task 12 complete (offline-first capture box with per-note storage keys, single-flight cross-tab sync, nothing ever silently discarded; 626 unit, 31 e2e). Plan 1A 11/14.
-
 - 2026-10-06: Task 14 complete (Plan 1A closed apart from the Task 2 deploy): Playwright projects setup/anon/desk-mobile/desk-desktop with shared admin storage state, guard.spec, CI e2e job on a local Supabase stack (CLI 2.102.0); the 375 px run found and fixed a desk layout that widened on long diff lines.
