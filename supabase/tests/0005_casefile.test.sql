@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(38);
 
 -- Stand-ins for the compliance server action (ADR-003): they reach the gate functions as the function owner,
 -- as the service client does, and pass the signed-in session's user as the verified actor.
@@ -132,12 +132,18 @@ select is(public.test_publish('a6a6a6a6-0000-4000-8000-000000000006', 'b6000000-
   'pass', 'the first "Dup" passes');
 select is(public.test_publish('a6a6a6a6-0000-4000-8000-000000000007', 'b6000000-0000-4000-8000-000000000007'),
   'fail', 'the second "Dup" fails on the slug clash');
+select is((select reasons -> 'failures' -> 0 ->> 'rule' from public.gate_decisions
+            where revision_id = 'b6000000-0000-4000-8000-000000000007'), 'slug', 'and the failure names rule slug');
 
 -- Public side.
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select ok((select file_no from public.public_items where id = 'a5000000-0000-4000-8000-000000000005') is not null,
   'public_items exposes file_no (for a file whose data is past the 30-day lag)');
+select is((select count(*) from public.public_items where id = 'a1000000-0000-4000-8000-000000000001'), 0::bigint,
+  'a numbered thesis still inside the 30-day lag is absent from public_items');
+select is((select count(*) from public.items where id = 'a1000000-0000-4000-8000-000000000001'), 0::bigint,
+  'and absent from items for anon (the public read policy re-checks the lag)');
 select results_eq($$ select day from public.capture_days(30) order by day $$,
   $$ values ((now() at time zone 'Asia/Kolkata')::date - 5), ((now() at time zone 'Asia/Kolkata')::date) $$,
   'capture_days(30) returns the distinct IST dates inside the window and nothing else (D10)');

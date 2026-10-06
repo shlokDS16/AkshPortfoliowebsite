@@ -58,6 +58,7 @@ A malformed `structured` must never break a public page: `readCaseFile` falls ba
 Quotes from a source without a URL are linted like prose (stricter, by design). Sequence numbers can
 skip after an aborted transaction; that is allowed ("never reused", not "never skipped"). The sequence
 stops at 999 (`no cycle`); the 1000th file would fail loudly and roll back its gate row.
+File numbers are assigned at publish time but a file becomes public only after the 30-day lag, so public visitors can see gaps or out-of-order numbers; that reveals a hidden file exists, not what it covers.
 
 ## 7. Future evolution
 Phase 2 extraction writes facts into the same shape with `pending` review state, or promotes
