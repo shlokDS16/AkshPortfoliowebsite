@@ -1,19 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { DbError } from "@/lib/supabase/errors";
+import { DbError } from "./supabase/errors";
 import { InvalidInputError, ItemNotFoundError, PublicItemLockedError } from "./errors";
-import { errorCode, errorText, logShape, noticeText } from "./messages";
+import { errorCode, errorText, noticeText, userWasTold } from "./messages";
 
-describe("logShape", () => {
-  it("logs op and code for database errors, without the message", () => {
-    const shape = logShape(new DbError("research.getItem", "XX000", "secret text"));
-    expect(shape).toEqual({ name: "DbError", op: "research.getItem", code: "XX000" });
-    expect(JSON.stringify(shape)).not.toContain("secret text");
+describe("userWasTold", () => {
+  it("is true for the errors a screen explains (validation and typed desk errors), so they are not logged", () => {
+    expect(userWasTold(new PublicItemLockedError())).toBe(true);
+    expect(userWasTold(new z.ZodError([]))).toBe(true);
   });
 
-  it("does not log errors the user was already told about", () => {
-    expect(logShape(new PublicItemLockedError())).toBeNull();
-    expect(logShape(new z.ZodError([]))).toBeNull();
+  it("is false for database and unknown errors, which are logged by shape", () => {
+    expect(userWasTold(new DbError("research.getItem", "XX000", "secret text"))).toBe(false);
+    expect(userWasTold(new Error("x"))).toBe(false);
   });
 });
 

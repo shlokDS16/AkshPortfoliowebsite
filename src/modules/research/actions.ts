@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
-import { ItemNotFoundError } from "./errors";
-import { doneTo, failTo } from "./redirects";
+import { ItemNotFoundError } from "@/lib/errors";
+import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabaseResearchRepo } from "./repo";
 import { addRevisionInput, createItemInput, isItemId, updateItemMetaInput } from "./schema";
 import { addRevision, createItem, updateItemMeta } from "./service";
@@ -24,12 +24,12 @@ async function repo() {
 export async function createItemAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const parsed = createItemInput.safeParse({ kind: field(formData, "kind"), title: field(formData, "title") ?? "" });
-  if (!parsed.success) failTo("/desk/items", parsed.error);
+  if (!parsed.success) failTo("/desk/items", parsed.error, "research");
   let itemId: string;
   try {
     itemId = (await createItem(await repo(), parsed.data)).item.id;
   } catch (error) {
-    failTo("/desk/items", error);
+    failTo("/desk/items", error, "research");
   }
   revalidatePath("/desk/items");
   redirect(`/desk/items/${itemId}`);
@@ -37,7 +37,7 @@ export async function createItemAction(formData: FormData): Promise<void> {
 
 export async function updateItemMetaAction(itemId: string, formData: FormData): Promise<void> {
   await requireAdmin();
-  if (!isItemId(itemId)) failTo("/desk/items", new ItemNotFoundError(String(itemId)));
+  if (!isItemId(itemId)) failTo("/desk/items", new ItemNotFoundError(String(itemId)), "research");
   const back = `/desk/items/${itemId}`;
   const parsed = updateItemMetaInput.safeParse({
     title: field(formData, "title") ?? "",
@@ -45,11 +45,11 @@ export async function updateItemMetaAction(itemId: string, formData: FormData): 
     dataAsOf: field(formData, "dataAsOf"),
     holdsPosition: field(formData, "holdsPosition"),
   });
-  if (!parsed.success) failTo(back, parsed.error);
+  if (!parsed.success) failTo(back, parsed.error, "research");
   try {
     await updateItemMeta(await repo(), itemId, parsed.data);
   } catch (error) {
-    failTo(back, error);
+    failTo(back, error, "research");
   }
   revalidatePath(back);
   doneTo(back, "details-saved");
@@ -57,7 +57,7 @@ export async function updateItemMetaAction(itemId: string, formData: FormData): 
 
 export async function addRevisionAction(itemId: string, formData: FormData): Promise<void> {
   await requireAdmin();
-  if (!isItemId(itemId)) failTo("/desk/items", new ItemNotFoundError(String(itemId)));
+  if (!isItemId(itemId)) failTo("/desk/items", new ItemNotFoundError(String(itemId)), "research");
   const back = `/desk/items/${itemId}`;
   const body = formData.get("bodyMd");
   const parsed = addRevisionInput.safeParse({
@@ -65,12 +65,12 @@ export async function addRevisionAction(itemId: string, formData: FormData): Pro
     bodyMd: typeof body === "string" ? body : "",
     changeReason: field(formData, "changeReason"),
   });
-  if (!parsed.success) failTo(back, parsed.error);
+  if (!parsed.success) failTo(back, parsed.error, "research");
   let pendingGate: boolean;
   try {
     pendingGate = (await addRevision(await repo(), parsed.data)).pendingGate;
   } catch (error) {
-    failTo(back, error);
+    failTo(back, error, "research");
   }
   revalidatePath(back);
   doneTo(back, pendingGate ? "revision-pending-gate" : "revision-saved");

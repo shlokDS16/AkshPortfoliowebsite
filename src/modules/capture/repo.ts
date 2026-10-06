@@ -1,6 +1,7 @@
 import type { Json, TablesUpdate } from "@/lib/supabase/database.types";
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
+import { asRecord } from "@/lib/records";
 import { asFilingError } from "./messages";
 import type { CaptureListEntry, CaptureRecord, CaptureRepo, CaptureSource } from "./types";
 
@@ -19,10 +20,6 @@ type CaptureRow = {
   client_id: string | null;
   created_at: string;
 };
-
-function asRecord(value: Json | null): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-}
 
 const toRecord = (r: CaptureRow): CaptureRecord => ({
   id: r.id,

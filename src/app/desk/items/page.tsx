@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
-import { createSupabaseResearchRepo, errorText, ITEM_KINDS, listRecentItems } from "@/modules/research";
+import { errorText } from "@/lib/messages";
+import { createSupabaseResearchRepo, ITEM_KINDS, listRecentItems } from "@/modules/research";
 import { createItemAction } from "@/modules/research/actions";
 
 export default async function ItemsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {

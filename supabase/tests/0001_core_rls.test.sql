@@ -30,15 +30,15 @@ select set_config('app.publish_gate', 'on', true);
 insert into public.items (id, kind, title, visibility, status, data_as_of, company_id, theme_id) values
   ('dddddddd-0000-4000-8000-000000000001', 'note', 'Private draft', 'private', 'draft', null,
      'cccccccc-0000-4000-8000-00000000000b', 'eeeeeeee-0000-4000-8000-00000000000b'),
-  ('dddddddd-0000-4000-8000-000000000002', 'note', 'Too recent', 'public', 'published', current_date,
+  ('dddddddd-0000-4000-8000-000000000002', 'note', 'Too recent', 'public', 'published', (now() at time zone 'Asia/Kolkata')::date,
      null, null),
-  ('dddddddd-0000-4000-8000-000000000003', 'thesis', 'Old enough', 'public', 'published', current_date - 40,
+  ('dddddddd-0000-4000-8000-000000000003', 'thesis', 'Old enough', 'public', 'published', (now() at time zone 'Asia/Kolkata')::date - 40,
      'cccccccc-0000-4000-8000-00000000000a', 'eeeeeeee-0000-4000-8000-00000000000a'),
   ('dddddddd-0000-4000-8000-000000000004', 'learning', 'Undated', 'public', 'published', null,
      'cccccccc-0000-4000-8000-00000000000c', 'eeeeeeee-0000-4000-8000-00000000000c'),
-  ('dddddddd-0000-4000-8000-000000000005', 'note', 'Public draft', 'public', 'draft', current_date - 40,
+  ('dddddddd-0000-4000-8000-000000000005', 'note', 'Public draft', 'public', 'draft', (now() at time zone 'Asia/Kolkata')::date - 40,
      null, null),
-  ('dddddddd-0000-4000-8000-000000000006', 'note', 'Clients only', 'clients', 'published', current_date - 40,
+  ('dddddddd-0000-4000-8000-000000000006', 'note', 'Clients only', 'clients', 'published', (now() at time zone 'Asia/Kolkata')::date - 40,
      null, null);
 select set_config('app.publish_gate', 'off', true);
 
@@ -65,12 +65,12 @@ select is(
 
 -- The 30-day rule is written once.
 select is(private.is_lagged(null), true, 'is_lagged: no data date is not lagged out');
-select is(private.is_lagged(current_date - 30), true, 'is_lagged: exactly 30 days old passes');
-select is(private.is_lagged(current_date - 29), false, 'is_lagged: 29 days old is held back');
+select is(private.is_lagged((now() at time zone 'Asia/Kolkata')::date - 30), true, 'is_lagged: exactly 30 days old passes');
+select is(private.is_lagged((now() at time zone 'Asia/Kolkata')::date - 29), false, 'is_lagged: 29 days old is held back');
 
 select is(private.is_public_item('public', 'published', null), true,
   'is_public_item: public, published, undated passes');
-select is(private.is_public_item('public', 'published', current_date), false,
+select is(private.is_public_item('public', 'published', (now() at time zone 'Asia/Kolkata')::date), false,
   'is_public_item: inside the lag fails');
 select is(private.is_public_item('private', 'published', null), false,
   'is_public_item: private fails');

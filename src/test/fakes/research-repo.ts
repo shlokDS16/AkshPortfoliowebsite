@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { PublicItemLockedError } from "@/modules/research";
+import { PublicItemLockedError } from "@/lib/errors";
 import type { Item, ItemPatch, ResearchRepo, Revision, Visibility } from "@/modules/research";
 
 export type MemoryResearchRepo = ResearchRepo & {

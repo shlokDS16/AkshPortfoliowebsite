@@ -27,6 +27,12 @@ vi.mock("@/lib/supabase/server", () => ({
   },
 }));
 vi.mock("./repo", () => ({ createSupabaseComplianceRepo: () => state.repo }));
+vi.mock("./gate-rpc", () => ({
+  createGateRpc: () => {
+    order.push("gate");
+    return state.repo;
+  },
+}));
 
 import { allowSentenceAction, publishRevision, publishRevisionAction, unpublishItem, unpublishItemAction } from "./actions";
 
@@ -100,6 +106,29 @@ describe("every action checks the admin first", () => {
   ])("%s calls requireAdmin before opening a database client", async (_name, run) => {
     await run().catch(() => undefined);
     expect(order[0]).toBe("requireAdmin");
+  });
+
+  it("never builds the service-role gate client when requireAdmin redirects", async () => {
+    requireAdmin.mockImplementation(async () => {
+      throw new Error("NEXT_REDIRECT:/login");
+    });
+    for (const run of [() => publishRevision(ITEM, REV), () => unpublishItem(ITEM), () => allowSentenceAction(ITEM, sentenceHash("x"), form({ reason: "educational" }))]) {
+      await run().catch(() => undefined);
+    }
+    requireAdmin.mockReset();
+    requireAdmin.mockImplementation(async () => {
+      order.push("requireAdmin");
+      return { userId: "u-1", email: "aksh@example.com" };
+    });
+    expect(order).not.toContain("gate");
+  });
+});
+
+describe("gate writes run as the admin requireAdmin() verified (ADR-003)", () => {
+  it("passes the verified user id as p_actor to publish and unpublish", async () => {
+    await publishRevision(ITEM, REV);
+    await unpublishItem(ITEM);
+    expect(repo.actors).toEqual(["u-1", "u-1"]);
   });
 });
 
@@ -237,6 +266,19 @@ describe("allowSentenceAction", () => {
   it("refuses when the item has no revisions", async () => {
     repo.latestRevision = null;
     expect(param(await target(() => allow(hash)), "error")).toBe("invalid-input");
+  });
+
+  it("passes the verified admin as p_actor when it stores the allowance", async () => {
+    repo.actors.length = 0;
+    await target(() => allow(hash));
+    expect(repo.actors).toEqual(["u-1"]);
+  });
+
+  it("refuses with a fixed code when the SQL re-check refuses, even if the TypeScript check passed", async () => {
+    repo.sqlRefusesAllowance = true;
+    const to = await target(() => allow(hash));
+    expect(param(to, "error")).toBe("invalid-input");
+    expect(repo.allowances).toHaveLength(0);
   });
 
   it("refuses a short reason with a fixed code and stores nothing", async () => {

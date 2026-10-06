@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryResearchRepo } from "@/test/fakes/research-repo";
-import { ItemNotFoundError, PublicItemLockedError } from "./errors";
+import { ItemNotFoundError, PublicItemLockedError } from "@/lib/errors";
 import { addRevision, appendRevision, createItem, getItemWithHistory, updateItemMeta } from "./service";
 
 describe("createItem", () => {

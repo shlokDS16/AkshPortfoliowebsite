@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { ComplianceRepo, DecisionRow, PublishContext } from "@/modules/compliance";
+import type { ComplianceRepo, DecisionRow, GateRpc, PublishContext } from "@/modules/compliance";
 
-export type FakeComplianceRepo = ComplianceRepo & {
+export type FakeComplianceRepo = ComplianceRepo &
+  GateRpc & {
   context: PublishContext | null;
   /** When set, publish_revision records a `slug` failure, as the SQL does when another item owns the slug. */
   slugTaken: boolean;
@@ -12,10 +13,14 @@ export type FakeComplianceRepo = ComplianceRepo & {
   published: { itemId: string; revisionId: string; policyVersion: string; lintResult: Record<string, unknown> }[];
   unpublished: string[];
   allowances: { itemId: string; sentenceHash: string; reason: string }[];
+  /** Every p_actor a gate write was called with, in order (ADR-003: the verified admin). */
+  actors: string[];
+  /** When set, add_lint_allowance refuses, as the SQL does when its own re-check fails. */
+  sqlRefusesAllowance: boolean;
 };
 
 /**
- * In-memory ComplianceRepo. callPublishRevision mimics the checks publish_revision() makes on the lint
+ * In-memory ComplianceRepo and GateRpc in one object. callPublishRevision mimics the checks publish_revision() makes on the lint
  * result it is handed (passed, revisionId, policyVersion) and the `slug` collision failure, and records
  * every decision, pass or fail, like the SQL function. The slug itself is the SQL's business (ruling R5).
  */
@@ -29,10 +34,13 @@ export function createFakeComplianceRepo(context: PublishContext | null): FakeCo
     published: [],
     unpublished: [],
     allowances: [],
+    actors: [],
+    sqlRefusesAllowance: false,
     async loadPublishContext() {
       return repo.context;
     },
-    async callPublishRevision({ itemId, revisionId, policyVersion, lintResult }) {
+    async callPublishRevision({ actorId, itemId, revisionId, policyVersion, lintResult }) {
+      repo.actors.push(actorId);
       const lint = lintResult as Record<string, unknown>;
       repo.published.push({ itemId, revisionId, policyVersion, lintResult: lint });
       const failures: { rule: string; message: string }[] = [];
@@ -53,7 +61,8 @@ export function createFakeComplianceRepo(context: PublishContext | null): FakeCo
       decisions.push(row);
       return row;
     },
-    async callUnpublish(itemId) {
+    async callUnpublish(actorId, itemId) {
+      repo.actors.push(actorId);
       repo.unpublished.push(itemId);
       return repo.context?.item.slug ?? null;
     },
@@ -64,8 +73,17 @@ export function createFakeComplianceRepo(context: PublishContext | null): FakeCo
       if (repo.latestRevision !== undefined) return repo.latestRevision;
       return repo.context?.item.id === itemId ? repo.context.revision.id : null;
     },
-    async addAllowance(itemId, sentenceHash, reason) {
-      repo.allowances.push({ itemId, sentenceHash, reason });
+    async addAllowance(actorId, itemId, sentenceHash, reason) {
+      repo.actors.push(actorId);
+      if (repo.sqlRefusesAllowance) return false;
+      if (!repo.allowances.some((a) => a.itemId === itemId && a.sentenceHash === sentenceHash)) repo.allowances.push({ itemId, sentenceHash, reason });
+      return true;
+    },
+    async removeAllowance(actorId, itemId, sentenceHash) {
+      repo.actors.push(actorId);
+      const index = repo.allowances.findIndex((a) => a.itemId === itemId && a.sentenceHash === sentenceHash);
+      if (index >= 0) repo.allowances.splice(index, 1);
+      return index >= 0;
     },
   };
   return repo;

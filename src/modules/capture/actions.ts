@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { DbError } from "@/lib/supabase/errors";
+import { errorShape } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
 import { createCaptureDeps } from "./deps";
@@ -20,12 +20,6 @@ const failure = (code: SubmitErrorCode, retry: boolean): SubmitCaptureResult => 
   code,
   message: submitErrorText(code),
 });
-
-/** Name, operation and SQLSTATE only: a database message can carry row data. */
-function logShape(error: unknown): { name: string; op?: string; code?: string } {
-  if (error instanceof DbError) return { name: error.name, op: error.op, code: error.code };
-  return { name: error instanceof Error ? error.name : typeof error };
-}
 
 /**
  * Saves one quick capture. `retry` tells the device queue whether to keep the entry: a malformed or
@@ -47,7 +41,8 @@ export async function submitCapture(input: SubmitCaptureInput): Promise<SubmitCa
       parseError: result.parseError,
     };
   } catch (error) {
-    console.error("capture action failed", logShape(error));
+    // Name, operation and SQLSTATE only: a database message can carry row data.
+    console.error("capture action failed", errorShape(error));
     return failure("save-failed", true);
   }
 }

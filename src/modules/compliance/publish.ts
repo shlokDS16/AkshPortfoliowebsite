@@ -2,10 +2,12 @@ import type { Json } from "@/lib/supabase/database.types";
 import { decisionFromRow, type GateDecision } from "./decision";
 import { lintText } from "./lint";
 import { POLICY_VERSION } from "./policy";
-import type { ComplianceRepo, PublishContext } from "./repo";
+import type { ComplianceRepo, GateRpc, PublishContext } from "./repo";
 
 export type { PublishContext };
-export type PublishDeps = { repo: ComplianceRepo; today: () => string };
+/** `actorId` is the admin requireAdmin() verified for this request (ADR-003); the SQL re-checks it. */
+export type GateDeps = { repo: ComplianceRepo; gate: GateRpc; actorId: string };
+export type PublishDeps = GateDeps & { today: () => string };
 
 export class PublishContextNotFoundError extends Error {
   constructor(itemId: string, revisionId: string) {
@@ -41,7 +43,8 @@ export async function runPublishGate(deps: PublishDeps, itemId: string, revision
     today: deps.today(),
     allowances: new Set(ctx.allowances),
   });
-  const row = await deps.repo.callPublishRevision({
+  const row = await deps.gate.callPublishRevision({
+    actorId: deps.actorId,
     itemId,
     revisionId,
     policyVersion: POLICY_VERSION,
@@ -53,9 +56,11 @@ export async function runPublishGate(deps: PublishDeps, itemId: string, revision
 /**
  * Records a rule 1 sentence allowance, but only for a sentence the gate actually flagged: the latest recorded
  * decision must belong to the item's newest revision and carry a rule 1 failure with this exact hash.
- * Without this a crafted request could pre-clear language that was never flagged. Returns false when refused.
+ * Without this a crafted request could pre-clear language that was never flagged. Checked here for a quick
+ * refusal and again by add_lint_allowance() in SQL, which is the authority. Returns false when refused.
  */
-export async function allowFlaggedSentence(repo: ComplianceRepo, itemId: string, sentenceHash: string, reason: string): Promise<boolean> {
+export async function allowFlaggedSentence(deps: GateDeps, itemId: string, sentenceHash: string, reason: string): Promise<boolean> {
+  const { repo, gate, actorId } = deps;
   const [decision, latestRevisionId] = await Promise.all([getLatestDecision(repo, itemId), repo.latestRevisionId(itemId)]);
   const flagged =
     decision !== null &&
@@ -63,8 +68,7 @@ export async function allowFlaggedSentence(repo: ComplianceRepo, itemId: string,
     decision.revisionId === latestRevisionId &&
     decision.failures.some((f) => f.rule === "1" && f.sentenceHash === sentenceHash);
   if (!flagged) return false;
-  await repo.addAllowance(itemId, sentenceHash, reason);
-  return true;
+  return gate.addAllowance(actorId, itemId, sentenceHash, reason);
 }
 
 export async function getLatestDecision(repo: ComplianceRepo, itemId: string): Promise<GateDecision | null> {

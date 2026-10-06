@@ -4,6 +4,17 @@ set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 select plan(12);
 
+-- Stand-in for the compliance server action (ADR-003): it reaches publish_revision / unpublish_item as the
+-- function owner, as the service client does, and passes the signed-in session's user as the verified actor.
+-- The confinement itself (service_role only) is tested in 0004_gate_confinement.test.sql.
+create function public.test_publish(p_item uuid, p_rev uuid, p_policy text, p_lint jsonb)
+returns public.gate_decisions language sql security definer set search_path = ''
+as $$ select * from public.publish_revision((select auth.uid()), p_item, p_rev, p_policy, p_lint) $$;
+create function public.test_unpublish(p_item uuid)
+returns text language sql security definer set search_path = ''
+as $$ select public.unpublish_item((select auth.uid()), p_item) $$;
+grant execute on function public.test_publish(uuid, uuid, text, jsonb), public.test_unpublish(uuid) to authenticated;
+
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
 insert into auth.users (id, email) values ('aaaaaaaa-0000-4000-8000-000000000001', 'admin@pgtap.test');
@@ -27,9 +38,9 @@ insert into public.item_revisions (id, item_id, body_md) values
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
-select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'pol-1',
-    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"pol-1"}'::jsonb)),
+select is((select verdict from public.test_publish('d1000000-0000-4000-8000-000000000001',
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07',
+    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07"}'::jsonb)),
   'pass', 'precondition: the first item is public');
 
 -- Rejected while a public item uses it.
@@ -43,7 +54,8 @@ select results_eq($$ select visibility from public.companies where id = 'ccccccc
   array['public'], 'the rejected update changed nothing');
 
 -- Allowed paths.
-select lives_ok($$ update public.companies set name = 'Co 1 renamed' where id = 'cccccccc-0000-4000-8000-000000000001' $$,
+-- (Its public text is frozen by 20261007000004; see 0004_catalog_columns.test.sql.)
+select lives_ok($$ update public.companies set bse_code = '500001' where id = 'cccccccc-0000-4000-8000-000000000001' $$,
   'other columns of a used company can change');
 select lives_ok($$ update public.companies set visibility = 'private' where id = 'cccccccc-0000-4000-8000-000000000002' $$,
   'a company used only by a private item can go private');
@@ -53,7 +65,7 @@ select lives_ok($$ update public.companies set visibility = 'public' where id = 
   'a private company can be made public');
 
 -- After unpublishing, the way is open.
-select is(public.unpublish_item('d1000000-0000-4000-8000-000000000001'), 'public-item-d10000',
+select is(public.test_unpublish('d1000000-0000-4000-8000-000000000001'), 'public-item-d10000',
   'the public item is unpublished');
 select lives_ok($$ update public.companies set visibility = 'private' where id = 'cccccccc-0000-4000-8000-000000000001' $$,
   'the company can go private once the item is unpublished');

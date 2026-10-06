@@ -1,6 +1,5 @@
 import { ZodError } from "zod";
-import { DbError } from "@/lib/supabase/errors";
-import { ResearchError } from "./errors";
+import { DeskError } from "./errors";
 
 /**
  * Failures reach a desk screen as a fixed code in the redirect URL (`?error=title-required`), never as free
@@ -37,7 +36,7 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
 };
 
 /**
- * The only way a failure reaches a desk screen: a validation message we wrote or a typed ResearchError
+ * The only way a failure reaches a desk screen: a validation message we wrote or a typed DeskError
  * becomes its code; a DbError or anything unknown becomes `save-failed`. Raw SQL never reaches the UI.
  */
 export function errorCode(error: unknown): ErrorCode {
@@ -48,7 +47,7 @@ export function errorCode(error: unknown): ErrorCode {
     }
     return "invalid-input";
   }
-  if (error instanceof ResearchError) return ERROR_CODE_BY_TYPED[error.code] ?? "save-failed";
+  if (error instanceof DeskError) return ERROR_CODE_BY_TYPED[error.code] ?? "save-failed";
   return "save-failed";
 }
 
@@ -57,11 +56,9 @@ export function errorText(code: string | undefined): string | null {
   return code !== undefined && Object.hasOwn(ERRORS, code) ? ERRORS[code as ErrorCode] : null;
 }
 
-/** What the server log may record about a failure the user was not told about: no message text. */
-export function logShape(error: unknown): { name: string; op?: string; code?: string } | null {
-  if (error instanceof ZodError || error instanceof ResearchError) return null;
-  if (error instanceof DbError) return { name: error.name, op: error.op, code: error.code };
-  return { name: error instanceof Error ? error.name : typeof error };
+/** True for the failures a screen already explains (validation, typed desk errors): they are not logged. */
+export function userWasTold(error: unknown): boolean {
+  return error instanceof ZodError || error instanceof DeskError;
 }
 
 /** One-time confirmations carried in the redirect URL as a fixed code, never as free text. */

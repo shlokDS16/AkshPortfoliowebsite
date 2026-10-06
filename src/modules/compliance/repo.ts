@@ -1,7 +1,8 @@
+import { asRecord } from "@/lib/records";
 import type { Json } from "@/lib/supabase/database.types";
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
-import { toResearchError, type HoldsPosition, type ItemKind, type Visibility } from "@/modules/research";
+import type { HoldsPosition, ItemKind, Visibility } from "@/modules/research";
 import type { DecisionRow } from "./decision";
 
 /** Everything lintText() needs for one revision of one item, loaded by the server, never supplied by a client. */
@@ -25,24 +26,31 @@ export type PublishContext = {
   allowances: string[];
 };
 
+/** Reads, through the admin's cookie session (RLS applies). Pages and actions use it. */
 export interface ComplianceRepo {
   loadPublishContext(itemId: string, revisionId: string): Promise<PublishContext | null>;
-  /** The slug is assigned inside publish_revision() (ruling R5); a collision comes back as a recorded `slug` failure. */
-  callPublishRevision(args: { itemId: string; revisionId: string; policyVersion: string; lintResult: Json }): Promise<DecisionRow>;
-  callUnpublish(itemId: string): Promise<string | null>;
   latestDecision(itemId: string): Promise<DecisionRow | null>;
   /** The id of the item's newest revision (highest rev_no), or null when it has none. */
   latestRevisionId(itemId: string): Promise<string | null>;
-  addAllowance(itemId: string, sentenceHash: string, reason: string): Promise<void>;
+}
+
+/**
+ * Writes to the gate, reachable only by service_role (ADR-003; implemented in gate-rpc.ts). `actorId` is the
+ * admin that requireAdmin() verified in this request; the SQL re-checks it against profiles.role.
+ */
+export interface GateRpc {
+  /** The slug is assigned inside publish_revision() (ruling R5); a collision comes back as a recorded `slug` failure. */
+  callPublishRevision(args: { actorId: string; itemId: string; revisionId: string; policyVersion: string; lintResult: Json }): Promise<DecisionRow>;
+  callUnpublish(actorId: string, itemId: string): Promise<string | null>;
+  /** True when stored (or already present); false when the SQL refused: not a rule 1 flag of the latest decision. */
+  addAllowance(actorId: string, itemId: string, sentenceHash: string, reason: string): Promise<boolean>;
+  /** True when an allowance was removed. */
+  removeAllowance(actorId: string, itemId: string, sentenceHash: string): Promise<boolean>;
 }
 
 const DECISION_COLUMNS = "id, revision_id, verdict, policy_version, decided_at, reasons";
 const ITEM_COLUMNS =
   "id, kind, title, slug, learning_objective, company_id, holds_position, data_as_of, visibility, company:companies(name, one_liner), theme:themes(name)";
-
-function asRecord(value: Json): Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
 
 export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
   return {
@@ -76,7 +84,7 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         revision: {
           id: revision.data.id,
           bodyMd: revision.data.body_md,
-          structured: asRecord(revision.data.structured),
+          structured: asRecord(revision.data.structured) ?? {},
           changeReason: revision.data.change_reason,
         },
         companyName: item.data.company?.name ?? null,
@@ -85,27 +93,13 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         allowances: allowances.data.map((a) => a.sentence_hash),
       };
     },
-    async callPublishRevision({ itemId, revisionId, policyVersion, lintResult }) {
-      const { data, error } = await db.rpc("publish_revision", {
-        p_item_id: itemId,
-        p_revision_id: revisionId,
-        p_policy_version: policyVersion,
-        p_lint_result: lintResult,
-      });
-      if (error) throw toResearchError("compliance.publish_revision", error, itemId);
-      return { id: data.id, revision_id: data.revision_id, verdict: data.verdict, policy_version: data.policy_version, decided_at: data.decided_at, reasons: data.reasons };
-    },
-    async callUnpublish(itemId) {
-      const { data, error } = await db.rpc("unpublish_item", { p_item_id: itemId });
-      if (error) throw toResearchError("compliance.unpublish_item", error, itemId);
-      return data;
-    },
     async latestDecision(itemId) {
       const { data, error } = await db
         .from("gate_decisions")
         .select(DECISION_COLUMNS)
         .eq("item_id", itemId)
         .order("decided_at", { ascending: false })
+        .order("created_at", { ascending: false }) // same order as add_lint_allowance() in SQL
         .limit(1)
         .maybeSingle();
       if (error) throw dbError("compliance.latestDecision", error);
@@ -121,13 +115,6 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         .maybeSingle();
       if (error) throw dbError("compliance.latestRevisionId", error);
       return data?.id ?? null;
-    },
-    async addAllowance(itemId, sentenceHash, reason) {
-      const { error } = await db
-        .from("lint_allowances")
-        // DO NOTHING on a repeat: the admin holds INSERT, not UPDATE, on lint_allowances.
-        .upsert({ item_id: itemId, sentence_hash: sentenceHash, reason }, { onConflict: "item_id,sentence_hash", ignoreDuplicates: true });
-      if (error) throw toResearchError("compliance.addAllowance", error, itemId);
     },
   };
 }

@@ -4,6 +4,17 @@ set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 select plan(30);
 
+-- Stand-in for the compliance server action (ADR-003): it reaches publish_revision / unpublish_item as the
+-- function owner, as the service client does, and passes the signed-in session's user as the verified actor.
+-- The confinement itself (service_role only) is tested in 0004_gate_confinement.test.sql.
+create function public.test_publish(p_item uuid, p_rev uuid, p_policy text, p_lint jsonb)
+returns public.gate_decisions language sql security definer set search_path = ''
+as $$ select * from public.publish_revision((select auth.uid()), p_item, p_rev, p_policy, p_lint) $$;
+create function public.test_unpublish(p_item uuid)
+returns text language sql security definer set search_path = ''
+as $$ select public.unpublish_item((select auth.uid()), p_item) $$;
+grant execute on function public.test_publish(uuid, uuid, text, jsonb), public.test_unpublish(uuid) to authenticated;
+
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
 insert into auth.users (id, email) values ('aaaaaaaa-0000-4000-8000-000000000001', 'admin@pgtap.test');
@@ -20,7 +31,7 @@ insert into public.items (id, kind, title, learning_objective) values
   ('d2000000-0000-4000-8000-000000000002', 'learning', 'Private item', 'Learn.');
 insert into public.items (id, kind, title, company_id, theme_id, learning_objective, holds_position, data_as_of) values
   ('d1000000-0000-4000-8000-000000000001', 'learning', 'Public item',
-   'cccccccc-0000-4000-8000-000000000001', 'eeeeeeee-0000-4000-8000-000000000001', 'Learn.', 'no', current_date - 60);
+   'cccccccc-0000-4000-8000-000000000001', 'eeeeeeee-0000-4000-8000-000000000001', 'Learn.', 'no', (now() at time zone 'Asia/Kolkata')::date - 60);
 insert into public.item_revisions (id, item_id, body_md) values
   ('e2000000-0000-4000-8000-000000000001', 'd2000000-0000-4000-8000-000000000002', 'private v1'),
   ('e1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'public v1');
@@ -76,9 +87,9 @@ select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 
 -- Publish g1 through the gate.
-select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'pol-1',
-    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"pol-1"}'::jsonb)),
+select is((select verdict from public.test_publish('d1000000-0000-4000-8000-000000000001',
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07',
+    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07"}'::jsonb)),
   'pass', 'g1 is published through the gate');
 select is(current_setting('app.publish_gate', true), 'off', 'the gate is closed again after publish_revision returns');
 
@@ -101,7 +112,7 @@ select throws_ok($$ update public.items set theme_id = null where id = 'd1000000
   '42501', null, 'unlinking the theme of a public item is blocked');
 select throws_ok($$ update public.items set learning_objective = 'Other' where id = 'd1000000-0000-4000-8000-000000000001' $$,
   '42501', null, 'changing the learning objective of a public item is blocked');
-select throws_ok($$ update public.items set data_as_of = current_date - 1 where id = 'd1000000-0000-4000-8000-000000000001' $$,
+select throws_ok($$ update public.items set data_as_of = (now() at time zone 'Asia/Kolkata')::date - 1 where id = 'd1000000-0000-4000-8000-000000000001' $$,
   '42501', null, 'changing data_as_of of a public item is blocked');
 select throws_ok($$ update public.items set holds_position = 'yes' where id = 'd1000000-0000-4000-8000-000000000001' $$,
   '42501', null, 'changing holds_position of a public item is blocked');

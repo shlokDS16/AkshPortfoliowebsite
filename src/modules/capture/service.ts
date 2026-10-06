@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { DbError, isUniqueViolation } from "@/lib/supabase/errors";
+import { errorShapeText } from "@/lib/errors";
+import { isUniqueViolation } from "@/lib/supabase/errors";
 import { ensureCompany, ensureTheme, type CatalogRepo, type Company, type Theme } from "@/modules/catalog";
 import { appendRevision, createItem, type ResearchRepo } from "@/modules/research";
 import { asFilingError, CAPTURE_TOO_LONG_MESSAGE, EMPTY_CAPTURE_MESSAGE, type FilingErrorCode } from "./messages";
@@ -37,12 +38,6 @@ const duplicateOf = (record: CaptureRecord): SaveCaptureResult => ({
   // A retry of a capture that could not be filed must say so, not look like a clean save.
   parseError: asFilingError(record.parsed?.error),
 });
-
-/** Name, operation and SQLSTATE only: enough to debug, never a message that could carry data. */
-function failureDetail(error: unknown): string {
-  if (error instanceof DbError) return [error.name, error.op, error.code].filter(Boolean).join(" ");
-  return error instanceof Error ? error.name : typeof error;
-}
 
 type Filed = { itemId: string; company: Company | null; theme: Theme | null };
 
@@ -92,10 +87,10 @@ export async function saveCapture(deps: SaveCaptureDeps, input: SaveCaptureInput
   try {
     filed = await fileCapture(deps, parsed);
   } catch (error) {
-    console.error("capture filing failed", failureDetail(error));
+    console.error("capture filing failed", errorShapeText(error));
     try {
       await deps.captures.attach(capture.id, {
-        parsed: { ...parsed, error: "filing-failed", errorDetail: failureDetail(error) },
+        parsed: { ...parsed, error: "filing-failed", errorDetail: errorShapeText(error) },
       });
     } catch {
       // The raw text is already stored; the failure marker is a convenience, not the record.
@@ -112,7 +107,7 @@ export async function saveCapture(deps: SaveCaptureDeps, input: SaveCaptureInput
     });
   } catch (error) {
     // The item exists; only the back-link is missing. Report the item so the UI does not offer a re-file.
-    console.error("capture link failed", failureDetail(error));
+    console.error("capture link failed", errorShapeText(error));
     return { captureId: capture.id, itemId: filed.itemId, kind: parsed.kind, duplicate: false, parseError: "link-failed" };
   }
   return { captureId: capture.id, itemId: filed.itemId, kind: parsed.kind, duplicate: false, parseError: null };

@@ -5,16 +5,23 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { istDate } from "@/lib/dates";
+import { InvalidInputError, ItemNotFoundError } from "@/lib/errors";
+import { isUuid } from "@/lib/ids";
+import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/modules/identity";
-import { doneTo, failTo, InvalidInputError, isItemId, ItemNotFoundError } from "@/modules/research";
+import { requireAdmin, type AdminIdentity } from "@/modules/identity";
 import type { GateDecision } from "./decision";
-import { allowFlaggedSentence, PublishContextNotFoundError, runPublishGate } from "./publish";
+import { createGateRpc } from "./gate-rpc";
+import { allowFlaggedSentence, PublishContextNotFoundError, runPublishGate, type PublishDeps } from "./publish";
 import { createSupabaseComplianceRepo } from "./repo";
 
-async function deps() {
+/**
+ * Reads go through the admin's cookie session; gate writes through the service-role RPC file, as the admin
+ * that requireAdmin() just verified (ADR-003). Every caller passes the AdminIdentity it got from requireAdmin().
+ */
+async function deps(admin: AdminIdentity): Promise<PublishDeps> {
   const repo = createSupabaseComplianceRepo(await createSupabaseServerClient());
-  return { repo, today: () => istDate(new Date()) };
+  return { repo, gate: createGateRpc(), actorId: admin.userId, today: () => istDate(new Date()) };
 }
 
 /** Purge our caches after anything public changes (ADR-001 s8.9). */
@@ -24,22 +31,22 @@ function purgePublic(): void {
 }
 
 function assertIds(...ids: unknown[]): void {
-  for (const id of ids) if (!isItemId(id)) throw new ItemNotFoundError(String(id));
+  for (const id of ids) if (!isUuid(id)) throw new ItemNotFoundError(String(id));
 }
 
 /** Where a form action returns: the item when the id is well formed, else the list. */
-const itemPath = (itemId: string) => (isItemId(itemId) ? `/desk/items/${itemId}` : "/desk/items");
+const itemPath = (itemId: string) => (isUuid(itemId) ? `/desk/items/${itemId}` : "/desk/items");
 
 /**
  * The only publish entry point. The lint is computed on the server from stored rows (a caller cannot supply
  * one) and publish_revision() decides. A failed gate RECORDS a fail row and returns it; it does not throw.
  */
 export async function publishRevision(itemId: string, revisionId: string): Promise<GateDecision> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   assertIds(itemId, revisionId);
   let decision: GateDecision;
   try {
-    decision = await runPublishGate(await deps(), itemId, revisionId);
+    decision = await runPublishGate(await deps(admin), itemId, revisionId);
   } catch (error) {
     throw error instanceof PublishContextNotFoundError ? new ItemNotFoundError(itemId) : error;
   }
@@ -50,9 +57,10 @@ export async function publishRevision(itemId: string, revisionId: string): Promi
 
 /** Retraction: visibility goes back to private in SQL, then the public pages are purged. */
 export async function unpublishItem(itemId: string): Promise<{ slug: string | null }> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   assertIds(itemId);
-  const slug = await (await deps()).repo.callUnpublish(itemId);
+  const { gate, actorId } = await deps(admin);
+  const slug = await gate.callUnpublish(actorId, itemId);
   purgePublic();
   revalidatePath(`/desk/items/${itemId}`);
   return { slug };
@@ -88,14 +96,14 @@ const allowanceInput = z.object({
 
 /** A sentence allowance for rule 1, never a rule override (publishing-rules; no other rule consults it). It must match a sentence the latest gate decision flagged. */
 export async function allowSentenceAction(itemId: string, sentenceHash: string, formData: FormData): Promise<void> {
-  await requireAdmin();
-  if (!isItemId(itemId)) failTo("/desk/items", new ItemNotFoundError(String(itemId)), "compliance");
+  const admin = await requireAdmin();
+  if (!isUuid(itemId)) failTo("/desk/items", new ItemNotFoundError(String(itemId)), "compliance");
   const reason = formData.get("reason");
   const parsed = allowanceInput.safeParse({ sentenceHash, reason: typeof reason === "string" ? reason : "" });
   if (!parsed.success) failTo(itemPath(itemId), parsed.error, "compliance");
   let allowed: boolean;
   try {
-    allowed = await allowFlaggedSentence((await deps()).repo, itemId, parsed.data.sentenceHash, parsed.data.reason);
+    allowed = await allowFlaggedSentence(await deps(admin), itemId, parsed.data.sentenceHash, parsed.data.reason);
   } catch (error) {
     failTo(itemPath(itemId), error, "compliance");
   }

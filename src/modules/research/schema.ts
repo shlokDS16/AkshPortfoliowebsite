@@ -16,7 +16,7 @@ const structured = z.record(z.string(), z.unknown());
 const itemId = z.guid();
 
 /** True when `value` can be an item id; callers treat anything else as "no such item". */
-export const isItemId = (value: unknown): value is string => itemId.safeParse(value).success;
+export { isUuid as isItemId } from "@/lib/ids";
 
 export const createItemInput = z.object({
   kind: z.enum(ITEM_KINDS, "Choose a kind"),

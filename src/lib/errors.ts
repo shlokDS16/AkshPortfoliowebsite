@@ -1,11 +1,14 @@
-import { dbError } from "@/lib/supabase/errors";
+import { DbError, dbError } from "./supabase/errors";
 
-/** Base class: every subclass message is plain English and safe to show on a desk screen. */
-export abstract class ResearchError extends Error {
+/**
+ * Typed desk errors shared by every module's actions (research, compliance, and the catalog and case-file
+ * actions to come). Base class: every subclass message is plain English and safe to show on a desk screen.
+ */
+export abstract class DeskError extends Error {
   abstract readonly code: string;
 }
 
-export class ItemNotFoundError extends ResearchError {
+export class ItemNotFoundError extends DeskError {
   readonly code = "ITEM_NOT_FOUND";
   constructor(readonly itemId: string) {
     super("This item could not be found.");
@@ -14,7 +17,7 @@ export class ItemNotFoundError extends ResearchError {
 }
 
 /** Mirrors the SQL guard (decision D10) so Aksh gets a plain-English message first. */
-export class PublicItemLockedError extends ResearchError {
+export class PublicItemLockedError extends DeskError {
   readonly code = "PUBLIC_ITEM_LOCKED";
   constructor(readonly itemId?: string) {
     super("This item is public. Unpublish it before changing its details.");
@@ -23,7 +26,7 @@ export class PublicItemLockedError extends ResearchError {
 }
 
 /** A revision is never edited or deleted (SQL append-only trigger, SQLSTATE P0001). */
-export class AppendOnlyError extends ResearchError {
+export class AppendOnlyError extends DeskError {
   readonly code = "REVISION_APPEND_ONLY";
   constructor() {
     super("Revisions are append-only: an existing revision cannot be changed or deleted. Save a new revision instead.");
@@ -32,7 +35,7 @@ export class AppendOnlyError extends ResearchError {
 }
 
 /** A database check or link rule rejected the values (SQLSTATE 23514 / 23503). */
-export class ItemRuleError extends ResearchError {
+export class ItemRuleError extends DeskError {
   readonly code = "ITEM_RULE";
   constructor() {
     super("The database rejected these values. Check the fields (title, kind, linked company or theme) and try again.");
@@ -41,7 +44,7 @@ export class ItemRuleError extends ResearchError {
 }
 
 /** A request the server refuses because it does not match anything it recorded (for example a crafted POST). */
-export class InvalidInputError extends ResearchError {
+export class InvalidInputError extends DeskError {
   readonly code = "INVALID_INPUT";
   constructor() {
     super("Check the fields and try again.");
@@ -50,7 +53,7 @@ export class InvalidInputError extends ResearchError {
 }
 
 /** Row-level security or a privilege check refused the call (SQLSTATE 42501 outside the item guard). */
-export class AccessDeniedError extends ResearchError {
+export class AccessDeniedError extends DeskError {
   readonly code = "ACCESS_DENIED";
   constructor() {
     super("You are not allowed to do that. Sign in again as the admin.");
@@ -66,7 +69,7 @@ const FROZEN_COLUMNS_GUARD = "items: a public item changes only through publish_
  * The item guard raises 42501 with a message starting "items:"; RLS also uses 42501. Only the
  * frozen-columns message means "this item is public"; P0002 is what publish_revision()/unpublish_item() raise.
  */
-export function toResearchError(op: string, error: { message: string; code?: string }, itemId?: string): Error {
+export function toDeskError(op: string, error: { message: string; code?: string }, itemId?: string): Error {
   switch (error.code) {
     case "PGRST116":
       return new ItemNotFoundError(itemId ?? "");
@@ -84,4 +87,18 @@ export function toResearchError(op: string, error: { message: string; code?: str
     default:
       return dbError(op, error);
   }
+}
+
+export type ErrorShape = { name: string; op?: string; code?: string };
+
+/** What a server log may record about a failure: name, operation and SQLSTATE, never message text (it can carry row data). */
+export function errorShape(error: unknown): ErrorShape {
+  if (error instanceof DbError) return { name: error.name, op: error.op, code: error.code };
+  return { name: error instanceof Error ? error.name : typeof error };
+}
+
+/** errorShape on one line, for a stored detail column. */
+export function errorShapeText(error: unknown): string {
+  const shape = errorShape(error);
+  return [shape.name, shape.op, shape.code].filter(Boolean).join(" ");
 }

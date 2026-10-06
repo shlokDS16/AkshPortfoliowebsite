@@ -32,7 +32,8 @@ function context(patch: Partial<PublishContext["item"]> = {}, bodyMd = "Utilisat
   };
 }
 
-const deps = (repo: ReturnType<typeof createFakeComplianceRepo>) => ({ repo, today: () => "2026-10-04" });
+const ADMIN = "aaaaaaaa-0000-4000-8000-000000000001";
+const deps = (repo: ReturnType<typeof createFakeComplianceRepo>) => ({ repo, gate: repo, actorId: ADMIN, today: () => "2026-10-04" });
 
 describe("runPublishGate", () => {
   it("lints the loaded revision and hands the server-computed result to publish_revision", async () => {
@@ -42,6 +43,12 @@ describe("runPublishGate", () => {
     expect(repo.published).toHaveLength(1);
     expect(repo.published[0]).toMatchObject({ itemId: ITEM, revisionId: REV, policyVersion: POLICY_VERSION });
     expect(repo.published[0].lintResult).toMatchObject({ passed: true, revisionId: REV, policyVersion: POLICY_VERSION, findings: [] });
+  });
+
+  it("calls the gate as the verified admin (p_actor, ADR-003)", async () => {
+    const repo = createFakeComplianceRepo(context());
+    await runPublishGate(deps(repo), ITEM, REV);
+    expect(repo.actors).toEqual([ADMIN]);
   });
 
   it("records a failed attempt and returns the rule and the exact sentence (spec s9)", async () => {

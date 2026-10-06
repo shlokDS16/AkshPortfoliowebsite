@@ -5,6 +5,17 @@ set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
 select plan(35);
 
+-- Stand-in for the compliance server action (ADR-003): it reaches publish_revision / unpublish_item as the
+-- function owner, as the service client does, and passes the signed-in session's user as the verified actor.
+-- The confinement itself (service_role only) is tested in 0004_gate_confinement.test.sql.
+create function public.test_publish(p_item uuid, p_rev uuid, p_policy text, p_lint jsonb)
+returns public.gate_decisions language sql security definer set search_path = ''
+as $$ select * from public.publish_revision((select auth.uid()), p_item, p_rev, p_policy, p_lint) $$;
+create function public.test_unpublish(p_item uuid)
+returns text language sql security definer set search_path = ''
+as $$ select public.unpublish_item((select auth.uid()), p_item) $$;
+grant execute on function public.test_publish(uuid, uuid, text, jsonb), public.test_unpublish(uuid) to authenticated;
+
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
 insert into auth.users (id, email) values
@@ -38,10 +49,10 @@ insert into public.themes (id, slug, name, description_md, visibility) values
 -- p4 private, p5 clients-only, p6 published then unpublished, p7 public with a company made private later.
 insert into public.items (id, kind, title, company_id, theme_id, data_as_of, learning_objective, holds_position) values
   ('d1000000-0000-4000-8000-000000000001', 'learning', 'Visible item', 'cccccccc-0000-4000-8000-00000000000a',
-   'eeeeeeee-0000-4000-8000-00000000000a', current_date - 40, 'Learn A.', 'no'),
-  ('d2000000-0000-4000-8000-000000000002', 'learning', 'Boundary item', null, null, current_date - 30, 'Learn B.', null),
+   'eeeeeeee-0000-4000-8000-00000000000a', (now() at time zone 'Asia/Kolkata')::date - 40, 'Learn A.', 'no'),
+  ('d2000000-0000-4000-8000-000000000002', 'learning', 'Boundary item', null, null, (now() at time zone 'Asia/Kolkata')::date - 30, 'Learn B.', null),
   ('d3000000-0000-4000-8000-000000000003', 'learning', 'Lagged item', 'cccccccc-0000-4000-8000-00000000000d',
-   'eeeeeeee-0000-4000-8000-00000000000c', current_date - 29, 'Learn C.', 'no'),
+   'eeeeeeee-0000-4000-8000-00000000000c', (now() at time zone 'Asia/Kolkata')::date - 29, 'Learn C.', 'no'),
   ('d4000000-0000-4000-8000-000000000004', 'learning', 'Private item', null, null, null, 'Learn D.', null),
   ('d6000000-0000-4000-8000-000000000006', 'learning', 'Unpublished item', 'cccccccc-0000-4000-8000-00000000000e',
    null, null, 'Learn F.', 'no'),
@@ -73,10 +84,10 @@ begin
     ('d6000000-0000-4000-8000-000000000006', 'e6000000-0000-4000-8000-000000000001'),
     ('d7000000-0000-4000-8000-000000000007', 'e7000000-0000-4000-8000-000000000001')) as t (i, r)
   loop
-    perform public.publish_revision(v.i, v.r, 'pol-1',
-      jsonb_build_object('passed', true, 'revisionId', v.r::text, 'policyVersion', 'pol-1'));
+    perform public.test_publish(v.i, v.r, 'sebi-unreg-2026-07',
+      jsonb_build_object('passed', true, 'revisionId', v.r::text, 'policyVersion', 'sebi-unreg-2026-07'));
   end loop;
-  perform public.unpublish_item('d6000000-0000-4000-8000-000000000006');
+  perform public.test_unpublish('d6000000-0000-4000-8000-000000000006');
 end $$;
 reset role;
 -- The catalog guard makes "public item, private company" unreachable; switch it off here to
@@ -183,9 +194,9 @@ select set_config('request.jwt.claims',
 -- so 2 is gated while it is the latest, then the ungated 3 lands after it.
 insert into public.item_revisions (id, item_id, body_md, change_reason) values
   ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'public v2', 'second cut');
-select is((select verdict from public.publish_revision('d1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000002', 'pol-1',
-    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"pol-1"}'::jsonb)),
+select is((select verdict from public.test_publish('d1000000-0000-4000-8000-000000000001',
+    'e1000000-0000-4000-8000-000000000002', 'sebi-unreg-2026-07',
+    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"sebi-unreg-2026-07"}'::jsonb)),
   'pass', 'precondition: revision 2 passes the gate');
 insert into public.item_revisions (id, item_id, body_md, change_reason) values
   ('e1000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000001', 'public v3', 'unreviewed draft note');
@@ -213,7 +224,7 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
-select is(public.unpublish_item('d1000000-0000-4000-8000-000000000001'),
+select is(public.test_unpublish('d1000000-0000-4000-8000-000000000001'),
   (select slug from public.items where id = 'd1000000-0000-4000-8000-000000000001'),
   'unpublish_item returns the slug');
 select is(public.test_view_ids('items'),

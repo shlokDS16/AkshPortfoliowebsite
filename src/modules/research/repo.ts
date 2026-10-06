@@ -1,6 +1,7 @@
 import type { Json, Tables, TablesUpdate } from "@/lib/supabase/database.types";
+import { toDeskError } from "@/lib/errors";
+import { asRecord } from "@/lib/records";
 import type { Db } from "@/lib/supabase/types";
-import { toResearchError } from "./errors";
 import type { HoldsPosition, ItemKind, ItemStatus, RevisionAuthor, Visibility } from "./schema";
 import type { Item, ItemPatch, ResearchRepo, Revision } from "./types";
 
@@ -12,10 +13,6 @@ const REVISION_COLUMNS = "id, item_id, rev_no, body_md, structured, schema_versi
 
 type ItemRow = Omit<Tables<"items">, "search">;
 type RevisionRow = Tables<"item_revisions">;
-
-function asRecord(value: Json): Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
 
 function toItem(row: ItemRow): Item {
   return {
@@ -43,7 +40,7 @@ function toRevision(row: RevisionRow): Revision {
     itemId: row.item_id,
     revNo: row.rev_no,
     bodyMd: row.body_md,
-    structured: asRecord(row.structured),
+    structured: asRecord(row.structured) ?? {},
     schemaVersion: row.schema_version,
     changeReason: row.change_reason,
     author: row.author as RevisionAuthor,
@@ -79,12 +76,12 @@ export function createSupabaseResearchRepo(db: Db): ResearchRepo {
         })
         .select(ITEM_COLUMNS)
         .single();
-      if (error) throw toResearchError("research.insertItem", error);
+      if (error) throw toDeskError("research.insertItem", error);
       return toItem(data);
     },
     async updateItem(id, patch) {
       const { data, error } = await db.from("items").update(toItemUpdate(patch)).eq("id", id).select(ITEM_COLUMNS).single();
-      if (error) throw toResearchError("research.updateItem", error, id);
+      if (error) throw toDeskError("research.updateItem", error, id);
       return toItem(data);
     },
     async insertRevision(row) {
@@ -93,18 +90,18 @@ export function createSupabaseResearchRepo(db: Db): ResearchRepo {
         .insert({
           item_id: row.itemId,
           body_md: row.bodyMd,
-          structured: row.structured as Json,
+          structured: row.structured as { [key: string]: Json | undefined },
           change_reason: row.changeReason,
           author: row.author,
         })
         .select(REVISION_COLUMNS)
         .single();
-      if (error) throw toResearchError("research.insertRevision", error, row.itemId);
+      if (error) throw toDeskError("research.insertRevision", error, row.itemId);
       return toRevision(data);
     },
     async getItem(id) {
       const { data, error } = await db.from("items").select(ITEM_COLUMNS).eq("id", id).maybeSingle();
-      if (error) throw toResearchError("research.getItem", error, id);
+      if (error) throw toDeskError("research.getItem", error, id);
       return data ? toItem(data) : null;
     },
     async listRevisions(itemId) {
@@ -113,7 +110,7 @@ export function createSupabaseResearchRepo(db: Db): ResearchRepo {
         .select(REVISION_COLUMNS)
         .eq("item_id", itemId)
         .order("rev_no", { ascending: false });
-      if (error) throw toResearchError("research.listRevisions", error, itemId);
+      if (error) throw toDeskError("research.listRevisions", error, itemId);
       return data.map(toRevision);
     },
     async findThesisForCompany(companyId) {
@@ -126,7 +123,7 @@ export function createSupabaseResearchRepo(db: Db): ResearchRepo {
         .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
-      if (error) throw toResearchError("research.findThesisForCompany", error);
+      if (error) throw toDeskError("research.findThesisForCompany", error);
       return data ? toItem(data) : null;
     },
     async listRecentItems(limit) {
@@ -135,7 +132,7 @@ export function createSupabaseResearchRepo(db: Db): ResearchRepo {
         .select(ITEM_COLUMNS)
         .order("updated_at", { ascending: false })
         .limit(limit);
-      if (error) throw toResearchError("research.listRecentItems", error);
+      if (error) throw toDeskError("research.listRecentItems", error);
       return data.map(toItem);
     },
   };

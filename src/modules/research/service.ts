@@ -1,4 +1,4 @@
-import { ItemNotFoundError, PublicItemLockedError } from "./errors";
+import { ItemNotFoundError, PublicItemLockedError } from "@/lib/errors";
 import {
   addRevisionInput,
   appendRevisionInput,

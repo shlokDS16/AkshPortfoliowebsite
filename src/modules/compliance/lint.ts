@@ -1,4 +1,5 @@
-import { addDays } from "@/lib/dates";
+import { isPastLag } from "@/lib/dates";
+import { isRecord } from "@/lib/records";
 import { LEXICON, PRICE_NUMBER } from "./lexicon";
 import { matchViews } from "./normalise";
 import { sentenceHash } from "./hash";
@@ -6,10 +7,6 @@ import { POLICY_VERSION, type LintAllowed, type LintField, type LintFinding, typ
 import { splitSentences } from "./sentences";
 
 type TextUnit = { field: LintField; text: string; citedQuote: boolean };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function walk(value: unknown, units: TextUnit[], citedQuote: boolean): void {
   if (typeof value === "string") units.push({ field: "structured", text: value, citedQuote });
@@ -45,7 +42,7 @@ function collectUnits(input: LintInput): TextUnit[] {
 }
 
 function dataIsLagged(input: LintInput): boolean {
-  return input.dataAsOf !== null && input.dataAsOf <= addDays(input.today, -30);
+  return input.dataAsOf !== null && isPastLag(input.dataAsOf, input.today);
 }
 
 function firstMatch(pattern: RegExp, views: readonly string[]): RegExpExecArray | null {

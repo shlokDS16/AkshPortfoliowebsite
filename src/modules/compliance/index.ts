@@ -6,5 +6,5 @@ export { LINT_FIELDS, POLICY_VERSION, RULE_TITLES } from "./rules";
 export type { LintAllowed, LintField, LintFinding, LintInput, LintResult, LintRule } from "./rules";
 export { normaliseSentence, splitSentences } from "./sentences";
 export { decisionFromRow, type DecisionRow, type GateDecision, type GateFailure } from "./decision";
-export { createSupabaseComplianceRepo, type ComplianceRepo, type PublishContext } from "./repo";
-export { allowFlaggedSentence, getLatestDecision, PublishContextNotFoundError, runPublishGate, type PublishDeps } from "./publish";
+export { createSupabaseComplianceRepo, type ComplianceRepo, type GateRpc, type PublishContext } from "./repo";
+export { allowFlaggedSentence, getLatestDecision, PublishContextNotFoundError, runPublishGate, type GateDeps, type PublishDeps } from "./publish";

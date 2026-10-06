@@ -20,18 +20,6 @@ export {
   type Visibility,
 } from "./schema";
 export type { DiffLine, Item, ItemPatch, ItemWithHistory, NewItemRow, NewRevisionRow, ResearchRepo, Revision } from "./types";
-export {
-  AccessDeniedError,
-  AppendOnlyError,
-  InvalidInputError,
-  ItemNotFoundError,
-  ItemRuleError,
-  PublicItemLockedError,
-  ResearchError,
-  toResearchError,
-} from "./errors";
 export { diffRevisions } from "./diff";
-export { errorCode, errorText, noticeText, type ErrorCode, type ItemNoticeCode } from "./messages";
-export { doneTo, failTo } from "./redirects";
 export { createSupabaseResearchRepo } from "./repo";
 export { addRevision, appendRevision, createItem, getItemWithHistory, listRecentItems, updateItemMeta } from "./service";
