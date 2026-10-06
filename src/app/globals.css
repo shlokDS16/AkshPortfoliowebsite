@@ -271,6 +271,7 @@
   --section-gap: 48px;
   --block-gap: 32px;
   --stack: 16px;
+  --para: 1em;
   --row-y: 10px;
   --cell-x: 8px;
   --top-bar-h: 52px;
