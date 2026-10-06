@@ -50,4 +50,15 @@ describe("thesis body template (D6)", () => {
     expect(checkCaseFile(KAVERI.revisions[1].bodyMd, linked("https://example.org/a.pdf"))).toEqual([]);
     expect(checkCaseFile(KAVERI.revisions[1].bodyMd, linked("javascript:alert(1)"))).toEqual(["S1 has a link that is not an http or https address, so readers will not see it."]);
   });
+
+  it("warns when an exhibit would show a figure its linked test still holds back", () => {
+    const cf = parseFactsSheet(KAVERI.revisions[1].sheet).caseFile;
+    const body = KAVERI.revisions[1].bodyMd;
+    expect(checkCaseFile(body, cf)).toEqual([]); // the seed: reading and FY26 point share 31 Mar 2026
+    const later = { ...cf, tests: cf.tests.map((t) => (t.id === "T1" ? { ...t, readingAsOf: "2026-09-25" } : t)) };
+    expect(checkCaseFile(body, later)).toEqual(["X1 would show FY26 before T1's reading of the same figure (dated 2026-09-25) is old enough to show."]);
+    // Earlier points that are not the reading's figure never warn.
+    const other = { ...later, tests: later.tests.map((t) => (t.id === "T1" ? { ...t, current: 999 } : t)) };
+    expect(checkCaseFile(body, other)).toEqual([]);
+  });
 });

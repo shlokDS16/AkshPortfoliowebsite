@@ -59,7 +59,14 @@ export function buildViewBlocks(md: string, cf: CaseFile, today: ISODate): ViewB
   );
 }
 
-export function buildKillTests(conditions: Condition[], cf: CaseFile, today: ISODate, checkedOn: ISODate): KillTest[] {
+/**
+ * `audience` is required so no caller can forget it. "public": a status whose reading is not showable (withheld, or of
+ * unknown age) is reported as no_data, because met / not met would reveal which side of the line the hidden figure
+ * sits on. "desk": Aksh sees the true status. The status union is unchanged.
+ */
+export type Audience = "public" | "desk";
+
+export function buildKillTests(conditions: Condition[], cf: CaseFile, today: ISODate, checkedOn: ISODate, audience: Audience): KillTest[] {
   assertDate(today, "today");
   assertDate(checkedOn, "checkedOn");
   return conditions.map((c) => {
@@ -78,7 +85,7 @@ export function buildKillTests(conditions: Condition[], cf: CaseFile, today: ISO
       readingAsOf: readingDate,
       withheldUntil: hold,
       lastChecked: t && isIsoDate(t.lastChecked) ? t.lastChecked : checkedOn,
-      status: t?.status ?? "no_data",
+      status: !t || (audience === "public" && hidden) ? "no_data" : t.status,
       meter:
         !t || hidden
           ? null
@@ -151,7 +158,7 @@ export function buildExhibits(fileNo: FileNo, subjectLabel: string, cf: CaseFile
           : `${x.title}: from ${fig(first.value as number)} in ${first.point.x} to ${fig(last.value as number)} in ${last.point.x}${line}.`
         : `${x.title}: no figures old enough to show yet.`;
     return {
-      fileNo, n: i + 1, title: x.title, sub: null, dataTo: last?.end ?? today,
+      fileNo, n: i + 1, title: x.title, sub: null, dataTo: last?.end ?? null,
       source: `${x.sourceId} ${source?.doc ?? "Source not listed"}`,
       key: [
         { mark: "subject" as const, label: subjectLabel },

@@ -55,6 +55,41 @@ describe("casefile/1 schema", () => {
     if (!result.ok) expect(result.issues.join(" ")).toMatch(/Rule 9/);
   });
 
+  it.each([
+    ["FY28 PE", scenarioOf("FY28 PE", { unit: "x" })],
+    ["PE multiple", scenarioOf("PE multiple", { unit: "x" })],
+    ["NAV", scenarioOf("NAV")],
+    ["Net asset value", scenarioOf("Net asset value")],
+    ["EV to EBITDA", scenarioOf("EV to EBITDA", { unit: "x" })],
+    ["SOTP value", scenarioOf("SOTP value")],
+    ["a bare Value in rupees", scenarioOf("Value", { unit: "₹ cr" })],
+    ["a bare Worth in rupees", scenarioOf("FY28 worth", { unit: "₹" })],
+    ["Price as an output", scenarioOf("Average selling price")],
+    ["Upside as an output", scenarioOf("Upside", { unit: "%" })],
+    ["a market capitalisation", scenarioOf("Market capitalisation")],
+  ])("rule 9: refuses %s", (_name, scenario) => {
+    const result = withScenario(scenario);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.issues.join(" ")).toMatch(/Rule 9/);
+  });
+
+  it.each([
+    ["scenario name Upside", scenarioOf("FY28 revenue", { name: "Upside" })],
+    ["scenario name Downside", scenarioOf("FY28 revenue", { name: "Downside" })],
+    ["assumption Price hike", scenarioOf("FY28 revenue", { assumption: "Price hike" })],
+    ["assumption Steel price change", scenarioOf("FY28 revenue", { assumption: "Steel price change" })],
+    ["assumption Average selling price", scenarioOf("FY28 revenue", { assumption: "Average selling price" })],
+    ["assumption Market capacity", scenarioOf("FY28 revenue", { assumption: "Market capacity" })],
+    ["output FY28 order book value", scenarioOf("FY28 order book value", { unit: "₹ cr" })],
+    ["output Revenue per employee", scenarioOf("Revenue per employee", { unit: "₹ lakh" })],
+    ["output Market share", scenarioOf("Market share", { unit: "%" })],
+    ["output Revenue per shipment", scenarioOf("Revenue per shipment", { unit: "₹" })],
+    ["output Perpetual", scenarioOf("Perpetual", { unit: "%" })],
+    ["output Openness", scenarioOf("Openness", { unit: "%" })],
+  ])("rule 9: allows %s", (_name, scenario) => {
+    expect(withScenario(scenario).ok).toBe(true);
+  });
+
   it("rule 9: operating rows stay allowed", () => {
     expect(withScenario(scenarioOf("FY28 EBITDA margin", { unit: "%", assumption: "Volume growth", values: ["12", "14"] })).ok).toBe(true);
     expect(withScenario(scenarioOf("Market share", { unit: "%", values: ["11", "14"] })).ok).toBe(true);

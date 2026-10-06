@@ -59,6 +59,11 @@ describe("Exhibit", () => {
     expect(screen.getByRole("figure", { name: "Second exhibit" })).toBeInTheDocument();
   });
 
+  it("says so in the footer, without throwing, when no figure is old enough (dataTo null)", () => {
+    mockMatchMedia();
+    renderWithMotion(<Exhibit data={{ ...EXHIBIT, dataTo: null }} />);
+    expect(screen.getByText("Data to").nextSibling).toHaveTextContent("No figure old enough yet");
+  });
   it("falls back to the table when the only real points are withheld", () => {
     mockMatchMedia();
     const allWithheld = {

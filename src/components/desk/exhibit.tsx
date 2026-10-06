@@ -32,7 +32,7 @@ export function Exhibit({ data, height = { phone: 200, desk: 240 }, defaultView 
         <dt>Source</dt>
         <dd>{data.source}</dd>
         <dt>Data to</dt>
-        <dd className="tabular-nums">{formatDate(data.dataTo)}</dd>
+        <dd className="tabular-nums">{data.dataTo ? formatDate(data.dataTo) : "No figure old enough yet"}</dd>
       </dl>
     </figure>
   );

@@ -67,7 +67,7 @@ describe("view builders", () => {
   });
 
   it("joins Aksh's conditions with the sheet's readings by T-number; a test without a reading is No data", () => {
-    const tests = buildKillTests(CONDITIONS, cf, TODAY, "2026-09-01");
+    const tests = buildKillTests(CONDITIONS, cf, TODAY, "2026-09-01", "public");
     expect(tests.map((t) => [t.id, t.status])).toEqual([["T1", "watching"], ["T2", "not_met"], ["T3", "no_data"]]);
     expect(tests[0]).toMatchObject({ condition: "Receivable days stay above 150 for two straight years.", reading: "142 days" });
     expect(tests[0].meter?.labels.threshold).toBe("Test 1 line: 150 days");
@@ -122,6 +122,11 @@ describe("rule 3 across the builders (d, e)", () => {
     expect(JSON.stringify(ex)).not.toMatch(/4,?321|5,?432/);
   });
 
+  it("dataTo is null, not today, when no figure is old enough", () => {
+    const allYoung: CaseFile = { ...cf, exhibits: cf.exhibits.map((x) => ({ ...x, points: [{ period: "FY26", value: 4321 }, { period: "FY27", value: 5432 }] })) };
+    expect(buildExhibits("01", "Kaveri", allYoung, YOUNG)[0].dataTo).toBeNull();
+  });
+
   it("an unreadable period counts as withheld, never as old", () => {
     const odd: CaseFile = { ...cf, exhibits: cf.exhibits.map((x) => ({ ...x, points: [{ period: "FY25", value: 1 }, { period: "H1 2026", value: 8765 }] })) };
     const [ex] = buildExhibits("01", "Kaveri", odd, TODAY);
@@ -131,16 +136,38 @@ describe("rule 3 across the builders (d, e)", () => {
 
   it("a withheld reading drops the number and the meter; Aksh's condition text stays his", () => {
     const young = withTests({ readingAsOf: "2026-09-25", current: 4242, prior: 3131 });
-    const [t1] = buildKillTests(CONDITIONS, young, TODAY, "2026-09-01");
+    const [t1] = buildKillTests(CONDITIONS, young, TODAY, "2026-09-01", "public");
     expect(t1).toMatchObject({ reading: null, meter: null, withheldUntil: "2026-10-25" });
     expect(JSON.stringify(t1)).not.toMatch(/4,?242|3,?131/);
     expect(t1.condition).toBe("Receivable days stay above 150 for two straight years.");
   });
 
   it("a reading with no date cannot be shown: its age is unknown", () => {
-    const [t1] = buildKillTests(CONDITIONS, withTests({ readingAsOf: null, current: 4242 }), TODAY, "2026-09-01");
+    const [t1] = buildKillTests(CONDITIONS, withTests({ readingAsOf: null, current: 4242 }), TODAY, "2026-09-01", "public");
     expect(t1).toMatchObject({ reading: null, meter: null, readingAsOf: null });
     expect(JSON.stringify(t1)).not.toContain("4,242");
+  });
+});
+
+describe("status never reveals a withheld reading (public) but desk keeps it", () => {
+  const status = (patch: Partial<CaseFile["tests"][number]>, audience: "public" | "desk") =>
+    buildKillTests(CONDITIONS, withTests({ status: "not_met", ...patch }), TODAY, "2026-09-01", audience)[0].status;
+
+  it("public: a withheld reading reports no_data", () => {
+    expect(status({ readingAsOf: "2026-09-25" }, "public")).toBe("no_data");
+  });
+  it("public: a reading of unknown age reports no_data", () => {
+    expect(status({ readingAsOf: null }, "public")).toBe("no_data");
+    expect(status({ readingAsOf: "2026-02-30" }, "public")).toBe("no_data");
+  });
+  it("public: a showable reading keeps its status", () => {
+    expect(status({ readingAsOf: "2026-03-31" }, "public")).toBe("not_met");
+  });
+  it("desk: a withheld or undated reading keeps the true status, and the figure stays hidden", () => {
+    expect(status({ readingAsOf: "2026-09-25" }, "desk")).toBe("not_met");
+    expect(status({ readingAsOf: null }, "desk")).toBe("not_met");
+    const [t] = buildKillTests(CONDITIONS, withTests({ readingAsOf: "2026-09-25", current: 4242 }), TODAY, "2026-09-01", "desk");
+    expect(t.reading).toBeNull();
   });
 });
 
@@ -180,7 +207,7 @@ describe("dates handed to views are real dates (a)", () => {
 
   it("falls back for a bad last-checked date and treats a bad reading date as unknown", () => {
     const broken = withTests({ lastChecked: "soon", readingAsOf: BAD_DATE });
-    const [t1] = buildKillTests(CONDITIONS, broken, TODAY, "2026-09-01");
+    const [t1] = buildKillTests(CONDITIONS, broken, TODAY, "2026-09-01", "public");
     expect(t1).toMatchObject({ lastChecked: "2026-09-01", readingAsOf: null, reading: null, meter: null });
   });
 
@@ -192,8 +219,8 @@ describe("dates handed to views are real dates (a)", () => {
   });
 
   it("refuses bad dates the caller supplies rather than passing them on", () => {
-    expect(() => buildKillTests(CONDITIONS, cf, "yesterday", "2026-09-01")).toThrow(RangeError);
-    expect(() => buildKillTests(CONDITIONS, cf, TODAY, "soon")).toThrow(RangeError);
+    expect(() => buildKillTests(CONDITIONS, cf, "yesterday", "2026-09-01", "public")).toThrow(RangeError);
+    expect(() => buildKillTests(CONDITIONS, cf, TODAY, "soon", "public")).toThrow(RangeError);
     expect(() => buildFactGroups(cf, "yesterday")).toThrow(RangeError);
     expect(() => buildViewBlocks(R1_VIEW, cf, "yesterday")).toThrow(RangeError);
     expect(() => buildExhibits("01", "K", cf, "yesterday")).toThrow(RangeError);
@@ -216,7 +243,7 @@ describe("scenario (f)", () => {
 describe("Aksh's words and machine facts never share a field (h)", () => {
   it("keeps the condition text his and the reading the sheet's", () => {
     const conditions = [{ id: "T1", text: "Receivable days stay above 999 for two straight years." }];
-    const [t1] = buildKillTests(conditions, cf, TODAY, "2026-09-01");
+    const [t1] = buildKillTests(conditions, cf, TODAY, "2026-09-01", "public");
     expect(t1.condition).toBe("Receivable days stay above 999 for two straight years.");
     expect(t1.reading).toBe("142 days");
     expect(t1.condition).not.toContain("142");

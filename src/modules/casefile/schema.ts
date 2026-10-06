@@ -6,19 +6,27 @@ export const PERIOD_RE = /^(?:FY\d{2}|Q[1-4] FY\d{2})$/;
 /**
  * Rule 9: a DCF output is a price target by another name; public scenario tables show operating figures only.
  * Matched against folded text (see foldForRule9), so spacing, hyphens, case and look-alike letters do not slip past.
- * False positives are the safe direction (ADR-001 s5): "Realised price" is refused too.
+ * Two scopes. EVERYWHERE (names, assumptions, outputs): value, per-share and valuation-multiple terms.
+ * OUTPUT_ONLY (output labels, units and cells): bare price, upside, downside and target, which are fine as
+ * assumptions ("Price hike", "Upside" as a scenario name) but not as something the table concludes.
+ * Every term is word-bounded so "Revenue per employee", "Market share", "Perpetual" and "Openness" pass.
+ * Otherwise false positives are the safe direction (ADR-001 s5).
  */
-export const FORBIDDEN_OUTPUT_RE = new RegExp(
+const EVERYWHERE_RE = new RegExp(
   [
-    String.raw`\b(?:equity|enterprise|intrinsic|fair|implied|terminal|dcf|book|market|stock|share|exit)\s+(?:value|worth|valuation)\b`,
+    String.raw`\b(?:equity|enterprise|intrinsic|fair|implied|terminal|dcf|book|market|stock|share|exit|sotp|asset|nav)\s+(?:value|worth|valuation)\b`,
+    String.raw`\b(?:target\s+price|price\s+target|target\s+value)\b`,
     String.raw`\bper\s?sh(?:are)?s?\b`,
     String.raw`/\s*sh(?:are)?s?\b`,
-    String.raw`\b(?:target|price|valuation|upside|downside|eps|dps|bvps|dcf|npv|mcap)\b`,
-    String.raw`\bmarket\s?cap`,
-    String.raw`\b(?:ev|p)\s*/\s*(?:e|b|s|ebitda|ebit|sales|revenue)\b`,
+    String.raw`\b(?:valuation|eps|dps|bvps|dcf|npv|mcap|nav|sotp|pe)\b`,
+    String.raw`\bmarket\s?cap(?:itali[sz]ation)?\b`,
+    String.raw`\b(?:ev|p)\s*(?:/|to)\s*(?:e|b|s|ebitda|ebit|sales|revenue)\b`,
   ].join("|"),
   "i",
 );
+const OUTPUT_ONLY_RE = /\b(?:target|price|upside|downside)\b/i;
+// A row that says only "Value" or "Worth" (optionally with a period) and is measured in rupees.
+const BARE_VALUE_RE = /^(?:(?:fy\d{2}|q[1-4] fy\d{2}) )?(?:value|worth)$/i;
 
 const INVISIBLE = /[\u00AD\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/g;
 // Cyrillic and Greek lower-case letters that read as Latin ones (the same idea as the lint's normaliser).
@@ -40,16 +48,25 @@ function foldForRule9(text: string): string {
     .trim();
 }
 
-const breaksRule9 = (text: string): boolean => FORBIDDEN_OUTPUT_RE.test(foldForRule9(text));
+// An order book is an operating figure: "FY28 order book value" is not a valuation.
+const ORDER_BOOK_RE = /\border book\b/g;
+const foldedForTest = (text: string): string => foldForRule9(text).replace(ORDER_BOOK_RE, "orderbook");
+const breaksEverywhere = (text: string): boolean => EVERYWHERE_RE.test(foldedForTest(text));
+const breaksInOutput = (text: string): boolean => breaksEverywhere(text) || OUTPUT_ONLY_RE.test(foldedForTest(text));
 
 type ScenarioShape = { names: string[]; assumptions: { label: string; values: string[] }[]; outputs: { label: string; unit: string; values: string[] }[] };
+
+const isRupees = (unit: string): boolean => /₹|\brs\b|\binr\b/i.test(foldForRule9(unit));
 
 /** Every scenario text a reader sees: names, row labels, units and cells, in assumptions and outputs alike. */
 function rule9Paths(s: ScenarioShape): (string | number)[][] {
   const paths: (string | number)[][] = [];
-  s.names.forEach((n, i) => breaksRule9(n) && paths.push(["names", i]));
-  s.assumptions.forEach((r, i) => [r.label, ...r.values].some(breaksRule9) && paths.push(["assumptions", i]));
-  s.outputs.forEach((r, i) => [r.label, r.unit, ...r.values].some(breaksRule9) && paths.push(["outputs", i]));
+  s.names.forEach((n, i) => breaksEverywhere(n) && paths.push(["names", i]));
+  s.assumptions.forEach((r, i) => [r.label, ...r.values].some(breaksEverywhere) && paths.push(["assumptions", i]));
+  s.outputs.forEach((r, i) => {
+    const bare = BARE_VALUE_RE.test(foldForRule9(r.label)) && isRupees(r.unit);
+    if (bare || [r.label, r.unit, ...r.values].some(breaksInOutput)) paths.push(["outputs", i]);
+  });
   return paths;
 }
 

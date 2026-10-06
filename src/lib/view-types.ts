@@ -83,7 +83,7 @@ export type ExhibitData = {
   title: string;
   sub: string | null;
   source: string;
-  dataTo: ISODate;
+  dataTo: ISODate | null; // null when no figure is old enough to show
   key: { mark: ExhibitKeyMark; label: string }[];
   chart: LineChartData;
   ledger: { periods: LedgerPeriod[]; rows: LedgerRow[] };

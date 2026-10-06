@@ -14,7 +14,7 @@ function assertToday(today: string): void {
 
 /**
  * Mirrors SQL `private.is_lagged(d)` as redefined in 20261007000004_hardening.sql: `d <= (now() at time zone 'Asia/Kolkata')::date - 30`.
- * Callers pass `today = istDate(now)`. A date that cannot be read is never lagged: a figure of unknown age is not shown.
+ * Callers pass `today = istDate(now)`. Unlike SQL (is_lagged(null) is true), a null or unreadable date is never lagged here: a figure of unknown age is not shown.
  */
 export function isLagged(date: ISODate, today: ISODate): boolean {
   assertToday(today);
