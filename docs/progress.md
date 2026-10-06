@@ -49,7 +49,7 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 - [ ] 2.2 Provider ports + fixture adapters: `LlmPort`, `OcrPort`, `TranscriberPort`
 - [ ] 2.3 Groq adapter with strict JSON + budget governor (75% caps, defer-not-fail, retry-after)
 - [ ] 2.4 Signed-URL upload → job creation → `after()` pump → admin inbox loop → cron sweep
-- [ ] 2.5 Pipelines: PDF (unpdf → Azure DI fallback → statement-page locator → extract), image (qwen vision), voice (Whisper), URL (oEmbed), text paste
+- [ ] 2.5 Pipelines: PDF (unpdf → OCR.space fallback, tables via Groq vision → statement-page locator → extract), image (qwen vision), voice (Whisper), URL (oEmbed), text paste
 - [ ] 2.6 Review screen (page text beside editable JSON; approve files under company/theme)
 - [ ] 2.7 XLSX → SheetJS → HyperFormula → assumption confirmation → interactive valuation page (PRIVATE only; public gets a lagged static scenario table)
 - [ ] 2.10 Page selector: statement/commentary pages only go to the LLM; page budget + ETA per document; `needs_attention` terminal state with "enter manually"
@@ -58,7 +58,7 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 
 ## Phase 3 - Two-tier track record
 - [ ] 3.1 `ledger` migrations (ideas, idea_events append-only + hash chain, prices_daily, idea_scores)
-- [ ] 3.2 `MarketDataPort`: Upstox adapter + NSE bhavcopy fallback + manual entry
+- [ ] 3.2 `MarketDataPort`: NSE bhavcopy adapter + manual entry (Upstox dropped 2026-10-06, ADR-001 s9.2)
 - [ ] 3.3 Cron: closes, scoring vs Nifty 50, hash anchor to public Gist
 - [ ] 3.4 Private ledger UI (hit rate, excess return, holding period, mistakes journal)
 - [ ] 3.5 Public case studies: 30-day release gate, snapshot charts, "what I expected / what happened / what I learned"

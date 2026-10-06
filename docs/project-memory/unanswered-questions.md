@@ -7,7 +7,7 @@ Format: **[date]** - the question, why it matters, what would answer it.
 
 ## Open (2026-10-04)
 - **Q1 (legal, blocks Phase 3.6):** Do invited "client" logins to the private tier make Aksh's content advice to identified persons under SEBI RA regulations, even unpaid? Until answered: no client accounts; `clients` visibility exists in schema only.
-- **Q2 (data, blocks Phase 3.2):** Is Upstox historical candle API free for retail account holders and does the token need daily refresh? Fallback: NSE bhavcopy. Shlok/Aksh to confirm Aksh has (or will open) an Upstox account.
+- **Q2 (data):** ANSWERED 2026-10-06 — no Upstox account; NSE bhavcopy is the only price source in v1 (ADR-001 s9.2).
 - **Q3 (scope):** Does Aksh cover anything beyond Indian listed equities (global stocks, mutual funds, macro)? Assumed no.
 - **Q4 (content):** Are the "videos" his own recordings (transcribe via Whisper) or curated third-party videos (list only)? Assumed his own, hosted unlisted on YouTube.
 - **Q5 (identity):** ANSWERED 2026-10-05 — under Aksh's own name ("Aksh Agrawal · Case files"); domain to check: akshagrawal.in. Desk-brand names (Assay / Plumbline / Nikasha) reserved for a future registered phase.
