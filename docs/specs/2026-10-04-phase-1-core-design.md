@@ -115,6 +115,7 @@ Not a blog index. Sections: "On the desk this week" (companies with new revision
 - `GET /api/cron/daily` (Vercel cron, `Authorization: Bearer CRON_SECRET`): runs independent try/caught steps; Phase 1 has one step, `heartbeat:daily`. Phases 2-3 add prices, gate release, newsletter draft, each writing its own `heartbeats` row.
 - `POST /api/jobs/run` (same bearer): Phase 1 only writes `heartbeat:pump`; Phase 2 drains jobs for <= 240 s. Called every 15 minutes by `.github/workflows/pump.yml` (GitHub Actions schedule, secret stored as a repo secret). This write keeps the free Supabase project from pausing.
 - `GET /api/health` (public, no secret): returns 200 with heartbeat ages, 500 if `heartbeat:pump` > 2 h or `heartbeat:daily` > 36 h. A free external monitor (cron-job.org or UptimeRobot) polls it every 15 min and emails Shlok + Aksh on failure. The admin home shows a red strip in the same conditions.
+- `/api/health` contract (2026-10-06): `{ ok, checks: [{ job, ageSeconds, ok }] }`; `ageSeconds` is `null` for a clock that has never run (unhealthy); a latest run with `ok = false` is unhealthy; the desk red strip applies the same rule.
 - Lint scope: title, slug, learning_objective, body, stringified `structured`, and OG title/description derived from them. Public items cannot carry attachments in Phase 1.
 
 ## 9. Error handling and degradation
