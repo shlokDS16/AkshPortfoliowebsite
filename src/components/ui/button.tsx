@@ -11,7 +11,7 @@ const buttonVariants = cva(
         default: "bg-ink text-paper hover:bg-ink-body",
         outline: "border-rule-strong bg-paper text-ink hover:bg-surface-2",
         ghost: "text-ink hover:bg-surface-2",
-        link: "h-auto px-0 text-geru underline decoration-1 underline-offset-3",
+        link: "text-geru underline decoration-1 underline-offset-3",
         destructive: "bg-bad-wash text-bad hover:bg-surface-2",
       },
       size: {
@@ -20,6 +20,9 @@ const buttonVariants = cva(
         icon: "size-9 pointer-coarse:size-11",
       },
     },
+    // Text-link buttons carry no padding or fixed height at any size; the size classes come later in the
+    // class list, so a plain `h-auto px-0` in the variant would lose the merge. Coarse pointers keep 44 px.
+    compoundVariants: [{ variant: "link", size: ["default", "sm"], class: "h-auto px-0 pointer-coarse:h-11" }],
     defaultVariants: { variant: "default", size: "default" },
   },
 );

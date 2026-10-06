@@ -20,8 +20,11 @@ export function SegmentedControl({ value, onValueChange, items, size = "md", "ar
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
     event.preventDefault();
+    if (items.length === 0) return;
     const index = items.findIndex((item) => item.value === value);
-    const next = items[(index + (event.key === "ArrowRight" ? 1 : items.length - 1)) % items.length];
+    const forward = event.key === "ArrowRight";
+    // A value matching no item starts from the first (Right) or last (Left) option.
+    const next = index === -1 ? items[forward ? 0 : items.length - 1] : items[(index + (forward ? 1 : items.length - 1)) % items.length];
     onValueChange(next.value);
     event.currentTarget.querySelector<HTMLElement>(`[data-value="${next.value}"]`)?.focus();
   }

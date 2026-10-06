@@ -11,14 +11,6 @@ import { EASE_SNAP, EASE_SNAP_IN, MOTION, easeCss } from "./motion-tokens";
 import { SegmentedControl } from "./segmented-control";
 import { TickInView } from "./tick-in-view";
 
-vi.mock("@number-flow/react", () => ({
-  default: (props: { value: number; respectMotionPreference?: boolean }) => (
-    <span data-testid="flow" data-respect={String(props.respectMotionPreference)}>
-      {props.value}
-    </span>
-  ),
-}));
-
 describe("motion tokens", () => {
   it("match globals.css exactly", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
@@ -100,8 +92,11 @@ describe("SegmentedControl", () => {
     screen.getByRole("radio", { name: "Table" }).click();
     expect(onValueChange).toHaveBeenLastCalledWith("table");
     onValueChange.mockClear();
-    act(() => group.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })));
+    const chart = screen.getByRole("radio", { name: "Chart" });
+    act(() => chart.focus());
+    act(() => chart.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })));
     expect(onValueChange).toHaveBeenCalledExactlyOnceWith("notes");
+    expect(screen.getByRole("radio", { name: "Notes" })).toHaveFocus();
     expect(screen.getByRole("radio", { name: "Chart" }).querySelector("[data-indicator]")).not.toBeNull();
     expectTokenOnly(group);
   });
@@ -112,5 +107,25 @@ describe("SegmentedControl", () => {
       reducedMotion: true,
     });
     expect(screen.getByRole("radio", { name: "Table" }).querySelector("[data-indicator]")).not.toBeNull();
+    screen.getByRole("radio", { name: "Notes" }).click();
+    expect(onValueChange).toHaveBeenCalledExactlyOnceWith("notes");
+  });
+
+  it("starts from the first or last option when the value matches no item", () => {
+    const onValueChange = vi.fn();
+    renderWithMotion(<SegmentedControl aria-label="Show as" value="gone" onValueChange={onValueChange} items={items} />);
+    const group = screen.getByRole("radiogroup", { name: "Show as" });
+    act(() => group.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
+    expect(onValueChange).toHaveBeenLastCalledWith("chart");
+    act(() => group.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })));
+    expect(onValueChange).toHaveBeenLastCalledWith("notes");
+  });
+
+  it("does not throw with no items", () => {
+    const onValueChange = vi.fn();
+    renderWithMotion(<SegmentedControl aria-label="Show as" value="chart" onValueChange={onValueChange} items={[]} />);
+    const group = screen.getByRole("radiogroup", { name: "Show as" });
+    act(() => group.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
+    expect(onValueChange).not.toHaveBeenCalled();
   });
 });

@@ -39,6 +39,26 @@ describe("restyled shadcn primitives", () => {
   });
 });
 
+describe("Button link variant", () => {
+  it("stays unpadded and auto-height at every size, keeping a coarse-pointer touch target", () => {
+    render(
+      <div>
+        <Button variant="link">default link</Button>
+        <Button variant="link" size="sm">
+          small link
+        </Button>
+      </div>,
+    );
+    for (const name of ["default link", "small link"]) {
+      const classes = screen.getByRole("button", { name }).className.split(/\s+/);
+      expect(classes).toContain("h-auto");
+      expect(classes).toContain("px-0");
+      expect(classes).toContain("pointer-coarse:h-11");
+      for (const gone of ["h-9", "h-8", "px-4", "px-3"]) expect(classes).not.toContain(gone);
+    }
+  });
+});
+
 describe("StatusShape", () => {
   it("is an ink shape plus a word for every status, never a colour", () => {
     const { container } = render(
