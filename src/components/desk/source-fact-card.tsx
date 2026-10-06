@@ -9,7 +9,8 @@ import { IdMark } from "./id-mark";
  * (the quote can contain the number), and its accessible name does not carry the figure either.
  */
 export function SourceFactCard({ card, id }: { card: SourceCard; id: string }) {
-  const withheld = card.withheldUntil !== null;
+  const withheldUntil = card.withheldUntil;
+  const withheld = withheldUntil !== null;
   return (
     <div
       id={id}
@@ -18,7 +19,7 @@ export function SourceFactCard({ card, id }: { card: SourceCard; id: string }) {
       className="my-3 rounded-sm bg-surface p-4 text-body"
     >
       <p className="text-figure-md tabular-nums text-ink desk:text-figure-md-desk">
-        {card.withheldUntil ? <Withheld availableOn={card.withheldUntil} /> : card.figure}
+        {withheld ? <Withheld availableOn={withheldUntil} /> : card.figure}
         {card.unit && !withheld ? <span className="ml-1 text-caption text-ink-muted">{card.unit}</span> : null}
       </p>
       {withheld ? (

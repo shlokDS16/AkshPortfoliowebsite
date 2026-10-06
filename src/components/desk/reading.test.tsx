@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ViewBlockData } from "@/lib/view-types";
@@ -93,6 +93,15 @@ describe("FactTable and SourceList", () => {
     expect(screen.getByText("[withheld until 25 Oct 2026]")).toBeInTheDocument();
     expectTokenOnly(container);
     expectNoMotion(container);
+  });
+
+  it("a withheld row prints neither value nor prior (rule 3)", () => {
+    const row = { ...FACT_GROUPS[1].rows[0], prior: "977" };
+    render(<FactTable groups={[{ ...FACT_GROUPS[1], rows: [row] }]} />);
+    const tr = screen.getByText("Order book").closest("tr")!;
+    expect(tr).toHaveTextContent("[withheld until 25 Oct 2026]");
+    expect(tr.textContent).not.toContain("977");
+    expect(within(tr).getAllByText("—")).toHaveLength(1);
   });
 
   it("two groups with the same title render without a key collision", () => {

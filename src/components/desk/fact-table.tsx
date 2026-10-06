@@ -38,11 +38,11 @@ export function FactTable({ groups }: { groups: FactGroup[] }) {
               <TR key={row.id} className="max-desk:grid max-desk:grid-cols-[minmax(0,1fr)_auto_auto_auto] max-desk:gap-x-3 max-desk:py-2">
                 <TD className="max-desk:col-span-4 max-desk:p-0">{row.label}</TD>
                 <TD numeric className="max-desk:p-0">
-                  {row.withheldUntil ? <Withheld availableOn={row.withheldUntil} /> : (row.value ?? "—")}
+                  {row.withheldUntil !== null ? <Withheld availableOn={row.withheldUntil} /> : (row.value ?? "—")}
                 </TD>
                 <TD className="text-caption text-ink-muted max-desk:p-0">{row.unit}</TD>
                 <TD numeric className="text-ink-muted max-desk:p-0">
-                  {row.prior ?? "—"}
+                  {row.withheldUntil !== null ? "—" : (row.prior ?? "—")}
                 </TD>
                 <TD className="max-desk:p-0">
                   <IdMark kind="source" value={`${row.source.id} ${row.source.locator}`} />
