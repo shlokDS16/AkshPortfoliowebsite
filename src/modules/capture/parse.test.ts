@@ -76,7 +76,7 @@ describe("parseCapture: robustness", () => {
   });
 
   it("does not treat a dollar followed by digits as a symbol", () => {
-    expect(parseCapture("$500 move, $2400, $1, $2,400, $1.5bn, (at $500), $5-").symbols).toEqual([]);
+    expect(parseCapture("$500 move, $2400, $1, $2,400, $1.5bn, (at $500), $5-, $5M, $5bn, $10K, $500cr, $2L, $3T, $7Lakhs, $9tn").symbols).toEqual([]);
   });
 
   it("rejects symbols longer than 20 characters instead of truncating", () => {
@@ -236,5 +236,19 @@ describe("parseCapture: digit-leading symbols and bare schemes", () => {
   it("does not emit a bare scheme as a URL", () => {
     expect(parseCapture("see https:// and http://... and https://!").urls).toEqual([]);
     expect(parseCapture("https://a.com and https://").urls).toEqual(["https://a.com"]);
+  });
+});
+
+describe("parseCapture: amounts with a magnitude suffix", () => {
+  it("is not a symbol, while digit-led names and letter-led M and BN still are", () => {
+    expect(parseCapture("$5M $5bn $10K $500cr $2L $3T").symbols).toEqual([]);
+    expect(parseCapture("$5PAISA $3MINDIA $20MICRONS $360ONE $M $BN").symbols).toEqual([
+      "5PAISA",
+      "3MINDIA",
+      "20MICRONS",
+      "360ONE",
+      "M",
+      "BN",
+    ]);
   });
 });
