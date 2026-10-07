@@ -1,13 +1,16 @@
 import { AccessDeniedError } from "@/lib/errors";
-import { dbError } from "@/lib/supabase/errors";
+import { dbError, jobDbError } from "@/lib/supabase/errors";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
-import type { Basis, DocSourceType, DocumentRow, DocumentStatus } from "./types";
+import type { PageVerdict } from "./selector";
+import type { Basis, DocSourceType, DocumentRow, DocumentStatus, PageForReading, PageText } from "./types";
 
 const BUCKET = "documents";
 const DOCUMENT_COLUMNS =
   "id, company_id, title, kind, storage_path, sha256, bytes, page_count, status, llm_page_budget, basis, source_type, filed_on, source_url, original_deleted_at, created_at";
 const LIST_COLUMNS = "id, title, page_count, filed_on, source_url, source_type";
+/** PostgREST returns at most 1,000 rows a request (Supabase default max_rows): longer reads go in ranges. */
+const PAGE_RANGE = 1_000;
 
 type Row = {
   id: string; company_id: string | null; title: string; kind: string; storage_path: string | null; sha256: string;
@@ -33,6 +36,23 @@ export interface DocumentsRepo {
   objectInfo(path: string): Promise<{ size: number; mimetype: string } | null>;
   removeObject(path: string): Promise<void>;
   listForCompany(companyId: string): Promise<Pick<DocumentRow, "id" | "title" | "pageCount" | "filedOn" | "sourceUrl" | "sourceType">[]>;
+
+  // Job code (the secret-key client; migration 0006 grants). Errors carry the operation and code only.
+  /** The stored original's bytes. */
+  download(path: string): Promise<Uint8Array>;
+  /** Idempotent: a page already written is left as it is (insert ... on conflict do nothing). */
+  insertPages(documentId: string, pages: PageText[]): Promise<void>;
+  setPageCount(documentId: string, pageCount: number): Promise<void>;
+  /** Every page of the document, in page order. */
+  listPagesForSelection(documentId: string): Promise<PageForReading[]>;
+  /** Writes kind, basis and score per page. */
+  setVerdicts(documentId: string, verdicts: PageVerdict[]): Promise<void>;
+  /**
+   * Ticks the pages the rule chose, never a page Aksh has already ticked or unticked. Returns the pages now selected
+   * by the rule (the ones to read), so a repeated run gives the same answer.
+   */
+  setSelection(documentId: string, pageNos: number[], by: "rule"): Promise<number[]>;
+  getPage(documentId: string, pageNo: number): Promise<PageForReading | null>;
 }
 
 const toDocument = (r: Row): DocumentRow => ({
@@ -149,6 +169,83 @@ export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
         sourceUrl: r.source_url,
         sourceType: r.source_type as DocSourceType,
       }));
+    },
+    ...machinePages(db),
+  };
+}
+
+const toPage = (r: { page_no: number; text: string; is_scan: boolean | null }): PageForReading => ({
+  pageNo: r.page_no,
+  text: r.text,
+  isScan: r.is_scan ?? false,
+});
+
+/** The page-text half of the repo, used by job code on the secret-key client. */
+function machinePages(db: Db): Pick<
+  DocumentsRepo,
+  "download" | "insertPages" | "setPageCount" | "listPagesForSelection" | "setVerdicts" | "setSelection" | "getPage"
+> {
+  return {
+    async download(path) {
+      const { data, error } = await db.storage.from(BUCKET).download(path);
+      if (error) throw jobDbError("documents.download", { message: error.message });
+      return new Uint8Array(await data.arrayBuffer());
+    },
+    async insertPages(documentId, pages) {
+      if (pages.length === 0) return;
+      const rows = pages.map((p) => ({ document_id: documentId, page_no: p.pageNo, text: p.text }));
+      const { error } = await db.from("document_pages").upsert(rows, { onConflict: "document_id,page_no", ignoreDuplicates: true });
+      if (error) throw jobDbError("documents.insertPages", error);
+    },
+    async setPageCount(documentId, pageCount) {
+      const { error } = await db.from("documents").update({ page_count: pageCount }).eq("id", documentId);
+      if (error) throw jobDbError("documents.setPageCount", error);
+    },
+    async listPagesForSelection(documentId) {
+      const out: PageForReading[] = [];
+      for (let from = 0; ; from += PAGE_RANGE) {
+        const { data, error } = await db
+          .from("document_pages")
+          .select("page_no, text, is_scan")
+          .eq("document_id", documentId)
+          .order("page_no")
+          .range(from, from + PAGE_RANGE - 1);
+        if (error) throw jobDbError("documents.listPagesForSelection", error);
+        out.push(...data.map(toPage));
+        if (data.length < PAGE_RANGE) return out;
+      }
+    },
+    async setVerdicts(documentId, verdicts) {
+      for (const v of verdicts) {
+        const { error } = await db
+          .from("document_pages")
+          .update({ kind: v.kind, basis: v.basis, score: v.score })
+          .eq("document_id", documentId)
+          .eq("page_no", v.pageNo);
+        if (error) throw jobDbError("documents.setVerdicts", error);
+      }
+    },
+    async setSelection(documentId, pageNos, by) {
+      if (pageNos.length === 0) return [];
+      const { data, error } = await db
+        .from("document_pages")
+        .update({ selected: true, selected_by: by })
+        .eq("document_id", documentId)
+        .in("page_no", pageNos)
+        .or(`selected_by.is.null,selected_by.eq.${by}`)
+        .select("page_no");
+      if (error) throw jobDbError("documents.setSelection", error);
+      return data.map((r) => r.page_no).sort((a, b) => a - b);
+    },
+    async getPage(documentId, pageNo) {
+      const { data, error } = await db
+        .from("document_pages")
+        .select("page_no, text, is_scan")
+        .eq("document_id", documentId)
+        .eq("page_no", pageNo)
+        .maybeSingle();
+      if (error) throw jobDbError("documents.getPage", error);
+      return data ? toPage(data) : null;
     },
   };
 }

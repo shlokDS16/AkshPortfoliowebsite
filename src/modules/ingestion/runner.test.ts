@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { DbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
+import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { MIN_STEP_MS } from "./caps";
-import type { DrainDeps } from "./deps";
+import { machineDocuments, type DrainDeps } from "./deps";
 import type { QueueRepo } from "./queue-repo";
 import { drain } from "./runner";
 import type { NewStep, Step, StepHandler, StepKind, StepOutcome } from "./types";
@@ -19,7 +21,7 @@ function deps(time = fakeTime()): DrainDeps {
     db: {} as Db,
     llm: null,
     models: { text: "test-model" },
-    repos: { documents: { get: async () => null } },
+    repos: { documents: machineDocuments(createMemoryDocumentsRepo()) },
     now: time.now,
     clock: time.clock,
   };
@@ -169,6 +171,15 @@ describe("drain", () => {
     expect(steps[0].lastError).toHaveLength(500);
     expect(steps[1].status).toBe("done");
     expect(summary).toMatchObject({ ran: 2, done: 1 });
+  });
+
+  it("a handler's database failure is stored as its operation and code, never the raw Postgres message", async () => {
+    const leak: StepHandler = async () => {
+      throw new DbError("documents.insertPages", "23514", "Failing row contains (secret page text)");
+    };
+    const { repo, steps } = memoryRepo([step("pdf_text", 1)]);
+    await drain(deps(), repo, handlers({ pdf_text: leak }), 240_000);
+    expect(steps[0]).toMatchObject({ status: "queued", providerFailures: 1, lastError: "documents.insertPages (23514)" });
   });
 
   it("counts a lost lease and drops the result", async () => {

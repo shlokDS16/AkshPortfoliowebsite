@@ -1,8 +1,10 @@
 // Browser-safe types for documents (migration 0006). No runtime code here.
+import type { SourceType } from "@/lib/desk-types";
 
 export type DocumentStatus = "uploading" | "active" | "done" | "skipped";
 export type Basis = "consolidated" | "standalone";
-export type DocSourceType = "Annual report" | "Presentation" | "Filing" | "Transcript" | "Other";
+/** A document's source type: the casefile's, less "Notes" (documents.source_type check, migration 0006). */
+export type DocSourceType = Exclude<SourceType, "Notes">;
 
 export type DocumentRow = {
   id: string;
@@ -37,6 +39,11 @@ export type PageRow = {
   selected: boolean;
   selectedBy: "rule" | "aksh" | null;
 };
+
+/** One page's text as pdf_text writes it. */
+export type PageText = { pageNo: number; text: string };
+/** What select_pages and extract_page read of a page. */
+export type PageForReading = { pageNo: number; text: string; isScan: boolean };
 
 /** What the browser claims about a file before it uploads it. Every field is checked on the server. */
 export type StartUploadInput = {

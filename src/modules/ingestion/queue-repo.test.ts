@@ -107,6 +107,9 @@ describe("createQueueRepo", () => {
 
   it("throws a DbError on a database failure, never a raw message", async () => {
     const { db } = fakeDb([{ data: null, error: { message: "boom", code: "08006" } }]);
-    await expect(createQueueRepo(db).claim("o1")).rejects.toThrow(/ingestion.claim/);
+    const failure = await createQueueRepo(db).claim("o1").catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toBe("ingestion.claim (08006)");
+    expect((failure as Error).message).not.toContain("boom");
   });
 });

@@ -60,7 +60,7 @@ export default defineConfig({
     {
       name: "desk-mobile",
       ...desk,
-      testIgnore: spec("desk-capture"), // database-level checks, no viewport: run once, in desk-desktop
+      testIgnore: spec("desk-capture|desk-ingestion"), // database-level checks, no viewport: run once, in desk-desktop
       use: { storageState: ADMIN_STATE, viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true },
     },
     {

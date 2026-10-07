@@ -5,9 +5,12 @@ import type { DocumentsRepo } from "@/modules/documents";
 /**
  * What job code may do to documents (ADR-004 s4.2). Never `update`: documents.status 'done' and 'skipped' are
  * Aksh's alone, and the secret-key client could otherwise set them (migration 0006 grants it the column).
- * Task 6 widens this pick with the page-text methods (download, insertPages, setPageCount, ...).
+ * setPageCount writes only documents.page_count.
  */
-export type MachineDocumentsRepo = Pick<DocumentsRepo, "get">;
+export type MachineDocumentsRepo = Pick<
+  DocumentsRepo,
+  "get" | "download" | "insertPages" | "setPageCount" | "listPagesForSelection" | "setVerdicts" | "setSelection" | "getPage"
+>;
 
 /** Every repo a step handler uses, built once by src/modules/ops/drain.ts (ruling R7). Tests pass fakes. */
 export type MachineRepos = { documents: MachineDocumentsRepo };
@@ -24,5 +27,14 @@ export type DrainDeps = {
 
 /** Narrows a full documents repo to the machine's surface: the methods are copied, so `update` cannot leak. */
 export function machineDocuments(repo: DocumentsRepo): MachineDocumentsRepo {
-  return { get: (id) => repo.get(id) };
+  return {
+    get: (id) => repo.get(id),
+    download: (path) => repo.download(path),
+    insertPages: (documentId, pages) => repo.insertPages(documentId, pages),
+    setPageCount: (documentId, pageCount) => repo.setPageCount(documentId, pageCount),
+    listPagesForSelection: (documentId) => repo.listPagesForSelection(documentId),
+    setVerdicts: (documentId, verdicts) => repo.setVerdicts(documentId, verdicts),
+    setSelection: (documentId, pageNos, by) => repo.setSelection(documentId, pageNos, by),
+    getPage: (documentId, pageNo) => repo.getPage(documentId, pageNo),
+  };
 }

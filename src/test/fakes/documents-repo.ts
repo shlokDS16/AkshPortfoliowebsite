@@ -1,9 +1,13 @@
 import { DbError } from "@/lib/supabase/errors";
-import type { DocumentRow, DocumentsRepo } from "@/modules/documents";
+import type { DocumentRow, DocumentsRepo, PageRow } from "@/modules/documents";
 
 export type MemoryDocumentsRepo = DocumentsRepo & {
   docs: Map<string, DocumentRow>;
   objects: Map<string, { size: number; mimetype: string }>;
+  /** Stored originals by path, for download. */
+  files: Map<string, Uint8Array>;
+  /** document_pages, keyed `${documentId}:${pageNo}`. */
+  pages: Map<string, PageRow>;
   storageBytes: number;
   removed: string[];
   /** The next insert of this hash loses a race: another request inserts the same file first. */
@@ -13,6 +17,11 @@ export type MemoryDocumentsRepo = DocumentsRepo & {
 export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
   const docs = new Map<string, DocumentRow>();
   const objects = new Map<string, { size: number; mimetype: string }>();
+  const files = new Map<string, Uint8Array>();
+  const pages = new Map<string, PageRow>();
+  const key = (documentId: string, pageNo: number) => `${documentId}:${pageNo}`;
+  const forDoc = (documentId: string) =>
+    [...pages.values()].filter((p) => p.documentId === documentId).sort((a, b) => a.pageNo - b.pageNo);
   let race: { sha256: string; earlierId: string } | null = null;
   let clock = 0;
   const stamp = () => new Date(Date.UTC(2026, 9, 3, 9, 0, clock++)).toISOString();
@@ -20,6 +29,8 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
   const repo: MemoryDocumentsRepo = {
     docs,
     objects,
+    files,
+    pages,
     storageBytes: 0,
     removed: [],
     simulateRace(sha256, earlierId) {
@@ -65,6 +76,47 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
       return [...docs.values()]
         .filter((d) => d.companyId === companyId)
         .map(({ id, title, pageCount, filedOn, sourceUrl, sourceType }) => ({ id, title, pageCount, filedOn, sourceUrl, sourceType }));
+    },
+    async download(path) {
+      const bytes = files.get(path);
+      if (!bytes) throw new DbError("documents.download", undefined, null);
+      return bytes.slice();
+    },
+    async insertPages(documentId, rows) {
+      for (const { pageNo, text } of rows) {
+        if (pages.has(key(documentId, pageNo))) continue; // on conflict do nothing
+        pages.set(key(documentId, pageNo), {
+          documentId, pageNo, text, charCount: text.length, isScan: text.trim().length < 50, kind: null, basis: null, score: 0,
+          selected: false, selectedBy: null,
+        });
+      }
+    },
+    async setPageCount(documentId, pageCount) {
+      const d = docs.get(documentId);
+      if (d) docs.set(documentId, { ...d, pageCount });
+    },
+    async listPagesForSelection(documentId) {
+      return forDoc(documentId).map(({ pageNo, text, isScan }) => ({ pageNo, text, isScan }));
+    },
+    async setVerdicts(documentId, verdicts) {
+      for (const v of verdicts) {
+        const p = pages.get(key(documentId, v.pageNo));
+        if (p) pages.set(key(documentId, v.pageNo), { ...p, kind: v.kind, basis: v.basis, score: v.score });
+      }
+    },
+    async setSelection(documentId, pageNos, by) {
+      const chosen: number[] = [];
+      for (const pageNo of pageNos) {
+        const p = pages.get(key(documentId, pageNo));
+        if (!p || (p.selectedBy !== null && p.selectedBy !== by)) continue; // Aksh's decision stands
+        pages.set(key(documentId, pageNo), { ...p, selected: true, selectedBy: by });
+        chosen.push(pageNo);
+      }
+      return chosen.sort((a, b) => a - b);
+    },
+    async getPage(documentId, pageNo) {
+      const p = pages.get(key(documentId, pageNo));
+      return p ? { pageNo: p.pageNo, text: p.text, isScan: p.isScan } : null;
     },
   };
   return repo;

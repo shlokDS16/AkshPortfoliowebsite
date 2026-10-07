@@ -13,6 +13,13 @@ export function istTime(at: Date | string): string {
   return istTimeFormat.format(new Date(at));
 }
 
+const istWeekdayFormat = new Intl.DateTimeFormat("en-GB", { timeZone: IST, weekday: "short" });
+
+/** "Thu": the day of the week in India. */
+export function istWeekday(at: Date | string): string {
+  return istWeekdayFormat.format(new Date(at));
+}
+
 /** "2026-10-05 00:30 IST": a timestamp as Aksh reads it, to the minute. */
 export function istDateTime(at: Date | string): string {
   return `${istDate(at)} ${istTime(at)} IST`;

@@ -1,8 +1,11 @@
+import { safeErrorText } from "@/lib/supabase/errors";
+
 export type Step = { job: string; run: () => Promise<string | void> };
 export type StepResult = { job: string; ok: boolean; detail: string; ms: number };
 export type RecordHeartbeat = (beat: { job: string; ok: boolean; detail: string }) => Promise<void>;
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+// A heartbeat's detail is readable on the desk: a database failure is recorded as its operation and code only.
+const errorText = safeErrorText;
 
 /** Independent, individually try/caught steps, each writing its own heartbeat (ADR-001 s8.2). */
 export async function runSteps(steps: readonly Step[], record: RecordHeartbeat, now: () => number = Date.now): Promise<StepResult[]> {

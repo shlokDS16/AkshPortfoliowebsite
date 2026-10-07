@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, istDate, istDateTime, istDayStartUtc, isPastLag, istTime, PUBLICATION_LAG_DAYS } from "./dates";
+import { addDays, istDate, istDateTime, istDayStartUtc, isPastLag, istTime, istWeekday, PUBLICATION_LAG_DAYS } from "./dates";
 
 describe("dates", () => {
   it("gives the calendar date in India", () => {
@@ -16,6 +16,11 @@ describe("dates", () => {
 
   it("gives the time in India to the minute", () => {
     expect(istTime("2026-10-04T08:35:00Z")).toBe("14:05");
+  });
+
+  it("gives the short weekday in India, which can be a day ahead of UTC", () => {
+    expect(istWeekday("2026-10-08T04:30:00Z")).toBe("Thu");
+    expect(istWeekday("2026-10-07T19:00:00Z")).toBe("Thu"); // 00:30 IST on Thursday, still Wednesday in UTC
   });
 
   it("adds and subtracts days across month ends", () => {

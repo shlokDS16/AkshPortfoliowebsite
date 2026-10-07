@@ -1,4 +1,4 @@
-import { dbError, isUniqueViolation } from "@/lib/supabase/errors";
+import { isUniqueViolation, jobDbError } from "@/lib/supabase/errors";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
 import { LEASE_SECONDS } from "./caps";
@@ -68,17 +68,17 @@ export function createQueueRepo(db: Db): QueueRepo {
     if (steps.length === 0) return;
     const rows = steps.map((s) => ({ job_id: jobId, kind: s.kind, page_no: s.pageNo, args: (s.args ?? {}) as NonNullable<Json> }));
     const { error } = await db.from("job_steps").upsert(rows, { onConflict: "job_id,kind,page_no", ignoreDuplicates: true });
-    if (error) throw dbError("ingestion.enqueue", error);
+    if (error) throw jobDbError("ingestion.enqueue", error);
   }
 
   return {
     async claim(owner) {
       const { data, error } = await db.rpc("claim_job_step", { p_owner: owner, p_lease_seconds: LEASE_SECONDS });
-      if (error) throw dbError("ingestion.claim", error);
+      if (error) throw jobDbError("ingestion.claim", error);
       const row = data?.[0];
       if (!row) return null;
       const job = await db.from("jobs").select("document_id").eq("id", row.job_id).single();
-      if (job.error) throw dbError("ingestion.claimJob", job.error);
+      if (job.error) throw jobDbError("ingestion.claimJob", job.error);
       return { ...toStep(row), documentId: job.data.document_id };
     },
 
@@ -90,7 +90,7 @@ export function createQueueRepo(db: Db): QueueRepo {
         .eq("lease_owner", owner)
         .eq("status", "running")
         .select("id");
-      if (error) throw dbError("ingestion.finish", error);
+      if (error) throw jobDbError("ingestion.finish", error);
       return (data ?? []).length > 0;
     },
 
@@ -102,10 +102,10 @@ export function createQueueRepo(db: Db): QueueRepo {
       if (!inserted.error) jobId = inserted.data.id;
       else {
         // jobs_one_live_per_document: a second finish (double click, retry) reuses the live job.
-        const failure = dbError("ingestion.createJob", inserted.error);
+        const failure = jobDbError("ingestion.createJob", inserted.error);
         if (!isUniqueViolation(failure)) throw failure;
         const live = await db.from("jobs").select("id").eq("document_id", documentId).is("cancelled_at", null).single();
-        if (live.error) throw dbError("ingestion.liveJob", live.error);
+        if (live.error) throw jobDbError("ingestion.liveJob", live.error);
         jobId = live.data.id;
       }
       await enqueue(jobId, [first]);

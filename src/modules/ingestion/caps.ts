@@ -18,3 +18,17 @@ export const LLM_TIMEOUT_MAX_MS = 90_000;
 export const DEADLINE_MARGIN_MS = 10_000;
 /** Under this much time to the deadline an LLM step defers instead of starting a call. */
 export const LLM_MIN_LEFT_MS = 20_000;
+
+/** pdf_text reads pages for at most this long per step, then enqueues itself from the next page (spec s6.3). */
+export const PDF_TEXT_MS = 180_000;
+/** pdf_text writes page text in batches of this many pages, so a step that dies keeps what it read. */
+export const PDF_TEXT_BATCH = 25;
+/** document_pages.page_no and documents.page_count allow 1-5,000 (migration 0006). */
+export const MAX_PDF_PAGES = 5_000;
+
+/** Groq free tier per bucket (model id), at 75% of 30 RPM, 1K RPD, 8K TPM, 200K TPD (spec s9, verified 2026-10-07). */
+export const GROQ_CAPS = { tpm: 6_000, tpd: 150_000, rpm: 22, rpd: 750 } as const;
+/** Tokens one statement page costs (spec s9 estimate until Task 16 measures the median). */
+export const TOKENS_PER_PAGE_DEFAULT = 3_400;
+/** The GitHub pump runs every 15 minutes (spec s8); each run drains for DRAIN_MS.pump. */
+export const PUMP_EVERY_MIN = 15;

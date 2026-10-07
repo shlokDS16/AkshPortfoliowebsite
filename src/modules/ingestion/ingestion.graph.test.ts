@@ -11,6 +11,9 @@ const FORBIDDEN = [
   /from\s+"@\/modules\/casefile\/actions"/, /from\s+"@\/modules\/research\/actions"/, /\.from\("item_revisions"\)/, /\.from\("items"\)/,
 ];
 
+// R7: handlers take repos from ctx.deps.repos; reading the client (deps.db, deps["db"], { db } = deps) is refused.
+const READS_DB = [/\bdeps\s*\.\s*db\b/, /\bdeps\s*\[\s*["'`]db["'`]\s*\]/, /\{[^}]*\bdb\b[^}]*\}\s*=\s*(?:ctx\s*\.\s*)?deps\b/];
+
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
@@ -51,6 +54,28 @@ describe("machine write boundary (ADR-004 s4.2)", () => {
     expect(steps.length).toBeGreaterThan(0);
     const offenders = steps.filter((f) => /@\/lib\/supabase\/(server|browser|service)/.test(source(f)));
     expect(offenders).toEqual([]);
+  });
+
+  it("step handlers never read deps.db: every repo comes through ctx.deps.repos (ruling R7)", () => {
+    const steps = sources.filter((f) => f.includes(`${sep}ingestion${sep}steps${sep}`));
+    expect(steps.length).toBeGreaterThan(1);
+    const offenders = steps.filter((f) => READS_DB.some((p) => p.test(source(f)))).map((f) => relative(SRC, f).split(sep).join("/"));
+    expect(offenders).toEqual([]);
+  });
+
+  it.each([
+    "createUsageRepo(ctx.deps.db)",
+    "const db = deps.db;",
+    "deps\n  .db.from(\"x\")",
+    "const { db } = ctx.deps;",
+    "const { llm, db: client } = deps;",
+    "ctx.deps[\"db\"]",
+  ])("the deps.db check catches %j", (line) => {
+    expect(READS_DB.some((p) => p.test(line))).toBe(true);
+  });
+
+  it("the deps.db check lets the repos through", () => {
+    expect(READS_DB.some((p) => p.test("const { documents } = ctx.deps.repos; ctx.deps.dbx; const { repos } = deps;"))).toBe(false);
   });
 
   it("job code never sets documents.status: the machine documents repo has no update (done and skipped are Aksh's)", () => {

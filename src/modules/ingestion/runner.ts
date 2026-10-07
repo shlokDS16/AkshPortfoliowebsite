@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { safeErrorText } from "@/lib/supabase/errors";
 import { LEASE_EXPIRY_LIMIT, MIN_STEP_MS, PROVIDER_FAILURE_LIMIT, SCHEMA_FAILURE_LIMIT } from "./caps";
 import type { DrainDeps } from "./deps";
 import type { QueueRepo } from "./queue-repo";
@@ -8,7 +9,8 @@ export type DrainSummary = { ran: number; done: number; deferred: number; attent
 
 export const STOPPED_TWICE = "This step stopped twice before finishing.";
 const ERROR_MAX = 500;
-const text = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, ERROR_MAX);
+// last_error is readable on the desk: a database failure is stored as its operation and code, never the raw message.
+const text = (e: unknown) => safeErrorText(e).slice(0, ERROR_MAX);
 
 /**
  * Claims and runs steps until the budget is spent or nothing is runnable (ADR-004 s4.4). Never throws for a

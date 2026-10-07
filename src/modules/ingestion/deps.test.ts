@@ -5,12 +5,14 @@ import { llmTimeoutMs } from "./deadline";
 import { machineDocuments } from "./deps";
 
 describe("machineDocuments (documents.status done/skipped are Aksh's)", () => {
-  it("exposes only reads, so job code cannot set a document's status", async () => {
+  it("exposes reads and page-text writes only, so job code cannot set a document's status", async () => {
     const update = vi.fn();
     const get = vi.fn(async () => null);
     const full = { get, update } as unknown as DocumentsRepo;
     const machine = machineDocuments(full);
-    expect(Object.keys(machine)).toEqual(["get"]);
+    expect(Object.keys(machine)).toEqual([
+      "get", "download", "insertPages", "setPageCount", "listPagesForSelection", "setVerdicts", "setSelection", "getPage",
+    ]);
     expect("update" in machine).toBe(false);
     await machine.get("doc-1");
     expect(get).toHaveBeenCalledWith("doc-1");
