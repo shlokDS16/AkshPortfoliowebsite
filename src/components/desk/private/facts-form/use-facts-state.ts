@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { latestFigureDate, parseFactsSheet, type SheetError } from "@/modules/casefile/client";
-import { draftIds, draftToSheet, toDraft, type Draft } from "./draft";
+import { ADD_SOURCE_EVENT, type AddSourceDetail } from "../add-source-event";
+import { checkableFromCaseFile, checkableFromDraft } from "./checkable";
+import { blankSource, draftIds, draftToSheet, nextId, toDraft, type Draft } from "./draft";
 import { brokenCitations, fieldErrors, rowErrors } from "./validate";
 
 export type FactsMode = "form" | "text";
@@ -57,8 +59,44 @@ export function useFactsState(sheet: string, bodyMd: string) {
     setMode(next);
   }
 
+  // The document pane's "Use as source": the form's own source row, reused when the same document and date are already listed.
+  const [reveal, setReveal] = useState<{ id: string } | null>(null); // a new object per press, so the same row scrolls into view again
+  function addSource(detail: AddSourceDetail) {
+    const base = mode === "form" && draft ? draft : parsed.errors.length === 0 ? toDraft(parsed.caseFile) : null;
+    if (!base) return setRefusal({ to: "form", errors: parsed.errors });
+    const same = (s: { doc: string; filedOn: string }) => s.doc.trim().toLowerCase() === detail.doc.trim().toLowerCase() && s.filedOn === detail.filedOn;
+    const existing = base.sources.find(same);
+    const id = existing?.id ?? nextId("S", [...base.sources.map((x) => x.id), ...loaded]);
+    const next = existing ? base : { ...base, sources: [...base.sources, { ...blankSource(id), ...detail }] };
+    // From the text sheet, an unchanged sheet still gives back Aksh's own text; the new source makes it differ.
+    if (mode === "text") setOrigin(draftToSheet(base));
+    setDraft(next);
+    setLoaded((ids) => [...new Set([...ids, ...draftIds(next)])]);
+    setRefusal(null);
+    setMode("form");
+    setReveal({ id });
+  }
+  const onAddSource = useRef(addSource);
+  useEffect(() => {
+    onAddSource.current = addSource;
+  });
+  useEffect(() => {
+    const listener = (event: Event) => onAddSource.current((event as CustomEvent<AddSourceDetail>).detail);
+    window.addEventListener(ADD_SOURCE_EVENT, listener);
+    return () => window.removeEventListener(ADD_SOURCE_EVENT, listener);
+  }, []);
+  useEffect(() => {
+    if (reveal) document.getElementById(`ff-${reveal.id}-doc`)?.scrollIntoView?.({ block: "center" });
+  }, [reveal]);
+
+  const checkable = useMemo(
+    () => (mode === "form" && draft ? checkableFromDraft(draft) : parsed.errors.length === 0 ? checkableFromCaseFile(parsed.caseFile) : []),
+    [mode, draft, parsed],
+  );
+
   return {
     mode,
+    checkable,
     switchTo,
     refusal,
     text,

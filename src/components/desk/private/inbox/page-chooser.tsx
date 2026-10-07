@@ -2,27 +2,12 @@
 
 import { useOptimistic, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { MAX_PAGE_BUDGET, type PageKind } from "@/modules/documents/client";
+import { MAX_PAGE_BUDGET } from "@/modules/documents/client";
 import { setBudgetAction } from "@/modules/ingestion/actions";
 import { estimateReadyBy, formatReadyBy, GROQ_CAPS, TOKENS_PER_PAGE_DEFAULT, type InboxDoc } from "@/modules/ingestion/client";
+import { pageLabel } from "./page-label";
 import type { InboxActions } from "./types";
 import { useInboxAction } from "./use-inbox-action";
-
-const KIND: Record<PageKind, string> = {
-  pl: "P&L",
-  bs: "Balance sheet",
-  cf: "Cash flow",
-  notes: "Notes",
-  segment: "Segments",
-  mdna: "Management discussion",
-  other: "Other",
-};
-
-/** "P&L · consolidated": what the page is, and on which basis the document prints it. */
-export function pageLabel(page: Pick<InboxDoc["pages"][number], "kind" | "basis">): string {
-  const kind = page.kind ? KIND[page.kind] : "Not a statement page";
-  return page.basis ? `${kind} · ${page.basis}` : kind;
-}
 
 function raisePrompt(pagesLeft: number, aiOn: boolean): string {
   const ask = `Raise this document to ${MAX_PAGE_BUDGET} pages?`;

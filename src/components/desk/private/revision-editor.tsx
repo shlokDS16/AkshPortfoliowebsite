@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EDIT_EVENT } from "./edit-event";
+import { usePublishFacts } from "./doc-pane/workspace";
 import { FactsEditor } from "./facts-form/facts-editor";
 import { CitationWarning } from "./facts-form/citation-warning";
 import { useFactsState } from "./facts-form/use-facts-state";
@@ -20,6 +21,7 @@ export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figure
   const form = useRef<HTMLFormElement>(null);
   const [bodyText, setBodyText] = useState(bodyMd);
   const facts = useFactsState(sheet ?? "", bodyText);
+  usePublishFacts(facts.checkable); // the document pane checks these quoted lines
   // Rule 4: a save that newly breaks a body citation needs a second press, once per set of newly broken ids.
   // Citations already broken when the editor opened are shown as a warning only.
   const [brokenAtLoad] = useState(() => facts.broken);
