@@ -36,6 +36,19 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
     },
+    ...(["375", "1280"] as const).flatMap((w) =>
+      (["light", "dark"] as const).map((scheme) => ({
+        name: `public-${w}${scheme === "dark" ? "-dark" : ""}`,
+        testMatch: spec("public-[a-z0-9-]+"),
+        dependencies: ["seed"],
+        use: {
+          viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 },
+          isMobile: w === "375",
+          hasTouch: w === "375",
+          colorScheme: scheme,
+        },
+      })),
+    ),
     {
       name: "desk-mobile",
       ...desk,

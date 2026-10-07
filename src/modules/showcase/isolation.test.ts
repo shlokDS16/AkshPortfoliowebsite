@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -56,5 +56,35 @@ describe("rule 10: public code paths use only the cookie-less public client", ()
     const queries = files.get(join(ROOT, "modules/showcase/queries.ts"))!;
     expect(queries).toContain("createSupabasePublicClient(");
     expect(queries).not.toMatch(/createSupabase(Server|Service|Admin)Client/);
+  });
+});
+
+function walkFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) walkFiles(full, out);
+    else if (/\.tsx?$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they import", () => {
+  const entries = [
+    ...walkFiles(join(ROOT, "app/(public)")),
+    join(ROOT, "app/not-found.tsx"),
+    join(ROOT, "app/opengraph-image.tsx"),
+  ];
+  const reach = new Map<string, string>();
+  for (const entry of entries) for (const [file, text] of closure(entry)) reach.set(file, text);
+  const names = [...reach.keys()].map((f) => f.slice(ROOT.length + 1).replaceAll("\\", "/"));
+
+  it("finds the public pages and the components under them", () => {
+    expect(names).toEqual(expect.arrayContaining(["app/(public)/page.tsx", "app/(public)/about/page.tsx", "components/desk/public-frame.tsx", "modules/showcase/queries.ts"]));
+  });
+
+  it("no public route imports the service client or the server secrets", () => {
+    expect(names).not.toContain("lib/supabase/service.ts");
+    expect(names).not.toContain("lib/env.server.ts");
+    for (const [file, text] of reach) expect(text, file).not.toMatch(/supabase\/service|env\.server["']|SERVICE_ROLE|sb_secret/);
   });
 });

@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { MotionRoot } from "@/components/ui/motion-root";
+import { publicEnv } from "@/lib/env";
 import { PAPER } from "@/lib/theme-colors";
 import { plexMono, plexSans } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(publicEnv().NEXT_PUBLIC_SITE_URL),
   title: { default: "Case files · Aksh Agrawal", template: "%s · Aksh Agrawal" },
   description:
     "Each file says what Aksh expected, what would prove him wrong, and every revision since. For learning, not advice.",

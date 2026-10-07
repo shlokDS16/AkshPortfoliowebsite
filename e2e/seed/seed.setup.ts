@@ -36,9 +36,24 @@ async function publish(page: Page, company: string | null) {
   await expect(page.locator("#gate").getByTestId("gate-decision")).toHaveAttribute("data-verdict", "pass");
 }
 
+// publish_revision() writes the slug ("<title words>-<6 id chars>"), so the fixture slug is only a placeholder: files
+// that list a note under Read first (`R | slug` in the sheet) are written with the slug the note actually got.
+const noteSlugs = new Map<string, string>();
+
+async function recordSlug(page: Page, note: SeedNote) {
+  const slug = page.getByTestId("slug");
+  await expect(slug).not.toContainText("automatically");
+  noteSlugs.set(note.slug, (await slug.innerText()).trim());
+}
+
 async function seedNote(page: Page, note: SeedNote) {
   await page.goto("/desk/items");
-  if (await page.getByRole("link", { name: note.title }).count()) return;
+  const existing = page.getByRole("link", { name: note.title });
+  if (await existing.count()) {
+    await existing.first().click();
+    await recordSlug(page, note);
+    return;
+  }
   await page.getByLabel("Kind").selectOption(note.kind);
   await page.getByLabel("Title").fill(note.title);
   await page.getByRole("button", { name: "Create item" }).click();
@@ -49,6 +64,7 @@ async function seedNote(page: Page, note: SeedNote) {
   await expect(status(page, "Details saved.")).toBeVisible();
   await saveRevision(page, note.bodyMd, null, note.reason);
   await publish(page, null);
+  await recordSlug(page, note);
 }
 
 async function seedFile(page: Page, file: SeedFile) {
@@ -82,7 +98,8 @@ async function seedFile(page: Page, file: SeedFile) {
   await page.getByRole("button", { name: "Save details" }).click();
   await expect(status(page, "Details saved.")).toBeVisible();
   for (const revision of file.revisions) {
-    await saveRevision(page, revision.bodyMd, revision.sheet, revision.reason);
+    const sheet = [...noteSlugs].reduce((s, [placeholder, slug]) => s.replaceAll(`R | ${placeholder}`, `R | ${slug}`), revision.sheet);
+    await saveRevision(page, revision.bodyMd, sheet, revision.reason);
     await publish(page, file.name);
   }
 }
