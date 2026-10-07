@@ -34,17 +34,18 @@ select ok(has_function_privilege('anon', 'public.heartbeat_ages()', 'execute')
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
-     and p.proname not in ('heartbeat_ages', 'capture_days')
-$$, 'anon can execute no function in public except heartbeat_ages and capture_days');
+     and p.proname not in ('heartbeat_ages', 'capture_days', 'queue_age')
+$$, 'anon can execute no function in public except heartbeat_ages, capture_days and queue_age');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
-$$, 'authenticated can execute no function in public');
+     and p.proname not in ('queue_age', 'storage_usage')
+$$, 'authenticated can execute no function in public except queue_age and storage_usage (numbers only)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('service_role', p.oid, 'execute')
-     and p.proname not in ('publish_revision', 'unpublish_item', 'add_lint_allowance', 'remove_lint_allowance')
-$$, 'service_role can execute no function in public except the four gate functions');
+     and p.proname not in ('publish_revision', 'unpublish_item', 'add_lint_allowance', 'remove_lint_allowance', 'claim_job_step')
+$$, 'service_role can execute no function in public except the four gate functions and claim_job_step');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'

@@ -191,6 +191,137 @@ export type Database = {
           },
         ]
       }
+      document_pages: {
+        Row: {
+          basis: string | null
+          char_count: number | null
+          created_at: string
+          document_id: string
+          first_line: string | null
+          is_scan: boolean | null
+          kind: string | null
+          page_no: number
+          score: number
+          search: unknown
+          selected: boolean
+          selected_by: string | null
+          text: string
+        }
+        Insert: {
+          basis?: string | null
+          char_count?: never
+          created_at?: string
+          document_id: string
+          first_line?: never
+          is_scan?: never
+          kind?: string | null
+          page_no: number
+          score?: number
+          search?: never
+          selected?: boolean
+          selected_by?: string | null
+          text: string
+        }
+        Update: {
+          basis?: string | null
+          char_count?: never
+          created_at?: string
+          document_id?: string
+          first_line?: never
+          is_scan?: never
+          kind?: string | null
+          page_no?: number
+          score?: number
+          search?: never
+          selected?: boolean
+          selected_by?: string | null
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_pages_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          basis: string
+          bytes: number
+          company_id: string | null
+          created_at: string
+          filed_on: string | null
+          id: string
+          kind: string
+          llm_page_budget: number
+          original_deleted_at: string | null
+          page_count: number | null
+          sha256: string
+          source_type: string
+          source_url: string | null
+          status: string
+          storage_path: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          basis?: string
+          bytes: number
+          company_id?: string | null
+          created_at?: string
+          filed_on?: string | null
+          id?: string
+          kind?: string
+          llm_page_budget?: number
+          original_deleted_at?: string | null
+          page_count?: number | null
+          sha256: string
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          basis?: string
+          bytes?: number
+          company_id?: string | null
+          created_at?: string
+          filed_on?: string | null
+          id?: string
+          kind?: string
+          llm_page_budget?: number
+          original_deleted_at?: string | null
+          page_count?: number | null
+          sha256?: string
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gate_decisions: {
         Row: {
           created_at: string
@@ -466,6 +597,109 @@ export type Database = {
           },
         ]
       }
+      job_steps: {
+        Row: {
+          args: NonNullable<Json>
+          created_at: string
+          id: string
+          job_id: string
+          kind: string
+          last_error: string | null
+          lease_expiries: number
+          lease_owner: string | null
+          locked_until: string | null
+          not_before: string
+          page_no: number | null
+          provider_failures: number
+          result: Json | null
+          schema_failures: number
+          status: string
+          updated_at: string
+          wait_reason: string | null
+        }
+        Insert: {
+          args?: NonNullable<Json>
+          created_at?: string
+          id?: string
+          job_id: string
+          kind: string
+          last_error?: string | null
+          lease_expiries?: number
+          lease_owner?: string | null
+          locked_until?: string | null
+          not_before?: string
+          page_no?: number | null
+          provider_failures?: number
+          result?: Json | null
+          schema_failures?: number
+          status?: string
+          updated_at?: string
+          wait_reason?: string | null
+        }
+        Update: {
+          args?: NonNullable<Json>
+          created_at?: string
+          id?: string
+          job_id?: string
+          kind?: string
+          last_error?: string | null
+          lease_expiries?: number
+          lease_owner?: string | null
+          locked_until?: string | null
+          not_before?: string
+          page_no?: number | null
+          provider_failures?: number
+          result?: Json | null
+          schema_failures?: number
+          status?: string
+          updated_at?: string
+          wait_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_steps_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          cancelled_at: string | null
+          created_at: string
+          document_id: string
+          id: string
+          kind: string
+          updated_at: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          kind: string
+          updated_at?: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          kind?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lint_allowances: {
         Row: {
           created_at: string
@@ -704,6 +938,34 @@ export type Database = {
           day: string
         }[]
       }
+      claim_job_step: {
+        Args: { p_lease_seconds?: number; p_owner: string }
+        Returns: {
+          args: NonNullable<Json>
+          created_at: string
+          id: string
+          job_id: string
+          kind: string
+          last_error: string | null
+          lease_expiries: number
+          lease_owner: string | null
+          locked_until: string | null
+          not_before: string
+          page_no: number | null
+          provider_failures: number
+          result: Json | null
+          schema_failures: number
+          status: string
+          updated_at: string
+          wait_reason: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "job_steps"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       heartbeat_ages: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -737,9 +999,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      queue_age: { Args: Record<PropertyKey, never>; Returns: number }
       remove_lint_allowance: {
         Args: { p_actor: string; p_item_id: string; p_sentence_hash: string }
         Returns: boolean
+      }
+      storage_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          database_bytes: number
+          storage_bytes: number
+        }[]
       }
       unpublish_item: {
         Args: { p_actor: string; p_item_id: string }

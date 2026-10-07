@@ -32,9 +32,10 @@ select ok(has_table_privilege('service_role', 'public.heartbeats', 'select')
   'service_role can read and write heartbeats');
 select is_empty($$
   select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relkind = 'r' and c.relname <> 'heartbeats'
+   where n.nspname = 'public' and c.relkind = 'r'
+     and c.relname not in ('heartbeats', 'documents', 'document_pages', 'jobs', 'job_steps')
      and has_table_privilege('service_role', c.oid, 'select,insert,update,delete')
-$$, 'service_role has no privilege on any other public table');
+$$, 'service_role has no privilege on any other public table (job tables: 0006_documents_jobs)');
 
 -- Column-level public tier (anon): only what the public views need.
 select ok(has_column_privilege('anon', 'public.companies', 'one_liner', 'select')
