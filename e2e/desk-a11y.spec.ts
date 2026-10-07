@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
-for (const path of ["/desk", "/desk/items", "/desk/names"]) {
+for (const path of ["/desk", "/desk/inbox", "/desk/items", "/desk/names"]) {
   test(`${path}: no WCAG 2.2 A/AA violations`, async ({ page }) => {
     await page.goto(path);
     const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();

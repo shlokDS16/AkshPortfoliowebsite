@@ -73,8 +73,11 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
       objects.delete(path);
     },
     async listForCompany(companyId) {
+      // Like repo.ts: no unfinished upload, newest filing first (undated last), then newest upload.
+      const newest = (a: string | null, b: string | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? 1 : -1);
       return [...docs.values()]
-        .filter((d) => d.companyId === companyId)
+        .filter((d) => d.companyId === companyId && d.status !== "uploading")
+        .sort((a, b) => newest(a.filedOn, b.filedOn) || newest(a.createdAt, b.createdAt))
         .map(({ id, title, pageCount, filedOn, sourceUrl, sourceType }) => ({ id, title, pageCount, filedOn, sourceUrl, sourceType }));
     },
     async download(path) {

@@ -10,3 +10,7 @@ export { estimateReadyBy, formatReadyBy, type Eta, type EtaInput } from "./eta";
 export { createQueueRepo, type FinishPatch, type QueueRepo } from "./queue-repo";
 export { drain, STOPPED_TWICE, type DrainSummary } from "./runner";
 export { HANDLERS } from "./steps";
+export { countInbox, listCompanyOptions, listInbox, type InboxDoc } from "./inbox";
+export { readSelected, setPageSelected, type InboxPorts } from "./inbox-ops";
+export { runInbox } from "./inbox-run";
+export { trayFor, type DocState, type Tray, type TrayView } from "./trays";

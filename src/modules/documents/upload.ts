@@ -25,6 +25,8 @@ export const startUploadInputSchema = z.strictObject({
   sourceUrl: z.url({ protocol: /^https?$/ }).regex(/^https?:\/\//).max(2000).nullable(),
 });
 
+type StartUploadClaim = z.infer<typeof startUploadInputSchema>;
+
 /** Title = file name without `.pdf`, trimmed to 160 characters (documents.title check). */
 export function titleFromFileName(fileName: string): string {
   const title = fileName.trim().replace(PDF_NAME, "").trim().slice(0, TITLE_MAX).trim();
@@ -48,12 +50,11 @@ export async function startUpload(
   if (earlier) {
     // An upload that never finished (tab closed, network drop) would otherwise lock this file out for ever:
     // sign a fresh upload for the same row, after clearing any partial object at its path.
-    if (earlier.status === "uploading") return resume(repo, earlier.id);
+    if (earlier.status === "uploading") return resume(repo, earlier.id, claim);
     throw new DocumentError("upload-duplicate", { id: earlier.id, createdAt: earlier.createdAt });
   }
 
-  const { storageBytes } = await repo.usage();
-  if (storageBytes + claim.bytes > STORAGE_REFUSE * STORAGE_BYTES) throw new DocumentError("upload-storage-full");
+  await assertRoomFor(repo, claim.bytes);
 
   const documentId = newId();
   const path = `${documentId}.pdf`;
@@ -78,10 +79,19 @@ export async function startUpload(
   return { documentId, path: signed.path, token: signed.token };
 }
 
-async function resume(repo: DocumentsRepo, documentId: string) {
+/** Uploads are refused when they would take storage above 90% (spec s9). */
+async function assertRoomFor(repo: DocumentsRepo, bytes: number): Promise<void> {
+  const { storageBytes } = await repo.usage();
+  if (storageBytes + bytes > STORAGE_REFUSE * STORAGE_BYTES) throw new DocumentError("upload-storage-full");
+}
+
+/** The same file again: the partial object goes, the room is checked, and this attempt's company, date and link replace the old ones. */
+async function resume(repo: DocumentsRepo, documentId: string, claim: StartUploadClaim) {
   const doc = await repo.get(documentId);
   if (!doc?.storagePath) throw new InvalidInputError();
   if (await repo.objectInfo(doc.storagePath)) await repo.removeObject(doc.storagePath);
+  await assertRoomFor(repo, claim.bytes);
+  await repo.update(documentId, { companyId: claim.companyId, filedOn: claim.filedOn, sourceUrl: claim.sourceUrl });
   const signed = await repo.signUpload(doc.storagePath);
   return { documentId, path: signed.path, token: signed.token };
 }
@@ -98,7 +108,12 @@ export async function finishUpload(repo: DocumentsRepo, documentId: string): Pro
   if (!doc.storagePath) throw new DocumentError("upload-missing");
 
   const object = await repo.objectInfo(doc.storagePath);
-  if (!object || object.size !== doc.bytes || object.mimetype !== PDF_MIME) throw new DocumentError("upload-missing");
+  if (!object) throw new DocumentError("upload-missing");
+  if (object.size !== doc.bytes || object.mimetype !== PDF_MIME) {
+    // Clear what arrived, so the same file can be chosen again and starts from nothing.
+    await repo.removeObject(doc.storagePath);
+    throw new DocumentError("upload-missing");
+  }
 
   await repo.update(documentId, { status: "active" });
   return { ...doc, status: "active" };

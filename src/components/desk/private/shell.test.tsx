@@ -17,35 +17,35 @@ afterEach(() => {
 });
 
 describe("DeskShell", () => {
-  it("marks the surface private, shows Capture · Items · Names with the names count, and the current tab", () => {
+  it("marks the surface private, shows Capture · Inbox · Items · Names with the inbox and names counts, and the current tab", () => {
     renderWithMotion(
-      <DeskShell names={3} liveness={{ status: "ok" }} signOut={async () => {}}>
+      <DeskShell names={3} inbox={2} liveness={{ status: "ok" }} signOut={async () => {}}>
         <p>body</p>
       </DeskShell>,
     );
     expect(screen.getByText("private")).toHaveClass("font-mono");
     const tabs = screen.getAllByRole("navigation", { name: "Desk sections" })[0];
-    expect(within(tabs).getAllByRole("link").map((l) => l.textContent)).toEqual(["Capture", "Items", "Names 3"]);
+    expect(within(tabs).getAllByRole("link").map((l) => l.textContent)).toEqual(["Capture", "Inbox 2", "Items", "Names 3"]);
     expect(within(tabs).getByRole("link", { name: /Names/ })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("main")).toHaveTextContent("body");
-    expect(screen.queryByText(/Inbox/)).toBeNull();
     expectTokenOnly(document.body);
   });
 
   it("renders both bars, top tabs for desktop and bottom tabs for the phone, and sign out", () => {
     renderWithMotion(
-      <DeskShell names={0} liveness={{ status: "ok" }} signOut={async () => {}}>
+      <DeskShell names={0} inbox={0} liveness={{ status: "ok" }} signOut={async () => {}}>
         <p>body</p>
       </DeskShell>,
     );
     expect(screen.getAllByRole("navigation", { name: "Desk sections" })).toHaveLength(2);
     expect(screen.getAllByRole("link", { name: "Names" })).toHaveLength(2); // no count when zero
+    expect(screen.getAllByRole("link", { name: "Inbox" })).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   });
 
   it("places the capture dock in the top bar", () => {
     renderWithMotion(
-      <DeskShell names={0} liveness={{ status: "ok" }} signOut={async () => {}} capture={<button type="button">Capture dock</button>}>
+      <DeskShell names={0} inbox={0} liveness={{ status: "ok" }} signOut={async () => {}} capture={<button type="button">Capture dock</button>}>
         <p>body</p>
       </DeskShell>,
     );

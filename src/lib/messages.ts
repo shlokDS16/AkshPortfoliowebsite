@@ -35,6 +35,10 @@ const ERRORS = {
   "upload-not-pdf": "Only PDF files can be uploaded.",
   "upload-storage-full": "Storage is over 90% full. Mark finished documents as done to free space.",
   "upload-missing": "The upload did not arrive complete. Upload the file again.",
+  // Inbox actions (= INBOX_ERROR_TEXT in modules/ingestion/errors.ts; a test keeps them equal).
+  "page-budget-reached": "This document is at its page limit. Raise the limit to read more pages.",
+  "budget-range": "Choose a page limit from 1 to 40.",
+  "ai-off": "AI reading is off, so figures cannot be read yet. Pages are still read and searchable.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -62,6 +66,10 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "upload-not-pdf": "upload-not-pdf",
   "upload-storage-full": "upload-storage-full",
   "upload-missing": "upload-missing",
+  // InboxError likewise.
+  "page-budget-reached": "page-budget-reached",
+  "budget-range": "budget-range",
+  "ai-off": "ai-off",
 };
 
 /**

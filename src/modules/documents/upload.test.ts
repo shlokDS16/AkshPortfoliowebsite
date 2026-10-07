@@ -75,6 +75,16 @@ describe("startUpload", () => {
     expect(repo.docs.size).toBe(1);
   });
 
+  it("a resumed upload takes the company, date and link of this attempt and still checks the storage room", async () => {
+    const repo = createMemoryDocumentsRepo();
+    await startUpload(repo, input({ companyId: null, filedOn: null, sourceUrl: null }), newId);
+    const company = "c0a8d3f4-1b2c-4d5e-8f60-7a8b9c0d1e2f";
+    await startUpload(repo, input({ companyId: company, filedOn: "2026-05-01", sourceUrl: "https://example.com/ar.pdf" }), () => OTHER);
+    expect(repo.docs.get(ID)).toMatchObject({ companyId: company, filedOn: "2026-05-01", sourceUrl: "https://example.com/ar.pdf" });
+    repo.storageBytes = Math.floor(0.899 * STORAGE_BYTES);
+    expect((await refusal(startUpload(repo, input({ bytes: 2 * MB }), () => OTHER))).code).toBe("upload-storage-full");
+  });
+
   it("refuses 52,428,801 bytes and accepts exactly 50 MB", async () => {
     const repo = createMemoryDocumentsRepo();
     expect((await refusal(startUpload(repo, input({ bytes: MAX_UPLOAD_BYTES + 1 }), newId))).code).toBe("upload-too-large");
@@ -134,6 +144,7 @@ describe("finishUpload", () => {
   it("refuses when the object is missing", async () => {
     const repo = await started();
     expect((await refusal(finishUpload(repo, ID))).code).toBe("upload-missing");
+    expect(repo.removed).toEqual([]); // nothing there to clear
     expect(repo.docs.get(ID)!.status).toBe("uploading");
   });
 
@@ -141,8 +152,11 @@ describe("finishUpload", () => {
     const repo = await started();
     repo.objects.set(`${ID}.pdf`, { size: 3 * MB - 1, mimetype: "application/pdf" });
     expect((await refusal(finishUpload(repo, ID))).code).toBe("upload-missing");
+    expect(repo.removed).toEqual([`${ID}.pdf`]); // the wrong object is cleared, so choosing the file again starts clean
+    expect(repo.objects.has(`${ID}.pdf`)).toBe(false);
     repo.objects.set(`${ID}.pdf`, { size: 3 * MB, mimetype: "text/html" });
     expect((await refusal(finishUpload(repo, ID))).code).toBe("upload-missing");
+    expect(repo.removed).toEqual([`${ID}.pdf`, `${ID}.pdf`]);
     expect(repo.docs.get(ID)!.status).toBe("uploading");
   });
 
@@ -166,6 +180,24 @@ describe("finishUpload", () => {
     const repo = await started();
     await expect(finishUpload(repo, OTHER)).rejects.toBeInstanceOf(InvalidInputError);
     await expect(finishUpload(repo, "../x")).rejects.toBeInstanceOf(InvalidInputError);
+  });
+});
+
+describe("the in-memory repo lists a company's documents like the real one", () => {
+  it("leaves out an unfinished upload and sorts by filing date (undated last), then by upload time", async () => {
+    const repo = createMemoryDocumentsRepo();
+    const company = "c0a8d3f4-1b2c-4d5e-8f60-7a8b9c0d1e2f";
+    const ids = ["a", "b", "c", "d"].map((c) => c.repeat(8) + "-0000-4000-8000-000000000000");
+    const sha = (n: number) => String(n).repeat(64);
+    const add = async (n: number, filedOn: string | null, status: "uploading" | "active") => {
+      await repo.insertUploading({ id: ids[n], title: `doc ${n}`, storagePath: `${ids[n]}.pdf`, sha256: sha(n), bytes: 1, companyId: company, filedOn, sourceUrl: null });
+      await repo.update(ids[n], { status });
+    };
+    await add(0, null, "active");
+    await add(1, "2026-03-31", "active");
+    await add(2, "2026-06-30", "active");
+    await add(3, "2026-09-30", "uploading");
+    expect((await repo.listForCompany(company)).map((d) => d.title)).toEqual(["doc 2", "doc 1", "doc 0"]);
   });
 });
 

@@ -7,15 +7,17 @@ import { CountFlow } from "@/components/ui/count-flow";
 import { EASE_SNAP, MOTION } from "@/components/ui/motion-tokens";
 import { cn } from "@/lib/utils";
 
-// D18: Phase 1 tabs. Inbox arrives with Phase 2; there is no dead tab.
+// D18: Capture, Inbox, Items, Names (design-dna 8.4). Inbox and Names carry a count while something waits on Aksh.
 const TABS = [
   { href: "/desk", label: "Capture", match: (p: string) => p === "/desk" },
+  { href: "/desk/inbox", label: "Inbox", match: (p: string) => p.startsWith("/desk/inbox") },
   { href: "/desk/items", label: "Items", match: (p: string) => p.startsWith("/desk/items") },
   { href: "/desk/names", label: "Names", match: (p: string) => p.startsWith("/desk/names") },
 ] as const;
 
-export function DeskTabs({ names, variant }: { names: number; variant: "top" | "bottom" }) {
+export function DeskTabs({ names, inbox, variant }: { names: number; inbox: number; variant: "top" | "bottom" }) {
   const path = usePathname();
+  const counts: Record<string, number> = { Inbox: inbox, Names: names };
   const bottom = variant === "bottom";
   return (
     <nav
@@ -40,10 +42,10 @@ export function DeskTabs({ names, variant }: { names: number; variant: "top" | "
                 )}
               >
                 {tab.label}
-                {tab.label === "Names" && names > 0 ? (
+                {(counts[tab.label] ?? 0) > 0 ? (
                   <>
                     {" "}
-                    <CountFlow value={names} className="tabular-nums" />
+                    <CountFlow value={counts[tab.label]} className="tabular-nums" />
                   </>
                 ) : null}
               </Link>
