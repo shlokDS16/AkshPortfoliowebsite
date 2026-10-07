@@ -65,6 +65,12 @@ describe("DocPane reading", () => {
     expectTokenOnly(container);
   });
 
+  it("keeps the page text out of a live region (only loading and errors are announced)", async () => {
+    render(<Harness />);
+    const text = await screen.findByText("Kaveri Fixtures Limited");
+    expect(text.closest("[aria-live]")).toBeNull();
+  });
+
   it("says so when a page cannot be read", async () => {
     mocks.read.mockResolvedValue({ ok: false, message: "That page is not in this document." });
     render(<Harness />);
@@ -105,7 +111,10 @@ describe("DocPane search", () => {
 describe("DocPane use as source", () => {
   it("sends the document's title, type, filed-on date and link, and writes nothing itself", async () => {
     const heard: AddSourceDetail[] = [];
-    const listen = (e: Event) => heard.push((e as CustomEvent<AddSourceDetail>).detail);
+    const listen = (e: Event) => {
+      heard.push((e as CustomEvent<AddSourceDetail>).detail);
+      e.preventDefault(); // the Facts form took it
+    };
     window.addEventListener(ADD_SOURCE_EVENT, listen);
     const onUsed = vi.fn();
     render(<Harness onUsed={onUsed} />);
@@ -115,6 +124,14 @@ describe("DocPane use as source", () => {
     expect(heard).toEqual([{ doc: DOC.title, type: "Annual report", filedOn: "2026-07-12", url: "https://example.com/ar.pdf" }]);
     expect(onUsed).toHaveBeenCalledTimes(1);
     expect(screen.getByText("It is in the Sources list.")).toBeInTheDocument();
+  });
+
+  it("says nothing is in the Sources list, and does not close the sheet, when no form took the source", async () => {
+    const onUsed = vi.fn();
+    render(<Harness onUsed={onUsed} />);
+    await userEvent.click(screen.getByRole("button", { name: "Use as source" }));
+    expect(screen.queryByText("It is in the Sources list.")).not.toBeInTheDocument();
+    expect(onUsed).not.toHaveBeenCalled();
   });
 
   it("sends empty strings for a document with no date or link", async () => {

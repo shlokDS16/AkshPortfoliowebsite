@@ -55,6 +55,21 @@ describe("Facts form: the document pane's Use as source", () => {
     expect((screen.getByLabelText("Facts sheet") as HTMLTextAreaElement).value).toContain("S2 | Investor deck Q1 | Presentation | 2026-08-01");
   });
 
+  it("cancels the event when the row is in the form, and leaves it alone when the sheet could not be opened", async () => {
+    const fire = () => window.dispatchEvent(new CustomEvent(ADD_SOURCE_EVENT, { detail: DOC, cancelable: true }));
+    const first = open();
+    let handled = false;
+    act(() => void (handled = !fire()));
+    expect(handled).toBe(true); // added
+    act(() => void (handled = !fire()));
+    expect(handled).toBe(true); // reused row: still handled
+    first.unmount();
+    open(`${canonical}\nQ | not a row`);
+    await userEvent.click(screen.getByRole("radio", { name: "Text sheet" }));
+    act(() => void (handled = !fire()));
+    expect(handled).toBe(false);
+  });
+
   it("does not touch a text sheet that does not parse, and says why", async () => {
     open(`${canonical}\nQ | not a row`);
     await userEvent.click(screen.getByRole("radio", { name: "Text sheet" }));

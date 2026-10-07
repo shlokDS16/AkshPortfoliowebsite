@@ -72,9 +72,11 @@ export function PageView({ pageNo, pageCount, result, words, onPage }: Props) {
         </Button>
         {result?.ok && result.kind ? <p className="min-w-0 flex-1 truncate pb-3 text-right text-small text-ink-muted">{pageLabel({ kind: result.kind, basis: null })}</p> : null}
       </div>
-      <div aria-live="polite" aria-busy={result === null} className="min-h-40">
+      <div aria-busy={result === null} className="min-h-40">
         {result === null ? (
-          <p className="text-small text-ink-muted">Loading page {pageNo}...</p>
+          <p role="status" className="text-small text-ink-muted">
+            Loading page {pageNo}...
+          </p>
         ) : result.ok ? (
           result.text.trim() === "" ? (
             <p className="text-small text-ink-muted">Page {pageNo} has no text. It may be a scan; the original has it.</p>

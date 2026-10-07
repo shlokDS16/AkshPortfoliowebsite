@@ -57,7 +57,7 @@ export async function checkQuotesAction(documentId: string, items: QuoteCheckIte
   if (!isUuid(documentId) || !Array.isArray(items)) return [];
   const asked = items
     .slice(0, MAX_CHECKS)
-    .filter((i) => typeof i.factId === "string" && validPage(i.pageNo) && typeof i.quote === "string" && typeof i.valueText === "string");
+    .filter((i) => i && typeof i.factId === "string" && validPage(i.pageNo) && typeof i.quote === "string" && typeof i.valueText === "string");
   try {
     const texts = await pageTexts(await createSupabaseServerClient(), documentId, [...new Set(asked.map((i) => i.pageNo))]);
     return asked.map((i) => {

@@ -37,9 +37,10 @@ export function DocPane({ documents, docId, onPick, pageNo, onPage, facts, onClo
 
   function addAsSource() {
     const detail: AddSourceDetail = { doc: doc.title, type: doc.sourceType, filedOn: doc.filedOn ?? "", url: doc.sourceUrl ?? "" };
-    window.dispatchEvent(new CustomEvent(ADD_SOURCE_EVENT, { detail }));
-    setUsed(doc.id);
-    onUsed?.();
+    // Cancelled = the Facts form took it. No form listening (or a sheet it cannot read) leaves it unsaid.
+    const added = !window.dispatchEvent(new CustomEvent(ADD_SOURCE_EVENT, { detail, cancelable: true }));
+    setUsed(added ? doc.id : null);
+    if (added) onUsed?.();
   }
 
   return (

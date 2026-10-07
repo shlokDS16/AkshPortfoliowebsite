@@ -61,9 +61,12 @@ export function useFactsState(sheet: string, bodyMd: string) {
 
   // The document pane's "Use as source": the form's own source row, reused when the same document and date are already listed.
   const [reveal, setReveal] = useState<{ id: string } | null>(null); // a new object per press, so the same row scrolls into view again
-  function addSource(detail: AddSourceDetail) {
+  function addSource(detail: AddSourceDetail): boolean {
     const base = mode === "form" && draft ? draft : parsed.errors.length === 0 ? toDraft(parsed.caseFile) : null;
-    if (!base) return setRefusal({ to: "form", errors: parsed.errors });
+    if (!base) {
+      setRefusal({ to: "form", errors: parsed.errors });
+      return false;
+    }
     const same = (s: { doc: string; filedOn: string }) => s.doc.trim().toLowerCase() === detail.doc.trim().toLowerCase() && s.filedOn === detail.filedOn;
     const existing = base.sources.find(same);
     const id = existing?.id ?? nextId("S", [...base.sources.map((x) => x.id), ...loaded]);
@@ -75,13 +78,17 @@ export function useFactsState(sheet: string, bodyMd: string) {
     setRefusal(null);
     setMode("form");
     setReveal({ id });
+    return true;
   }
   const onAddSource = useRef(addSource);
   useEffect(() => {
     onAddSource.current = addSource;
   });
   useEffect(() => {
-    const listener = (event: Event) => onAddSource.current((event as CustomEvent<AddSourceDetail>).detail);
+    // The event is cancelable: a handled one is cancelled, which is how the pane learns the source is in the form.
+    const listener = (event: Event) => {
+      if (onAddSource.current((event as CustomEvent<AddSourceDetail>).detail)) event.preventDefault();
+    };
     window.addEventListener(ADD_SOURCE_EVENT, listener);
     return () => window.removeEventListener(ADD_SOURCE_EVENT, listener);
   }, []);

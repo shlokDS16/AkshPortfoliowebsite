@@ -3,7 +3,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { AnimatePresence } from "motion/react";
 import * as m from "motion/react-m";
-import { Fragment, useSyncExternalStore, type ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { scrimMotion, sheetMotion } from "@/components/ui/motion-presets";
 import { usePrefersReducedMotion } from "@/components/ui/use-reduced-motion";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,8 @@ export function DocLayout({ gate, children }: Props) {
   return (
     <>
       <div className={cn("grid gap-(--block-gap)", inline ? "desk:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]" : "desk:grid-cols-[330px_minmax(0,1fr)]")}>
+        {/* The checklist stays mounted while the document is open (its ticks and the #gate link survive); it is only not shown. */}
+        <div className={inline ? "hidden" : "contents"}>{gate}</div>
         {inline ? (
           <aside
             key="pane"
@@ -55,9 +57,7 @@ export function DocLayout({ gate, children }: Props) {
           >
             {pane}
           </aside>
-        ) : (
-          <Fragment key="gate">{gate}</Fragment>
-        )}
+        ) : null}
         <div className="min-w-0 space-y-(--block-gap)">{children}</div>
       </div>
       <Dialog.Root open={open && !rail} onOpenChange={(next) => ws?.setOpen(next)}>
