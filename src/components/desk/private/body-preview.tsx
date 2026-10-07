@@ -8,7 +8,9 @@ import { GatedSentence } from "./gated-sentence";
 
 /** The saved revision as it will be read, with B's notes directly under the paragraph that needs them. Advisory: the gate decides. */
 export function BodyPreview({ itemId, body }: { itemId: string; body: AnnotatedBody }) {
-  let firstUsed = false;
+  // The first flagged sentence takes #first-flag (focus target); found before render so rendering stays pure.
+  const firstParagraph = body.paragraphs.findIndex((segments) => segments.some((s) => s.flag));
+  const firstSegment = firstParagraph < 0 ? -1 : body.paragraphs[firstParagraph].findIndex((s) => s.flag);
   return (
     <section aria-labelledby="check-heading" className="space-y-3">
       <h2 id="check-heading" className="text-title text-ink desk:text-title-desk">
@@ -19,9 +21,7 @@ export function BodyPreview({ itemId, body }: { itemId: string; body: AnnotatedB
           <div key={i}>
             <p className="my-(--para)">
               {segments.map((segment, j) => {
-                const first = !!segment.flag && !firstUsed;
-                if (first) firstUsed = true;
-                return <GatedSentence key={j} segment={segment} first={first} />;
+                return <GatedSentence key={j} segment={segment} first={i === firstParagraph && j === firstSegment} />;
               })}
             </p>
             {segments.map((s, j) => (s.flag ? <GateNote key={j} itemId={itemId} flag={s.flag} /> : null))}

@@ -15,10 +15,11 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
   const items = await listRecentItems(createSupabaseResearchRepo(await createSupabaseServerClient()));
   return (
     <div className="space-y-6">
-      <form action={createItemAction} className="flex flex-wrap items-end gap-2 rounded border p-3">
+      <h1 className="text-title text-ink desk:text-title-desk">Items</h1>
+      <form action={createItemAction} className="flex flex-wrap items-end gap-2 rounded-sm border border-rule p-3">
         <div className="space-y-1">
           <Label htmlFor="kind">Kind</Label>
-          <select id="kind" name="kind" defaultValue="note" className="h-9 rounded-md border bg-transparent px-2 text-sm">
+          <select id="kind" name="kind" defaultValue="note" className="block min-h-11 rounded-sm border border-input bg-paper px-2 text-body text-ink">
             {ITEM_KINDS.map((kind) => (
               <option key={kind} value={kind}>
                 {kind.replace("_", " ")}
@@ -33,18 +34,18 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
         <Button type="submit">Create item</Button>
       </form>
       {errorMessage ? (
-        <p role="alert" className="rounded border border-red-600 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-sm border border-bad bg-bad-wash px-3 py-2 text-small text-ink">
           {errorMessage}
         </p>
       ) : null}
-      {items.length === 0 ? <p className="text-sm text-muted-foreground">No items yet. Create the first one above.</p> : null}
-      <ul className="divide-y text-sm">
+      {items.length === 0 ? <p className="text-small text-ink-muted">No items yet. Create the first one above.</p> : null}
+      <ul className="divide-y divide-rule text-body">
         {items.map((item) => (
-          <li key={item.id} className="flex items-center justify-between gap-2 py-2">
-            <Link href={`/desk/items/${item.id}`} className="underline">
+          <li key={item.id} className="flex items-center justify-between gap-2 py-(--row-y)">
+            <Link href={`/desk/items/${item.id}`} className="underline decoration-1 underline-offset-3">
               {item.title}
             </Link>
-            <span className="text-muted-foreground">
+            <span className="text-small text-ink-muted">
               {item.kind.replace("_", " ")} · {item.visibility}
             </span>
           </li>

@@ -1,13 +1,20 @@
 import { notFound } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseComplianceRepo, getLatestDecision } from "@/modules/compliance";
-import { requireAdmin } from "@/modules/identity";
+import { BodyPreview } from "@/components/desk/private/body-preview";
+import { FiguresToHint } from "@/components/desk/private/figures-to-hint";
+import { FocusOnHash } from "@/components/desk/private/focus-on-hash";
+import { GateDecisionPanel } from "@/components/desk/private/gate-decision";
+import { History } from "@/components/desk/private/history";
+import { PublishChecklist } from "@/components/desk/private/publish-checklist";
+import { RevisionEditor } from "@/components/desk/private/revision-editor";
+import { WordingGuide } from "@/components/desk/private/wording-guide";
 import { errorText, noticeText } from "@/lib/messages";
-import { createSupabaseResearchRepo, getItemWithHistory, isItemId } from "@/modules/research";
-import { GatePanel } from "./gate-panel";
-import { History } from "./history";
+import { setFiguresToAction, saveCaseFileRevisionAction } from "@/modules/casefile/actions";
+import { makeCompanyPublicAction } from "@/modules/catalog/actions";
+import { publishCheckedAction, unpublishItemAction } from "@/modules/compliance/actions";
+import { requireAdmin } from "@/modules/identity";
+import { isItemId } from "@/modules/research";
+import { loadEditor } from "./load";
 import { MetaForm } from "./meta-form";
-import { RevisionForm } from "./revision-form";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -19,57 +26,60 @@ export default async function ItemPage({ params, searchParams }: Props) {
   const { id } = await params;
   const { error, notice, from, to } = await searchParams;
   if (!isItemId(id)) notFound();
-  const db = await createSupabaseServerClient();
-  const [history, decision] = await Promise.all([
-    getItemWithHistory(createSupabaseResearchRepo(db), id),
-    getLatestDecision(createSupabaseComplianceRepo(db), id),
-  ]);
-  if (!history) notFound();
-  const { item, revisions, current, pending } = history;
+  const data = await loadEditor(id);
+  if (!data) notFound();
+  const { item, revisions, current, pending, latest, candidate, company, preview, body, sheet, decision, decisionRevNo, latestFigure } = data;
   const isPublic = item.visibility === "public";
   const errorMessage = errorText(error);
   const noticeMessage = noticeText(notice);
   return (
     <article className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-xl font-semibold">{item.title}</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-display text-ink desk:text-display-desk">{item.title}</h1>
+        <p className="text-small text-ink-muted">
           {item.kind.replace("_", " ")} · <span data-testid="visibility">{isPublic ? "Public" : "Private"}</span>
           {current ? ` · current revision #${current.revNo}` : ""}
         </p>
       </header>
       {errorMessage ? (
-        <p role="alert" className="rounded border border-red-600 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-sm border border-bad bg-bad-wash px-3 py-2 text-small text-ink">
           {errorMessage}
         </p>
       ) : null}
       {noticeMessage ? (
-        <p role="status" className="rounded border px-3 py-2 text-sm">
+        <p role="status" className="rounded-sm border border-rule px-3 py-2 text-small text-ink">
           {noticeMessage}
         </p>
       ) : null}
       {isPublic && pending.length > 0 ? (
-        <p data-testid="pending-gate" className="rounded border border-amber-600 px-3 py-2 text-sm">
-          {pending.length} {pending.length === 1 ? "revision is" : "revisions are"} waiting for the publishing gate. The public page still
-          shows revision #{current?.revNo}.
+        <p data-testid="pending-gate" className="rounded-sm border border-warn bg-warn-wash px-3 py-2 text-small text-ink">
+          {pending.length} {pending.length === 1 ? "revision is" : "revisions are"} waiting for the publishing gate. The public page still shows revision #
+          {current?.revNo}.
         </p>
       ) : null}
-      <GatePanel
-        item={item}
-        latest={revisions[0] ?? null}
-        current={current}
-        decision={decision}
-        decisionRevNo={decision ? (revisions.find((r) => r.id === decision.revisionId)?.revNo ?? null) : null}
-      />
-      <MetaForm item={item} />
-      <RevisionForm itemId={item.id} latest={revisions[0] ?? null} isPublic={isPublic} />
-      <History
-        revisions={revisions}
-        currentId={current?.id ?? null}
-        pendingIds={new Set(pending.map((r) => r.id))}
-        from={from}
-        to={to}
-      />
+      <div className="grid gap-(--block-gap) desk:grid-cols-[330px_minmax(0,1fr)]">
+        <aside id="gate" tabIndex={-1} className="min-w-0 space-y-4 desk:sticky desk:top-[calc(var(--top-bar-h)+16px)] desk:self-start">
+          <PublishChecklist
+            items={preview?.items ?? []}
+            rule4Needed={preview?.rule4Needed ?? false}
+            companyName={company?.name ?? null}
+            companyAction={company ? makeCompanyPublicAction.bind(null, company.id, item.id) : null}
+            publishAction={candidate ? publishCheckedAction.bind(null, item.id, candidate.id) : null}
+            publishLabel={candidate ? `Run the publishing gate on revision #${candidate.revNo}` : ""}
+            live={isPublic && current ? { revNo: current.revNo, unpublish: unpublishItemAction.bind(null, item.id) } : null}
+          />
+          <GateDecisionPanel itemId={item.id} decision={decision} decisionRevNo={decisionRevNo} latestId={latest?.id ?? null} />
+        </aside>
+        <div className="min-w-0 space-y-(--block-gap)">
+          {body ? <BodyPreview itemId={item.id} body={body} /> : null}
+          {!isPublic ? <FiguresToHint latest={latestFigure} figuresTo={item.dataAsOf} action={setFiguresToAction.bind(null, item.id)} /> : null}
+          <MetaForm item={item} />
+          <RevisionEditor key={latest?.id ?? "none"} action={saveCaseFileRevisionAction.bind(null, item.id)} bodyMd={latest?.bodyMd ?? ""} sheet={sheet} isPublic={isPublic} />
+          <WordingGuide />
+          <History revisions={revisions} currentId={current?.id ?? null} pendingIds={new Set(pending.map((r) => r.id))} from={from} to={to} />
+        </div>
+      </div>
+      <FocusOnHash />
     </article>
   );
 }

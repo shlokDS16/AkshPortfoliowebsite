@@ -74,6 +74,28 @@ describe("BodyPreview", () => {
     expect(screen.getByText(new RegExp(message.slice(0, 40)))).toBeInTheDocument();
     expect(screen.getByText(/Rule 3: 30-day data lag/)).toBeInTheDocument();
   });
+
+  it("gives #first-flag to the first flagged sentence only, with its note under that paragraph", () => {
+    const second = { ...flag, hash: "b".repeat(64), sentence: "Sell the laggard." };
+    render(
+      <BodyPreview
+        itemId="i1"
+        body={{
+          paragraphs: [
+            [{ text: "Plain opening.", flag: null, allowed: null }],
+            [{ text: flag.sentence, flag, allowed: null }],
+            [{ text: second.sentence, flag: second, allowed: null }],
+          ],
+          unplaced: [],
+        }}
+      />,
+    );
+    const marked = screen.getAllByTestId("preview-flag");
+    expect(marked).toHaveLength(2);
+    expect(marked[0]).toHaveAttribute("id", "first-flag");
+    expect(marked[1]).not.toHaveAttribute("id");
+    expect(screen.getAllByRole("button", { name: "Edit sentence" })).toHaveLength(2);
+  });
 });
 
 describe("PublishChecklist", () => {
