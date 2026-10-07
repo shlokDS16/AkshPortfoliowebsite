@@ -3,9 +3,13 @@ import { expect, test } from "@playwright/test";
 type Entry = PerformanceEntry & { element?: Element | null; hadRecentInput?: boolean; value?: number };
 
 for (const path of ["/", "/companies/kavpump"]) {
-  test(`${path}: LCP under 2.0 s on throttled 4G, from static text that never animates; CLS about 0`, async ({ page, request }, testInfo) => {
+  test(`${path}: LCP under 2.0 s on throttled 4G, from static text that never animates; CLS about 0`, async ({ browser, page }, testInfo) => {
     test.skip(testInfo.project.name !== "public-375", "one throttled phone run is enough");
-    await request.get(path); // warm the ISR entry so the measurement is a cached page, as readers get
+    // Warm the server (route compile and ISR entry) in a throwaway page, so a filtered run does not measure a cold
+    // server; the measuring page has its own context, so its HTTP cache stays cold, as a first-time reader's would.
+    const w = await browser.newPage();
+    await w.goto(path);
+    await w.close();
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Network.enable");
     await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 150, downloadThroughput: (1.6 * 1024 * 1024) / 8, uploadThroughput: (750 * 1024) / 8 });
