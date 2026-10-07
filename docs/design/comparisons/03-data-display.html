@@ -1,0 +1,1280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data display, segment 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- comparison shell (neutral, not a design proposal) ---------- */
+:root{--s-bg:#EFEFEC;--s-ink:#191919;--s-muted:#575757;--s-rule:#D2D2CD;--s-card:#FFFFFF;--s-hi:#191919;--s-on-hi:#FFFFFF}
+:root[data-theme=dark]{--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--s-bg);color:var(--s-ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+.shell{max-width:1480px;margin:0 auto;padding:28px 32px 8px}
+.shell h1{font-size:22px;margin:0 0 6px;font-weight:650;letter-spacing:-.01em}
+.shell p{margin:0 0 8px;color:var(--s-muted);max-width:1000px}
+.controls{display:flex;flex-wrap:wrap;gap:12px 18px;margin:16px 0 4px;align-items:center}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--s-rule);border-radius:8px;overflow:hidden;background:var(--s-card)}
+.seg span{padding:7px 10px;font-size:12px;color:var(--s-muted);border-right:1px solid var(--s-rule);align-self:center}
+.seg button{font:inherit;font-size:13px;padding:7px 12px;border:0;background:transparent;color:var(--s-ink);cursor:pointer;min-height:36px}
+.seg button+button{border-left:1px solid var(--s-rule)}
+.seg button[aria-pressed=true]{background:var(--s-hi);color:var(--s-on-hi)}
+.seg button:focus-visible{outline:2px solid var(--s-ink);outline-offset:-3px}
+.studied{margin-top:14px;color:var(--s-muted);max-width:1100px;font-size:14px}
+.studied summary{cursor:pointer;color:var(--s-ink);font-weight:600;min-height:36px;display:flex;align-items:center}
+.studied ol{padding-left:22px;columns:2 420px;column-gap:32px}
+.studied li{margin-bottom:5px;break-inside:avoid}
+.studied b{color:var(--s-ink);font-weight:600}
+.dirs{max-width:1480px;margin:0 auto;padding:0 20px}
+.dir{margin:34px 0 54px}
+.dir-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;max-width:1040px}
+.dir-letter{flex:none;min-width:38px;height:38px;display:grid;place-items:center;border:1.5px solid var(--s-ink);border-radius:6px;font-weight:700;font-size:17px}
+.dir-head h2{margin:0;font-size:19px;font-weight:650}
+.dir-head p{margin:2px 0 0;color:var(--s-muted)}
+.dir-head p.thesis{color:var(--s-ink);font-weight:500}
+.stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+figure.frame{margin:0}
+figure.frame>figcaption{font-size:12px;color:var(--s-muted);margin-top:8px}
+.browser{width:960px;max-width:100%;border:1px solid var(--s-rule);border-radius:10px;overflow:hidden;background:var(--s-card)}
+.chrome{height:36px;display:flex;align-items:center;gap:7px;padding:0 12px;border-bottom:1px solid var(--s-rule);font-size:12px;color:var(--s-muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--s-rule)}
+.url{margin-left:10px;padding:3px 12px;border-radius:6px;background:var(--s-bg)}
+.vp{overflow-y:auto;container-type:inline-size;overscroll-behavior:contain;position:relative}
+.vp:focus-visible{outline:2px solid var(--s-ink);outline-offset:2px}
+.browser .vp{height:860px}
+.bezel{width:391px;height:820px;border:8px solid #0A0A0A;border-radius:46px;overflow:hidden;background:#0A0A0A}
+.bezel .vp{width:375px;height:100%;scrollbar-width:none}
+.bezel .vp::-webkit-scrollbar{display:none}
+body.phones .dirs{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+body.phones .dir{margin:24px 0 40px;width:391px}
+body.phones .dir-head{min-height:170px}
+body.phones figure.frame:has(.browser){display:none}
+.matrix-wrap{max-width:1480px;margin:0 auto;padding:0 32px 64px}
+.matrix-wrap h2{font-size:19px;margin:0 0 10px}
+.matrix-scroll{overflow-x:auto}
+.matrix{border-collapse:collapse;width:100%;min-width:900px;background:var(--s-card);border:1px solid var(--s-rule);font-size:13.5px}
+.matrix th,.matrix td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--s-rule)}
+.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--s-muted)}
+.matrix tbody th{width:150px;font-weight:600}
+.ask{margin-top:14px;color:var(--s-muted)}
+@media (max-width:640px){.shell,.dirs,.matrix-wrap{padding-left:16px;padding-right:16px}}
+
+/* ================= desk tokens (segments 1 and 2, decided) + data tokens (segment 3) =================
+   Neutral greys as decided. --acc is a PLACEHOLDER data accent (validated, see the brief) until segment 5 sets colour. */
+.site{
+ --bg:#FCFCFB;--ink:#141619;--text:#1E2125;--muted:#565D66;--rule:#E2E4E7;--rule2:#C5CAD0;--surf:#F3F4F5;--surf2:#E9EBED;--ins:#ECEEF0;
+ --acc:#2a78d6;--ctx:#8b9199;--grid:#E8EAEC;--wash:rgba(42,120,214,.10);
+ --h0:#cde2fb;--h1:#9ec5f4;--h2:#6da7ec;--h3:#3987e5;--h4:#256abf;--h5:#184f95;--h6:#0d366b;--hlo:#141619;--hhi:#FFFFFF;
+ --gut:20px;--stick:79px;--mono:"IBM Plex Mono",ui-monospace,monospace;
+ color-scheme:light;min-height:100%;display:flex;flex-direction:column;background:var(--bg);color:var(--text);
+ font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:14.5px;line-height:1.5;font-variant-numeric:lining-nums tabular-nums}
+:root[data-theme=dark] .site{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;
+ --acc:#3987e5;--ctx:#6c737c;--grid:#22262B;--wash:rgba(57,135,229,.16);
+ --h0:#16212f;--h1:#1a3150;--h2:#184f95;--h3:#256abf;--h4:#3987e5;--h5:#6da7ec;--h6:#9ec5f4;--hlo:#FFFFFF;--hhi:#141619;color-scheme:dark;-webkit-font-smoothing:antialiased}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .site{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;
+ --acc:#3987e5;--ctx:#6c737c;--grid:#22262B;--wash:rgba(57,135,229,.16);
+ --h0:#16212f;--h1:#1a3150;--h2:#184f95;--h3:#256abf;--h4:#3987e5;--h5:#6da7ec;--h6:#9ec5f4;--hlo:#FFFFFF;--hhi:#141619;color-scheme:dark;-webkit-font-smoothing:antialiased}}
+.site *{box-sizing:border-box}
+.site button{font:inherit;color:inherit;cursor:pointer}
+.site :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+.site .id,.site .kind,.site .ct,.site .chip{font-family:var(--mono)}
+.site .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.site p{margin:0}
+.dsk{display:none!important}
+.ico{width:12px;height:12px;flex:none;color:var(--ink)}
+.ico-s{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.go{border:0;background:none;padding:0;text-align:left;color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px;font:inherit}
+
+/* --- segment 2 chrome --- */
+.tb{display:flex;align-items:center;gap:8px;min-height:52px;padding:0 var(--gut);border-bottom:1px solid var(--rule);background:var(--bg)}
+.tb .sp{flex:1}
+.wm{border:0;background:none;padding:8px 0;font-size:15px;font-weight:600;color:var(--ink);white-space:nowrap}
+.ib{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;background:none;color:var(--ink);font-size:13.5px;padding:0 6px;border-radius:6px}
+.back{display:inline-flex;align-items:center;gap:2px;min-height:44px;border:0;background:none;padding:0 6px 0 0;font-size:14px;color:var(--ink)}
+.back svg{width:18px;height:18px}
+.dbar{background:var(--surf);border-top:1px solid var(--rule);font-size:12.5px;line-height:1.35}
+.dbar summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:36px;padding:6px var(--gut);cursor:pointer;color:var(--muted)}
+.dbar summary::-webkit-details-marker{display:none}
+.dbar .body{padding:6px var(--gut) 12px}
+.dbar .body p{margin:8px 0 0;color:var(--muted);max-width:70ch}
+.dtop{display:none}
+.st-line{display:flex;flex-wrap:wrap;flex:1;min-width:0;color:var(--muted)}
+.st-line>span{white-space:nowrap}
+.st-line>span+span::before{content:"\00B7";margin:0 7px;color:var(--rule2)}
+.st-line b{font-weight:600;color:var(--text)}
+.st-more{flex:none;font-size:12px;color:var(--text)}
+.dock{position:sticky;bottom:0;z-index:6;background:var(--bg);border-top:1px solid var(--rule);margin-top:auto}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr)}
+.tabs button{min-height:54px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11.5px;color:var(--muted);position:relative}
+.tabs button[aria-current=page]{color:var(--ink);font-weight:600}
+.tabs button[aria-current=page]::before{content:"";position:absolute;top:-1px;left:28%;right:28%;height:2px;background:var(--ink)}
+.a-body{flex:1;min-width:0}
+.grail{display:none}
+.main{min-width:0}
+.pg{padding:22px var(--gut) 48px}
+.kick{font-size:12.5px;color:var(--muted);margin:0 0 6px}
+.h1{font-size:27px;line-height:1.15;font-weight:600;letter-spacing:-.015em;color:var(--ink);margin:0 0 8px}
+.stand{font-size:16px;line-height:1.55;max-width:56ch;margin:0 0 16px;color:var(--text)}
+.blk{margin-top:32px}
+.blk-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--rule);padding-bottom:8px;margin-bottom:4px}
+.blk-h h2{font-size:17px;font-weight:600;margin:0;color:var(--ink)}
+.blk-h .ct{font-size:11.5px;color:var(--muted)}
+.ls{list-style:none;margin:0;padding:0}
+.ls li{padding:10px 0;border-bottom:1px solid var(--rule)}
+.ls .why{display:block;color:var(--ink);font-size:14.5px}
+.ls small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.ls .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--muted);margin-right:6px}
+.rg{list-style:none;margin:0;padding:0}
+.rg li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--rule);font-size:13px;color:var(--muted)}
+.rg .n{font-size:15px;font-weight:600;color:var(--ink)}
+.rg .r{text-align:right;font-family:var(--mono);font-size:12px;color:var(--ink)}
+.tmini{display:inline-flex;gap:9px;white-space:nowrap;font-size:12.5px;color:var(--ink)}
+.tmini>span{display:inline-flex;align-items:center;gap:3px}
+.legend2{font-size:12px;color:var(--muted);margin:8px 0 0;display:flex;flex-wrap:wrap;gap:4px 12px}
+.legend2 span{display:inline-flex;align-items:center;gap:4px}
+.streak{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;height:12px;max-width:240px;margin-top:6px}
+.streak i{display:block;border-radius:1px;background:var(--surf2);box-shadow:inset 0 0 0 1px var(--rule)}
+.streak i.on{background:var(--ink);box-shadow:none}
+.streak-cap{display:flex;justify-content:space-between;max-width:240px;font-size:11px;color:var(--muted);margin-top:3px}
+
+/* --- segment 1 B+ file pieces --- */
+.bp-top{position:sticky;top:0;z-index:5;background:var(--bg)}
+.strip{border-bottom:1px solid var(--rule);background:var(--surf);font-size:12.5px;line-height:1.35}
+.strip summary{list-style:none;display:flex;align-items:center;gap:10px;padding:7px var(--gut);min-height:34px;cursor:pointer}
+.strip summary::-webkit-details-marker{display:none}
+.st-body{padding:4px var(--gut) 14px;border-top:1px solid var(--rule)}
+.facts-dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:8px 0 0;font-size:13px}
+.facts-dl dt{color:var(--muted)}
+.facts-dl dd{margin:0;color:var(--text)}
+.idx{display:flex;border-bottom:1px solid var(--rule);background:var(--bg)}
+.idx button{flex:1;min-height:44px;border:0;background:none;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.idx button .ct{font-size:10.5px}
+.idx button[aria-current=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.crumb{font-size:12.5px;color:var(--muted);margin:0 0 8px}
+.fh1{font-size:28px;line-height:1.12;font-weight:600;letter-spacing:-.015em;color:var(--ink);margin:0 0 10px}
+.dateline{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:0;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.dateline dt{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.dateline dd{margin:2px 0 0;font-size:14px;color:var(--ink)}
+.lbl{display:block;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 3px}
+.sec{margin-top:44px}
+.sec-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding-bottom:10px;margin-bottom:14px;border-bottom:1px solid var(--rule)}
+.sec-h h2{font-size:19px;font-weight:600;line-height:1.2;margin:0;color:var(--ink);letter-spacing:-.005em}
+.sec-h .sub{flex-basis:100%;font-size:13px;color:var(--muted);margin:0}
+.kind{font-size:10.5px;font-weight:500;letter-spacing:.08em;line-height:1;padding:4px 6px 3px;border:1px solid var(--ink);border-radius:3px;color:var(--ink)}
+.kind.view{background:var(--ink);color:var(--bg)}
+.kind.fact{border-style:dashed}
+.kind.scen{border-style:double;border-width:3px;padding:2px 5px 1px}
+.kind.calc{border-color:var(--rule2);color:var(--muted)}
+.kind.priv{background:repeating-linear-gradient(135deg,var(--surf2) 0 4px,var(--bg) 4px 8px);border-width:1.5px}
+.stub{border-left:2px solid var(--ink);padding:6px 0 6px 14px;color:var(--muted);font-size:14px}
+.site .chip{position:relative;display:inline-flex;align-items:baseline;gap:4px;font-size:11px;line-height:1.5;padding:0 5px;border:1px solid var(--rule2);border-radius:4px;background:var(--surf);color:var(--ink);white-space:nowrap;font-weight:400}
+.site .chip::after{content:"";position:absolute;inset:-9px -3px}
+.site .chip b{font-weight:500}
+.site .chip[aria-expanded=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.card{margin:10px 0 4px;border:1px dashed var(--rule2);border-radius:6px;background:var(--surf);padding:12px 14px 10px;max-width:520px}
+.card.calc{border-style:dotted}
+.card-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:11.5px;color:var(--muted);margin-bottom:8px}
+.card-h .asof{margin-left:auto;font-size:12px;color:var(--ink)}
+.kv{display:grid;grid-template-columns:1fr auto 3.4em;align-items:baseline;gap:0 6px;padding:3px 0}
+.kv .k{font-size:13.5px;color:var(--text)}
+.kv .n{font-size:17px;font-weight:600;color:var(--ink);text-align:right}
+.kv .u{font-size:12px;color:var(--muted)}
+.kv.pr .k,.kv.pr .n{font-size:13px;color:var(--muted);font-weight:400}
+.kv.tot{border-top:1px solid var(--rule2);margin-top:3px;padding-top:5px}
+.q{margin:8px 0 6px;padding:8px 0 0;border-top:1px solid var(--rule)}
+.q p{font-size:14px;line-height:1.5;color:var(--ink)}
+.card-src{margin:6px 0 0!important;font-size:12px;line-height:1.45;color:var(--muted)}
+.card-x{margin-top:8px;border:1px solid var(--rule2);background:var(--bg);border-radius:4px;font-size:12px;padding:4px 10px;min-height:30px}
+.disc{border-top:2px solid var(--ink);padding-top:14px}
+.disc .pos{font-size:15px;margin:0 0 10px;color:var(--ink)}
+.disc .full{margin:12px 0 0;font-size:13.5px;line-height:1.55;color:var(--muted);max-width:62ch}
+.disc .full strong{color:var(--ink)}
+.empty{border:1px dashed var(--rule2);border-radius:6px;padding:12px 14px;color:var(--text);font-size:13.5px}
+
+/* --- shared data pieces (segment 3) --- */
+.num{font-variant-numeric:tabular-nums lining-nums}
+.big{font-variant-numeric:proportional-nums lining-nums}
+.meta{font-size:12px;color:var(--muted);line-height:1.45}
+.meta b{color:var(--ink);font-weight:600}
+.gl{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.chart{position:relative;width:100%;outline-offset:3px;touch-action:pan-y}
+.chart svg{display:block;overflow:visible}
+.chart text{font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:11px;fill:var(--muted);font-variant-numeric:tabular-nums}
+.chart text.lab{fill:var(--ink);font-size:11.5px}
+.chart text.lab b,.chart tspan.v{font-weight:600;fill:var(--ink)}
+.chart .grid{stroke:var(--grid);stroke-width:1}
+.chart .base{stroke:var(--rule2);stroke-width:1}
+.chart .ref{stroke:var(--rule2);stroke-width:1}
+.chart .thr{stroke:var(--ink);stroke-width:1;stroke-dasharray:4 3;opacity:.7}
+.chart .ev{stroke:var(--rule2);stroke-width:1}
+.chart .cap{stroke:var(--ink);stroke-width:1}
+.chart .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .ln.acc{stroke:var(--acc)}
+.chart .ln.ctx{stroke:var(--ctx);stroke-dasharray:5 3}
+.chart .ln.ink{stroke:var(--ink)}
+.chart .ln.dot{stroke-dasharray:1.5 4}
+.chart .area{fill:var(--wash);stroke:none}
+.chart .pt{stroke:var(--bg);stroke-width:2}
+.chart .pt.acc{fill:var(--acc)}.chart .pt.ctx{fill:var(--ctx)}.chart .pt.ink{fill:var(--ink)}
+.chart .pt.hol{fill:var(--bg);stroke:var(--ink);stroke-width:1.5}
+.chart .bar{fill:var(--ink)}
+.chart .bar.acc{fill:var(--acc)}
+.chart .bar.soft{fill:var(--ctx)}
+.chart .bar.hol{stroke:var(--ink);stroke-width:1}
+.chart .lead{stroke:var(--rule2);stroke-width:1}
+.chart .xh{stroke:var(--ink);stroke-width:1;opacity:.55}
+.chart .hit{fill:transparent;cursor:crosshair}
+.chart .hl{fill:var(--surf2)}
+.chart .hp line{stroke:var(--rule2);stroke-width:1}
+.chart .hp-ink line{stroke:var(--muted);stroke-width:1}
+.tt{position:absolute;z-index:3;pointer-events:none;background:var(--bg);border:1px solid var(--rule2);border-radius:6px;padding:7px 9px;font-size:12px;line-height:1.35;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:120px;white-space:nowrap;color:var(--muted)}
+.tt .d{font-size:11.5px;margin-bottom:3px}
+.tt .r{display:flex;align-items:center;gap:7px}
+.tt .r b{font-size:14px;color:var(--ink);font-weight:600;min-width:46px;text-align:right}
+.tt .r i{display:inline-block;width:12px;height:0;border-top:2px solid var(--acc)}
+.tt .r i.ctx{border-top:2px dashed var(--ctx)}
+.tt .r i.ink{border-top-color:var(--ink)}
+.spark{display:block;overflow:visible}
+.spark .ln{fill:none;stroke:var(--muted);stroke-width:1.75;stroke-linejoin:round;stroke-linecap:round}
+.spark .end{fill:var(--acc);stroke:var(--bg);stroke-width:1.5}
+.cap-note{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;font-size:12px;color:var(--muted)}
+.cap-note .capd{font-weight:600;color:var(--ink)}
+.capd::before{content:"";display:inline-block;width:1px;height:11px;background:var(--ink);margin-right:6px;vertical-align:-1px}
+.keyl{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text)}
+.keyl i{display:inline-block;width:16px;border-top:2px solid var(--acc)}
+.keyl i.ctx{border-top:2px dashed var(--ctx)}
+.keyl i.ink{border-top-color:var(--ink)}
+.keyl i.dot{border-top:2px dotted var(--ink)}
+.keys{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0 0 8px}
+.hatchkey{display:inline-block;width:14px;height:10px;border:1px solid var(--rule2);background:repeating-linear-gradient(135deg,var(--rule2) 0 1px,transparent 1px 4px);vertical-align:-1px}
+.tglseg{display:inline-flex;border:1px solid var(--rule2);border-radius:6px;overflow:hidden}
+.tglseg button{border:0;background:none;font-size:12.5px;padding:0 12px;min-height:34px;color:var(--muted)}
+.tglseg button+button{border-left:1px solid var(--rule2)}
+.tglseg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.pt-tab{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+.pt-tab th,.pt-tab td{padding:6px 0;border-bottom:1px solid var(--rule);text-align:right;font-weight:400}
+.pt-tab th:first-child,.pt-tab td:first-child{text-align:left}
+.pt-tab thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.more{margin-top:10px;font-size:13px}
+.more summary{cursor:pointer;min-height:36px;display:inline-flex;align-items:center;color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule2);text-underline-offset:3px}
+.scale-n{font-size:12px;color:var(--muted)}
+.sym{display:inline-block;width:10px;height:10px;vertical-align:-1px}
+.private-bar{display:flex;align-items:center;gap:10px;padding:9px var(--gut);background:repeating-linear-gradient(135deg,var(--surf) 0 7px,var(--surf2) 7px 14px);border-bottom:1.5px solid var(--ink);font-size:12.5px;color:var(--ink)}
+.private-bar .kind{background:var(--ink);color:var(--bg);font-weight:600}
+.private-bar svg{width:16px;height:16px}
+.adm-tb{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 var(--gut);border-bottom:1px solid var(--rule);font-size:13.5px;color:var(--muted)}
+.adm-tb b{color:var(--ink);font-weight:600}
+.adm-tb .sp{flex:1}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--rule)}
+.ctl label{font-size:13.5px;color:var(--ink)}
+.ctl output{font-size:15px;font-weight:600;color:var(--ink);min-width:4.2em;text-align:right}
+.ctl input[type=range]{grid-column:1/-1;width:100%;margin:6px 0 0;accent-color:var(--ink);min-height:28px}
+.ctl small{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border:1px solid var(--ink);border-radius:6px;background:var(--bg);color:var(--ink);font-size:13.5px}
+.btn.solid{background:var(--ink);color:var(--bg)}
+.note-live{margin-top:8px;font-size:12.5px;color:var(--muted)}
+
+/* ================= Direction A: Ledger ================= */
+.lgt{display:none;width:100%;border-collapse:collapse;font-size:13.5px}
+.lgt th,.lgt td{padding:8px 0 8px 10px;border-bottom:1px solid var(--rule);text-align:right;font-weight:400;vertical-align:baseline;white-space:nowrap}
+.lgt th:first-child{text-align:left;padding-left:0;white-space:normal}
+.lgt thead tr:first-child th{font-size:12.5px;font-weight:600;color:var(--ink);border-bottom:0;padding-bottom:2px}
+.lgt thead .asof th,.lgt thead .asof td{font-size:11.5px;color:var(--muted);border-bottom:0;padding-top:0;padding-bottom:4px}
+.lgt thead .src th,.lgt thead .src td{border-bottom:3px double var(--ink);padding-top:2px;padding-bottom:7px;font-size:11.5px;color:var(--muted)}
+.lgt td.u,.lgt th.u{text-align:left;font-size:12px;color:var(--muted);padding-left:8px}
+.lgt td.v{font-size:14.5px;color:var(--ink)}
+.lgt td.v.cur,.lgt th.cur{background:var(--surf)}
+.lgt td.v.cur{padding-right:8px;font-weight:600}
+.lgt thead th.cur,.lgt thead td.cur{padding-right:8px}
+.lgt tbody th{font-size:14px;color:var(--ink)}
+.lgt .eq{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:5px}
+.lgt td.tr{width:72px;padding-left:14px}
+.lgt .cellbtn{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--ink);text-decoration:underline;text-decoration-style:dotted;text-decoration-color:var(--rule2);text-underline-offset:4px}
+.lgt .cellbtn[aria-expanded=true]{text-decoration-style:solid;text-decoration-color:var(--ink)}
+.lgp{display:block}
+.lgp-key{position:sticky;top:var(--stick);z-index:2;background:var(--bg);display:grid;grid-template-columns:repeat(5,1fr);border-bottom:3px double var(--ink);padding:8px 0 6px;margin-bottom:2px}
+.lgp-key div{text-align:right;font-size:12px;color:var(--muted);line-height:1.35}
+.lgp-key b{display:block;font-size:13px;color:var(--ink);font-weight:600}
+.lgp-key .chip{font-size:10.5px;margin-top:2px}
+.lgp-row{padding:9px 0 8px;border-bottom:1px solid var(--rule)}
+.lgp-row .nm{display:flex;align-items:baseline;gap:6px;font-size:14px;color:var(--ink)}
+.lgp-row .nm .u{font-size:12px;color:var(--muted)}
+.lgp-row .nm .spark{margin-left:auto}
+.lgp-row .vals{display:grid;grid-template-columns:repeat(5,1fr);margin-top:3px}
+.lgp-row .vals span{text-align:right;font-size:14.5px;color:var(--ink)}
+.lgp-row .vals span:last-child{font-weight:600}
+.lgp-row .vals .cellbtn{border:0;background:none;padding:0;font:inherit;font-weight:600;text-decoration:underline dotted var(--rule2);text-underline-offset:4px}
+.lg-foot{margin-top:10px}
+.lg-fig{margin:26px 0 0}
+.lg-fig .fh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;border-top:1px solid var(--ink);padding-top:8px;margin-bottom:6px}
+.lg-fig .fh .lbl{margin:0}
+.lg-fig .fh h3{font-size:14.5px;font-weight:600;color:var(--ink);margin:0}
+.lgs{width:100%;border-collapse:collapse;font-size:13.5px}
+.lgs th,.lgs td{padding:7px 0 7px 10px;border-bottom:1px solid var(--rule);text-align:right;font-weight:400;vertical-align:baseline}
+.lgs th:first-child{text-align:left;padding-left:0;color:var(--text)}
+.lgs thead th{font-size:12.5px;font-weight:600;color:var(--ink);border-bottom:3px double var(--ink)}
+.lgs .grp th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding-top:14px;border-bottom:1px solid var(--rule2)}
+.lgs .out td{font-size:14.5px;font-weight:600;color:var(--ink)}
+.lgs .same td{color:var(--muted)}
+.lgs .u{font-size:11.5px;color:var(--muted);font-weight:400;margin-left:3px}
+.lgs .tot th,.lgs .tot td{border-top:1px solid var(--ink);border-bottom:3px double var(--ink)}
+.lgs-p{display:block}
+.lgs-p .key{display:grid;grid-template-columns:repeat(3,1fr);font-size:12px;font-weight:600;color:var(--ink);border-bottom:3px double var(--ink);padding:6px 0;text-align:right}
+.lgs-p .row{padding:8px 0;border-bottom:1px solid var(--rule)}
+.lgs-p .row .k{font-size:13.5px;color:var(--text)}
+.lgs-p .row .vs{display:grid;grid-template-columns:repeat(3,1fr);text-align:right;font-size:14.5px;color:var(--ink)}
+.lgs-p .grp{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:14px 0 4px;border-bottom:1px solid var(--rule2)}
+.lgs-p .out .vs{font-weight:600}
+.lgs-p .same .vs{color:var(--muted);font-size:13.5px}
+.lgs-hold{display:none}
+.lgk{list-style:none;margin:0;padding:0;border-top:3px double var(--ink)}
+.lgk li{padding:11px 0;border-bottom:1px solid var(--rule)}
+.lgk .c{font-size:14.5px;color:var(--ink);display:grid;grid-template-columns:22px 1fr;gap:0 8px}
+.lgk .c .gl{padding-top:3px}
+.lgk dl{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 12px;margin:8px 0 0 30px;font-size:13px}
+.lgk dt{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.lgk dd{margin:1px 0 0;color:var(--ink)}
+.lgk dd .st{display:inline-flex;align-items:center;gap:5px;font-weight:600}
+.lgk dd small{display:block;color:var(--muted);font-size:12px}
+.lg-tiles{margin:4px 0 0;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.lg-tiles dt{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.lg-tiles dd{margin:2px 0 0;font-size:14px;color:var(--ink)}
+.lg-tiles dd .n{font-size:20px;font-weight:600;font-variant-numeric:proportional-nums;margin-right:4px}
+.lg-tiles dd small{display:block;font-size:12px;color:var(--muted)}
+.lg-tiles .wide{grid-column:1/-1}
+.lgw-out{border-top:3px double var(--ink)}
+.lgw>div+div,.exw>div+div{margin-top:24px}
+.inw>div+div{margin-top:12px}
+
+/* ================= Direction B: Exhibits ================= */
+.ex{margin:26px 0 0;border-top:2px solid var(--ink);padding-top:10px}
+.ex:first-of-type{margin-top:0}
+.ex-h{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:start;margin-bottom:10px}
+.ex-n{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted)}
+.ex-t{font-size:16.5px;line-height:1.3;font-weight:600;color:var(--ink);margin:2px 0 0;grid-column:1}
+.ex-s{font-size:13px;color:var(--muted);grid-column:1}
+.ex-h .tglseg{grid-column:2;grid-row:1/4;align-self:start}
+.ex-f{margin-top:10px;padding-top:8px;border-top:1px solid var(--rule);display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px;color:var(--muted)}
+.ex-f dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding-top:1px}
+.ex-f dd{margin:0;color:var(--text)}
+.ex-f dd b{font-weight:600;color:var(--ink)}
+.sm{display:grid;grid-template-columns:1fr 1fr;gap:18px 16px}
+.sm-p .nm{font-size:13px;color:var(--text);line-height:1.3;min-height:2.6em}
+.sm-p .nm span{color:var(--muted);font-size:12px}
+.sm-p .lv{font-size:22px;font-weight:600;color:var(--ink);font-variant-numeric:proportional-nums lining-nums;line-height:1.2;margin:2px 0 2px}
+.sm-p .lv small{font-size:12px;font-weight:400;color:var(--muted);margin-left:3px}
+.sm-key{font-size:12px;color:var(--muted);border:1px dashed var(--rule2);border-radius:6px;padding:10px 12px;align-self:start}
+.ann{font-size:12px}
+.ex-tests{display:grid;gap:0}
+.ext{padding:12px 0;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:22px 1fr;gap:0 8px}
+.ext .gl{padding-top:3px}
+.ext .c,.ext .vis,.ext .row{grid-column:2}
+.ext .vis{margin:2px 0 4px}
+.ext .c{font-size:14.5px;color:var(--ink);margin-bottom:6px}
+.ext .c .lead{color:var(--muted)}
+.ext .row{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);margin-top:4px}
+.ext .row .st{display:inline-flex;align-items:center;gap:5px;font-weight:600;color:var(--ink)}
+.ext .nodata{height:84px;border:1px dashed var(--rule2);border-radius:4px;display:grid;place-items:center;font-size:12.5px;color:var(--muted);text-align:center;padding:6px}
+.ex-tiles{display:grid;grid-template-columns:1fr 1fr;gap:22px 18px;margin:6px 0 0;padding:16px 0 14px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.ex-tile .l{font-size:12.5px;color:var(--muted)}
+.ex-tile .v{font-size:34px;line-height:1.1;font-weight:600;color:var(--ink);font-variant-numeric:proportional-nums lining-nums;letter-spacing:-.02em;margin:2px 0 4px}
+.ex-tile .v small{font-size:14px;font-weight:500;letter-spacing:0;color:var(--muted);margin-left:4px}
+.ex-tile .c{font-size:12px;color:var(--muted)}
+.units{display:grid;grid-template-columns:repeat(10,12px);gap:3px;margin:6px 0 4px}
+.units svg{width:12px;height:12px;display:block}
+.dots{position:relative;height:30px;margin:2px 0}
+.dots .ax{position:absolute;left:0;right:0;top:15px;border-top:1px solid var(--rule2)}
+.dots .m{position:absolute;top:9px;width:12px;height:12px;margin-left:-6px}
+.dots .m svg{width:12px;height:12px;display:block}
+.dout{padding:10px 0;border-bottom:1px solid var(--rule)}
+.dout .k{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-size:13.5px;color:var(--ink)}
+.dout .vals{display:grid;grid-template-columns:repeat(3,1fr);font-size:13px;color:var(--muted);text-align:right}
+.dout .vals span{display:inline-flex;justify-content:flex-end;align-items:center;gap:5px}
+.dout .vals b{color:var(--ink);font-weight:600;font-size:14px}
+.hm{border-collapse:separate;border-spacing:2px;width:100%;font-size:13px}
+.hm th{font-weight:400;font-size:11.5px;color:var(--muted);padding:4px}
+.hm td{text-align:center;padding:9px 2px;border-radius:3px;font-weight:500}
+.hm td.cur{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink);font-weight:700}
+.hm .c0{background:var(--h0);color:var(--hlo)}.hm .c1{background:var(--h1);color:var(--hlo)}.hm .c2{background:var(--h2);color:var(--hlo)}
+.hm .c3{background:var(--h3);color:var(--hlo)}.hm .c4{background:var(--h4);color:var(--hhi)}.hm .c5{background:var(--h5);color:var(--hhi)}.hm .c6{background:var(--h6);color:var(--hhi)}
+.ramp{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-top:8px}
+.ramp i{display:inline-block;width:18px;height:10px}
+
+/* ================= Direction C: Instrument rows ================= */
+.inr{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.inr>li{border-bottom:1px solid var(--rule)}
+.inb{display:grid;grid-template-columns:1fr 64px auto 18px;align-items:center;gap:0 10px;width:100%;border:0;background:none;padding:11px 0;text-align:left;min-height:56px}
+.inb:hover{background:var(--surf)}
+.inb .nm{font-size:14px;color:var(--ink);line-height:1.3}
+.inb .nm small{display:block;font-size:12px;color:var(--muted)}
+.inb .lv{text-align:right;line-height:1.2}
+.inb .lv b{font-size:17px;font-weight:600;color:var(--ink)}
+.inb .lv .u{font-size:12px;color:var(--muted);margin-left:3px;display:inline-block;min-width:2.4em;text-align:left}
+.inb .lv small{display:block;font-size:11.5px;color:var(--muted)}
+.inb .chev{width:14px;height:14px;transition:transform .18s ease-out;stroke:var(--muted);fill:none;stroke-width:1.5}
+.inb[aria-expanded=true] .chev{transform:rotate(180deg)}
+.inx{padding:2px 0 14px}
+.inx table{width:100%;border-collapse:collapse;font-size:13px}
+.inx th,.inx td{padding:6px 0;border-bottom:1px solid var(--rule);text-align:right;font-weight:400}
+.inx th:first-child,.inx td:first-child{text-align:left}
+.inx thead th{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.inx td.v{font-size:14px;color:var(--ink)}
+.inx tr.cur td{font-weight:600;color:var(--ink)}
+.in-ctl{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 10px}
+.pill{border:1px solid var(--rule2);background:var(--bg);border-radius:999px;font-size:12.5px;padding:0 12px;min-height:34px;color:var(--muted)}
+.pill[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.readout{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:baseline;margin:0 0 6px;font-size:12.5px;color:var(--muted)}
+.readout b{font-size:18px;font-weight:600;color:var(--ink);margin-left:4px}
+.readout .when{flex-basis:100%;font-size:12px}
+.mt{margin:8px 0 2px}
+.mt-track{position:relative;height:22px}
+.mt-track::before{content:"";position:absolute;left:0;right:0;top:10px;height:2px;background:var(--surf2);border-radius:1px}
+.mt-zone{position:absolute;top:8px;height:6px;background:repeating-linear-gradient(135deg,var(--rule2) 0 1px,transparent 1px 4px);border:1px solid var(--rule2);border-radius:1px}
+.mt-thr{position:absolute;top:2px;bottom:2px;width:0;border-left:2px solid var(--ink)}
+.mt-dot{position:absolute;top:5px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 2px var(--bg)}
+.mt-pr{position:absolute;top:6px;width:10px;height:10px;margin-left:-5px;border-radius:50%;border:1.5px solid var(--ink);background:var(--bg)}
+.mt-lab{position:relative;height:16px;font-size:11.5px;color:var(--muted)}
+.mt-lab span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.mt-lab span.l{transform:none;left:0}.mt-lab span.r{transform:none;right:0}
+.mt-lab b{color:var(--ink);font-weight:600}
+.qcells{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:8px 0 2px}
+.qcells div{border:1px solid var(--rule2);border-radius:4px;padding:5px 6px;font-size:11.5px;color:var(--muted);line-height:1.25}
+.qcells div b{display:block;font-size:14px;color:var(--ink);font-weight:600}
+.qcells div.ok{border:1.5px solid var(--ink)}
+.int{padding:12px 0;border-bottom:1px solid var(--rule)}
+.int .c{font-size:14.5px;color:var(--ink);display:grid;grid-template-columns:22px 1fr;gap:0 8px}
+.int .c .gl{padding-top:3px}
+.int .body{margin-left:30px}
+.int .foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;font-size:12.5px;color:var(--muted);margin-top:4px}
+.int .foot .st{display:inline-flex;align-items:center;gap:5px;font-weight:600;color:var(--ink)}
+.in-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 0}
+.in-tile{border:1px solid var(--rule);border-radius:8px;padding:11px 12px 10px;background:var(--bg);min-height:116px;display:flex;flex-direction:column}
+.in-tile .l{font-size:12px;color:var(--muted)}
+.in-tile .v{font-size:24px;font-weight:600;color:var(--ink);font-variant-numeric:proportional-nums lining-nums;line-height:1.15;margin:3px 0 2px}
+.in-tile .v small{font-size:12.5px;font-weight:500;color:var(--muted);margin-left:3px}
+.in-tile .c{font-size:11.5px;color:var(--muted);margin-top:auto}
+.stk{display:flex;gap:2px;height:8px;margin:6px 0 4px}
+.stk i{display:block;height:100%;border-radius:1px}
+.stk i.m{background:var(--ink)}.stk i.w{background:repeating-linear-gradient(135deg,var(--ink) 0 2px,var(--bg) 2px 4px);box-shadow:inset 0 0 0 1px var(--ink)}
+.ukey,.skey{display:flex;flex-wrap:wrap;gap:2px 9px}
+.ukey span,.skey span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.ukey svg{width:10px;height:10px}
+.skey i{display:inline-block;width:12px;height:8px;border-radius:1px}
+.skey i.m{background:var(--ink)}.skey i.w{background:repeating-linear-gradient(135deg,var(--ink) 0 2px,var(--bg) 2px 4px);box-shadow:inset 0 0 0 1px var(--ink)}.skey i.nm{box-shadow:inset 0 0 0 1.5px var(--ink)}.skey i.nd{box-shadow:inset 0 0 0 1px var(--rule2)}
+.stk i.nm{background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--ink)}.stk i.nd{background:var(--bg);box-shadow:inset 0 0 0 1px var(--rule2)}
+.scpick{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.scr{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:9px 0;border-bottom:1px solid var(--rule)}
+.scr .k{font-size:13.5px;color:var(--text)}
+.scr .v{font-size:15px;font-weight:600;color:var(--ink);text-align:right}
+.scr .v .u{font-size:12px;font-weight:400;color:var(--muted);margin-left:3px}
+.scr .trk{grid-column:1/-1;position:relative;height:14px;margin-top:2px}
+.scr .trk::before{content:"";position:absolute;left:0;right:0;top:6px;border-top:1px solid var(--rule2)}
+.scr .trk i{position:absolute;top:2px;width:2px;height:10px;margin-left:-1px;background:var(--ctx)}
+.scr .trk i.on{width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 2px var(--bg)}
+.scr .trk span{position:absolute;top:0;font-size:10.5px;color:var(--muted)}
+.inputs-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.inputs-chips span{border:1px solid var(--rule);border-radius:6px;padding:4px 8px;font-size:12.5px;color:var(--muted);background:var(--surf)}
+.inputs-chips b{color:var(--ink);font-weight:600}
+.panel{border:1px solid var(--rule);border-radius:10px;padding:4px 14px 12px;background:var(--bg)}
+
+@media (prefers-reduced-motion:reduce){.site *{transition:none!important;scroll-behavior:auto!important}}
+
+/* ================= desktop frame ================= */
+@container (min-width:760px){
+ .site{--gut:32px}
+ .dsk{display:revert!important}
+ .phn{display:none!important}
+ .dtop{display:block;border-top:0;border-bottom:1px solid var(--rule)}
+ .dock{display:none}
+ .idx{display:none}
+ .a-body{display:grid;grid-template-columns:200px minmax(0,1fr);flex:1}
+ .grail{display:block;position:sticky;top:0;align-self:start;border-right:1px solid var(--rule);padding:18px 12px 24px 18px;font-size:13.5px;min-height:100%}
+ .gi{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;min-height:32px;border:0;background:none;padding:4px 8px;border-radius:5px;color:var(--text);text-align:left}
+ .gi .ct{font-size:11px;color:var(--muted)}
+ .gi[aria-current=page]{background:var(--surf2);color:var(--ink);font-weight:600}
+ .gsub{margin:2px 0 6px 12px;padding-left:6px;border-left:1px solid var(--rule)}
+ .gsub .gi{min-height:27px;font-size:13px;color:var(--muted)}
+ .gfile{font-size:13px;color:var(--ink);font-weight:600;padding:6px 8px 2px}
+ .pg{padding:30px 40px 72px;max-width:760px}
+ .h1{font-size:34px}
+ .fh1{font-size:36px}
+ .dateline{grid-template-columns:repeat(4,auto);justify-content:space-between}
+ .bp-top{top:0}
+ /* A */
+ .lgt{display:table}
+ .lgp{display:none}
+ .lgs-p{display:none}
+ .lgs-hold{display:table}
+ .lgk li{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:0 18px;align-items:start}
+ .lgk dl{margin:0;grid-template-columns:1fr 1.25fr .95fr}
+ .lgk .full{grid-column:1/-1}
+ .lg-tiles{grid-template-columns:repeat(4,auto);justify-content:space-between}
+ .lg-tiles .wide{grid-column:auto}
+ .lgw{display:grid;grid-template-columns:280px minmax(0,1fr);gap:36px}
+ .lgw>div+div,.exw>div+div,.inw>div+div{margin-top:0}
+ /* B */
+ .sm{grid-template-columns:repeat(3,1fr)}
+ .ex-tiles{grid-template-columns:repeat(4,1fr)}
+ .ex-tests .ext{grid-template-columns:22px minmax(0,1fr) 250px;gap:0 18px}
+ .ext .c{grid-column:2}
+ .ext .vis{grid-column:3;grid-row:1/3}
+ .ext .row{grid-column:2}
+ .exw{display:grid;grid-template-columns:270px minmax(0,1fr);gap:32px}
+ /* C */
+ .inb{grid-template-columns:1fr 110px 170px 18px}
+ .in-tiles{grid-template-columns:repeat(4,1fr)}
+ .int{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:0 22px}
+ .int .body{margin:0}
+ .inw{display:grid;grid-template-columns:300px minmax(0,1fr);gap:28px;align-items:start}
+}
+</style>
+</head>
+<body>
+<header class="shell">
+  <h1>Segment 3: data display</h1>
+  <p>Three directions for the figures inside the B+ file and on the register home, all on one fictional company, Kaveri Pumps &amp; Motors. Each direction shows (1) a five-year table, (2) the public scenario table, (3) a receivable-days chart and a lagged price line against the Nifty 50, (4) the home stat tiles and the kill-criteria table as data, and (5) the private valuation panel. Company, figures, prices and quoted lines are invented to test layout.</p>
+  <p>Chrome, type and greys are the decided B+ and Register system. One blue is a <b>placeholder data accent</b> so charts can be judged; segment 5 sets the real colour. Hover or focus a chart and use the arrow keys for values; tap a dotted figure or a source chip to open its source card.</p>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Screen"><span>Screen</span>
+      <button type="button" data-screen-btn="file" aria-pressed="true">Kaveri file: figures</button>
+      <button type="button" data-screen-btn="home" aria-pressed="false">Desk home</button>
+      <button type="button" data-screen-btn="priv" aria-pressed="false">Private valuation</button>
+    </div>
+    <div class="seg" role="group" aria-label="Theme"><span>Theme</span>
+      <button type="button" data-theme-btn="system" aria-pressed="true">System</button>
+      <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" role="group" aria-label="Layout"><span>Layout</span>
+      <button type="button" data-layout-btn="both" aria-pressed="true">Desktop + phone</button>
+      <button type="button" data-layout-btn="phones" aria-pressed="false">Three phones</button>
+    </div>
+  </div>
+  <details class="studied">
+    <summary>Screens studied: 34 captures from 16 sites (agent-browser; Mobbin unavailable)</summary>
+    <ol>
+      <li><b>StockAnalysis financials, desktop and phone (4):</b> two header rows, fiscal year and the exact period-end date. Growth rows are green or red with no other cue. On a phone the table scrolls sideways under a pinned label column.</li>
+      <li><b>StockAnalysis ratios, statistics and full chart (4):</b> a "Market cap in millions" unit sentence above the table; label and value pairs; a candlestick chart with a volume pane.</li>
+      <li><b>Screener.in top, P&amp;L and ratios, desktop and phone (5, viewed only):</b> years run across as "Mar 2015", bold totals and compounded-growth boxes, and a Debtor Days row. On a phone it scrolls sideways and opens at the newest columns.</li>
+      <li><b>Google Finance quote, desktop and phone (2):</b> dark mode, a dotted previous-close reference line, two-column key stats.</li>
+      <li><b>Our World in Data chart and table, desktop and phone (4):</b> Chart / Table / Map tabs, direct end labels, a source line under the chart, and a sparkline column with absolute and relative change.</li>
+      <li><b>FRED series, desktop and phone (2):</b> an observation block above the chart (latest value, units, frequency, updated date, next release), shaded context bands and a source line.</li>
+      <li><b>Yahoo Finance financials, desktop and phone (2):</b> "All numbers in thousands", an Annual or Quarterly switch and expandable rows.</li>
+      <li><b>Tijori, desktop and phone (2):</b> a ratio grid and a "Last updated on" pill on the snapshot.</li>
+      <li><b>GitHub Insights pulse (1):</b> a date-range heading, a period picker, counts as tiles and proportion bars.</li>
+      <li><b>Damodaran cost-of-capital data (1):</b> "Data used is as of January 2026" stated before a plain grid. WACC inputs for panel 5.</li>
+      <li><b>WSJ market data (1):</b> the timestamp sits right-aligned on the table heading.</li>
+      <li><b>Observable Plot line mark (1):</b> the y label sits at the top of the axis ("↑ Close"); the grid is minimal.</li>
+      <li><b>Datawrapper tables (1):</b> tables with bars, heatmaps and mini charts in cells.</li>
+      <li><b>Linear Insights docs (1):</b> a chart with its table below it, in dark mode.</li>
+      <li><b>Last10K filing page (1):</b> a "YoY Changes" tab beside the filing.</li>
+      <li><b>Koyfin and Stripe docs (2):</b> a dense dark multi-panel dashboard, and an "On this page" rail. Stripe's dashboard tables need a login, so I did not study them.</li>
+      <li><b>Not studied:</b> Finviz, Macrotrends and Value Research showed bot checks, and Bloomberg a press-and-hold check; none was bypassed. Trendlyne and Morningstar gave 403 errors. FT showed a cookie wall I did not accept. Marcellus asked for a residency declaration I did not make. The Nomad site did not resolve.</li>
+    </ol>
+  </details>
+</header>
+
+<main class="dirs">
+  <section class="dir" aria-labelledby="hA">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">A</div><div><h2 id="hA">A. Ledger</h2><p class="thesis">The table is the exhibit. Periods run across as in an annual report, each column says when it ends and where it came from, and charts stay small enough to sit beside the table.</p><p>References: Screener, StockAnalysis, Damodaran, annual-report notes. On a phone the years become a sticky five-column key and each metric becomes a row under it, so nothing scrolls sideways.</p></div></div>
+    <div class="stage">
+      <figure class="frame"><div class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url" data-url>research desk / companies / kaveri-pumps</span></div><div class="vp" data-render="A" tabindex="0" role="region" aria-label="A Ledger, desktop mockup"></div></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="frame"><div class="bezel"><div class="vp" data-render="A" tabindex="0" role="region" aria-label="A Ledger, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+  <section class="dir" aria-labelledby="hB">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">B</div><div><h2 id="hB">B. Exhibits</h2><p class="thesis">Every figure block is a numbered exhibit: a plain-fact title, the chart first, the table one tap away, and a source-and-date footer fixed to the chart.</p><p>References: Our World in Data, FRED, Observable Plot, broker-report exhibits. On a phone the five years become small multiples, each with its own scale, and the table sits behind the Table tab.</p></div></div>
+    <div class="stage">
+      <figure class="frame"><div class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url" data-url>research desk / companies / kaveri-pumps</span></div><div class="vp" data-render="B" tabindex="0" role="region" aria-label="B Exhibits, desktop mockup"></div></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="frame"><div class="bezel"><div class="vp" data-render="B" tabindex="0" role="region" aria-label="B Exhibits, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+  <section class="dir" aria-labelledby="hC">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">C</div><div><h2 id="hC">C. Instrument rows</h2><p class="thesis">One row per measure, read in a second: a label, a sparkline and the latest value with its date. Tap the row and the five years, sources and quoted line open in place.</p><p>References: Koyfin, Stripe and Linear dashboards, GitHub Insights, Google Finance. On a phone the rows already fit; the detail opens downward as a list of periods.</p></div></div>
+    <div class="stage">
+      <figure class="frame"><div class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url" data-url>research desk / companies / kaveri-pumps</span></div><div class="vp" data-render="C" tabindex="0" role="region" aria-label="C Instrument rows, desktop mockup"></div></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="frame"><div class="bezel"><div class="vp" data-render="C" tabindex="0" role="region" aria-label="C Instrument rows, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<section class="matrix-wrap" aria-labelledby="hM">
+  <h2 id="hM">The same five items, direction by direction</h2>
+  <div class="matrix-scroll">
+  <table class="matrix">
+    <thead><tr><th scope="col">Item</th><th scope="col">A. Ledger</th><th scope="col">B. Exhibits</th><th scope="col">C. Instrument rows</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">1. Five-year table</th><td>Years run across. Header rows give the year end and the source chip per column, closed by a double rule. Units have their own column; computed rows carry "=". Phone: a sticky key row of years with metric rows under it.</td><td>Small multiples, one panel per metric, each on its own scale with the latest value large. A Table tab holds the ledger. Phone: two panels a row.</td><td>One row per metric: sparkline, latest value with unit and date, change against FY25. Tap to open a period list with its as-of dates and source chips.</td></tr>
+      <tr><th scope="row">Source-fact panel</th><td>Tap an FY26 figure (dotted underline): the B+ card opens under the table. Computed figures open a CALC card that shows the sum.</td><td>The footer lists the sources; the Table tab's FY26 figures open the same cards.</td><td>The card opens inside the expanded row.</td></tr>
+      <tr><th scope="row">2. Scenario table</th><td>Inputs and outputs in one ledger with a double rule between them. Inputs shared by all three scenarios are greyed and stated once.</td><td>Each output is a dot strip: three shapes on one scale, values beside it. The Table tab holds the ledger.</td><td>Pick one scenario (or compare all). Inputs show as chips; each output shows where it sits among the three.</td></tr>
+      <tr><th scope="row">3a. Receivable days</th><td>A small column chart beside the table. The annualised Q1 FY27 column is hatched.</td><td>An annotated line with test 1's threshold line, the scheme-share note at FY26 and a dotted annualised segment.</td><td>Opens inside the receivable-days row, under its period list.</td></tr>
+      <tr><th scope="row">3b. Price against Nifty 50</th><td>A compact line ending in a "Data to 31 Aug 2026" cap, with the withheld weeks hatched. Monthly values in a fold-out table.</td><td>A larger exhibit with filing-date markers, leader-line end labels and a crosshair tooltip.</td><td>A readout above the chart follows the crosshair. Range pills are limited to lagged ranges.</td></tr>
+      <tr><th scope="row">4a. Home stat tiles</th><td>One ledger line: counts in text, plus the 30-cell streak.</td><td>Large figures. Twenty tests appear as twenty shape-coded squares; files show as a step line.</td><td>Bordered tiles, 2 by 2 on a phone. The test statuses form a segmented bar with gaps and textures.</td></tr>
+      <tr><th scope="row">4b. Kill criteria</th><td>Columns for threshold, latest reading, data date, status and date checked.</td><td>Each test carries its own small history chart with the threshold drawn in.</td><td>Distance-to-threshold meters; test 2 is a four-quarter counter.</td></tr>
+      <tr><th scope="row">5. Private panel</th><td>A ledger workbench: sliders next to the live column and the published Middle column.</td><td>Sliders and a cost-of-capital by long-run-growth heatmap, with the current cell ringed.</td><td>A control panel, output tiles and an equity-value-by-cost-of-capital line.</td></tr>
+      <tr><th scope="row">Shared rules</th><td colspan="3">Tabular figures in columns and proportional figures in large standalone values. Every block has a source and an as-of date. No meaning rests on colour alone: shapes, hatching, dashes and labels carry it. Charts have hover and keyboard readouts, and each chart has a table. Dark mode uses its own selected steps.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="ask">Reply with A, B or C, or name rows to swap, for example "B, with A's phone ledger as the Table tab and C's meters for the tests".</p>
+</section>
+
+<script>
+/* ================= shared data (fictional; segment 1 and 2 data, extended) ================= */
+var YRS = ["FY22", "FY23", "FY24", "FY25", "FY26"];
+var YEND = ["31 Mar 2022", "31 Mar 2023", "31 Mar 2024", "31 Mar 2025", "31 Mar 2026"];
+var YSRC = ["S7", "S6", "S5", "S4", "S1"];
+var SRC = {
+  S1: "Kaveri Pumps &amp; Motors Ltd, Annual Report 2025-26 · filed with NSE on 3 Jul 2026",
+  S2: "Q1 FY27 results and investor presentation · filed with NSE on 11 Aug 2026",
+  S3: "MNRE, PM-KUSUM Component B state-wise progress · as of 30 Jun 2026",
+  S4: "Annual Report 2024-25 · filed 4 Jul 2025", S5: "Annual Report 2023-24 · filed 5 Jul 2024",
+  S6: "Annual Report 2022-23 · filed 6 Jul 2023", S7: "Annual Report 2021-22 · filed 8 Jul 2022",
+  S8: "NSE, daily closing prices, Kaveri Pumps and Nifty 50 · to 31 Aug 2026"
+};
+var MET = [
+  {k: "rev", n: "Revenue", u: "₹ cr", v: [588, 701, 776, 902, 1284], dp: 0, pg: "p. 112"},
+  {k: "mgn", n: "EBITDA margin", u: "%", v: [11.8, 12.4, 12.9, 13.6, 14.1], dp: 1, calc: 1},
+  {k: "rd", n: "Receivable days", u: "days", v: [81, 84, 88, 96, 142], dp: 0, pg: "p. 131"},
+  {k: "roce", n: "Return on capital employed", sh: "ROCE", u: "%", v: [17.2, 18.1, 18.9, 19.4, 16.8], dp: 1, calc: 1},
+  {k: "nd", n: "Net debt", u: "₹ cr", v: [42, 31, 18, 64, 311], dp: 0, calc: 1}
+];
+var CARD = {
+  rev: {kind: "FACT", src: "S1 · p. 112", asof: "31 Mar 2026", rows: [["Revenue, FY26", "1,284", "₹ cr"], ["FY25", "902", "₹ cr", 1]], q: "Revenue from operations ₹1,284.27 crore (previous year ₹902.14 crore).", s: "S1"},
+  rd: {kind: "FACT", src: "S1 · p. 131", asof: "31 Mar 2026", rows: [["Receivable days, FY26", "142", "days"], ["FY25", "96", "days", 1]], q: "Trade receivables stood at 142 days of revenue (previous year 96 days), reflecting longer realisation cycles on scheme orders.", s: "S1"},
+  mgn: {kind: "CALC", src: "from S1 · p. 112", asof: "31 Mar 2026", rows: [["EBITDA", "181", "₹ cr"], ["÷ Revenue", "1,284", "₹ cr"], ["EBITDA margin", "14.1", "%", 0, 1]], q: "", s: "S1"},
+  roce: {kind: "CALC", src: "from S1 · pp. 112, 118", asof: "31 Mar 2026", rows: [["EBIT", "156", "₹ cr"], ["÷ Average capital employed", "929", "₹ cr"], ["ROCE", "16.8", "%", 0, 1]], q: "", s: "S1"},
+  nd: {kind: "CALC", src: "from S1 · pp. 118, 119", asof: "31 Mar 2026", rows: [["Borrowings", "402", "₹ cr"], ["− Cash and bank balances", "91", "₹ cr"], ["Net debt", "311", "₹ cr", 0, 1]], q: "", s: "S1"}
+};
+var RD = [["FY22", 81], ["FY23", 84], ["FY24", 88], ["FY25", 96], ["FY26", 142], ["Q1 FY27", 151]];
+var TESTS = [
+  {c: "receivable days fall below 100 in the FY27 annual report without new bill discounting or factoring.", thr: 100, thrTxt: "Below 100 days", latest: "151 days", ln: "Q1 FY27, annualised", asof: "30 Jun 2026", st: "Not met", checked: "2 Sep 2026",
+   hist: [["FY24", 88], ["FY25", 96], ["FY26", 142], ["Q1 FY27", 151]], lo: 60, hi: 180, u: "days", gap: "51 days above the line"},
+  {c: "industrial and export revenue grows faster than 20% a year for four quarters in a row.", thr: 20, thrTxt: "Above 20%, 4 quarters running", latest: "+19%", ln: "0 of 4 quarters", asof: "30 Jun 2026", st: "Watching", checked: "2 Sep 2026",
+   hist: [["Q2 FY26", 14], ["Q3 FY26", 16], ["Q4 FY26", 17], ["Q1 FY27", 19]], u: "% a year"},
+  {c: "the company discloses that states paying within 90 days make up more than half of its scheme order book.", thr: 50, thrTxt: "Above 50% of order book", latest: "Not disclosed", ln: "S2 is silent on payment terms", asof: "11 Aug 2026", st: "No data", checked: "2 Sep 2026", hist: [], added: 2}
+];
+var SC = [
+  {k: "slow", n: "Scheme slows", sh: "Slows", gs: -15, go: 12, m: 11.5, rd: 150},
+  {k: "mid", n: "Scheme tapers", sh: "Tapers", gs: -5, go: 18, m: 13.0, rd: 120},
+  {k: "ext", n: "Scheme extended", sh: "Extended", gs: 8, go: 22, m: 14.5, rd: 95}
+];
+var WACC = 13, LRG = 5;
+var COS = [
+  {name: "Mirav Housing Finance", sec: "Financials", rev: 3, d: "1 Oct 2026", to: "30 Jun 2026", t: {m: 1, nm: 2, w: 1, nd: 0}},
+  {name: "Halden Cables &amp; Wires", sec: "Capital goods", rev: 1, d: "29 Sep 2026", to: "30 Jun 2026", t: {m: 0, nm: 0, w: 2, nd: 0}},
+  {name: "Kaveri Pumps &amp; Motors", sec: "Capital goods", rev: 2, d: "2 Sep 2026", to: "30 Jun 2026", t: {m: 0, nm: 1, w: 1, nd: 1}},
+  {name: "Durvan Cement", sec: "Materials", rev: 1, d: "12 Aug 2026", to: "31 Mar 2026", t: {m: 0, nm: 3, w: 0, nd: 0}}
+];
+var TSUM = {m: 1, w: 6, nm: 9, nd: 4};
+var FILES_BY_MONTH = [["Jun", 2], ["Jul", 4], ["Aug", 6], ["Sep", 7], ["Oct", 7]];
+var STREAK = "110011111101111011110110110111";
+var LOGGED = STREAK.split("").filter(function (c) { return c === "1"; }).length;
+var LOG = [
+  {d: "1 Oct", k: "REVISION", w: "Mirav R3: stage 3 loans rose for a second quarter, so test 2 is now met and the view is weaker."},
+  {d: "29 Sep", k: "NEW FILE", w: "Halden Cables R1: first case study, after the FY26 annual report and two tender filings."},
+  {d: "2 Sep", k: "REVISION", w: "Kaveri R2: Q1 FY27 receivable days rose again. Rewrote paragraph 3 and added test 3."}
+];
+var DISC = "Educational content only. Aksh Agrawal is not a SEBI-registered Research Analyst or Investment Adviser. Nothing here is a recommendation, offer or solicitation to buy or sell any security. Figures are shown with a minimum 30-day lag. Position in the security discussed: <strong>No</strong>. Investments in securities are subject to market risk; consult a SEBI-registered adviser before acting. Last reviewed 2 Sep 2026.";
+
+/* weekly closes, indexed to 100 on 7 Apr 2025; last point 31 Aug 2026; then withheld to 5 Oct 2026 (render date) */
+var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+var PX = (function () {
+  var N = 74, end = Date.UTC(2026, 7, 31), out = [];
+  function interp(a, k) { for (var i = 0; i < a.length - 1; i++) if (k >= a[i][0] && k <= a[i + 1][0]) return a[i][1] + (a[i + 1][1] - a[i][1]) * (k - a[i][0]) / (a[i + 1][0] - a[i][0]); return a[a.length - 1][1]; }
+  var KA = [[0, 100], [8, 109], [18, 121], [28, 133], [40, 152], [46, 146], [54, 141], [63, 138], [65, 117], [67, 106], [70, 103], [73, 108.4]];
+  var NA = [[0, 100], [10, 103], [20, 105.5], [30, 102], [40, 99], [50, 101], [60, 105], [73, 107.1]];
+  for (var k = 0; k < N; k++) {
+    var t = end - (N - 1 - k) * 7 * 864e5, d = new Date(t);
+    var kv = interp(KA, k) + (k && k < N - 1 ? 2.2 * Math.sin(k * 1.7) + 1.3 * Math.sin(k * 0.63) : 0);
+    var nv = interp(NA, k) + (k && k < N - 1 ? 0.8 * Math.sin(k * 1.3) + 0.5 * Math.sin(k * 0.41) : 0);
+    out.push({x: k, t: t, d: d.getUTCDate() + " " + MON[d.getUTCMonth()] + " " + d.getUTCFullYear(), m: d.getUTCMonth(), y: d.getUTCFullYear(), k: +kv.toFixed(1), n: +nv.toFixed(1)});
+  }
+  return out;
+})();
+var PX_END = 73, PX_TODAY = 73 + 5; /* 31 Aug + 35 days = 5 Oct 2026 */
+var EVENTS = [{x: 64.6, l: "S1"}, {x: 70.1, l: "S2"}];
+function pxTicks() { var t = []; PX.forEach(function (p, i) { if (i && p.m !== PX[i - 1].m && (p.m % 3 === 0)) t.push({x: i, l: MON[p.m] + (p.m === 0 || p.m === 3 && p.y === 2025 ? " " + String(p.y).slice(2) : "")}); }); return t; }
+
+/* ================= model (same function feeds the public table and the private panel) ================= */
+function model(p) {
+  var rev0 = 1284, s = 783, o = 501, rd0 = 142, m0 = 14.1, nd0 = 311, prevRec = rev0 * rd0 / 365, prevRev = rev0, ev = 0, f10 = 0, cum3 = 0, g3 = 0, rev29 = 0, eb29 = 0, sh29 = 0;
+  for (var t = 1; t <= 10; t++) {
+    var rev;
+    if (t <= 3) { s *= 1 + p.gs / 100; o *= 1 + p.go / 100; rev = s + o; if (t === 3) { g3 = rev / prevRev - 1; sh29 = s / rev; } }
+    else rev = prevRev * (1 + g3 + (p.gt / 100 - g3) * (t - 3) / 7);
+    var m = t <= 3 ? m0 + (p.m - m0) * t / 3 : p.m, rd = t <= 3 ? rd0 + (p.rd - rd0) * t / 3 : p.rd;
+    var eb = rev * m / 100, rec = rev * rd / 365, f = eb - 0.25 * (eb - 0.025 * rev) - 0.03 * rev - (rec - prevRec);
+    prevRec = rec; prevRev = rev; if (t <= 3) cum3 += f; if (t === 3) { rev29 = rev; eb29 = eb; } if (t === 10) f10 = f;
+    ev += f / Math.pow(1 + p.w / 100, t);
+  }
+  var pvtv = f10 * (1 + p.gt / 100) / (p.w / 100 - p.gt / 100) / Math.pow(1 + p.w / 100, 10);
+  ev += pvtv;
+  return {rev29: rev29, sh29: sh29 * 100, eb29: eb29, cum3: cum3, nd29: nd0 - cum3, ev: ev, eq: ev - nd0, mult: ev / 181, tv: pvtv / ev * 100, ps: (ev - nd0) / 4.2};
+}
+SC.forEach(function (s) { s.out = model({gs: s.gs, go: s.go, m: s.m, rd: s.rd, w: WACC, gt: LRG}); });
+var SC_IN = [
+  ["Scheme revenue, a year, FY27 to FY29", "gs", "%", 0, 1], ["Industrial and export revenue, a year", "go", "%", 0, 1],
+  ["EBITDA margin, FY29", "m", "%", 1], ["Receivable days, FY29", "rd", "days", 0]
+];
+var SC_SAME = [["Discount rate (cost of capital)", "13.0", "%"], ["Long-run growth after FY36", "5.0", "%"]];
+var SC_OUT = [
+  ["Revenue, FY29", "rev29", "₹ cr", 0], ["Scheme share of revenue, FY29", "sh29", "%", 0], ["EBITDA, FY29", "eb29", "₹ cr", 0],
+  ["Free cash flow, FY27 to FY29", "cum3", "₹ cr", 0], ["Net debt, FY29", "nd29", "₹ cr", 0], ["Equity value under these assumptions", "eq", "₹ cr", 0, 1]
+];
+
+/* ================= helpers ================= */
+function each(l, f) { for (var i = 0; i < l.length; i++) f(l[i], i); }
+function nf(v, dp, sign) {
+  var s = Math.abs(v).toLocaleString("en-IN", {minimumFractionDigits: dp || 0, maximumFractionDigits: dp || 0});
+  if (v < 0 && s.replace(/[0.,]/g, "") !== "") return "−" + s;
+  return (sign && v > 0 ? "+" : "") + s;
+}
+function esc(s) { return String(s).replace(/&(?!amp;)/g, "&amp;").replace(/</g, "&lt;"); }
+var uid = 0;
+var SV = {
+  back: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5"/></svg>',
+  search: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.3"/><path d="m12.8 12.8 3.7 3.7"/></svg>',
+  desk: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3.5" width="14" height="13" rx="1.5"/><path d="M3 8h14M7.5 8v8.5"/></svg>',
+  files: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/><path d="M6 3.5v3M6 8.5v3M6 13.5v3"/></svg>',
+  notes: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.8h7l3.2 3.2v11.2H5z"/><path d="M12 2.8V6h3.2M7.5 10h5M7.5 13h5"/></svg>',
+  about: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.3v.2"/></svg>',
+  lock: '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>',
+  chev: '<svg class="chev" viewBox="0 0 14 14" aria-hidden="true"><path d="m3 5 4 4 4-4"/></svg>'
+};
+var ICON = {
+  "Met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>',
+  "Not met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  "Watching": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 1.4a4.6 4.6 0 0 1 0 9.2z" fill="currentColor"/></svg>',
+  "No data": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>'
+};
+var SHAPE = { /* scenario markers: shape carries identity, never colour */
+  slow: '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" fill="var(--bg)" stroke="var(--ink)" stroke-width="1.5"/></svg>',
+  mid: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .8 11.2 6 6 11.2.8 6z" fill="var(--ink)"/></svg>',
+  ext: '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="var(--acc)" stroke="var(--bg)" stroke-width="1"/></svg>'
+};
+function tmini(t) {
+  var h = '', lab = [];
+  each([["Met", "m"], ["Not met", "nm"], ["Watching", "w"], ["No data", "nd"]], function (k) { if (t[k[1]]) { h += '<span>' + ICON[k[0]] + t[k[1]] + '</span>'; lab.push(t[k[1]] + ' ' + k[0].toLowerCase()); } });
+  return '<span class="tmini" role="img" aria-label="Tests: ' + lab.join(', ') + '">' + h + '</span>';
+}
+function streak(w) {
+  var h = '<div class="streak" role="img" aria-label="Research logged on ' + LOGGED + ' of the last 30 days"' + (w ? ' style="max-width:' + w + 'px"' : '') + '>';
+  each(STREAK.split(""), function (c) { h += '<i' + (c === "1" ? ' class="on"' : '') + '></i>'; });
+  return h + '</div><div class="streak-cap"' + (w ? ' style="max-width:' + w + 'px"' : '') + ' aria-hidden="true"><span>5 Sep</span><span>4 Oct</span></div>';
+}
+function spark(vals, w, h, lab) {
+  var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), p = 3, pts = [];
+  each(vals, function (v, i) { pts.push([p + i * (w - 2 * p) / (vals.length - 1), h - p - (v - mn) / ((mx - mn) || 1) * (h - 2 * p)]); });
+  var d = pts.map(function (q, i) { return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join('');
+  var e = pts[pts.length - 1];
+  return '<svg class="spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + lab + '"><path class="ln" d="' + d + '"/><circle class="end" cx="' + e[0].toFixed(1) + '" cy="' + e[1].toFixed(1) + '" r="3"/></svg>';
+}
+function chipBtn(key, label, grp) { return '<button type="button" class="chip" aria-expanded="false" data-card="' + key + '" data-grp="' + grp + '"><b>' + label.split(' ')[0] + '</b>' + label.split(' ').slice(1).join(' ') + '</button>'; }
+function cellBtn(key, txt, grp, lab) { return '<button type="button" class="cellbtn" aria-expanded="false" data-card="' + key + '" data-grp="' + grp + '" aria-label="' + lab + ', open source card">' + txt + '</button>'; }
+function cardHTML(key) {
+  var c = CARD[key]; if (!c) return srcCard(key);
+  var h = '<div class="card' + (c.kind === "CALC" ? ' calc' : '') + '"><div class="card-h"><span class="kind ' + (c.kind === "CALC" ? 'calc' : 'fact') + '">' + c.kind + '</span><span class="id">' + c.src + '</span><span class="asof">as of ' + c.asof + '</span></div>';
+  each(c.rows, function (r) { h += '<div class="kv' + (r[3] ? ' pr' : '') + (r[4] ? ' tot' : '') + '"><span class="k">' + r[0] + '</span><span class="n">' + r[1] + '</span><span class="u">' + r[2] + '</span></div>'; });
+  if (c.q) h += '<div class="q"><span class="lbl">Quoted from the filing</span><p>“' + c.q + '”</p></div>';
+  else h += '<div class="q"><span class="lbl">Computed by the desk</span><p>From reported lines; the method is in the note on this file. Not a figure the company states.</p></div>';
+  return h + '<p class="card-src">' + SRC[c.s] + '</p><button type="button" class="card-x" data-close>Close</button></div>';
+}
+function srcCard(s) {
+  return '<div class="card"><div class="card-h"><span class="kind fact">SOURCE</span><span class="id">' + s + '</span></div><p style="font-size:14px;color:var(--ink)">' + SRC[s] + '</p><p class="card-src">Used here for the year ended ' + YEND[YSRC.indexOf(s)] + ': statement of profit and loss, balance sheet and the note on trade receivables.</p><button type="button" class="card-x" data-close>Close</button></div>';
+}
+function scVal(s, key, dp, sign) { return nf(s[key] !== undefined ? s[key] : s.out[key], dp, sign); }
+
+/* ================= chart engine: inline SVG, measured to its container, hover + keyboard readout ================= */
+var CH = {};
+function chart(o) { var id = 'ch' + (++uid); CH[id] = o; return '<div class="chart" id="' + id + '" data-chart tabindex="0" role="img" aria-label="' + o.aria + '" style="height:' + o.h + 'px"></div>'; }
+function defs(k) {
+  return '<defs><pattern id="hatch-' + k + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--surf)"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--rule2)" stroke-width="1.2"/></pattern>' +
+    '<pattern id="hatchi-' + k + '" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="var(--bg)"/><line x1="0" y1="0" x2="0" y2="4" stroke="var(--ink)" stroke-width="1.3"/></pattern></defs>';
+}
+function draw(el) {
+  var o = CH[el.id]; if (!o) return;
+  var w = Math.max(160, el.clientWidth), h = o.h, P = {l: o.pl !== undefined ? o.pl : 30, r: o.pr !== undefined ? o.pr : 12, t: o.pt !== undefined ? o.pt : 10, b: o.pb !== undefined ? o.pb : 22};
+  var x0 = P.l, x1 = w - P.r, y0 = h - P.b, y1 = P.t;
+  var X = function (x) { return x0 + (x - o.xmin) / (o.xmax - o.xmin) * (x1 - x0); };
+  var Y = function (v) { return y0 - (v - o.ymin) / (o.ymax - o.ymin) * (y0 - y1); };
+  var s = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true">' + defs(el.id);
+  var hl = '<g class="hl-g"></g>';
+  if (o.band) s += '<rect class="band" fill="url(#hatch-' + el.id + ')" x="' + X(o.band.from).toFixed(1) + '" y="' + y1 + '" width="' + (X(o.band.to) - X(o.band.from)).toFixed(1) + '" height="' + (y0 - y1) + '"/>' + (o.band.l ? '<text x="' + ((X(o.band.from) + X(o.band.to)) / 2).toFixed(1) + '" y="' + (y0 - 6) + '" text-anchor="middle" style="font-size:10.5px">' + o.band.l + '</text>' : '');
+  each(o.yt || [], function (t) { s += '<line class="' + (t === o.ymin && o.ymin === 0 ? 'base' : (t === o.refv ? 'ref' : 'grid')) + '" x1="' + x0 + '" x2="' + x1 + '" y1="' + Y(t).toFixed(1) + '" y2="' + Y(t).toFixed(1) + '"/>' + (x0 > 14 ? '<text x="' + (x0 - 6) + '" y="' + (Y(t) + 3.5).toFixed(1) + '" text-anchor="end">' + nf(t, o.ydp || 0) + '</text>' : ''); });
+  if (o.yl) s += '<text x="' + (x0 - 6) + '" y="' + (y1 - 2) + '" text-anchor="end" style="font-size:10.5px">' + o.yl + '</text>';
+  each(o.xt || [], function (t) { s += '<text x="' + X(t.x).toFixed(1) + '" y="' + (y0 + 15) + '" text-anchor="' + (t.a || 'middle') + '">' + t.l + '</text>'; });
+  each(o.ev || [], function (e) { s += '<line class="ev" x1="' + X(e.x).toFixed(1) + '" x2="' + X(e.x).toFixed(1) + '" y1="' + (y1 + 12) + '" y2="' + y0 + '"/><text x="' + X(e.x).toFixed(1) + '" y="' + (y1 + 8) + '" text-anchor="middle" style="font-size:10px;font-family:var(--mono)">' + e.l + '</text>'; });
+  if (o.thr) s += '<line class="thr" x1="' + x0 + '" x2="' + x1 + '" y1="' + Y(o.thr.v).toFixed(1) + '" y2="' + Y(o.thr.v).toFixed(1) + '"/><text x="' + (o.thr.left ? x0 + 4 : x1) + '" y="' + (Y(o.thr.v) - 5).toFixed(1) + '" text-anchor="' + (o.thr.left ? 'start' : 'end') + '" class="lab" style="font-size:11px">' + o.thr.l + '</text>';
+  /* bars */
+  if (o.bars) {
+    var band = (x1 - x0) / (o.xmax - o.xmin), bw = Math.min(o.bw || 24, band * 0.62);
+    each(o.bars, function (b) {
+      var bx = X(b.x) - bw / 2, by = Y(b.v), r = Math.min(4, (y0 - by) / 2);
+      s += '<path class="bar ' + (b.c || '') + '"' + (b.c === 'hol' ? ' style="fill:url(#hatchi-' + el.id + ')"' : '') + ' d="M' + bx.toFixed(1) + ' ' + y0 + 'V' + (by + r).toFixed(1) + 'Q' + bx.toFixed(1) + ' ' + by.toFixed(1) + ' ' + (bx + r).toFixed(1) + ' ' + by.toFixed(1) + 'H' + (bx + bw - r).toFixed(1) + 'Q' + (bx + bw).toFixed(1) + ' ' + by.toFixed(1) + ' ' + (bx + bw).toFixed(1) + ' ' + (by + r).toFixed(1) + 'V' + y0 + 'Z"/>';
+      if (b.lab) s += '<text class="lab" x="' + X(b.x).toFixed(1) + '" y="' + (by - 5).toFixed(1) + '" text-anchor="middle"><tspan class="v">' + b.lab + '</tspan></text>';
+    });
+  }
+  /* lines */
+  each(o.series || [], function (se) {
+    var d = '', a = '', from = se.dotFrom;
+    each(se.pts, function (p, i) { if (from !== undefined && i > from) return; d += (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1); });
+    if (se.area) { a = d + 'L' + X(se.pts[se.pts.length - 1][0]).toFixed(1) + ' ' + y0 + 'L' + X(se.pts[0][0]).toFixed(1) + ' ' + y0 + 'Z'; s += '<path class="area" d="' + a + '"/>'; }
+    s += '<path class="ln ' + se.c + '" d="' + d + '"/>';
+    if (from !== undefined) { var p1 = se.pts[from], p2 = se.pts[se.pts.length - 1]; s += '<path class="ln ' + se.c + ' dot" d="M' + X(p1[0]).toFixed(1) + ' ' + Y(p1[1]).toFixed(1) + 'L' + X(p2[0]).toFixed(1) + ' ' + Y(p2[1]).toFixed(1) + '"/>'; }
+    each(se.mark || [], function (i) { var p = se.pts[i]; s += '<circle class="pt ' + (se.hol && se.hol.indexOf(i) > -1 ? 'hol' : se.c) + '" cx="' + X(p[0]).toFixed(1) + '" cy="' + Y(p[1]).toFixed(1) + '" r="4"/>'; });
+    each(se.labs || [], function (L) { var p = se.pts[L.i]; s += '<text class="lab" x="' + (X(p[0]) + (L.dx || 0)).toFixed(1) + '" y="' + (Y(p[1]) + (L.dy || -8)).toFixed(1) + '" text-anchor="' + (L.a || 'middle') + '"><tspan class="v">' + L.t + '</tspan>' + (L.s ? ' ' + L.s : '') + '</text>'; });
+  });
+  /* end labels with leader lines (never stacked loose next to converging lines) */
+  if (o.ends) {
+    var ys = o.ends.map(function (e) { return Y(e.v); }), ly = ys.slice();
+    if (Math.abs(ly[0] - ly[1]) < 30) { var mid = (ly[0] + ly[1]) / 2, up = ly[0] <= ly[1] ? 0 : 1; ly[up] = mid - 15; ly[1 - up] = mid + 15; }
+    each(o.ends, function (e, i) {
+      var ex = X(e.x), lx = (o.band ? X(o.band.to) + 6 : ex + 14);
+      s += '<path class="lead" d="M' + (ex + 5).toFixed(1) + ' ' + ys[i].toFixed(1) + 'L' + (lx - 3).toFixed(1) + ' ' + ly[i].toFixed(1) + '" fill="none"/>';
+      s += '<text class="lab" x="' + lx.toFixed(1) + '" y="' + (ly[i] - 1).toFixed(1) + '"><tspan class="v">' + nf(e.v, 1) + '</tspan></text><text x="' + lx.toFixed(1) + '" y="' + (ly[i] + 11).toFixed(1) + '" style="font-size:10.5px">' + e.l + '</text>';
+      s += '<circle class="pt ' + e.c + '" cx="' + ex.toFixed(1) + '" cy="' + ys[i].toFixed(1) + '" r="4"/>';
+    });
+  }
+  if (o.cap) s += '<line class="cap" x1="' + X(o.cap.x).toFixed(1) + '" x2="' + X(o.cap.x).toFixed(1) + '" y1="' + (y1 - 2) + '" y2="' + y0 + '"/><text class="lab" x="' + (X(o.cap.x) - 4).toFixed(1) + '" y="' + (y1 - 6) + '" text-anchor="end" style="font-size:11px;font-weight:600">' + o.cap.l + '</text>';
+  s += '<line class="xh" x1="0" x2="0" y1="' + y1 + '" y2="' + y0 + '" visibility="hidden"/>';
+  s += '<rect class="hit" x="' + x0 + '" y="0" width="' + (x1 - x0) + '" height="' + h + '"/></svg><div class="tt" hidden></div>';
+  el.innerHTML = s;
+  o._X = X; o._x0 = x0; o._x1 = x1;
+}
+function readAt(el, i) {
+  var o = CH[el.id], pts = o.hov; if (!pts) return;
+  i = Math.max(0, Math.min(pts.length - 1, i)); o._i = i;
+  var p = pts[i], X = o._X, x = X(p.x), xh = el.querySelector('.xh'), tt = el.querySelector('.tt');
+  xh.setAttribute('x1', x); xh.setAttribute('x2', x); xh.setAttribute('visibility', 'visible');
+  tt.innerHTML = '';
+  var dd = document.createElement('div'); dd.className = 'd'; dd.textContent = p.d; tt.appendChild(dd);
+  each(p.rows, function (r) { var row = document.createElement('div'); row.className = 'r'; var k = document.createElement('i'); k.className = r.c; var b = document.createElement('b'); b.textContent = r.v; var l = document.createElement('span'); l.textContent = r.l; row.appendChild(k); row.appendChild(b); row.appendChild(l); tt.appendChild(row); });
+  tt.hidden = false;
+  var tw = tt.offsetWidth, left = x + 12; if (left + tw > el.clientWidth) left = x - tw - 12; if (left < 0) left = 0;
+  tt.style.left = left + 'px'; tt.style.top = '4px';
+  if (o.onread) o.onread(el, p);
+}
+function hideRead(el) { var xh = el.querySelector('.xh'), tt = el.querySelector('.tt'); if (xh) xh.setAttribute('visibility', 'hidden'); if (tt) tt.hidden = true; var o = CH[el.id]; if (o && o.onread) o.onread(el, null); }
+function nearest(o, px) { var best = 0, bd = 1e9; each(o.hov, function (p, i) { var d = Math.abs(o._X(p.x) - px); if (d < bd) { bd = d; best = i; } }); return best; }
+function drawAll(root) {
+  each(root.querySelectorAll('[data-chart]'), function (el) {
+    draw(el);
+    if (el._wired) return; el._wired = 1;
+    el.addEventListener('pointermove', function (e) { var o = CH[el.id]; if (!o || !o.hov) return; var r = el.getBoundingClientRect(); readAt(el, nearest(o, e.clientX - r.left)); });
+    el.addEventListener('pointerleave', function () { hideRead(el); });
+    el.addEventListener('blur', function () { hideRead(el); });
+    el.addEventListener('keydown', function (e) {
+      var o = CH[el.id]; if (!o || !o.hov) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); var i = o._i === undefined ? o.hov.length - 1 : o._i + (e.key === 'ArrowRight' ? 1 : -1); readAt(el, i); }
+      else if (e.key === 'Escape') hideRead(el);
+    });
+    el.addEventListener('focus', function () { var o = CH[el.id]; if (o && o.hov) readAt(el, o._i === undefined ? o.hov.length - 1 : o._i); });
+  });
+}
+
+/* chart specs */
+function rdHov() { return RD.map(function (r, i) { return {x: i === 5 ? 4.25 : i, d: r[0] + (i === 5 ? ', annualised · 30 Jun 2026' : ' · year to 31 Mar 20' + (22 + i)), rows: [{c: 'ink', v: r[1] + ' days', l: 'Receivable days'}]}; }); }
+function rdColumns(h) {
+  var bars = RD.map(function (r, i) { return {x: i, v: r[1], c: i === 5 ? 'hol' : '', lab: (i === 0 || i >= 3) ? String(r[1]) : ''}; });
+  return chart({aria: "Receivable days: FY22 81, FY23 84, FY24 88, FY25 96, FY26 142, Q1 FY27 annualised 151.", h: h, xmin: -0.6, xmax: 5.6, ymin: 0, ymax: 170, yt: [0, 50, 100, 150], bars: bars, bw: 22, pl: 30, pr: 6, pt: 14,
+    xt: RD.map(function (r, i) { return {x: i, l: i === 5 ? 'Q1 FY27' : r[0]}; }), hov: RD.map(function (r, i) { return {x: i, d: r[0] + (i === 5 ? ', annualised, data to 30 Jun 2026' : ', year to ' + YEND[i]), rows: [{c: 'ink', v: r[1] + ' days', l: 'Receivable days'}]}; })});
+}
+function rdLine(h, ann) {
+  var pts = RD.map(function (r, i) { return [i === 5 ? 4.25 : i, r[1]]; });
+  return chart({aria: "Receivable days rose from 81 in FY22 to 96 in FY25, then to 142 in FY26 and 151 annualised in Q1 FY27. Test 1 needs a fall below 100.", h: h, xmin: -0.2, xmax: 4.6, ymin: 60, ymax: 170, yt: [60, 80, 100, 120, 140, 160], pl: 30, pr: 14, pt: 18, yl: '↑ days',
+    thr: {v: 100, l: 'Test 1: below 100', left: 1}, xt: YRS.map(function (y, i) { return {x: i, l: y}; }),
+    series: [{c: 'ink', pts: pts, dotFrom: 4, mark: [0, 1, 2, 3, 4, 5], hol: [5], labs: [{i: 0, t: '81', dy: 16}, {i: 3, t: '96', dy: 16}, {i: 4, t: '142', dx: -6, a: 'end', dy: -6}, {i: 5, t: '151', dx: 0, dy: -10, s: ''}]}],
+    hov: rdHov(), ann: ann});
+}
+function pxChart(h, opts) {
+  opts = opts || {};
+  var from = opts.from || 0, sub = PX.slice(from);
+  var mn = 95, mx = 166;
+  var ka = sub.map(function (p) { return [p.x, p.k]; }), ni = sub.map(function (p) { return [p.x, p.n]; });
+  var xt = pxTicks().filter(function (t) { return t.x >= from + 2; });
+  return chart({aria: "Kaveri Pumps and the Nifty 50, weekly closes indexed to 100 on 7 April 2025, to 31 August 2026. Kaveri rose to about 152 in January 2026 and fell to about 106 after the FY26 annual report in July; it ends at 108.4. The Nifty 50 ends at 107.1. Later prices are withheld for 30 days.",
+    h: h, xmin: from - 0.5, xmax: PX_TODAY, ymin: mn, ymax: mx, yt: [100, 120, 140, 160], refv: 100, pl: 28, pr: opts.pr || 86, pt: opts.ev ? 26 : 22, yl: '↑ index',
+    band: {from: PX_END, to: PX_TODAY, l: opts.bandLab ? 'withheld' : ''}, cap: {x: PX_END, l: 'Data to 31 Aug 2026'}, ev: opts.ev ? EVENTS : null, xt: xt,
+    series: [{c: 'ctx', pts: ni}, {c: 'acc', pts: ka, area: opts.area}],
+    ends: [{x: PX_END, v: PX[PX_END].k, l: 'Kaveri', c: 'acc'}, {x: PX_END, v: PX[PX_END].n, l: 'Nifty 50', c: 'ctx'}],
+    hov: sub.map(function (p) { return {x: p.x, d: 'Week to ' + p.d, k: p.k, n: p.n, rows: [{c: '', v: nf(p.k, 1), l: 'Kaveri Pumps'}, {c: 'ctx', v: nf(p.n, 1), l: 'Nifty 50'}]}; }),
+    onread: opts.onread});
+}
+function pxKeys() { return '<p class="keys"><span class="keyl"><i></i>Kaveri Pumps</span><span class="keyl"><i class="ctx"></i>Nifty 50</span><span class="keyl"><span class="hatchkey"></span>Withheld, 30-day lag</span></p>'; }
+function pxTable() {
+  var h = '<table class="pt-tab"><caption class="sr">Month-end index values</caption><thead><tr><th scope="col">Month end</th><th scope="col">Kaveri</th><th scope="col">Nifty 50</th></tr></thead><tbody>';
+  each(PX, function (p, i) { var nx = PX[i + 1]; if (!nx || nx.m !== p.m) h += '<tr><td>' + p.d + '</td><td>' + nf(p.k, 1) + '</td><td>' + nf(p.n, 1) + '</td></tr>'; });
+  return h + '<tr><td>September 2026</td><td colspan="2" style="color:var(--muted)">withheld until 1 Oct 2026</td></tr></tbody></table>';
+}
+function pxFoot() { return '<p class="cap-note" style="margin-top:6px"><span class="capd">Data to 31 Aug 2026</span><span>Weekly closes, indexed to 100 on 7 Apr 2025 (first week of FY26)</span><span>Source S8, NSE</span><span>Prices newer than 30 days are withheld</span></p>'; }
+
+/* ================= shared chrome ================= */
+function stripHTML() {
+  return '<details class="strip"><summary><span class="st-line"><span><b>Education</b></span><span>No position</span><span>Figures 30 Jun</span><span>Prices 31 Aug 2026</span></span><span class="st-more">Details</span></summary><div class="st-body"><dl class="facts-dl"><dt>Type</dt><dd>Educational case study, not a recommendation</dd><dt>Registration</dt><dd>Not a SEBI-registered RA or IA</dd><dt>Position</dt><dd>None, taken from the ledger on 2 Sep 2026</dd><dt>Data lag</dt><dd>At least 30 days; newest figure 30 Jun 2026, newest price 31 Aug 2026</dd></dl></div></details>';
+}
+function idxHTML() { return '<nav class="idx" aria-label="Sections"><button type="button" data-jump="view" aria-current="true">View</button><button type="button" data-jump="tests" aria-current="false">Tests <span class="ct">3</span></button><button type="button" data-jump="facts" aria-current="false">Facts <span class="ct">8</span></button><button type="button" data-jump="disclosure" aria-current="false">History <span class="ct">R2</span></button></nav>'; }
+function railFile() {
+  var h = '<nav class="grail" aria-label="Desk"><button type="button" class="gi"><span>Desk</span><span class="ct"></span></button><button type="button" class="gi" aria-current="page"><span>Files</span><span class="ct">7</span></button><div class="gsub"><div class="gfile">Kaveri Pumps</div>';
+  each([["view", "View", "3 ¶"], ["scen", "Scenarios", "3"], ["tests", "Tests", "3"], ["facts", "Facts", "8"], ["charts", "Charts", "2"], ["disclosure", "Disclosure", ""]], function (r) { h += '<button type="button" class="gi" data-jump="' + r[0] + '"><span>' + r[1] + '</span><span class="ct">' + r[2] + '</span></button>'; });
+  return h + '</div><button type="button" class="gi"><span>Learning notes</span><span class="ct">3</span></button><button type="button" class="gi"><span>Process</span><span class="ct">2</span></button><button type="button" class="gi"><span>Mistakes</span><span class="ct">0</span></button></nav>';
+}
+function railHome() {
+  return '<nav class="grail" aria-label="Desk"><button type="button" class="gi" aria-current="page"><span>Desk</span><span class="ct"></span></button><button type="button" class="gi"><span>Files</span><span class="ct">7</span></button><button type="button" class="gi"><span>Learning notes</span><span class="ct">3</span></button><button type="button" class="gi"><span>Process</span><span class="ct">2</span></button><button type="button" class="gi"><span>Mistakes</span><span class="ct">0</span></button><button type="button" class="gi"><span>About and disclosures</span><span class="ct"></span></button></nav>';
+}
+function dbar(cls) { return '<details class="dbar ' + (cls || '') + '"><summary><span class="st-line"><span><b>Education only</b></span><span>Not SEBI-registered</span><span>Figures 30+ days old</span></span><span class="st-more">Details</span></summary><div class="body"><p>' + DISC.replace('<strong>No</strong>', '<strong>stated on each file</strong>').replace(' Last reviewed 2 Sep 2026.', '') + '</p></div></details>'; }
+function dock() { return '<div class="dock phn"><nav class="tabs" aria-label="Main"><button type="button" aria-current="page">' + SV.desk + '<span>Desk</span></button><button type="button">' + SV.files + '<span>Files <span class="ct">7</span></span></button><button type="button">' + SV.notes + '<span>Notes <span class="ct">5</span></span></button><button type="button">' + SV.about + '<span>About</span></button></nav></div>'; }
+function fileHead() {
+  return '<header><p class="crumb">Files / Capital goods · <span class="id">NSE: KAVERIPMP (fictional)</span></p><h1 class="fh1">Kaveri Pumps &amp; Motors</h1><dl class="dateline"><div><dt>This version</dt><dd>R2 of 2</dd></div><div><dt>Revised</dt><dd>2 Sep 2026</dd></div><div><dt>Figures to</dt><dd>30 Jun 2026</dd></div><div><dt>Prices to</dt><dd>31 Aug 2026</dd></div></dl></header>' +
+    '<section class="sec" data-sec="view"><div class="sec-h"><span class="kind view">VIEW</span><h2>Aksh\'s view</h2></div><p class="stub">Three paragraphs, unchanged from segment 1 and folded away in this mock. This screen shows only the figure blocks.</p></section>';
+}
+function secH(kind, cls, title, sub, sec) { return '<div class="sec-h"><span class="kind ' + cls + '">' + kind + '</span><h2>' + title + '</h2>' + (sub ? '<p class="sub">' + sub + '</p>' : '') + '</div>'; }
+function discSec() { return '<section class="sec disc" data-sec="disclosure"><span class="lbl">Disclosure</span><p class="pos">Position in this security: <b>None</b></p><p class="full">' + DISC + '</p></section>'; }
+function scenSub() { return 'Scenario outputs under stated assumptions. Inputs as of 30 Jun 2026, frozen with R2 on 2 Sep 2026. Not a forecast, and not a view on the share price.'; }
+function fileScreen(D) {
+  var h = '<div class="tb"><button type="button" class="back phn">' + SV.back + 'Files</button><button type="button" class="wm dsk">Aksh Research Desk</button><span class="sp"></span><button type="button" class="ib" aria-label="Find a file">' + SV.search + '<span class="dsk">Find a file</span></button></div>';
+  h += '<div class="bp-top">' + stripHTML() + idxHTML() + '</div><div class="a-body">' + railFile() + '<div class="main"><div class="pg">' + fileHead();
+  h += '<section class="sec" data-sec="scen">' + secH('SCENARIO', 'scen', 'Scenarios', scenSub()) + D.scen() + '</section>';
+  h += '<section class="sec" data-sec="tests">' + secH('TEST', '', 'What would prove me wrong', 'Each condition is checked when a new filing lands. Met means the view is wrong on that test.') + D.tests() + '</section>';
+  h += '<section class="sec" data-sec="facts">' + secH('FACT', 'fact', 'Source facts', 'Taken from filings and public data. Not Aksh\'s words.') + D.five() + '</section>';
+  h += '<section class="sec" data-sec="charts" style="margin-top:28px">' + D.charts() + '</section>';
+  h += discSec() + '</div></div></div>';
+  return h;
+}
+function homeScreen(D) {
+  var h = '<div class="tb"><button type="button" class="wm">Aksh Research Desk</button><span class="sp"></span><button type="button" class="ib" aria-label="Find a file">' + SV.search + '<span class="dsk">Find a file</span></button></div>' + dbar('dtop');
+  h += '<div class="a-body">' + railHome() + '<div class="main"><div class="pg"><p class="kick">Case studies of Indian listed companies</p><h1 class="h1">Research files</h1><p class="stand">Each file says what Aksh expected, what would prove him wrong, and every revision since. Education, not advice.</p>';
+  h += D.tiles();
+  h += '<section class="blk"><div class="blk-h"><h2>What changed</h2><span class="ct">last 3</span></div><ul class="ls">';
+  each(LOG, function (l) { h += '<li><span class="why"><span class="k">' + l.k + '</span>' + l.w + '</span><small>' + l.d + ' 2026</small></li>'; });
+  h += '</ul></section><section class="blk"><div class="blk-h"><h2>Files</h2><span class="ct">7</span></div><ul class="rg">';
+  each(COS, function (c) { h += '<li><span class="n">' + c.name + '</span><span class="r">R' + c.rev + ' · ' + c.d + '</span><span>' + c.sec + ' · figures to ' + c.to + '</span><span>' + tmini(c.t) + '</span></li>'; });
+  h += '</ul><p class="legend2"><span>' + ICON["Met"] + 'Met</span><span>' + ICON["Not met"] + 'Not met</span><span>' + ICON["Watching"] + 'Watching</span><span>' + ICON["No data"] + 'No data</span></p></section></div></div></div>' + dbar('bottom phn') + dock();
+  return h;
+}
+function privScreen(D) {
+  var h = '<div class="adm-tb"><b>Desk admin</b><span>/ Kaveri Pumps / Valuation</span><span class="sp"></span><span class="dsk">Signed in as Aksh</span></div>';
+  h += '<div class="private-bar" role="note">' + SV.lock + '<span class="kind priv" style="background:var(--ink);color:var(--bg)">PRIVATE</span><span>Visible only to Aksh. Interactive models are never published (gate rule 9).</span></div>';
+  h += '<div class="pg" style="max-width:none">' + D.priv() + '</div>';
+  return h;
+}
+
+/* ================= A. Ledger ================= */
+var A = {};
+A.five = function () {
+  var g = 'a5' + (++uid), h = '<p class="meta" style="margin-bottom:8px"><b>Years ended 31 March, FY22 to FY26.</b> ₹ in crore. Each column comes from that year\'s annual report. Rows marked = are computed by the desk from reported lines.</p>';
+  h += '<table class="lgt"><caption class="sr">Kaveri Pumps, five years</caption><thead><tr><th scope="col">Year</th><th class="u" scope="col">Unit</th>';
+  each(YRS, function (y, i) { h += '<th scope="col"' + (i === 4 ? ' class="cur"' : '') + '>' + y + '</th>'; });
+  h += '<th scope="col" style="text-align:left;padding-left:14px">5 years</th></tr><tr class="asof"><th scope="row">Year end</th><td></td>';
+  each(YEND, function (y, i) { h += '<td' + (i === 4 ? ' class="cur"' : '') + '>' + y.replace(' 20', ' ') + '</td>'; });
+  h += '<td></td></tr><tr class="src"><th scope="row">Source</th><td></td>';
+  each(YSRC, function (s, i) { h += '<td' + (i === 4 ? ' class="cur"' : '') + '>' + chipBtn(s, s, g) + '</td>'; });
+  h += '<td></td></tr></thead><tbody>';
+  each(MET, function (m) {
+    h += '<tr><th scope="row">' + m.n + (m.calc ? '<span class="eq" title="computed">=</span>' : '') + '</th><td class="u">' + m.u + '</td>';
+    each(m.v, function (v, i) { h += '<td class="v' + (i === 4 ? ' cur' : '') + '">' + (i === 4 ? cellBtn(m.k, nf(v, m.dp), g, m.n + ' FY26 ' + nf(v, m.dp) + ' ' + m.u) : nf(v, m.dp)) + '</td>'; });
+    h += '<td class="tr">' + spark(m.v, 60, 18, m.n + ' FY22 to FY26') + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  /* phone: sticky year key + metric rows */
+  h += '<div class="lgp"><div class="lgp-key" aria-hidden="true">';
+  each(YRS, function (y, i) { h += '<div><b>' + y + '</b>' + YEND[i].slice(0, 6) + ' ' + YEND[i].slice(-2) + '<br>' + chipBtn(YSRC[i], YSRC[i], g) + '</div>'; });
+  h += '</div>';
+  each(MET, function (m) {
+    h += '<div class="lgp-row"><p class="nm">' + (m.sh || m.n) + (m.calc ? '<span class="gl">=</span>' : '') + '<span class="u">' + m.u + '</span>' + spark(m.v, 52, 16, m.n + ' trend') + '</p><p class="vals">';
+    each(m.v, function (v, i) { h += '<span>' + (i === 4 ? cellBtn(m.k, nf(v, m.dp), g, m.n + ' FY26') : nf(v, m.dp)) + '</span>'; });
+    h += '</p></div>';
+  });
+  h += '</div><div class="card-slot" data-slot="' + g + '"></div>';
+  h += '<p class="meta lg-foot">Tap an FY26 figure for the line it came from, or a source chip for the report. Data to 31 Mar 2026; the Q1 FY27 figures are in the receivable-days figure below.</p>';
+  return h;
+};
+A.charts = function () {
+  var h = '<div class="lg-fig" data-sec="rd"><div class="fh"><span class="lbl">Figure 1</span><h3>Receivable days</h3><span class="meta">days of revenue · FY22 to FY26 and Q1 FY27</span></div>';
+  h += rdColumns(170) + '<p class="cap-note" style="margin-top:4px"><span class="capd">Data to 30 Jun 2026</span><span>Hatched: Q1 FY27, annualised (S2, slide 14)</span><span>FY22–FY26: S7–S1, note on trade receivables</span></p></div>';
+  h += '<div class="lg-fig"><div class="fh"><span class="lbl">Figure 2</span><h3>Kaveri Pumps and the Nifty 50</h3><span class="meta">weekly, indexed, 7 Apr 2025 = 100</span></div>' + pxKeys() + pxChart(200, {pr: 70}) + pxFoot() + '<details class="more"><summary>Show month-end values</summary>' + pxTable() + '</details></div>';
+  return h;
+};
+A.scen = function () {
+  var h = '<table class="lgs lgs-hold"><caption class="sr">Scenario inputs and outputs</caption><thead><tr><th scope="col">Assumption</th>';
+  each(SC, function (s) { h += '<th scope="col">' + s.n + '</th>'; });
+  h += '</tr></thead><tbody><tr class="grp"><th colspan="4" scope="rowgroup">Inputs</th></tr>';
+  each(SC_IN, function (r) { h += '<tr><th scope="row">' + r[0] + '</th>'; each(SC, function (s) { h += '<td>' + scVal(s, r[1], r[3], r[4]) + '<span class="u">' + r[2] + '</span></td>'; }); h += '</tr>'; });
+  each(SC_SAME, function (r) { h += '<tr class="same"><th scope="row">' + r[0] + '</th><td colspan="3">' + r[1] + '<span class="u">' + r[2] + '</span> in all three</td></tr>'; });
+  h += '<tr class="grp"><th colspan="4" scope="rowgroup">Scenario outputs</th></tr>';
+  each(SC_OUT, function (r) { h += '<tr class="out' + (r[4] ? ' tot' : '') + '"><th scope="row">' + r[0] + '</th>'; each(SC, function (s) { h += '<td>' + scVal(s, r[1], r[3]) + '<span class="u">' + r[2] + '</span></td>'; }); h += '</tr>'; });
+  h += '</tbody></table>';
+  /* phone */
+  h += '<div class="lgs-p"><div class="key" aria-hidden="true">'; each(SC, function (s) { h += '<span>' + s.sh + '</span>'; }); h += '</div><p class="grp">Inputs</p>';
+  each(SC_IN, function (r) { h += '<div class="row"><p class="k">' + r[0] + ', ' + r[2] + '</p><p class="vs">'; each(SC, function (s) { h += '<span>' + scVal(s, r[1], r[3], r[4]) + '</span>'; }); h += '</p></div>'; });
+  each(SC_SAME, function (r) { h += '<div class="row same"><p class="k">' + r[0] + '</p><p class="vs"><span style="grid-column:1/-1">' + r[1] + ' ' + r[2] + ' in all three</span></p></div>'; });
+  h += '<p class="grp">Scenario outputs</p>';
+  each(SC_OUT, function (r) { h += '<div class="row out"><p class="k">' + r[0] + ', ' + r[2] + '</p><p class="vs">'; each(SC, function (s) { h += '<span>' + scVal(s, r[1], r[3]) + '</span>'; }); h += '</p></div>'; });
+  h += '</div><p class="meta" style="margin-top:8px">Outputs come from a ten-year cash-flow model of the inputs alone. No per-share figure and no comparison with the market price, so the table states no gap. The interactive model stays private.</p>';
+  return h;
+};
+A.tests = function () {
+  var h = '<p class="legend2" style="margin:0 0 10px">' + ['Not met', 'Watching', 'No data'].map(function (s) { return '<span>' + ICON[s] + s + '</span>'; }).join('') + '<span>All checked 2 Sep 2026</span></p><ol class="lgk">';
+  each(TESTS, function (t, i) {
+    h += '<li><p class="c"><span class="gl">' + (i + 1) + '</span><span><span style="color:var(--muted)">I would be wrong if</span> ' + t.c + (t.added ? ' <span class="gl">added in R2</span>' : '') + '</span></p>';
+    h += '<dl><div><dt>Needs</dt><dd>' + t.thrTxt + '</dd></div><div><dt>Latest</dt><dd>' + t.latest + '<small>' + t.ln + ' · data to ' + t.asof + '</small></dd></div><div><dt>Status</dt><dd><span class="st">' + ICON[t.st] + t.st + '</span><small>checked ' + t.checked + '</small></dd></div></dl></li>';
+  });
+  return h + '</ol>';
+};
+A.tiles = function () {
+  return '<dl class="lg-tiles"><div><dt>Files</dt><dd><span class="n">7</span>companies<small>6 sectors · 20 tests</small></dd></div><div><dt>Tests</dt><dd><span class="n">1</span>met · <span class="n">6</span>watching<small>9 not met · 4 no data</small></dd></div><div><dt>Last entry</dt><dd><span class="n">4 Oct</span>2026<small>last published 1 Oct 2026</small></dd></div><div class="wide"><dt>Research logged</dt><dd><span class="n">' + LOGGED + '</span>of the last 30 days' + streak(200) + '</dd></div></dl>';
+};
+A.priv = function () {
+  var h = '<div class="lgw"><div><p class="lbl">Inputs</p>' + ctlHTML() + '<p class="note-live">Scheme revenue −5% a year and EBITDA margin 13.0% are held at the Tapers values.</p></div><div><p class="lbl">Outputs, live</p><table class="lgs" style="margin-top:4px"><thead><tr><th scope="col">Output</th><th scope="col">Live</th><th scope="col">Published Tapers</th></tr></thead><tbody data-live-a></tbody></table>';
+  h += '<p class="meta" style="margin-top:10px">The published column is the lagged public row; the live column never leaves this screen.</p><p style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px"><button type="button" class="btn solid" data-save>Save as scenario draft</button><button type="button" class="btn" data-reset>Reset to Tapers</button></p><p class="note-live" data-saved aria-live="polite"></p></div></div>';
+  return h;
+};
+
+/* ================= B. Exhibits ================= */
+var B = {};
+function exHead(n, t, s, tgl) { return '<div class="ex-h"><span class="ex-n">EXHIBIT ' + n + '</span>' + (tgl ? '<div class="tglseg" role="group" aria-label="Show as"><button type="button" data-view="chart" aria-pressed="true">Chart</button><button type="button" data-view="table" aria-pressed="false">Table</button></div>' : '') + '<p class="ex-t">' + t + '</p>' + (s ? '<p class="ex-s">' + s + '</p>' : '') + '</div>'; }
+function exFoot(rows) { var h = '<dl class="ex-f">'; each(rows, function (r) { h += '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }); return h + '</dl>'; }
+function plainTable(g) {
+  var h = '<table class="pt-tab"><caption class="sr">Five years</caption><thead><tr><th scope="col">Metric</th>';
+  each(YRS, function (y) { h += '<th scope="col">' + y + '</th>'; }); h += '</tr></thead><tbody>';
+  each(MET, function (m) { h += '<tr><td>' + (m.sh || m.n) + ' <span style="color:var(--muted)">' + m.u + '</span></td>'; each(m.v, function (v, i) { h += '<td>' + (i === 4 ? cellBtn(m.k, nf(v, m.dp), g, m.n + ' FY26') : nf(v, m.dp)) + '</td>'; }); h += '</tr>'; });
+  return h + '</tbody></table>';
+}
+B.five = function () {
+  var g = 'b5' + (++uid), h = '<div class="ex" data-ex>' + exHead(1, 'Revenue more than doubled in five years; receivable days rose 61 days, most of it in FY26', 'Five measures, each on its own scale. Years ended 31 March.', 1);
+  h += '<div data-pane="chart"><div class="sm">';
+  each(MET, function (m) {
+    var bars = m.v.map(function (v, i) { return {x: i, v: v, c: i === 4 ? 'acc' : 'soft', lab: i === 0 ? nf(v, m.dp) : ''}; });
+    var mx = Math.max.apply(null, m.v) * 1.18;
+    h += '<div class="sm-p"><p class="nm">' + m.n + ' <span>' + m.u + (m.calc ? ' · =' : '') + '</span></p><p class="lv">' + nf(m.v[4], m.dp) + '<small>FY26</small></p>' + chart({aria: m.n + ': ' + m.v.map(function (v, i) { return YRS[i] + ' ' + v; }).join(', '), h: 74, xmin: -0.6, xmax: 4.6, ymin: 0, ymax: mx, yt: [0], bars: bars, bw: 16, pl: 0, pr: 0, pt: 14, pb: 18, xt: [{x: 0, l: 'FY22'}, {x: 4, l: 'FY26'}], hov: m.v.map(function (v, i) { return {x: i, d: YRS[i] + ' · year to ' + YEND[i], rows: [{c: i === 4 ? '' : 'ctx', v: nf(v, m.dp) + ' ' + m.u, l: m.sh || m.n}]}; })}) + '</div>';
+  });
+  h += '<div class="sm-key"><b style="color:var(--ink)">How to read</b><br>Each panel has its own scale from zero, so compare shapes, not heights. FY26 is the blue column. = marks a figure computed by the desk.</div></div></div>';
+  h += '<div data-pane="table" hidden>' + plainTable(g) + '</div><div class="card-slot" data-slot="' + g + '"></div>';
+  h += exFoot([["Source", '<b>' + YSRC.slice().reverse().map(function (s) { return s; }).join(', ') + '</b>: annual reports FY26 back to FY22, one per year'], ["As of", 'Years ended 31 Mar 2022 to <b>31 Mar 2026</b>'], ["Method", 'Margin, ROCE and net debt computed from reported lines (Table tab: tap FY26 for the sum)']]) + '</div>';
+  return h;
+};
+B.charts = function () {
+  var h = '<div class="ex" data-ex data-sec="rd">' + exHead(2, 'Receivable days jumped from 96 to 142 in FY26, the year scheme orders reached 61% of revenue', 'Days of revenue held as trade receivables.', 1);
+  h += '<div data-pane="chart"><p class="keys"><span class="keyl"><i class="ink"></i>Reported, year to 31 Mar</span><span class="keyl"><i class="dot"></i>Q1 FY27, annualised</span></p>' + rdLine(230) + '<p class="ann meta" style="margin-top:4px">At FY26: PM-KUSUM scheme share of revenue 61%, up from 48% <button type="button" class="chip" aria-expanded="false" data-card="rd" data-grp="brd"><b>S1</b>p. 84</button></p></div>';
+  h += '<div data-pane="table" hidden><table class="pt-tab"><thead><tr><th scope="col">Period</th><th scope="col">Days</th><th scope="col">As of</th></tr></thead><tbody>';
+  each(RD, function (r, i) { h += '<tr><td>' + r[0] + (i === 5 ? ', annualised' : '') + '</td><td>' + r[1] + '</td><td>' + (i === 5 ? '30 Jun 2026' : YEND[i]) + '</td></tr>'; });
+  h += '</tbody></table></div><div class="card-slot" data-slot="brd"></div>' + exFoot([["Source", '<b>S7–S1</b> notes on trade receivables; <b>S2</b> slide 14 for Q1 FY27'], ["As of", 'Data to <b>30 Jun 2026</b>']]) + '</div>';
+  h += '<div class="ex" data-ex>' + exHead(3, 'Kaveri reached 153 in January 2026 and stood at 108 at the end of August; the Nifty 50 stood at 107', 'Weekly closes, indexed to 100 on 7 Apr 2025.', 1);
+  h += '<div data-pane="chart">' + pxKeys() + pxChart(250, {ev: 1, area: 1, pr: 72}) + '</div><div data-pane="table" hidden>' + pxTable() + '</div>';
+  h += exFoot([["Source", '<b>S8</b> NSE daily closes; markers show the dates S1 and S2 were filed'], ["As of", 'Data to <b>31 Aug 2026</b>. Prices newer than 30 days are withheld (hatched)']]) + '</div>';
+  return h;
+};
+B.scen = function () {
+  var h = '<div class="ex" data-ex style="margin-top:0">' + exHead(4, 'Equity value under these assumptions ranges from ₹' + nf(SC[0].out.eq) + ' cr to ₹' + nf(SC[2].out.eq) + ' cr', 'Three sets of inputs, one model. Each output on its own scale.', 1);
+  h += '<div data-pane="chart"><p class="keys">'; each(SC, function (s) { h += '<span class="keyl"><span class="sym">' + SHAPE[s.k] + '</span>' + s.n + '</span>'; }); h += '</p>';
+  h += '<table class="pt-tab" style="margin-bottom:6px"><caption class="sr">Inputs</caption><thead><tr><th scope="col">Input</th>'; each(SC, function (s) { h += '<th scope="col"><span class="sym">' + SHAPE[s.k] + '</span><span class="sr">' + s.n + '</span></th>'; }); h += '</tr></thead><tbody>';
+  each(SC_IN, function (r) { h += '<tr><td>' + r[0] + '</td>'; each(SC, function (s) { h += '<td>' + scVal(s, r[1], r[3], r[4]) + (r[2] === '%' ? '%' : '') + '</td>'; }); h += '</tr>'; });
+  h += '<tr><td colspan="4" style="color:var(--muted);text-align:left">Same in all three: discount rate 13.0%, long-run growth 5.0%</td></tr></tbody></table>';
+  each(SC_OUT, function (r) {
+    var vs = SC.map(function (s) { return s.out[r[1]]; }), mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs), pad = (mx - mn) * 0.12 || 1;
+    h += '<div class="dout"><p class="k"><span>' + r[0] + '</span><span class="meta">' + r[2] + '</span></p><div class="dots" role="img" aria-label="' + r[0] + ': ' + SC.map(function (s) { return s.n + ' ' + nf(s.out[r[1]]); }).join(', ') + '"><span class="ax"></span>';
+    each(SC, function (s) { h += '<span class="m" style="left:' + ((s.out[r[1]] - mn + pad) / (mx - mn + 2 * pad) * 100).toFixed(1) + '%">' + SHAPE[s.k] + '</span>'; });
+    h += '</div><p class="vals">'; each(SC, function (s) { h += '<span><span class="sym">' + SHAPE[s.k] + '</span><b>' + nf(s.out[r[1]]) + '</b></span>'; }); h += '</p></div>';
+  });
+  h += '</div><div data-pane="table" hidden>' + A.scen() + '</div>';
+  h += exFoot([["Status", 'Scenario outputs under stated assumptions; not a forecast'], ["As of", 'Inputs to <b>30 Jun 2026</b>; frozen with R2, 2 Sep 2026'], ["Model", 'Ten-year cash flows; no per-share figure, no price comparison']]) + '</div>';
+  return h;
+};
+B.tests = function () {
+  var h = '<div class="ex-tests">';
+  each(TESTS, function (t, i) {
+    var vis;
+    if (i === 0) vis = chart({aria: 'Receivable days readings ' + t.hist.map(function (x) { return x[0] + ' ' + x[1]; }).join(', ') + '; threshold 100.', h: 96, xmin: -0.3, xmax: 3.3, ymin: 60, ymax: 170, yt: [100], pl: 26, pr: 8, pt: 12, pb: 18, thr: {v: 100, l: 'line 100', left: 1}, xt: [{x: 0, l: 'FY24'}, {x: 3, l: 'Q1 FY27'}],
+      series: [{c: 'ink', pts: t.hist.map(function (x, j) { return [j, x[1]]; }), mark: [0, 1, 2, 3], hol: [3], labs: [{i: 3, t: '151', a: 'end', dx: -8, dy: -6}]}], hov: t.hist.map(function (x, j) { return {x: j, d: x[0], rows: [{c: 'ink', v: x[1] + ' days', l: 'Receivable days'}]}; })});
+    else if (i === 1) vis = chart({aria: 'Industrial and export growth by quarter: ' + t.hist.map(function (x) { return x[0] + ' ' + x[1] + '%'; }).join(', ') + '; threshold 20%.', h: 96, xmin: -0.6, xmax: 3.6, ymin: 0, ymax: 26, yt: [0], pl: 0, pr: 8, pt: 12, pb: 18, thr: {v: 20, l: 'line 20%', left: 1}, bw: 18,
+      bars: t.hist.map(function (x, j) { return {x: j, v: x[1], c: j === 3 ? 'acc' : 'soft'}; }), xt: [{x: 0, l: 'Q2 FY26'}, {x: 3, l: 'Q1 FY27'}], hov: t.hist.map(function (x, j) { return {x: j, d: x[0], rows: [{c: j === 3 ? '' : 'ctx', v: '+' + x[1] + '%', l: 'growth, a year'}]}; })});
+    else vis = '<div class="nodata">No readings yet.<br>The company has not disclosed state-wise payment terms.</div>';
+    h += '<div class="ext"><span class="gl">' + (i + 1) + '</span><p class="c"><span class="lead">I would be wrong if</span> ' + t.c + '</p><div class="vis">' + vis + '</div><p class="row"><span class="st">' + ICON[t.st] + t.st + '</span><span>' + t.latest + ', ' + t.ln + '</span><span>data to ' + t.asof + '</span><span>checked ' + t.checked + '</span></p></div>';
+  });
+  return h + '</div>';
+};
+function unitSq(kind) {
+  var m = {m: '<rect x="1" y="1" width="10" height="10" rx="1" fill="var(--ink)"/>', w: '<rect x="1.75" y="1.75" width="8.5" height="8.5" rx="1" fill="none" stroke="var(--ink)" stroke-width="1.5"/><path d="M1 11 11 1V11z" fill="var(--ink)"/>', nm: '<rect x="1.75" y="1.75" width="8.5" height="8.5" rx="1" fill="none" stroke="var(--ink)" stroke-width="1.5"/>', nd: '<rect x="1.75" y="1.75" width="8.5" height="8.5" rx="1" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="2 1.6"/>'};
+  return '<svg viewBox="0 0 12 12" aria-hidden="true">' + m[kind] + '</svg>';
+}
+B.tiles = function () {
+  var u = ''; each(['m', 'w', 'nm', 'nd'], function (k) { for (var i = 0; i < TSUM[k]; i++) u += unitSq(k); });
+  var fs = chart({aria: 'Files published by month end: June 2, July 4, August 6, September 7, October 7.', h: 40, xmin: -0.2, xmax: 4.2, ymin: 0, ymax: 8, pl: 0, pr: 2, pt: 4, pb: 4,
+    series: [{c: 'acc', area: 1, pts: FILES_BY_MONTH.map(function (f, i) { return [i, f[1]]; }), mark: [4]}], hov: FILES_BY_MONTH.map(function (f, i) { return {x: i, d: f[0] + ' 2026', rows: [{c: '', v: String(f[1]), l: 'files'}]}; })});
+  return '<div class="ex-tiles"><div class="ex-tile"><p class="l">Files</p><p class="v">7<small>companies</small></p>' + fs + '<p class="c">6 sectors · first on 2 Jun 2026</p></div>' +
+    '<div class="ex-tile"><p class="l">Tests</p><p class="v">1<small>met</small> 6<small>watching</small></p><div class="units" role="img" aria-label="20 tests: 1 met, 6 watching, 9 not met, 4 no data">' + u + '</div><p class="c ukey"><span>' + unitSq('m') + 'met</span><span>' + unitSq('w') + 'watching</span><span>' + unitSq('nm') + '9 not met</span><span>' + unitSq('nd') + '4 no data</span></p></div>' +
+    '<div class="ex-tile"><p class="l">Last entry</p><p class="v">4 Oct</p><p class="c">2026 · last published 1 Oct</p></div>' +
+    '<div class="ex-tile"><p class="l">Research logged</p><p class="v">' + LOGGED + '<small>of 30 days</small></p>' + streak(220) + '</div></div>';
+};
+B.priv = function () {
+  return '<div class="exw"><div><p class="lbl">Inputs</p>' + ctlHTML() + '<p class="note-live">Scheme revenue and margin held at the Tapers values.</p><div data-live-b style="margin-top:12px"></div></div><div><div class="ex" style="margin-top:0">' + '<div class="ex-h"><span class="ex-n">PRIVATE · SENSITIVITY</span><p class="ex-t">Equity value, ₹ cr, by discount rate and long-run growth</p><p class="ex-s">Other inputs from the sliders. The ring marks the current pair.</p></div><div data-heat></div>' +
+    '<p class="ramp"><span>lower</span><i style="background:var(--h0)"></i><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i><i style="background:var(--h5)"></i><i style="background:var(--h6)"></i><span>higher</span></p></div><p style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px"><button type="button" class="btn solid" data-save>Save as scenario draft</button><button type="button" class="btn" data-reset>Reset to Tapers</button></p><p class="note-live" data-saved aria-live="polite"></p></div></div>';
+};
+
+/* ================= C. Instrument rows ================= */
+var C = {};
+C.five = function () {
+  var g = 'c5' + (++uid), h = '<p class="meta" style="margin-bottom:8px"><b>Latest year FY26, to 31 Mar 2026.</b> Sparklines run FY22 to FY26. Tap a row for every year, its source and the quoted line.</p><ul class="inr">';
+  each(MET, function (m, mi) {
+    var id = g + '-' + m.k, open = m.k === 'rd', d = m.v[4] - m.v[3];
+    h += '<li><button type="button" class="inb" aria-expanded="' + open + '" aria-controls="' + id + '"><span class="nm">' + m.n + '<small>' + (m.calc ? 'computed · ' : '') + nf(d, m.dp, 1) + ' ' + (m.u === '%' ? 'pts' : m.u) + ' on FY25</small></span>' + spark(m.v, 60, 22, m.n + ' FY22 to FY26') + '<span class="lv"><b>' + nf(m.v[4], m.dp) + '</b><span class="u">' + m.u + '</span><small>FY26</small></span>' + SV.chev + '</button>';
+    h += '<div class="inx" id="' + id + '"' + (open ? '' : ' hidden') + '><table><caption class="sr">' + m.n + ' by year</caption><thead><tr><th scope="col">Year</th><th scope="col">Year end</th><th scope="col">' + m.u + '</th><th scope="col">Source</th></tr></thead><tbody>';
+    for (var i = 4; i >= 0; i--) h += '<tr' + (i === 4 ? ' class="cur"' : '') + '><td>' + YRS[i] + '</td><td>' + YEND[i] + '</td><td class="v">' + nf(m.v[i], m.dp) + '</td><td>' + (i === 4 ? '<button type="button" class="chip" aria-expanded="' + (open ? 'true' : 'false') + '" data-card="' + m.k + '" data-grp="' + id + '"><b>' + YSRC[i] + '</b>' + (m.pg || '=') + '</button>' : '<span class="id" style="font-size:11px">' + YSRC[i] + '</span>') + '</td></tr>';
+    h += '</tbody></table>';
+    if (m.k === 'rd') h += '<div style="margin-top:14px"><p class="keys"><span class="keyl"><i class="ink"></i>Reported</span><span class="keyl"><i class="dot"></i>Q1 FY27, annualised</span></p>' + rdLine(190) + '<p class="cap-note" style="margin-top:2px"><span class="capd">Data to 30 Jun 2026</span><span>S7–S1, S2 slide 14</span></p></div>';
+    h += '<div class="card-slot" data-slot="' + id + '">' + (open ? cardHTML(m.k) : '') + '</div></div></li>';
+  });
+  return h + '</ul>';
+};
+C.charts = function () {
+  var id = 'cr' + (++uid);
+  var h = '<div class="sec-h" style="margin-top:8px"><span class="kind fact">FACT</span><h2>Price against the Nifty 50</h2><p class="sub">Weekly closes, indexed to 100 on 7 Apr 2025. Lagged 30 days.</p></div>';
+  h += '<div class="in-ctl" role="group" aria-label="Range"><button type="button" class="pill" aria-pressed="true" data-range="0">Since 7 Apr 2025</button><button type="button" class="pill" aria-pressed="false" data-range="47">Since 1 Mar 2026</button><span class="meta">Ranges end at the lag date; there is no "1D" or "live".</span></div>';
+  h += '<p class="readout" data-readout="' + id + '"><span>Kaveri<b>' + nf(PX[PX_END].k, 1) + '</b></span><span>Nifty 50<b>' + nf(PX[PX_END].n, 1) + '</b></span><span class="when">Week to 31 Aug 2026, the newest shown</span></p>';
+  h += '<div data-pxwrap="' + id + '">' + pxKeys() + pxChart(220, {pr: 72, onread: readout(id)}) + '</div>' + pxFoot() + '<details class="more"><summary>Show month-end values</summary>' + pxTable() + '</details>';
+  return h;
+};
+function readout(id) {
+  return function (el, p) {
+    var r = el.closest('.vp').querySelector('[data-readout="' + id + '"]'); if (!r) return;
+    var q = p || {k: PX[PX_END].k, n: PX[PX_END].n, d: 'Week to 31 Aug 2026, the newest shown'};
+    var b = r.querySelectorAll('b'); b[0].textContent = nf(q.k, 1); b[1].textContent = nf(q.n, 1); r.querySelector('.when').textContent = p ? q.d : q.d;
+  };
+}
+C.scen = function () {
+  var h = '<div class="scpick" role="group" aria-label="Scenario">';
+  each(SC, function (s) { h += '<button type="button" class="pill" data-sc="' + s.k + '" aria-pressed="' + (s.k === 'mid') + '">' + s.n + '</button>'; });
+  h += '<button type="button" class="pill" data-sc="all" aria-pressed="false">Compare all</button></div><div data-scbody>' + cScBody('mid') + '</div>';
+  return h;
+};
+function cScBody(k) {
+  if (k === 'all') return A.scen();
+  var s = SC.filter(function (x) { return x.k === k; })[0], h = '<div class="inputs-chips" aria-label="Inputs">';
+  each(SC_IN, function (r) { h += '<span>' + r[0].replace(', a year', '').replace(', FY27 to FY29', '') + ' <b>' + scVal(s, r[1], r[3], r[4]) + (r[2] === '%' ? '%' : ' ' + r[2]) + '</b></span>'; });
+  h += '<span>Discount rate <b>13.0%</b></span><span>Long-run growth <b>5.0%</b></span></div>';
+  each(SC_OUT, function (r) {
+    var vs = SC.map(function (x) { return x.out[r[1]]; }), mn = Math.min.apply(null, vs), mx = Math.max.apply(null, vs), pos = function (v) { return ((v - mn) / ((mx - mn) || 1) * 92 + 4).toFixed(1); };
+    h += '<div class="scr"><span class="k">' + r[0] + '</span><span class="v">' + nf(s.out[r[1]]) + '<span class="u">' + r[2] + '</span></span><span class="trk" role="img" aria-label="Range across the three scenarios ' + nf(mn) + ' to ' + nf(mx) + '">';
+    each(SC, function (x) { h += '<i' + (x.k === k ? ' class="on"' : '') + ' style="left:' + pos(x.out[r[1]]) + '%"></i>'; });
+    h += '</span></div>';
+  });
+  return h + '<p class="meta" style="margin-top:8px">Dot: this scenario. Ticks: the other two. Outputs depend only on the inputs above; no per-share figure, no price comparison.</p>';
+}
+C.tests = function () {
+  var h = '';
+  each(TESTS, function (t, i) {
+    var body;
+    if (i === 0) {
+      var p = function (v) { return ((v - t.lo) / (t.hi - t.lo) * 100).toFixed(1); };
+      body = '<div class="mt" role="img" aria-label="Latest 151 days, prior 142, line at 100; needs a reading below 100."><div class="mt-track"><span class="mt-zone" style="left:0;width:' + p(100) + '%"></span><span class="mt-thr" style="left:' + p(100) + '%"></span><span class="mt-pr" style="left:' + p(142) + '%"></span><span class="mt-dot" style="left:' + p(151) + '%"></span></div><div class="mt-lab"><span class="l">60</span><span style="left:' + p(100) + '%"><b>100</b></span><span style="left:' + p(142) + '%">142</span><span class="r"><b>151</b> days</span></div></div><p class="meta">Hatched zone: where the view would be wrong. Hollow: FY26. Filled: Q1 FY27. ' + t.gap + '.</p>';
+    } else if (i === 1) {
+      body = '<div class="qcells" role="img" aria-label="Quarters above 20%: none of the last four.">'; each(t.hist, function (x) { body += '<div' + (x[1] > 20 ? ' class="ok"' : '') + '><b>+' + x[1] + '%</b>' + x[0] + '</div>'; }); body += '</div><p class="meta">Needs four bold cells in a row (above 20%). Now 0 of 4.</p>';
+    } else body = '<div class="mt"><div class="mt-track" style="opacity:.6"><span class="mt-zone" style="left:50%;width:50%;border-style:dashed"></span></div><div class="mt-lab"><span class="l">0%</span><span style="left:50%">50%</span><span class="r">100% of order book</span></div></div><p class="meta">No reading: not disclosed in S1 or S2.</p>';
+    h += '<div class="int"><div><p class="c"><span class="gl">' + (i + 1) + '</span><span><span style="color:var(--muted)">I would be wrong if</span> ' + t.c + '</span></p></div><div class="body">' + body + '<p class="foot"><span class="st">' + ICON[t.st] + t.st + '</span><span>data to ' + t.asof + ' · checked ' + t.checked + '</span></p></div></div>';
+  });
+  return h;
+};
+C.tiles = function () {
+  var stk = ''; each(['m', 'w', 'nm', 'nd'], function (k) { stk += '<i class="' + k + '" style="flex:' + TSUM[k] + '"></i>'; });
+  return '<div class="in-tiles"><div class="in-tile"><p class="l">Files</p><p class="v">7<small>/ 6 sectors</small></p>' + spark(FILES_BY_MONTH.map(function (f) { return f[1]; }), 110, 22, 'Files by month, June to October: 2, 4, 6, 7, 7') + '<p class="c">Jun to Oct 2026</p></div>' +
+    '<div class="in-tile"><p class="l">Tests, of 20</p><p class="v">1<small>met</small> 6<small>watching</small></p><div class="stk" role="img" aria-label="20 tests: 1 met, 6 watching, 9 not met, 4 no data">' + stk + '</div><p class="c skey"><span><i class="m"></i>met</span><span><i class="w"></i>watching</span><span><i class="nm"></i>9 not met</span><span><i class="nd"></i>4 no data</span></p></div>' +
+    '<div class="in-tile"><p class="l">Last entry</p><p class="v">4 Oct</p><p class="c">2026 · last published 1 Oct</p></div>' +
+    '<div class="in-tile"><p class="l">Research logged</p><p class="v">' + LOGGED + '<small>of 30 days</small></p>' + streak(0) + '</div></div>';
+};
+C.priv = function () {
+  return '<div class="inw"><div class="panel"><p class="lbl" style="margin-top:10px">Inputs</p>' + ctlHTML() + '<p style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px"><button type="button" class="btn solid" data-save>Save as scenario draft</button><button type="button" class="btn" data-reset>Reset</button></p><p class="note-live" data-saved aria-live="polite"></p></div><div><div class="in-tiles" data-live-c style="margin-top:0"></div><div style="margin-top:18px"><p class="lbl">Equity value as the discount rate moves</p><div data-wline></div><p class="meta">Other inputs from the panel. The dot is the current discount rate.</p></div></div></div>';
+};
+
+/* ================= private panel: shared controls + live outputs ================= */
+var CTL = [["w", "Discount rate (cost of capital)", 10, 16, 0.25, 13, "%", 2], ["gt", "Long-run growth", 3, 7, 0.25, 5, "%", 2], ["go", "Industrial and export growth, a year", 5, 30, 1, 18, "%", 0], ["rd", "Receivable days, FY29", 80, 180, 5, 120, "days", 0]];
+function ctlHTML() {
+  var h = '';
+  each(CTL, function (c) { var id = 'k' + (++uid); h += '<div class="ctl"><label for="' + id + '">' + c[1] + '</label><output for="' + id + '" data-out="' + c[0] + '">' + nf(c[5], c[7]) + ' ' + c[6] + '</output><input type="range" id="' + id + '" min="' + c[2] + '" max="' + c[3] + '" step="' + c[4] + '" value="' + c[5] + '" data-k="' + c[0] + '"></div>'; });
+  return h;
+}
+function privState(vp) { var p = {gs: -5, m: 13}; each(vp.querySelectorAll('input[data-k]'), function (i) { p[i.getAttribute('data-k')] = +i.value; }); if (p.gt >= p.w - 0.5) p.gt = p.w - 0.5; return p; }
+function privUpdate(vp) {
+  var p = privState(vp), r = model(p), pub = SC[1].out;
+  each(vp.querySelectorAll('output[data-out]'), function (o) { var c = CTL.filter(function (x) { return x[0] === o.getAttribute('data-out'); })[0]; o.textContent = nf(p[c[0]], c[7]) + ' ' + c[6]; });
+  var rows = [["Equity value", r.eq, pub.eq, "₹ cr", 0], ["Per share (private only)", r.ps, pub.ps, "₹", 0], ["Enterprise value", r.ev, pub.ev, "₹ cr", 0], ["Times FY26 EBITDA", r.mult, pub.mult, "x", 1], ["Share of value after FY36", r.tv, pub.tv, "%", 0], ["Net debt, FY29", r.nd29, pub.nd29, "₹ cr", 0]];
+  var a = vp.querySelector('[data-live-a]');
+  if (a) a.innerHTML = rows.map(function (x, i) { return '<tr class="' + (i === 0 ? 'out tot' : '') + '"><th scope="row">' + x[0] + '</th><td style="font-weight:600;color:var(--ink)">' + nf(x[1], x[4]) + '<span class="u">' + x[3] + '</span></td><td style="color:var(--muted)">' + nf(x[2], x[4]) + '</td></tr>'; }).join('');
+  var b = vp.querySelector('[data-live-b]');
+  if (b) b.innerHTML = '<div class="ex-tile"><p class="l">Equity value, live</p><p class="v">' + nf(r.eq) + '<small>₹ cr</small></p><p class="c">' + nf(r.ps) + ' ₹ a share (private) · Tapers ' + nf(pub.eq) + '</p></div>';
+  var hm = vp.querySelector('[data-heat]');
+  if (hm) {
+    var ws = [11, 12, 13, 14, 15], gs = [3, 4, 5, 6], grid = [], all = [];
+    each(ws, function (w) { var row = []; each(gs, function (g) { var v = model({gs: -5, m: 13, go: p.go, rd: p.rd, w: w, gt: g}).eq; row.push(v); all.push(v); }); grid.push(row); });
+    var mn = Math.min.apply(null, all), mx = Math.max.apply(null, all), cw = Math.round(p.w), cg = Math.round(p.gt);
+    var t = '<table class="hm"><caption class="sr">Equity value by discount rate (rows) and long-run growth (columns)</caption><thead><tr><th scope="col">Rate ↓ · growth →</th>'; each(gs, function (g) { t += '<th scope="col">' + g + '.0%</th>'; }); t += '</tr></thead><tbody>';
+    each(ws, function (w, i) { t += '<tr><th scope="row">' + w + '.0%</th>'; each(gs, function (g, j) { var v = grid[i][j], c = Math.min(6, Math.floor((v - mn) / ((mx - mn) || 1) * 7)); t += '<td class="c' + c + (w === cw && g === cg ? ' cur' : '') + '">' + nf(v) + '</td>'; }); t += '</tr>'; });
+    hm.innerHTML = t + '</tbody></table>';
+  }
+  var cc = vp.querySelector('[data-live-c]');
+  if (cc) cc.innerHTML = '<div class="in-tile"><p class="l">Equity value</p><p class="v">' + nf(r.eq) + '<small>₹ cr</small></p><p class="c">Tapers ' + nf(pub.eq) + '</p></div><div class="in-tile"><p class="l">Per share, private</p><p class="v">' + nf(r.ps) + '<small>₹</small></p><p class="c">4.2 cr shares</p></div><div class="in-tile"><p class="l">Times FY26 EBITDA</p><p class="v">' + nf(r.mult, 1) + '<small>x</small></p><p class="c">EV ' + nf(r.ev) + ' ₹ cr</p></div><div class="in-tile"><p class="l">Value after FY36</p><p class="v">' + nf(r.tv) + '<small>%</small></p><p class="c">of enterprise value</p></div>';
+  var wl = vp.querySelector('[data-wline]');
+  if (wl) {
+    var pts = [], hov = [];
+    for (var w = 10; w <= 16.001; w += 0.25) { var gt = Math.min(p.gt, w - 0.5), v = model({gs: -5, m: 13, go: p.go, rd: p.rd, w: w, gt: gt}).eq; pts.push([w, v]); hov.push({x: w, d: 'Discount rate ' + nf(w, 2) + '%', rows: [{c: '', v: nf(v) + ' ₹ cr', l: 'equity value'}]}); }
+    var cur = Math.round((p.w - 10) / 0.25), vmax = Math.max.apply(null, pts.map(function (q) { return q[1]; }));
+    var top = Math.ceil(vmax / 500) * 500;
+    wl.innerHTML = chart({aria: 'Equity value falls from ' + nf(pts[0][1]) + ' to ' + nf(pts[pts.length - 1][1]) + ' crore as the discount rate rises from 10% to 16%.', h: 170, xmin: 10, xmax: 16, ymin: 0, ymax: top, yt: [0, top / 2, top], pl: 40, pr: 10, pt: 12,
+      xt: [10, 11, 12, 13, 14, 15, 16].map(function (x) { return {x: x, l: x + '%'}; }), series: [{c: 'acc', pts: pts, area: 1, mark: [cur], labs: [{i: cur, t: nf(pts[cur][1]), dy: -10}]}], hov: hov});
+    drawAll(wl);
+  }
+}
+
+/* ================= mount ================= */
+var DIRS = {A: A, B: B, C: C}, SCREEN = 'file';
+function render(k) { var D = DIRS[k]; return '<div class="site d' + k + '">' + (SCREEN === 'file' ? fileScreen(D) : SCREEN === 'home' ? homeScreen(D) : privScreen(D)) + '</div>'; }
+function mountAll() {
+  CH = {};
+  each(document.querySelectorAll('[data-render]'), function (vp) { vp.innerHTML = render(vp.getAttribute('data-render')); vp.scrollTop = 0; });
+  each(document.querySelectorAll('[data-url]'), function (u) { u.textContent = SCREEN === 'file' ? 'research desk / companies / kaveri-pumps' : SCREEN === 'home' ? 'research desk' : 'research desk / admin / kaveri-pumps / valuation (private)'; });
+  requestAnimationFrame(function () { each(document.querySelectorAll('[data-render]'), function (vp) { var t = vp.querySelector('.bp-top'); if (t) vp.querySelector('.site').style.setProperty('--stick', t.offsetHeight + 'px'); drawAll(vp); if (SCREEN === 'priv') privUpdate(vp); }); });
+}
+function redraw() { each(document.querySelectorAll('[data-render]'), function (vp) { drawAll(vp); }); }
+
+document.addEventListener('click', function (e) {
+  var el = e.composedPath ? e.composedPath()[0] : e.srcElement; if (!el || !el.closest) return;
+  var card = el.closest('[data-card]');
+  if (card) {
+    var grp = card.getAttribute('data-grp'), vp = card.closest('.vp'), slot = vp.querySelector('[data-slot="' + grp + '"]'), open = card.getAttribute('aria-expanded') !== 'true';
+    each(vp.querySelectorAll('[data-grp="' + grp + '"]'), function (b) { b.setAttribute('aria-expanded', 'false'); });
+    if (slot) slot.innerHTML = open ? cardHTML(card.getAttribute('data-card')) : '';
+    if (open) { card.setAttribute('aria-expanded', 'true'); slot._from = card; }
+    return;
+  }
+  if (el.closest('[data-close]')) { var s = el.closest('[data-slot]'), from = s._from; each(s.closest('.vp').querySelectorAll('[data-grp="' + s.getAttribute('data-slot') + '"]'), function (b) { b.setAttribute('aria-expanded', 'false'); }); s.innerHTML = ''; if (from) from.focus(); return; }
+  var inb = el.closest('.inb');
+  if (inb) { var x = document.getElementById(inb.getAttribute('aria-controls')), o = inb.getAttribute('aria-expanded') !== 'true'; inb.setAttribute('aria-expanded', o); x.hidden = !o; if (o) drawAll(x); return; }
+  var vb = el.closest('[data-view]');
+  if (vb) { var ex = vb.closest('[data-ex]'), want = vb.getAttribute('data-view'); each(ex.querySelectorAll(':scope > .ex-h [data-view]'), function (b) { b.setAttribute('aria-pressed', b === vb); }); each(ex.querySelectorAll(':scope > [data-pane]'), function (p) { p.hidden = p.getAttribute('data-pane') !== want; }); if (want === 'chart') drawAll(ex); return; }
+  var sc = el.closest('[data-sc]');
+  if (sc) { var wrap = sc.closest('.sec'); each(wrap.querySelectorAll('[data-sc]'), function (b) { b.setAttribute('aria-pressed', b === sc); }); wrap.querySelector('[data-scbody]').innerHTML = cScBody(sc.getAttribute('data-sc')); return; }
+  var rg = el.closest('[data-range]');
+  if (rg) { var sec = rg.closest('.sec'), w2 = sec.querySelector('[data-pxwrap]'), id = w2.getAttribute('data-pxwrap'); each(sec.querySelectorAll('[data-range]'), function (b) { b.setAttribute('aria-pressed', b === rg); }); w2.innerHTML = pxKeys() + pxChart(220, {pr: 72, from: +rg.getAttribute('data-range'), onread: readout(id)}); drawAll(w2); return; }
+  var j = el.closest('[data-jump]');
+  if (j) { var v = j.closest('.vp'), tg = v.querySelector('[data-sec="' + j.getAttribute('data-jump') + '"]'), top = v.querySelector('.bp-top'); if (tg) v.scrollTo({top: tg.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop - (top ? top.offsetHeight : 0) - 12, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); return; }
+  if (el.closest('[data-save]')) { var vs = el.closest('.vp'), pp = privState(vs), rr = model(pp); vs.querySelector('[data-saved]').textContent = 'Saved as a private draft row (rate ' + nf(pp.w, 2) + '%, growth ' + nf(pp.gt, 2) + '%, equity value ' + nf(rr.eq) + ' ₹ cr). It can join the public table only as a static row, after the 30-day lag and the gate.'; return; }
+  if (el.closest('[data-reset]')) { var vr = el.closest('.vp'); each(vr.querySelectorAll('input[data-k]'), function (i) { var c = CTL.filter(function (x) { return x[0] === i.getAttribute('data-k'); })[0]; i.value = c[5]; }); privUpdate(vr); vr.querySelector('[data-saved]').textContent = ''; }
+});
+document.addEventListener('input', function (e) { var el = e.composedPath ? e.composedPath()[0] : e.srcElement; if (el && el.matches && el.matches('input[data-k]')) privUpdate(el.closest('.vp')); });
+
+var root = document.documentElement;
+function press(sel, btn) { each(document.querySelectorAll(sel), function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); }); }
+each(document.querySelectorAll('[data-theme-btn]'), function (b) { b.addEventListener('click', function () { var t = b.getAttribute('data-theme-btn'); if (t === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t); press('[data-theme-btn]', b); }); });
+each(document.querySelectorAll('[data-layout-btn]'), function (b) { b.addEventListener('click', function () { document.body.classList.toggle('phones', b.getAttribute('data-layout-btn') === 'phones'); press('[data-layout-btn]', b); requestAnimationFrame(redraw); }); });
+each(document.querySelectorAll('[data-screen-btn]'), function (b) { b.addEventListener('click', function () { SCREEN = b.getAttribute('data-screen-btn'); press('[data-screen-btn]', b); mountAll(); }); });
+var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(redraw, 120); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw);
+mountAll();
+</script>
+</body>
+</html>

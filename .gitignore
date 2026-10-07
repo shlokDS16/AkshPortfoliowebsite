@@ -32,3 +32,20 @@ Thumbs.db
 
 # task-master
 .taskmaster/reports/
+
+# sdd scratch
+.superpowers/
+
+# e2e auth state and local supabase env export
+e2e/.auth/
+.supabase.env
+
+# misc (from create-next-app)
+*.pem
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# vitest cache
+.vitest/

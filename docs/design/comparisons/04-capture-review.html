@@ -1,0 +1,1301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capture and review, segment 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ---------- comparison shell (neutral, not a design proposal) ---------- */
+:root{--s-bg:#EFEFEC;--s-ink:#191919;--s-muted:#575757;--s-rule:#D2D2CD;--s-card:#FFFFFF;--s-hi:#191919;--s-on-hi:#FFFFFF}
+:root[data-theme=dark]{--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--s-bg:#0B0B0B;--s-ink:#ECECEC;--s-muted:#A6A6A6;--s-rule:#2E2E2E;--s-card:#161616;--s-hi:#ECECEC;--s-on-hi:#111111}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--s-bg);color:var(--s-ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+.shell{max-width:1480px;margin:0 auto;padding:28px 32px 8px}
+.shell h1{font-size:22px;margin:0 0 6px;font-weight:650;letter-spacing:-.01em}
+.shell p{margin:0 0 8px;color:var(--s-muted);max-width:1040px}
+.shell code{font-size:13px;background:var(--s-card);border:1px solid var(--s-rule);border-radius:4px;padding:0 4px;color:var(--s-ink)}
+.controls{display:flex;flex-wrap:wrap;gap:12px 18px;margin:16px 0 4px;align-items:center}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--s-rule);border-radius:8px;overflow:hidden;background:var(--s-card)}
+.seg span{padding:7px 10px;font-size:12px;color:var(--s-muted);border-right:1px solid var(--s-rule);align-self:center}
+.seg button{font:inherit;font-size:13px;padding:7px 12px;border:0;background:transparent;color:var(--s-ink);cursor:pointer;min-height:36px}
+.seg button+button{border-left:1px solid var(--s-rule)}
+.seg button[aria-pressed=true]{background:var(--s-hi);color:var(--s-on-hi)}
+.seg button:focus-visible{outline:2px solid var(--s-ink);outline-offset:-3px}
+.studied{margin-top:14px;color:var(--s-muted);max-width:1180px;font-size:14px}
+.studied summary{cursor:pointer;color:var(--s-ink);font-weight:600;min-height:36px;display:flex;align-items:center}
+.studied ol{padding-left:22px;columns:2 440px;column-gap:32px}
+.studied li{margin-bottom:5px;break-inside:avoid}
+.studied b{color:var(--s-ink);font-weight:600}
+.dirs{max-width:1480px;margin:0 auto;padding:0 20px}
+.dir{margin:34px 0 54px}
+.dir-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;max-width:1080px}
+.dir-letter{flex:none;min-width:38px;height:38px;display:grid;place-items:center;border:1.5px solid var(--s-ink);border-radius:6px;font-weight:700;font-size:17px}
+.dir-head h2{margin:0;font-size:19px;font-weight:650}
+.dir-head p{margin:2px 0 0;color:var(--s-muted)}
+.dir-head p.thesis{color:var(--s-ink);font-weight:500}
+.stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+figure.frame{margin:0}
+figure.frame>figcaption{font-size:12px;color:var(--s-muted);margin-top:8px}
+.browser{width:960px;max-width:100%;border:1px solid var(--s-rule);border-radius:10px;overflow:hidden;background:var(--s-card)}
+.chrome{height:36px;display:flex;align-items:center;gap:7px;padding:0 12px;border-bottom:1px solid var(--s-rule);font-size:12px;color:var(--s-muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--s-rule)}
+.url{margin-left:10px;padding:3px 12px;border-radius:6px;background:var(--s-bg)}
+.vp{overflow-y:auto;container-type:inline-size;overscroll-behavior:contain;position:relative}
+.vp:focus-visible{outline:2px solid var(--s-ink);outline-offset:2px}
+.browser .vp{height:860px}
+.bezel{width:391px;height:820px;border:8px solid #0A0A0A;border-radius:46px;overflow:hidden;background:#0A0A0A}
+.bezel .vp{width:375px;height:100%;scrollbar-width:none}
+.bezel .vp::-webkit-scrollbar{display:none}
+body.phones .dirs{display:flex;gap:28px;flex-wrap:wrap;justify-content:center}
+body.phones .dir{margin:24px 0 40px;width:391px}
+body.phones .dir-head{min-height:200px}
+body.phones figure.frame:has(.browser){display:none}
+.matrix-wrap{max-width:1480px;margin:0 auto;padding:0 32px 64px}
+.matrix-wrap h2{font-size:19px;margin:0 0 10px}
+.matrix-scroll{overflow-x:auto}
+.matrix{border-collapse:collapse;width:100%;min-width:900px;background:var(--s-card);border:1px solid var(--s-rule);font-size:13.5px}
+.matrix th,.matrix td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--s-rule)}
+.matrix thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--s-muted)}
+.matrix tbody th{width:160px;font-weight:600}
+.ask{margin-top:14px;color:var(--s-muted)}
+@media (max-width:640px){.shell,.dirs,.matrix-wrap{padding-left:16px;padding-right:16px}.bezel{width:100%;max-width:391px}.bezel .vp{width:100%}}
+
+/* ================= desk tokens: segment 1-3 greys (decided) + segment 4 state colours =================
+   --acc is the segment-3 PLACEHOLDER accent until segment 5. --bad/--warn/--good always travel with a word and a shape. */
+.site{
+ --bg:#FCFCFB;--ink:#141619;--text:#1E2125;--muted:#565D66;--rule:#E2E4E7;--rule2:#C5CAD0;--surf:#F3F4F5;--surf2:#E9EBED;--ins:#ECEEF0;
+ --acc:#2a78d6;--acc-ink:#1d5fae;--wash:rgba(42,120,214,.10);
+ --bad:#B42318;--bad-bg:#FDECEA;--warn:#7A4A00;--warn-bg:#FFF2D2;--good:#1B7339;--good-bg:#E6F4EA;--tag:#0D6B63;--tag-bg:#E1F3F0;--hl:rgba(180,35,24,.11);--al:rgba(27,115,57,.10);
+ --gut:20px;--mono:"IBM Plex Mono",ui-monospace,monospace;--ease:cubic-bezier(.2,0,0,1);
+ color-scheme:light;min-height:100%;display:flex;flex-direction:column;background:var(--bg);color:var(--text);
+ font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:14.5px;line-height:1.5;font-variant-numeric:lining-nums tabular-nums}
+:root[data-theme=dark] .site{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;
+ --acc:#3987e5;--acc-ink:#8DB8EE;--wash:rgba(57,135,229,.16);
+ --bad:#FF8F82;--bad-bg:#371A17;--warn:#F2C062;--warn-bg:#31270F;--good:#6FCB8E;--good-bg:#14301E;--tag:#62C9BE;--tag-bg:#112F2B;--hl:rgba(255,143,130,.17);--al:rgba(111,203,142,.14);color-scheme:dark;-webkit-font-smoothing:antialiased}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .site{--bg:#121417;--ink:#ECEEF1;--text:#D9DDE2;--muted:#9EA6B0;--rule:#272B30;--rule2:#3A4047;--surf:#191C20;--surf2:#21252A;--ins:#1F2327;
+ --acc:#3987e5;--acc-ink:#8DB8EE;--wash:rgba(57,135,229,.16);
+ --bad:#FF8F82;--bad-bg:#371A17;--warn:#F2C062;--warn-bg:#31270F;--good:#6FCB8E;--good-bg:#14301E;--tag:#62C9BE;--tag-bg:#112F2B;--hl:rgba(255,143,130,.17);--al:rgba(111,203,142,.14);color-scheme:dark;-webkit-font-smoothing:antialiased}}
+.site *{box-sizing:border-box}
+.site button,.site input,.site select,.site textarea{font:inherit;color:inherit}
+.site button{cursor:pointer;touch-action:manipulation}
+.site :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+.site p{margin:0}
+.site h1,.site h2,.site h3{margin:0;color:var(--ink);font-weight:600}
+.site .mono,.site kbd,.site code{font-family:var(--mono)}
+.site kbd{font-size:11px;border:1px solid var(--rule2);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--muted);background:var(--bg);white-space:nowrap}
+.site code{font-size:.92em;background:var(--surf);border-radius:3px;padding:0 3px;color:var(--ink)}
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ic.s{width:14px;height:14px}
+@container (max-width:759px){.only-d{display:none!important}}
+@container (min-width:760px){.only-p{display:none!important}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 14px;border-radius:7px;border:1px solid var(--rule2);background:var(--bg);color:var(--ink);font-size:14px;font-weight:500;white-space:nowrap}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.btn.pri kbd{background:transparent;color:inherit;border-color:currentColor;opacity:.75}
+.btn.sm{min-height:36px;padding:0 10px;font-size:13px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn:active:not([disabled]){transform:scale(.98)}
+.lnk{border:0;background:none;padding:0;color:var(--acc-ink);text-decoration:underline;text-underline-offset:3px;font-size:inherit;min-height:32px}
+.fine{font-size:12.5px;color:var(--muted)}
+
+/* desk chrome (private): one top bar; phone bottom bar from segment 2's pattern */
+.tb{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 var(--gut);border-bottom:1px solid var(--rule);background:var(--bg);position:sticky;top:0;z-index:8}
+.tb .sp{flex:1}
+.wm{font-size:15px;font-weight:600;color:var(--ink);white-space:nowrap}
+.priv{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-family:var(--mono);color:var(--muted);border:1px solid var(--rule);border-radius:99px;padding:1px 8px 1px 6px}
+.dnav{display:flex;gap:2px}
+.dnav button{border:0;background:none;min-height:40px;padding:0 10px;border-radius:6px;font-size:13.5px;color:var(--muted)}
+.dnav button[aria-current=page]{color:var(--ink);background:var(--surf);font-weight:600}
+.dnav .n,.tabs .n{font-family:var(--mono);font-size:10.5px;margin-left:3px;color:var(--muted)}
+.dock{position:sticky;bottom:0;z-index:7;background:var(--bg);border-top:1px solid var(--rule);margin-top:auto}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr)}
+.tabs button{min-height:54px;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11.5px;color:var(--muted);position:relative}
+.tabs button[aria-current=page]{color:var(--ink);font-weight:600}
+.tabs button[aria-current=page]::before{content:"";position:absolute;top:-1px;left:28%;right:28%;height:2px;background:var(--ink)}
+.live{display:flex;gap:10px;align-items:flex-start;padding:10px var(--gut);background:var(--bad-bg);color:var(--ink);border-bottom:2px solid var(--bad);font-size:13.5px;line-height:1.4}
+.live .ic{color:var(--bad);margin-top:1px}
+.live b{color:var(--bad)}
+.offl{display:flex;gap:10px;align-items:flex-start;padding:10px var(--gut);background:var(--surf);border-bottom:1px dashed var(--rule2);font-size:13.5px;line-height:1.4}
+.toast{position:absolute;left:50%;bottom:120px;transform:translate(-50%,8px);opacity:0;pointer-events:none;background:var(--ink);color:var(--bg);font-size:13px;padding:8px 14px;border-radius:8px;z-index:30;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis;transition:opacity .2s var(--ease),transform .2s var(--ease)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){.site *,.toast{transition:none!important;animation:none!important}}
+
+/* capture box: a textarea over a highlight mirror (tokens get colour, never width) */
+.capf{position:relative;flex:1;min-width:0}
+.capf pre,.capf textarea{margin:0;border:0;padding:0;font:inherit;letter-spacing:inherit;line-height:inherit;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;tab-size:2}
+.capf pre{position:absolute;inset:0;pointer-events:none;color:var(--ink);overflow:hidden}
+.capf textarea{position:relative;display:block;width:100%;resize:none;overflow:hidden;background:transparent;color:transparent;caret-color:var(--ink);outline:none;min-height:1.5em}
+.capf textarea::placeholder{color:var(--muted);opacity:1}
+.capf textarea::selection{background:var(--wash);color:transparent}
+.tk-k{background:var(--ink);color:var(--bg);border-radius:2px}
+.tk-c{color:var(--acc-ink);background:var(--wash);border-radius:2px}
+.tk-t{color:var(--tag);background:var(--tag-bg);border-radius:2px}
+.tk-c.new,.tk-t.new{text-decoration:underline dashed;text-underline-offset:3px}
+.tk-u{color:var(--acc-ink);text-decoration:underline dotted;text-underline-offset:3px}
+
+/* status words travel with shapes */
+.stw{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.stw.bad{color:var(--bad)}.stw.warn{color:var(--warn)}.stw.good{color:var(--good)}.stw.mut{color:var(--muted)}
+.meter{display:grid;grid-template-columns:minmax(0,auto) 1fr auto;gap:4px 10px;align-items:center;font-size:12.5px}
+.meter .bar{height:8px;background:var(--surf2);border-radius:2px;position:relative;overflow:hidden}
+.meter .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink)}
+.meter .v{font-family:var(--mono);font-size:12px;color:var(--ink);white-space:nowrap}
+.sent{border-radius:2px;scroll-margin:80px}
+.sent.bad{background:var(--hl);text-decoration:underline wavy var(--bad);text-decoration-thickness:1.2px;text-underline-offset:4px;text-decoration-skip-ink:none}
+.sent.al{background:var(--al)}
+.sent.flash{outline:2px solid var(--bad);outline-offset:2px}
+mark.hit{background:transparent;color:var(--bad);font-weight:600}
+.sent.al mark.hit{color:var(--good)}
+del.dx{background:var(--hl);color:var(--text);text-decoration:line-through;text-decoration-color:var(--bad)}
+ins.dx{background:var(--al);text-decoration:none;border-bottom:1.5px solid var(--good)}
+.fld label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:3px}
+.fld input,.fld select,.fld textarea{width:100%;min-height:44px;border:1px solid var(--rule2);border-radius:6px;background:var(--bg);padding:8px 10px;font-size:16px;color:var(--ink)}
+.fld .help{font-size:12px;color:var(--muted);margin-top:3px}
+input.cell{width:100%;min-height:40px;border:1px solid var(--rule);border-radius:5px;background:var(--bg);padding:4px 8px;text-align:right;font-family:var(--mono);font-size:14px;color:var(--ink)}
+input.cell.flag{border:1.5px solid var(--bad);background:var(--bad-bg)}
+input.cell.fixed{border-color:var(--good)}
+.pgtxt{font-family:var(--mono);font-size:12.5px;line-height:1.75;color:var(--text)}
+.pgtxt .ln{display:grid;grid-template-columns:minmax(0,1fr) 64px 64px;gap:8px;padding:0 6px;border-radius:3px}
+.pgtxt .ln span+span{text-align:right}
+.pgtxt .ln.hd{color:var(--muted)}
+.pgtxt .ln.on{background:var(--hl);box-shadow:inset 3px 0 0 var(--bad)}
+.pgtxt .ln.ok{background:var(--al)}
+.allow{margin-top:8px;padding:10px;border:1px solid var(--rule2);border-radius:6px;background:var(--bg);display:grid;gap:8px}
+.allow input{width:100%;min-height:44px;border:1px solid var(--rule2);border-radius:6px;background:var(--bg);padding:8px 10px;font-size:15px;color:var(--ink)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.dock .toast{position:absolute;bottom:calc(100% + 14px)}
+@container (min-width:760px){.dock{border-top:0;height:0}}
+@container (max-width:759px){.ph-hide{display:none!important}}
+.okmsg{border-left:3px solid var(--good);background:var(--good-bg);padding:10px 12px;border-radius:0 8px 8px 0;font-size:14px;color:var(--ink)}
+.errmsg{color:var(--bad);font-size:12.5px}
+
+/* ============ A. COMMAND LINE ============ */
+.dA .a-wrap{padding:16px var(--gut) 28px;display:grid;gap:18px;align-content:start}
+.dA .a-one{grid-template-columns:minmax(0,1fr)!important}
+.dA .a-cap{display:flex;align-items:flex-start;gap:10px;border:1.5px solid var(--ink);border-radius:8px;padding:12px;background:var(--bg);font-family:var(--mono);font-size:15px;line-height:1.6}
+.dA .a-cap:focus-within{box-shadow:0 0 0 3px var(--wash)}
+.dA .a-pr{color:var(--muted);font-weight:600;user-select:none}
+.dA .a-rc{font-family:var(--mono);font-size:12.5px;display:flex;flex-wrap:wrap;gap:2px 0;padding:8px 2px 0;color:var(--muted);min-height:30px}
+.dA .a-rc>span{white-space:nowrap}
+.dA .a-rc>span+span::before{content:"\00B7";margin:0 8px;color:var(--rule2)}
+.dA .a-rc b{color:var(--ink);font-weight:600}
+.dA .a-rc .w{color:var(--warn);white-space:normal}
+.dA .a-gram{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px}
+.dA .a-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;border-bottom:1.5px solid var(--ink);padding-bottom:6px}
+.dA .a-h h2{font-size:12px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.09em}
+.dA .a-h span{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dA .a-g{margin-top:12px}
+.dA .a-g h3{font-family:var(--mono);font-size:12px;font-weight:600;display:flex;gap:8px;align-items:baseline;padding:4px 0;color:var(--ink)}
+.dA .a-g h3 span{font-family:"IBM Plex Sans",sans-serif;font-weight:400;color:var(--muted);font-size:12.5px}
+.dA .a-log{list-style:none;margin:0;padding:0}
+.dA .a-log li{display:grid;grid-template-columns:42px 70px minmax(0,1fr);gap:8px;padding:7px 0;border-top:1px solid var(--rule);font-size:14px;align-items:baseline}
+.dA .a-log time{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dA .a-kind{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.dA .a-kind.k-thesis,.dA .a-kind.k-learning,.dA .a-kind.k-process{color:var(--ink);font-weight:600}
+.dA .a-q{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-family:var(--mono);font-size:10.5px;color:var(--warn);border:1px dashed var(--warn);border-radius:3px;padding:0 4px;white-space:nowrap}
+.dA .a-log li.q{background:repeating-linear-gradient(135deg,transparent 0 6px,var(--surf) 6px 8px)}
+.dA .a-side{display:grid;gap:22px;align-content:start}
+.dA .a-st{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;margin-top:8px}
+.dA .a-st i{height:18px;background:var(--surf2);border-radius:1px}
+.dA .a-st i.on{background:var(--ink)}
+.dA .a-st i.td{outline:2px solid var(--acc);outline-offset:1px}
+.dA .a-stl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:4px}
+.dA .a-need{list-style:none;margin:0;padding:0}
+.dA .a-need li{display:flex;align-items:center;gap:8px;border-top:1px solid var(--rule);min-height:44px;font-size:13.5px}
+.dA .a-need li button{flex:1;border:0;background:none;text-align:left;padding:8px 0;display:flex;gap:8px;align-items:center;min-height:44px}
+.dA .a-need b{font-family:var(--mono);font-weight:600;color:var(--ink);min-width:16px}
+.dA .a-pstat{display:flex;gap:10px;align-items:center;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dA .a-pstat .a-st{flex:1;margin:0}
+.dA .a-pstat .a-st i{height:12px}
+.dA .a-pneed{display:flex;flex-wrap:wrap;gap:6px}
+.dA .a-pneed button{font-family:var(--mono);font-size:12px;border:1px solid var(--rule2);background:var(--bg);border-radius:4px;min-height:36px;padding:0 9px}
+.dA .a-pneed button.bad{border-color:var(--bad);color:var(--bad)}
+.dA .a-dock{padding:8px 10px;border-bottom:1px solid var(--rule);background:var(--surf)}
+.dA .a-keys{display:flex;gap:6px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none}
+.dA .a-keys button{font-family:var(--mono);font-size:14px;min-width:44px;min-height:40px;border:1px solid var(--rule2);border-radius:6px;background:var(--bg);padding:0 8px;flex:none}
+.dA .a-dock .a-cap{padding:9px 10px;font-size:16px;align-items:flex-end}
+.dA .a-send{flex:none;width:44px;height:40px;border:0;border-radius:6px;background:var(--ink);color:var(--bg);display:grid;place-items:center}
+.dA .a-dock .a-rc{padding:6px 2px 0;min-height:24px;font-size:11.5px}
+@container (min-width:760px){
+ .dA .a-wrap{grid-template-columns:minmax(0,1fr) 260px;gap:32px;padding:24px 28px}
+ .dA .a-side{border-left:1px solid var(--rule);padding-left:24px}
+}
+/* A editor */
+.dA .a-ed{display:grid;gap:18px;padding:16px var(--gut) 32px;align-content:start}
+.dA .a-crumb{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dA .a-t{font-size:20px;line-height:1.25}
+.dA .a-fm{display:grid;grid-template-columns:118px minmax(0,1fr);gap:6px 10px;align-items:center;font-size:14px;background:var(--surf);border-radius:6px;padding:10px 12px}
+.dA .a-fm label{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dA .a-fm input,.dA .a-fm select{width:100%;min-height:40px;border:1px solid var(--rule);border-radius:5px;background:var(--bg);padding:4px 8px;font-size:15px;color:var(--ink)}
+.dA .a-fm .ok{font-family:var(--mono);font-size:11.5px;color:var(--good);grid-column:2;margin-top:-3px}
+.dA .a-body{list-style:none;margin:0;padding:0;counter-reset:s}
+.dA .a-body li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:6px;padding:5px 0;font-size:15.5px;line-height:1.6}
+.dA .a-body li::before{counter-increment:s;content:"s" counter(s);font-family:var(--mono);font-size:11px;color:var(--muted);padding-top:4px}
+.dA .a-gate{background:var(--surf);border:1px solid var(--rule2);border-radius:8px;font-size:13px;overflow:hidden}
+.dA .a-gh{display:flex;flex-wrap:wrap;gap:2px 12px;padding:9px 12px;border-bottom:1px solid var(--rule2);font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.dA .a-gh b{color:var(--ink)}
+.dA .a-gl{list-style:none;margin:0;padding:0}
+.dA .a-gl li{padding:10px 12px;border-bottom:1px solid var(--rule)}
+.dA .a-gl li.fail{box-shadow:inset 3px 0 0 var(--bad);background:var(--bg)}
+.dA .a-gl li.alw{box-shadow:inset 3px 0 0 var(--good)}
+.dA .a-gl .r{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-family:var(--mono);font-size:12px}
+.dA .a-gl .r .nm{color:var(--ink)}
+.dA .a-gl q{display:block;margin-top:6px;font-size:13.5px;color:var(--ink);quotes:"\201C" "\201D"}
+.dA .a-gl p{margin-top:4px;color:var(--muted);font-size:12.5px}
+.site label.chk{display:flex;gap:8px;align-items:flex-start;margin-top:6px;font-size:12.5px;color:var(--text)}
+.site label.chk input{width:18px;height:18px;margin:1px 0 0;flex:none}
+.dA .a-gf{padding:12px;display:grid;gap:8px;font-size:13px}
+.dA .a-gf .row{display:flex;gap:8px;flex-wrap:wrap}
+.dA .a-diff{border:1px solid var(--rule);border-radius:6px;font-size:14px;overflow:hidden}
+.dA .a-diff .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 8px;border-bottom:1px solid var(--rule);background:var(--surf);font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dA .a-diff .ln{display:grid;grid-template-columns:22px minmax(0,1fr);padding:4px 8px;line-height:1.5}
+.dA .a-diff .ln::before{font-family:var(--mono);color:var(--muted)}
+.dA .a-diff .ln.add{background:var(--al)}.dA .a-diff .ln.add::before{content:"+";color:var(--good)}
+.dA .a-diff .ln.del{background:var(--hl)}.dA .a-diff .ln.del::before{content:"\2212";color:var(--bad)}
+.dA .a-diff .ln.del span{text-decoration:line-through;text-decoration-color:var(--bad)}
+.dA .a-diff .ln.eq{color:var(--muted)}.dA .a-diff .ln.eq::before{content:" "}
+.site .tg{display:inline-flex;border:1px solid var(--rule2);border-radius:5px;overflow:hidden}
+.site .tg button{border:0;background:var(--bg);font-family:var(--mono);font-size:12px;min-height:36px;padding:0 12px}
+.site .tg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+@container (min-width:760px){
+ .dA .a-ed{grid-template-columns:minmax(0,1fr) 340px;column-gap:28px;padding:20px 28px}
+ .dA .a-ed>*{grid-column:1}
+ .dA .a-ed>.a-gate{grid-column:2;grid-row:1/span 6;position:sticky;top:68px;align-self:start}
+}
+/* A inbox */
+.dA .a-drop{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1.5px dashed var(--rule2);border-radius:8px;padding:12px;min-height:56px;font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--bg);width:100%;text-align:left}
+.dA .a-drop span{color:var(--muted);font-size:12px}
+.site .a-bud{display:grid;gap:6px}
+.dA .a-rows{list-style:none;margin:0;padding:0}
+.dA .a-rows li{display:grid;grid-template-columns:104px minmax(0,1fr);gap:4px 10px;padding:11px 0;border-top:1px solid var(--rule);align-items:baseline}
+.dA .a-rows .nm{font-size:14.5px;color:var(--ink);font-weight:500}
+.dA .a-rows .fl{font-family:var(--mono);font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+.dA .a-rows .eta{font-family:var(--mono);font-size:12px;color:var(--ink);grid-column:2}
+.dA .a-rows .msg{grid-column:2;font-size:13px;color:var(--muted)}
+.dA .a-rows .acts{grid-column:2;margin-top:4px}
+.dA .a-keysl{font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+@container (min-width:760px){
+ .dA .a-rows li{grid-template-columns:110px minmax(0,1fr) 170px}
+ .dA .a-rows .eta{grid-column:3;grid-row:1;text-align:right}
+}
+/* A review */
+.dA .a-rv{display:grid;gap:16px;padding:16px var(--gut) 32px}
+.dA .a-pane{border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.dA .a-pane>.hd{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--rule);background:var(--surf);font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.dA .a-pane>.bd{padding:10px 6px}
+.dA .a-ft{width:100%;border-collapse:collapse;font-size:13px}
+.dA .a-ft th{text-align:left;font-weight:400;color:var(--text);padding:3px 6px}
+.dA .a-ft thead th{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.dA .a-ft td{padding:3px 4px;width:86px}
+.dA .a-ft tr.fl th{color:var(--bad);font-weight:600}
+.dA .a-ft tr.fl th::before{content:"! ";font-family:var(--mono)}
+.dA .a-fx{display:grid;gap:10px}
+.dA .a-fx>div{border-left:3px solid var(--bad);padding:6px 10px;background:var(--bg)}
+.dA .a-fx>div.done{border-color:var(--good)}
+.dA .a-file{display:grid;gap:10px;border-top:1.5px solid var(--ink);padding-top:12px}
+.site .a-file .row,.site .b-q .row{display:grid;gap:8px}
+@container (min-width:760px){
+ .dA .a-rv{grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding:20px 28px;column-gap:24px}
+ .dA .a-rv>.full{grid-column:1/-1}
+ .site .a-file .row,.site .b-q .row{grid-template-columns:1fr 1fr 1fr}
+}
+/* A names */
+.dA .a-nt{width:100%;border-collapse:collapse;font-size:13.5px}
+.dA .a-nt th,.dA .a-nt td{text-align:left;padding:10px 6px;border-top:1px solid var(--rule);vertical-align:top}
+.dA .a-nt thead th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-top:0}
+.dA .a-nt .tok{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.dA .a-nt input{width:100%;min-height:40px;border:1px solid var(--rule2);border-radius:5px;padding:4px 8px;background:var(--bg);font-size:15px;color:var(--ink)}
+@container (max-width:759px){
+ .dA .a-nt thead{display:none}
+ .dA .a-nt tr{display:grid;gap:6px;padding:12px 0;border-top:1px solid var(--rule)}
+ .dA .a-nt td,.dA .a-nt th{border:0;padding:0}
+}
+
+/* ============ B. DAY BOOK ============ */
+.dB .b-wrap{padding:24px var(--gut) 40px;display:grid;gap:22px;align-content:start}
+.dB .b-kick{font-size:13px;color:var(--muted)}
+.dB .b-date h1{font-size:30px;line-height:1.1;letter-spacing:-.02em;font-weight:600}
+.dB .b-sub{font-size:13.5px;color:var(--muted);margin-top:6px}
+.dB .b-dots{display:flex;gap:4px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.dB .b-dots i{width:7px;height:7px;border-radius:50%;border:1.2px solid var(--rule2)}
+.dB .b-dots i.on{background:var(--ink);border-color:var(--ink)}
+.dB .b-dots i.td{width:11px;height:11px;outline:2px solid var(--acc);outline-offset:1px}
+.dB .b-cap{border-top:1px solid var(--rule2);border-bottom:1px solid var(--rule2);padding:14px 0 10px;font-size:17.5px;line-height:1.6}
+.dB .b-cap .row{display:flex;gap:10px;align-items:flex-end}
+.dB .b-save{flex:none;border:0;background:none;color:var(--acc-ink);font-weight:600;min-height:44px;padding:0 4px;font-size:15px}
+.dB .b-ps{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;font-size:13px;color:var(--muted);min-height:28px}
+.dB .pill{display:inline-flex;align-items:center;gap:4px;border-radius:99px;padding:2px 10px;font-size:13px;background:var(--surf);color:var(--ink);white-space:nowrap}
+.dB .pill.co{background:var(--wash);color:var(--acc-ink)}
+.dB .pill.th{background:var(--tag-bg);color:var(--tag)}
+.dB .pill.new{outline:1px dashed currentColor}
+.dB .pill.k{background:var(--ink);color:var(--bg)}
+.dB .b-ps .w{color:var(--warn);flex-basis:100%}
+.dB .b-hint{font-size:13px;color:var(--muted)}
+.dB .b-hint summary{cursor:pointer;min-height:36px;display:flex;align-items:center}
+.dB .b-hint dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:4px 0 0}
+.dB .b-hint dt{font-family:var(--mono);color:var(--ink)}
+.dB .b-hint dd{margin:0}
+.dB .b-grp h2{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+.dB .b-e{display:grid;grid-template-columns:minmax(0,1fr);padding:10px 0;border-bottom:1px solid var(--rule)}
+.dB .b-e time{font-size:12px;color:var(--muted)}
+.dB .b-e p{font-size:16px;line-height:1.55;color:var(--ink)}
+.dB .b-e .k{font-size:12.5px;color:var(--muted);margin-top:2px}
+.dB .b-e.q{border-bottom-style:dashed}
+.dB .b-e.q .k{color:var(--warn)}
+.dB .b-wait{border-left:2px solid var(--ink);padding:2px 0 2px 14px;font-size:14px;display:grid;gap:8px}
+.dB .b-wait h2{font-size:14px}
+.dB .b-wait button{border:0;background:none;padding:0;text-align:left;color:var(--text);min-height:36px;font-size:14px}
+.dB .b-wait button span{color:var(--acc-ink);text-decoration:underline;text-underline-offset:3px}
+@container (min-width:760px){
+ .dB .b-wrap{grid-template-columns:minmax(0,600px) 220px;column-gap:48px;justify-content:center;padding:36px 28px 48px}
+ .dB .b-wrap>*{grid-column:1}
+ .dB .b-wrap>.b-side{grid-column:2;grid-row:1/span 4;position:sticky;top:76px}
+ .dB .b-e{grid-template-columns:48px minmax(0,1fr);column-gap:8px}
+ .dB .b-e time{padding-top:3px}
+ .dB .b-e .k{grid-column:2}
+}
+/* B editor */
+.dB .b-q{background:var(--surf);border-radius:12px;padding:16px;display:grid;gap:14px}
+.dB .b-q h2{font-size:16px}
+.dB .b-q .two{display:grid;gap:14px}
+.dB .seg2{display:flex;gap:6px;flex-wrap:wrap}
+.dB .seg2 button{min-height:40px;border:1px solid var(--rule2);border-radius:99px;background:var(--bg);padding:0 14px;font-size:14px}
+.dB .seg2 button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.dB .b-doc{display:grid;gap:4px}
+.dB .b-par{display:grid;gap:10px;padding:8px 0}
+.dB .b-par>p{font-size:17px;line-height:1.7;color:var(--ink)}
+.dB .b-notes{display:grid;gap:10px;align-content:start}
+.dB .b-note{border-left:3px solid var(--bad);background:var(--bad-bg);border-radius:0 8px 8px 0;padding:10px 12px;font-size:13.5px;line-height:1.45}
+.dB .b-note.al{border-color:var(--good);background:var(--good-bg)}
+.dB .b-note b{color:var(--ink)}
+.dB .b-pub{border-top:1px solid var(--rule2);padding-top:14px;display:grid;gap:10px}
+@container (min-width:760px){
+ .dB .b-q .two{grid-template-columns:1fr 1fr}
+ .dB .b-ed{grid-template-columns:minmax(0,880px)}
+ .dB .b-par{grid-template-columns:minmax(0,1fr) 260px;column-gap:28px}
+}
+/* B inbox */
+.dB .b-drop{display:grid;place-items:center;text-align:center;gap:6px;border:1.5px dashed var(--rule2);border-radius:14px;padding:26px 16px;background:var(--surf);color:var(--ink);font-size:16px;width:100%}
+.dB .b-drop small{font-size:13px;color:var(--muted);max-width:44ch}
+.dB .b-doc-e{padding:14px 0;border-bottom:1px solid var(--rule);display:grid;gap:4px}
+.dB .b-doc-e h3{font-size:16px;font-weight:600}
+.dB .b-doc-e .st{display:flex;gap:8px;align-items:flex-start;font-size:14.5px;color:var(--text)}
+.dB .b-doc-e .st .ic{margin-top:2px}
+.dB .b-doc-e .prog{height:3px;background:var(--surf2);border-radius:2px;overflow:hidden;margin-top:4px}
+.dB .b-doc-e .prog i{display:block;height:100%;background:var(--ink)}
+.dB .b-doc-e .fl{font-size:12.5px;color:var(--muted)}
+/* B review */
+.dB .b-sheet{background:var(--bg);border:1px solid var(--rule);border-radius:4px;box-shadow:0 1px 0 var(--rule),0 3px 0 var(--surf2);padding:14px 10px}
+.dB .b-sheet .cap{font-size:12px;color:var(--muted);padding:0 6px 8px}
+.dB .b-card{background:var(--surf);border-radius:12px;padding:14px;display:grid;gap:4px}
+.dB .b-fr{display:grid;grid-template-columns:minmax(0,1fr) 80px 80px;gap:6px;align-items:center;padding:4px 0;font-size:14px;border-bottom:1px solid var(--rule)}
+.dB .b-fr.hd{font-size:12px;color:var(--muted);border:0}
+.dB .b-fr.hd span+span{text-align:right}
+.dB .b-flagn{grid-column:1/-1;border-left:3px solid var(--bad);background:var(--bg);border-radius:0 8px 8px 0;padding:10px 12px;font-size:13.5px;margin:4px 0 8px}
+.dB .b-flagn.ok{border-color:var(--good)}
+.site .b-strip{font-family:var(--mono);font-size:12px;background:var(--bg);border:1px solid var(--rule);border-radius:3px;padding:5px 8px 12px;margin:8px 0 4px;clip-path:polygon(0 0,100% 0,100% 82%,96% 100%,92% 82%,88% 100%,84% 82%,80% 100%,76% 82%,72% 100%,68% 82%,64% 100%,60% 82%,56% 100%,52% 82%,48% 100%,44% 82%,40% 100%,36% 82%,32% 100%,28% 82%,24% 100%,20% 82%,16% 100%,12% 82%,8% 100%,4% 82%,0 100%)}
+@container (min-width:760px){
+ .dB .b-rv{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:32px;align-items:start}
+ .dB .b-rv>*{grid-column:auto}
+ .dB .b-rv>.full{grid-column:1/-1}
+}
+/* B names */
+.dB .b-nm{padding:14px 0;border-bottom:1px solid var(--rule);display:grid;gap:8px}
+.dB .b-nm>p{font-size:16px;line-height:1.5;color:var(--ink)}
+.dB .b-nm blockquote{margin:0;font-size:14px;color:var(--muted);border-left:2px solid var(--rule2);padding-left:10px}
+.dB .b-nm .row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.dB .b-nm .row .fld{flex:1;min-width:180px}
+
+/* ============ C. TRAYS ============ */
+.dC .c-wrap{padding:16px var(--gut) 28px;display:grid;gap:20px;align-content:start}
+.dC .c-capbar{border:1px solid var(--rule2);border-radius:12px;background:var(--surf);padding:12px 12px 10px;font-size:16px;line-height:1.55}
+.dC .c-capbar .row{display:flex;gap:10px;align-items:flex-end}
+.dC .c-capbar:focus-within{border-color:var(--ink);background:var(--bg)}
+.dC .c-to{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--muted);min-height:28px}
+.dC .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--rule2);border-radius:6px;padding:2px 8px;font-size:12.5px;color:var(--ink);background:var(--bg);white-space:nowrap}
+.dC .chip .ic{width:13px;height:13px}
+.dC .chip.co{border-color:var(--acc);color:var(--acc-ink)}
+.dC .chip.th{border-color:var(--tag);color:var(--tag)}
+.dC .chip.new{border-style:dashed}
+.dC .c-to .w{color:var(--warn);flex-basis:100%}
+.dC .c-tray h2{display:flex;align-items:center;gap:8px;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px}
+.dC .c-tray h2 b{font-family:var(--mono);font-size:12px;color:var(--bg);background:var(--ink);border-radius:99px;padding:0 7px;letter-spacing:0}
+.dC .c-cards{display:grid;gap:10px}
+.dC .c-card{border:1px solid var(--rule);border-left:4px solid var(--muted);border-radius:8px;padding:12px 14px;display:grid;gap:4px;background:var(--bg)}
+.dC .c-card.bad{border-left-color:var(--bad)}
+.dC .c-card.acc{border-left-color:var(--acc)}
+.dC .c-card.warn{border-left-color:var(--warn)}
+.dC .c-card h3{font-size:15px}
+.dC .c-card p{font-size:13.5px;color:var(--muted)}
+.dC .c-card .acts{margin-top:6px}
+.dC .c-today{list-style:none;margin:0;padding:0}
+.dC .c-today li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:9px 0;border-top:1px solid var(--rule);font-size:14px}
+.dC .c-today .co{font-size:12px;color:var(--muted)}
+.dC .c-today .t{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:right}
+.dC .c-today li.q .t{color:var(--warn)}
+.dC .c-hd{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.dC .c-hd h1{font-size:20px}
+.dC .c-strk{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dC .c-strk .bar{display:flex;gap:1px}
+.dC .c-strk .bar i{width:4px;height:14px;background:var(--surf2)}
+.dC .c-strk .bar i.on{background:var(--ink)}
+.dC .c-strk .bar i.td{background:var(--acc)}
+.dC .c-fab{position:absolute;right:14px;bottom:calc(100% + 14px);height:52px;border-radius:26px;border:0;background:var(--ink);color:var(--bg);display:flex;align-items:center;gap:8px;padding:0 20px 0 16px;font-size:15px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.dC .c-sheet{display:none;padding:14px var(--gut) 12px;border-bottom:1px solid var(--rule);background:var(--bg);box-shadow:0 -12px 24px rgba(0,0,0,.10)}
+.dC .vpopen .c-sheet{display:block;animation:cup .22s var(--ease)}
+.dC .vpopen .c-fab{display:none}
+@keyframes cup{from{transform:translateY(16px);opacity:.4}to{transform:none;opacity:1}}
+.dC .c-sheet .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.dC .c-sheet .top b{font-size:15px;color:var(--ink)}
+.dC .c-sheet .capbox{border:1px solid var(--ink);border-radius:10px;padding:10px 12px;font-size:16px;line-height:1.55;min-height:88px}
+.dC .c-sheet .bot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px}
+@container (min-width:760px){
+ .dC .c-wrap{padding:20px 28px}
+ .dC .c-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
+}
+@container (max-width:759px){.dC .c-two{display:grid;gap:22px}}
+/* C editor */
+.dC .c-ed{display:grid;gap:16px;padding:16px var(--gut) 24px;align-content:start}
+.dC .c-ck{border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.dC .c-ck .hd{padding:12px 14px;border-bottom:1px solid var(--rule);display:grid;gap:8px}
+.dC .c-ck .hd b{font-size:15px;color:var(--ink)}
+.dC .c-prog{display:flex;gap:3px}
+.dC .c-prog i{flex:1;height:6px;border-radius:1px;background:var(--surf2)}
+.dC .c-prog i.p{background:var(--good)}
+.dC .c-prog i.f{background:var(--bad)}
+.dC .c-prog i.m{background:repeating-linear-gradient(135deg,var(--warn) 0 3px,transparent 3px 6px)}
+.dC .c-ck ul{list-style:none;margin:0;padding:0}
+.dC .c-ck li{border-bottom:1px solid var(--rule)}
+.dC .c-ck li:last-child{border-bottom:0}
+.dC .c-ck li>.row{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;padding:10px 14px;align-items:start}
+.dC .c-ck li .ic{margin-top:2px}
+.dC .c-ck li.pass>.row>.ic{color:var(--good)}
+.dC .c-ck li.fail{background:var(--bad-bg)}
+.dC .c-ck li.fail>.row>.ic{color:var(--bad)}
+.dC .c-ck li.man>.row>.ic{color:var(--warn)}
+.dC .c-ck .nm{font-size:14px;color:var(--ink);font-weight:500}
+.dC .c-ck .dt{font-size:12.5px;color:var(--muted)}
+.dC .c-ck .hit{margin:0 14px 10px 44px;background:var(--bg);border:1px solid var(--rule);border-radius:8px;padding:10px 12px;font-size:13.5px}
+.dC .c-ck .hit q{display:block;color:var(--ink);margin-bottom:4px}
+.dC .c-tabs{display:flex;border-bottom:1px solid var(--rule);gap:4px}
+.dC .c-tabs button{border:0;background:none;min-height:44px;padding:0 12px;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.dC .c-tabs button[aria-pressed=true]{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
+.dC .c-body{font-size:16px;line-height:1.7;color:var(--ink);display:grid;gap:10px}
+.dC .c-body sup{font-family:var(--mono);font-size:10.5px;color:var(--bad);font-weight:600;margin-left:2px}
+.dC .c-fields{display:grid;gap:12px}
+.dC .c-pubbar{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--rule);padding:10px var(--gut);display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;z-index:5}
+.dC .c-pubbar p{font-size:13px;color:var(--muted);flex:1;min-width:170px}
+@container (max-width:759px){.dC .c-pubbar{bottom:55px}}
+@container (min-width:760px){
+ .dC .c-ed{grid-template-columns:330px minmax(0,1fr);column-gap:28px;padding:20px 28px}
+ .dC .c-ed>.c-ck{grid-row:1/span 4;position:sticky;top:68px;align-self:start}
+ .dC .c-ed>*:not(.c-ck){grid-column:2}
+ .dC .c-fields{grid-template-columns:1fr 1fr}
+}
+/* C inbox */
+.dC .c-dropbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1.5px dashed var(--rule2);border-radius:10px;padding:10px 12px;background:var(--surf);font-size:14.5px;color:var(--ink);width:100%;text-align:left;min-height:52px}
+.dC .c-dropbar small{color:var(--muted);font-size:12.5px}
+.dC .c-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:12px 0;border-top:1px solid var(--rule);align-items:center}
+.dC .c-row h3{font-size:14.5px;font-weight:500}
+.dC .c-row .sub{font-size:12.5px;color:var(--muted);grid-column:1/-1}
+.dC .c-row .eta{font-family:var(--mono);font-size:12px;color:var(--ink);text-align:right;grid-row:1;grid-column:2}
+.dC .c-row .acts{grid-column:1/-1;margin-top:6px}
+/* C review */
+.dC .c-rv{display:grid;gap:16px;padding:16px var(--gut) 24px}
+.dC .c-focus{border:1px solid var(--ink);border-radius:12px;padding:14px;display:grid;gap:10px}
+.dC .c-focus .n{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.dC .c-focus h3{font-size:17px}
+.dC .c-focus .vs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dC .c-focus .vs div{border:1px solid var(--rule);border-radius:8px;padding:8px 10px}
+.dC .c-focus .vs small{display:block;font-size:11.5px;color:var(--muted)}
+.dC .c-focus .vs b{font-family:var(--mono);font-size:20px;color:var(--ink)}
+.dC .c-focus .vs .bad b{color:var(--bad);text-decoration:line-through}
+.dC .c-flist{list-style:none;margin:0;padding:0;font-size:13.5px}
+.dC .c-flist li{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:6px;padding:7px 0;border-top:1px solid var(--rule);align-items:center}
+.dC .c-flist li .v{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.dC .c-flist li.fl{color:var(--bad);font-weight:600}
+.dC .c-flist li:not(.fl) .ic{color:var(--good)}
+.dC .c-flist .ic{width:14px;height:14px}
+@container (min-width:760px){
+ .dC .c-rv{grid-template-columns:230px minmax(0,1fr) minmax(0,1fr);column-gap:22px;padding:20px 28px;align-items:start}
+ .dC .c-rv>.full{grid-column:1/-1}
+}
+/* C names (screener) */
+.dC .c-scr{display:grid;gap:12px}
+.dC .c-sc{border:1px solid var(--rule);border-radius:12px;padding:14px;display:grid;gap:8px;align-content:start}
+.dC .c-sc .tok{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--ink)}
+.dC .c-sc .chs{display:grid;gap:8px}
+.dC .c-sc.done{border-style:dashed}
+@container (min-width:760px){.dC .c-scr{grid-template-columns:1fr 1fr}.dC .c-sc .chs{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header class="shell">
+  <h1>Segment 4: capture and review (the private /desk)</h1>
+  <p>Three directions for the screens only Aksh sees: (1) the desk home with one capture box, (2) the item editor with the publish gate, (3) the document inbox, (4) the review screen and (5) the new-names list. Each direction uses the decided B+ type system (IBM Plex Sans, with Plex Mono for IDs and grammar tokens), the segment-3 placeholder blue and the segment-3 meter. All companies, symbols, figures, links and notes are invented to test layout.</p>
+  <p><b>Try the capture box</b> in any frame: type <code>t: $KAVERIPM receivables up again #working-capital</code> and press Enter (Shift+Enter for a new line). The grammar is parsed as you type; unknown symbols such as <code>$LOHITGLS</code> show as new names. Switch <b>State</b> to see the offline queue and the red liveness strip. On screen 2, try "Allow this sentence" on sentence 7.</p>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Screen"><span>Screen</span>
+      <button type="button" data-screen-btn="home" aria-pressed="true">1 Home</button>
+      <button type="button" data-screen-btn="editor" aria-pressed="false">2 Editor + gate</button>
+      <button type="button" data-screen-btn="inbox" aria-pressed="false">3 Inbox</button>
+      <button type="button" data-screen-btn="review" aria-pressed="false">4 Review</button>
+      <button type="button" data-screen-btn="names" aria-pressed="false">5 New names</button>
+    </div>
+    <div class="seg" role="group" aria-label="State"><span>State</span>
+      <button type="button" data-mode-btn="normal" aria-pressed="true">Normal</button>
+      <button type="button" data-mode-btn="offline" aria-pressed="false">Offline queue</button>
+      <button type="button" data-mode-btn="late" aria-pressed="false">Jobs late (red strip)</button>
+    </div>
+    <div class="seg" role="group" aria-label="Theme"><span>Theme</span>
+      <button type="button" data-theme-btn="system" aria-pressed="true">System</button>
+      <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-btn="dark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" role="group" aria-label="Layout"><span>Layout</span>
+      <button type="button" data-layout-btn="both" aria-pressed="true">Desktop + phone</button>
+      <button type="button" data-layout-btn="phones" aria-pressed="false">Three phones</button>
+    </div>
+  </div>
+  <details class="studied">
+    <summary>Screens studied: 30 captures from 19 products (26 at 1280 px, 4 at 390 px)</summary>
+    <ol>
+      <li><b>Linear</b>, home with the app frame: inbox rail, dense issue rows, properties column.</li>
+      <li><b>Linear docs, Triage</b>: one queue, actions on number keys (accept 1, decline 2, duplicate 3, snooze H).</li>
+      <li><b>Raycast</b>, home: one command bar as the whole interface.</li>
+      <li><b>Raycast Notes</b>: capture a single hotkey away, in a floating window over the current app.</li>
+      <li><b>Superhuman</b>, home (cookie banner over the fold).</li>
+      <li><b>Superhuman Mail</b> product page: split inbox and command-first triage.</li>
+      <li><b>HEY</b> features page.</li>
+      <li><b>HEY, How it works</b>: the Screener (yes or no for a first-time sender), Imbox, Feed, Paper Trail.</li>
+      <li><b>HEY</b> home at 390 px.</li>
+      <li><b>Things 3</b> home.</li>
+      <li><b>Things 3</b> App Store listing: iPhone Today list and Quick Entry screens.</li>
+      <li><b>Things support, Quick Entry</b>: capture without leaving the current app; tag and list shortcuts work inside it.</li>
+      <li><b>Bear</b>, home: three-pane Mac app, a note with inline tags.</li>
+      <li><b>Bear</b> at 390 px.</li>
+      <li><b>Drafts</b>, home: it "opens to a new page with the keyboard ready".</li>
+      <li><b>Apple Notes</b>, iPhone User Guide entry pages.</li>
+      <li><b>Notion</b> mobile page: three phone screens (home, a database, an empty page).</li>
+      <li><b>Obsidian</b> mobile page: an editor with a toolbar above the keyboard.</li>
+      <li><b>Google Keep</b>, product page: card capture, labels.</li>
+      <li><b>Google Keep</b> at 390 px.</li>
+      <li><b>Readwise Reader</b>: library tabs (Later, Shortlist, Archive), document rows, the phone home.</li>
+      <li><b>Arc / Dia</b> home: command bar over the page.</li>
+      <li><b>Arc Search</b>: the phone browser and its single bottom bar.</li>
+      <li><b>Zerodha Kite</b> product page: the order window and market-depth panels (a compact form confirmed in one line).</li>
+      <li><b>Todoist help, Task Quick Add</b>: words become dates, labels and priorities, highlighted inline as you type.</li>
+      <li><b>Label Studio</b>, home.</li>
+      <li><b>Label Studio docs, Labeling guide</b>: hotkeys, skip, submit, one task at a time.</li>
+      <li><b>Prodigy</b>, home: span labels with number keys (PERSON 1, ORG 2).</li>
+      <li><b>Prodigy docs, Review</b>: accept, reject or ignore, with conflicts shown side by side.</li>
+      <li><b>Adobe Lightroom</b> Learn (web grid). The HelpX page on pick and reject flags returned Access Denied; the P, X and U flag keys are cited from Lightroom Classic, not from a live capture.</li>
+    </ol>
+    <p>Not captured: Superhuman's split-inbox help (bot check, not bypassed), Drafts actions docs (403), Raycast manual (404), Kite's order-window support article (404), Readwise triage docs (404). Mobbin was unavailable (paid plan).</p>
+  </details>
+</header>
+
+<main class="dirs">
+  <section class="dir" aria-labelledby="hA">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">A</div><div><h2 id="hA">A. Command line</h2><p class="thesis">One prompt that reads the grammar as you type and answers with a one-line receipt; a plain log of today; every review screen works from number keys.</p><p>References: Raycast, Linear Triage, Superhuman, Todoist Quick Add, the Kite order window, Prodigy. On a phone the prompt docks above the tab bar with a key row for $ # t: l: p:, where the thumb already is.</p></div></div>
+    <div class="stage">
+      <figure class="frame"><div class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url" data-url>desk / capture</span></div><div class="vp dA" data-render="A" tabindex="0" role="region" aria-label="A Command line, desktop mockup"></div></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="frame"><div class="bezel"><div class="vp dA" data-render="A" tabindex="0" role="region" aria-label="A Command line, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+  <section class="dir" aria-labelledby="hB">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">B</div><div><h2 id="hB">B. Day book</h2><p class="thesis">Every day is a page. Aksh writes the next line; the desk files it quietly and answers in plain sentences, the gate included.</p><p>References: Drafts, Bear, Apple Notes, Notion and Obsidian mobile, Google Keep. On a phone the date and the next line sit at the top, and each gate note sits directly under the sentence it is about.</p></div></div>
+    <div class="stage">
+      <figure class="frame"><div class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url" data-url>desk / capture</span></div><div class="vp dB" data-render="B" tabindex="0" role="region" aria-label="B Day book, desktop mockup"></div></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="frame"><div class="bezel"><div class="vp dB" data-render="B" tabindex="0" role="region" aria-label="B Day book, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+  <section class="dir" aria-labelledby="hC">
+    <div class="dir-head"><div class="dir-letter" aria-hidden="true">C</div><div><h2 id="hC">C. Trays</h2><p class="thesis">The desk is a set of trays: what needs Aksh, what is being read, what came in today. Capture is one button on every screen; review is one decision at a time.</p><p>References: HEY (Screener, Imbox), Things Today, Linear Triage, Readwise Reader, Lightroom flags, Label Studio. On a phone the Capture button sits above the tab bar and opens a sheet with the keyboard already up.</p></div></div>
+    <div class="stage">
+      <figure class="frame"><div class="browser"><div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url" data-url>desk / capture</span></div><div class="vp dC" data-render="C" tabindex="0" role="region" aria-label="C Trays, desktop mockup"></div></div><figcaption>Desktop, 960 px</figcaption></figure>
+      <figure class="frame"><div class="bezel"><div class="vp dC" data-render="C" tabindex="0" role="region" aria-label="C Trays, phone mockup"></div></div><figcaption>Phone, 375 px</figcaption></figure>
+    </div>
+  </section>
+</main>
+
+<section class="matrix-wrap" aria-labelledby="hM">
+  <h2 id="hM">The same screens, direction by direction</h2>
+  <div class="matrix-scroll">
+  <table class="matrix">
+    <thead><tr><th scope="col">Item</th><th scope="col">A. Command line</th><th scope="col">B. Day book</th><th scope="col">C. Trays</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Capture box</th><td>Mono prompt; tokens coloured inline; a receipt line under it (kind, company, theme, link, new names). Phone: docked above the tab bar with a $ # t: l: p: key row.</td><td>The next line on today's page, at reading size; soft pills under it say where the line will be filed. Phone: at the top, under the date.</td><td>Desktop: a bar at the top of the trays. Phone: a Capture button above the tab bar that opens a sheet; "Will go to" chips.</td></tr>
+      <tr><th scope="row">Today and streak</th><td>A log grouped by symbol with a kind column; 30 square cells, today ringed.</td><td>Entries grouped by company, time in the margin; 30 dots under the date and "23 of the last 30 days".</td><td>A Today tray of compact rows; the streak as a thin 30-bar strip beside the title.</td></tr>
+      <tr><th scope="row">Needs you</th><td>Side column with counts and keys; phone: a row of count buttons.</td><td>A margin note in sentences; phone: the same note under the capture line.</td><td>The first tray: one card per problem, each with one action.</td></tr>
+      <tr><th scope="row">Offline and red strip</th><td colspan="3">The same system strips in all three: the red strip says what is late, that notes are safe and that Shlok was emailed; offline captures are marked "on this phone" and sync later. Directions differ only in how a queued row is marked (hatched row, dashed rule, amber time).</td></tr>
+      <tr><th scope="row">Editor and gate</th><td>Numbered sentences (s1 to s7) and a gate report in the side column: rule, sentence number, the sentence, action.</td><td>The draft as a document; each gate note sits beside (desktop) or under (phone) its paragraph; a questions card above.</td><td>A publish checklist of fields and rules with a progress bar; the body below with rule markers; the publish bar stays at the bottom.</td></tr>
+      <tr><th scope="row">Allowance</th><td colspan="3">Offered on rule 1 sentences only, with a required reason, stored per sentence and shown in the gate decision. Rule 3 says "no allowance" in words. Publish stays disabled while any rule fails or the hand check for rule 4 is unticked; no override control exists in any direction.</td></tr>
+      <tr><th scope="row">Diff</th><td>A unified line diff with plus and minus, R1 to R2 or R2 to R3.</td><td>Track changes in the prose (struck and underlined).</td><td>A Changes tab beside Edit and Details.</td></tr>
+      <tr><th scope="row">Inbox</th><td>A status column in caps (READY, READING, PAUSED, ATTENTION, QUEUED), ETA right-aligned, budget as meters.</td><td>"Reading pile": a status sentence per document and a thin progress line; the budget in one sentence.</td><td>Sections as in HEY: Ready for you, Needs attention, Being read, Paused, Waiting to start.</td></tr>
+      <tr><th scope="row">Review</th><td>Page text beside a values grid; flags listed under the grid; phone: Values and Page tabs.</td><td>The page as a sheet, the values as a card; each flag shows a torn strip of its page line.</td><td>One flagged value at a time: what the desk read against what the totals need, then approve and file.</td></tr>
+      <tr><th scope="row">New names</th><td>A table with inline name entry and merge suggestions.</td><td>A question per name: "You wrote $LOHITGLS (2 notes). Which company is it?"</td><td>Screener cards: a new company, the same as an existing one, or not a company.</td></tr>
+      <tr><th scope="row">Phone capture path</th><td>Home-screen icon, tap the docked box, type, tap send: 3 taps including the icon. Laptop: type, Enter.</td><td>Icon, tap the next line, type, tap Save: 3 taps; the line is at the top, a long reach on a large phone. Laptop: type, Enter.</td><td>Icon, tap Capture (sheet opens, keyboard up), type, tap Save: 3 taps. Laptop: c, type, Enter.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="ask">Reply with A, B or C, or name rows to swap, for example "C's trays and review, with A's prompt and B's gate notes".</p>
+</section>
+<script>
+(function () {
+'use strict';
+function each(l, f) { Array.prototype.forEach.call(l, f); }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function now() { var d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+
+var IC = {
+  lock: '<rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  alert: '<path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17v.5"/>',
+  cloudoff: '<path d="M3 3l18 18M7 17H6a4 4 0 0 1-.6-7.96M10 6.3A6 6 0 0 1 18 10h.5a3.5 3.5 0 0 1 1.9 6.44"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  pause: '<path d="M9 6v12M15 6v12"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  inbox: '<path d="M3.5 13.5 6 5h12l2.5 8.5V19h-17z"/><path d="M3.5 13.5H9a3 3 0 0 0 6 0h5.5"/>',
+  file: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',
+  tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.2"/>',
+  pen: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+  up: '<path d="M12 19V5M6 11l6-6 6 6"/><path d="M4 21h16"/>',
+  send: '<path d="M4 12h14M12 6l6 6-6 6"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/>',
+  hand: '<path d="M4 20h16"/><path d="M7 16 17 6"/><path d="M14 6h3v3"/>',
+  dot: '<circle cx="12" cy="12" r="3.5"/>'
+};
+function I(n, c) { return '<svg class="ic ' + (c || '') + '" viewBox="0 0 24 24" aria-hidden="true">' + IC[n] + '</svg>'; }
+
+/* ---------------- fictional data ---------------- */
+var CO = {KAVERIPM: {n: 'Kaveri Pumps & Motors', rev: 2}, ORVELCAB: {n: 'Orvel Cables', rev: 1}, TANSAFOOD: {n: 'Tansa Foods', rev: 0}};
+var TH = {'working-capital': 'Working capital', 'capital-cycle': 'Capital cycle', 'pass-through': 'Cost pass-through'};
+var KN = {note: 'Note', thesis: 'Thesis', learning: 'Learning', process: 'Process'};
+var INIT = [
+  {t: '08:31', raw: "p: Read the notes to accounts before the chairman's letter, every time."},
+  {t: '09:12', raw: 'Receivable days up again in Q1; check whether scheme payments explain it $KAVERIPM #working-capital'},
+  {t: '10:40', raw: 't: $KAVERIPM Scheme receivables now 31% of total; test 1 is closer to the line'},
+  {t: '11:05', raw: 'l: $ORVELCAB copper pass-through lags one quarter, so margins look worse in rising-copper quarters #pass-through'},
+  {t: '12:20', raw: 'Lecture: growth = reinvestment rate x return on capital. Slide 14 has a worked example.'},
+  {t: '13:02', raw: '$TANSAFOOD call mentions a new plant https://tansafoods.example/investors/call-aug-2026'}
+];
+var QUEUED = [
+  {t: '13:40', raw: '$LOHITGLS furnace rebuild every 7 years, so capex is lumpy #capex-cycle', q: true},
+  {t: '13:44', raw: 'Ask Shlok how to file a photo of a page', q: true}
+];
+var STREAK = '111011110111111011100111011101';
+function streakCount() { return STREAK.split('').filter(function (c) { return c === '1'; }).length; }
+
+var SENT = [
+  {id: 's1', t: 'Kaveri earns most of its solar-pump revenue through a state subsidy scheme, so it is paid when the state pays.'},
+  {id: 's2', t: 'Receivable days rose from 74 in FY24 to 96 in FY26 (annual report FY26, note 14).'},
+  {id: 's3', t: 'My view is that the scheme share, not weak demand, explains most of that rise.'},
+  {id: 's4', t: 'A target price of 2,400 looks reachable by FY28 if collections recover.', rule: 1, hit: 'target price'},
+  {id: 's5', t: 'The stock closed at 1,184 on 28 Sep 2026, below its 200-day average.', rule: 3, hit: '1,184 on 28 Sep 2026'},
+  {id: 's6', t: 'What would prove me wrong: receivable days above 110 for two quarters in a row.'},
+  {id: 's7', t: 'This is also why I avoid target prices: one number hides the range of outcomes.', rule: 1, hit: 'target prices'}
+];
+var PAR = [['s1', 's2', 's3'], ['s4', 's5'], ['s6', 's7']];
+var MSG = {
+  s4: 'Rule 1, no actionable language: “target price” about a named company. Rewrite it as a scenario range, or remove it.',
+  s5: 'Rule 3, 30-day lag: this price is dated 28 Sep 2026. Public figures must be dated on or before 5 Sep 2026. Rule 3 has no allowance.',
+  s7: 'Rule 1 matched “target prices”. If the sentence explains your process rather than a view on the stock, you can allow this one sentence, with a reason.'
+};
+var F = {title: 'Kaveri Pumps & Motors: who pays, and when', obj: "How a subsidy scheme changes a manufacturer's working capital.", asof: '2026-08-31', hold: 'no', why: 'Scheme receivables now 31% of total; test 1 is closer to the line'};
+function S(id) { return SENT.filter(function (s) { return s.id === id; })[0]; }
+var DIFF = {
+  r12: {lab: 'R1 → R2', a: 'R1, 12 Jun 2026', b: 'R2, 24 Aug 2026 (public)', why: 'FY25 receivables added; first test written',
+    lines: [['=', S('s1').t], ['-', 'Collections look normal for a pump maker.'], ['+', 'Receivable days rose from 74 in FY24 to 88 in FY25 (annual report FY25, note 13).'], ['=', S('s3').t], ['+', S('s6').t]]},
+  r23: {lab: 'R2 → R3 draft', a: 'R2 (public)', b: 'R3 draft, 5 Oct 2026', why: F.why,
+    lines: [['=', S('s1').t], ['-', 'Receivable days rose from 74 in FY24 to 88 in FY25 (annual report FY25, note 13).'], ['+', S('s2').t], ['=', S('s3').t], ['+', S('s4').t], ['+', S('s5').t], ['=', S('s6').t], ['+', S('s7').t]]}
+};
+var DOCS = [
+  {id: 'd1', name: 'Kaveri Pumps & Motors, annual report FY26', file: 'kaveri-ar-fy26.pdf', kind: 'PDF', st: 'ready', pages: '18 of 212 pages chosen', pct: 100, msg: 'Ready to review. 2 values need your eye.', eta: 'Ready now', filed: 'Kaveri Pumps & Motors'},
+  {id: 'd2', name: 'Orvel Cables, Q1 FY27 results', file: 'orvel-q1fy27.pdf', kind: 'PDF', st: 'run', pages: '9 of 14 pages chosen', pct: 44, msg: 'Reading page 4 of the 9 chosen pages.', eta: 'Ready by Thu 8 Oct'},
+  {id: 'd3', name: 'Tansa Foods, Aug 2026 call transcript', file: 'tansa-call-aug26.pdf', kind: 'PDF', st: 'pause', pages: '12 of 31 pages chosen', pct: 58, msg: "Paused, nothing lost. Today's free reading limit is used up; it carries on by itself tomorrow morning.", eta: 'Resumes Tue 6 Oct'},
+  {id: 'd4', name: 'Photo of a balance-sheet page', file: 'IMG_2214.jpg', kind: 'Photo', st: 'att', pages: '1 page', pct: 0, msg: 'Needs attention: the text could not be read after 3 tries. Type the figures yourself, or keep the photo without AI.', eta: 'Waiting for you'},
+  {id: 'd5', name: 'Regulator circular, Sep 2026', file: 'regulator.example/circulars/2026-09', kind: 'Link', st: 'wait', pages: '6 pages', pct: 0, msg: 'Starts after the Orvel results.', eta: 'Ready by Fri 9 Oct'}
+];
+var STL = {ready: ['Ready', 'good', 'check'], run: ['Reading', 'mut', 'clock'], pause: ['Paused', 'warn', 'pause'], att: ['Attention', 'bad', 'alert'], wait: ['Queued', 'mut', 'clock']};
+var TRAY = [['ready', 'Ready for you'], ['att', 'Needs attention'], ['run', 'Being read'], ['pause', 'Paused, nothing lost'], ['wait', 'Waiting to start']];
+var PL = [['Revenue from operations', '1,912.4', '1,644.0'], ['Other income', '23.1', '19.7'], ['Total income', '1,935.5', '1,663.7'], ['Cost of materials consumed', '1,201.6', '1,046.2'], ['Employee benefits expense', '142.9', '128.4'], ['Finance costs', '48.1', '36.5'], ['Depreciation and amortisation', '39.7', '35.2'], ['Other expenses', '236.0', '207.3'], ['Total expenses', '1,668.3', '1,453.6'], ['Profit before tax', '267.2', '210.1'], ['Tax expense', '68.5', '53.9'], ['Profit for the year', '198.7', '156.2']];
+var FLAG = {
+  fc: {row: 5, col: 1, title: 'Finance costs, FY26', read: '41.8', page: '48.1', why: 'The totals do not add up with 41.8: total expenses would be 1,662.0, but the page says 1,668.3. 48.1 makes every total agree.', a: [['use', 'Use 48.1'], ['keep', 'Keep 41.8']]},
+  tax: {row: 10, col: 2, title: 'Tax expense, FY25', read: '53.9', page: '53.9', why: 'Low confidence: the scan is faint on this line. The totals agree with 53.9 (210.1 minus 156.2).', a: [['ok', 'Confirm 53.9'], ['type', 'Type a value']]}
+};
+var NAMES = [
+  {id: 'n1', tok: '$LOHITGLS', type: 'company', seen: '2 notes, 3 and 4 Oct', quote: '$LOHITGLS furnace rebuild every 7 years, so capex is lumpy', sug: null},
+  {id: 'n2', tok: '$ORVELC', type: 'company', seen: '1 note, 2 Oct', quote: '$ORVELC copper contracts reset every quarter?', sug: 'Orvel Cables ($ORVELCAB)'},
+  {id: 'n3', tok: '#capex-cycle', type: 'theme', seen: '1 note, 4 Oct', quote: 'glass furnaces #capex-cycle', sug: 'Capital cycle (#capital-cycle)'},
+  {id: 'n4', tok: '#scheme-receivables', type: 'theme', seen: '2 notes, 1 and 5 Oct', quote: 'state pays late again #scheme-receivables', sug: null}
+];
+
+/* ---------------- state ---------------- */
+var SCREEN = 'home', MODE = 'normal', ST = {};
+['A', 'B', 'C'].forEach(function (d) { ST[d] = {caps: INIT.map(function (c) { return {t: c.t, raw: c.raw}; }), draft: '', allowed: {}, open: null, err: false, diff: 'off', ck4: false, ctab: 'edit', rv: {fc: null, tax: null, filed: false, tab: 'vals'}, nm: {}}; });
+function caps(d) { var c = ST[d].caps.slice(); return MODE === 'offline' ? c.concat(QUEUED) : c; }
+function qn(d) { return caps(d).filter(function (c) { return c.q; }).length; }
+function namesLeft(d) { return NAMES.filter(function (n) { return !ST[d].nm[n.id]; }).length; }
+function fails(d) { return SENT.filter(function (s) { return s.rule && !ST[d].allowed[s.id]; }); }
+function num(s) { return SENT.indexOf(s) + 1; }
+
+/* ---------------- grammar: parse + highlight (client mirror of parseCapture) ---------------- */
+function parse(raw) {
+  var s = String(raw || '').replace(/^\s+/, ''), r = {kind: 'note', cos: [], th: [], urls: [], empty: !s.trim()};
+  var m = s.match(/^([tlp]):/i);
+  if (m) r.kind = {t: 'thesis', l: 'learning', p: 'process'}[m[1].toLowerCase()];
+  var re = /(https?:\/\/[^\s]+)|(?:^|[\s(,;:])\$([A-Za-z][A-Za-z0-9]{1,19})|(?:^|[\s(,;:])#([A-Za-z][A-Za-z0-9-]*)/g, x;
+  while ((x = re.exec(s))) {
+    if (x[1]) r.urls.push(x[1]);
+    else if (x[2]) { var sy = x[2].toUpperCase(); if (!r.cos.some(function (c) { return c.sym === sy; })) r.cos.push({sym: sy, co: CO[sy] || null}); }
+    else if (x[3]) { var t = x[3].toLowerCase().replace(/-+$/, ''); if (!r.th.some(function (h) { return h.slug === t; })) r.th.push({slug: t, name: TH[t] || null}); }
+  }
+  var c0 = r.cos[0];
+  if (r.kind === 'thesis') {
+    if (!c0) r.warn = 'A thesis belongs to one company. Add $SYMBOL, or this saves as a private note.';
+    else if (c0.co && c0.co.rev) r.dest = 'R' + (c0.co.rev + 1) + ' of the ' + c0.co.n + ' thesis (draft); change reason = first line';
+    else r.dest = 'a new ' + (c0.co ? c0.co.n : '$' + c0.sym) + ' thesis (draft)';
+  }
+  return r;
+}
+function hl(raw, log) {
+  raw = String(raw || '');
+  var out = '', i = 0, m = raw.match(/^(\s*)([tlp]:)/i);
+  if (m) { if (!log) out += esc(m[1]) + '<span class="tk-k">' + esc(m[2]) + '</span>'; i = m[0].length; }
+  var rest = raw.slice(i);
+  if (log) rest = rest.replace(/^\s+/, '');
+  var re = /(https?:\/\/[^\s]+)|(\$[A-Za-z][A-Za-z0-9]{1,19})|(#[A-Za-z][A-Za-z0-9-]*)/g, last = 0, x;
+  while ((x = re.exec(rest))) {
+    if (!x[1] && x.index > 0 && !/[\s(,;:]/.test(rest[x.index - 1])) continue;
+    out += esc(rest.slice(last, x.index));
+    var cls = x[1] ? 'tk-u' : x[2] ? (CO[x[2].slice(1).toUpperCase()] ? 'tk-c' : 'tk-c new') : (TH[x[3].slice(1).toLowerCase().replace(/-+$/, '')] ? 'tk-t' : 'tk-t new');
+    var shown = x[1] && log ? x[1].replace(/^https?:\/\//, '').slice(0, 28) + '…' : x[0];
+    out += '<span class="' + cls + '">' + esc(shown) + '</span>';
+    last = x.index + x[0].length;
+  }
+  out += esc(rest.slice(last));
+  if (!log && /\n$/.test(raw)) out += ' ';
+  return out;
+}
+function groups(list) {
+  var g = {};
+  list.forEach(function (c, i) {
+    var p = parse(c.raw), k = p.cos[0] ? p.cos[0].sym : '_';
+    if (!g[k]) g[k] = {sym: k, co: p.cos[0] ? p.cos[0].co : null, items: []};
+    g[k].items.push({c: c, p: p}); g[k].last = i;
+  });
+  var arr = Object.keys(g).map(function (k) { return g[k]; });
+  arr.sort(function (a, b) { if (a.sym === '_') return 1; if (b.sym === '_') return -1; return b.last - a.last; });
+  arr.forEach(function (x) { x.items.reverse(); });
+  return arr;
+}
+function gname(g) { return g.sym === '_' ? 'Not filed to a company' : (g.co ? g.co.n : 'New name, not confirmed yet'); }
+function kindLine(p, q) {
+  if (q) return 'Saved on this phone, will sync';
+  if (p.kind === 'thesis') return p.dest ? 'Thesis note, ' + p.dest.replace(/;.*$/, '') : 'Thesis note without a company, kept as a private note';
+  return {note: 'Private note', learning: 'Learning note', process: 'Process note'}[p.kind];
+}
+
+/* ---------------- shared chrome ---------------- */
+var NAV = [['home', 'Capture', 'pen'], ['inbox', 'Inbox', 'inbox'], ['editor', 'Items', 'file'], ['names', 'Names', 'tag']];
+function cur(s) { return s === 'review' ? 'inbox' : s; }
+function badge(d, k) { return k === 'inbox' ? '<span class="n">5</span>' : k === 'names' && namesLeft(d) ? '<span class="n">' + namesLeft(d) + '</span>' : ''; }
+function tb(d) {
+  return '<header class="tb"><span class="wm">Aksh Research Desk</span><span class="priv">' + I('lock', 's') + 'Private</span><span class="sp"></span><nav class="dnav only-d" aria-label="Desk">' +
+    NAV.map(function (n) { return '<button type="button" data-go="' + n[0] + '"' + (cur(SCREEN) === n[0] ? ' aria-current="page"' : '') + '>' + n[1] + badge(d, n[0]) + '</button>'; }).join('') + '</nav></header>';
+}
+function tabs(d) {
+  return '<nav class="tabs only-p" aria-label="Desk">' + NAV.map(function (n) { return '<button type="button" data-go="' + n[0] + '"' + (cur(SCREEN) === n[0] ? ' aria-current="page"' : '') + '>' + I(n[2]) + '<span>' + n[1] + badge(d, n[0]) + '</span></button>'; }).join('') + '</nav>';
+}
+function strips(d) {
+  var h = '';
+  if (MODE === 'late') h += '<div class="live" role="alert">' + I('alert') + '<p><b>Background jobs are late.</b> The 15-minute check last ran at 07:32, 3 h 10 min ago. Your notes are safe; documents wait until it runs. Shlok has been emailed.</p></div>';
+  if (MODE === 'offline') h += '<div class="offl" role="status">' + I('cloudoff') + '<p><b>Offline.</b> ' + qn(d) + ' notes are saved on this phone and will sync when you are back online. Nothing is lost.</p></div>';
+  return h;
+}
+function dock(d, inner) { return '<div class="dock">' + (inner || '') + tabs(d) + '<div class="toast" role="status" aria-live="polite"></div></div>'; }
+function capField(d, ph) {
+  var v = ST[d].draft || '';
+  return '<div class="capf"><pre aria-hidden="true">' + hl(v) + '</pre><textarea data-cap rows="1" aria-label="Capture a thought" placeholder="' + esc(ph) + '" enterkeyhint="send" autocomplete="off" autocapitalize="sentences">' + esc(v) + '</textarea></div>';
+}
+
+/* parsed views */
+function recA(p) {
+  if (p.empty) return '<span>plain text = private note</span><span>Enter saves, Shift+Enter new line</span>';
+  var o = ['<span><b>' + p.kind.toUpperCase() + '</b> private draft</span>'];
+  p.cos.forEach(function (c) { o.push('<span>' + (c.co ? '→ <b>' + esc(c.co.n) + '</b>' : 'new name <b>$' + c.sym + '</b> (check in Names)') + '</span>'); });
+  p.th.forEach(function (t) { o.push('<span>' + (t.name ? '#' + t.slug : 'new theme <b>#' + t.slug + '</b>') + '</span>'); });
+  if (p.urls.length) o.push('<span>link kept; read in Phase 2</span>');
+  if (p.dest) o.push('<span>' + esc(p.dest) + '</span>');
+  if (p.warn) o.push('<span class="w">' + esc(p.warn) + '</span>');
+  return o.join('');
+}
+function psB(p) {
+  if (p.empty) return '<span>Stays a private note unless you add a company, a theme or a prefix.</span>';
+  var o = ['<span>Files as</span>', '<span class="pill' + (p.kind === 'note' ? '' : ' k') + '">' + (p.kind === 'note' ? 'Private note' : KN[p.kind] + ' note') + '</span>'];
+  p.cos.forEach(function (c) { o.push('<span class="pill co' + (c.co ? '' : ' new') + '">' + (c.co ? esc(c.co.n) : '$' + c.sym + ', new name') + '</span>'); });
+  p.th.forEach(function (t) { o.push('<span class="pill th' + (t.name ? '' : ' new') + '">' + (t.name ? esc(t.name) : '#' + t.slug + ', new theme') + '</span>'); });
+  if (p.urls.length) o.push('<span class="pill">' + 'Link, read later' + '</span>');
+  if (p.dest) o.push('<span>as ' + esc(p.dest.replace(/;.*$/, '')) + '</span>');
+  if (p.warn) o.push('<span class="w">' + esc(p.warn) + '</span>');
+  return o.join('');
+}
+function toC(p) {
+  if (p.empty) return '<span>Will go to: Today, as a private note</span>';
+  var o = ['<span>Will go to</span>', '<span class="chip">' + I(p.kind === 'note' ? 'pen' : 'file') + (p.kind === 'note' ? 'Private note' : KN[p.kind]) + '</span>'];
+  p.cos.forEach(function (c) { o.push('<span class="chip co' + (c.co ? '' : ' new') + '">' + (c.co ? esc(c.co.n) : '$' + c.sym + ' → New names') + '</span>'); });
+  p.th.forEach(function (t) { o.push('<span class="chip th' + (t.name ? '' : ' new') + '">' + I('tag') + (t.name ? esc(t.name) : '#' + t.slug + ' → New names') + '</span>'); });
+  if (p.urls.length) o.push('<span class="chip">' + I('link') + 'Inbox, later</span>');
+  if (p.dest) o.push('<span class="chip">' + esc(p.dest.replace(/;.*$/, '')) + '</span>');
+  if (p.warn) o.push('<span class="w">' + esc(p.warn) + '</span>');
+  return o.join('');
+}
+var RCV = {A: recA, B: psB, C: toC};
+function needs(d) {
+  var n = [['editor', 1, 'thesis revision stopped by the gate', 'bad'], ['review', 1, 'report ready to review', ''], ['names', namesLeft(d), 'new names to confirm', '']];
+  if (MODE === 'offline') n.push(['home', qn(d), 'notes waiting on this phone', '']);
+  return n.filter(function (x) { return x[1]; });
+}
+
+/* ================= A. COMMAND LINE ================= */
+function streakA() { return '<div class="a-st" aria-hidden="true">' + STREAK.split('').map(function (c, i) { return '<i class="' + (c === '1' ? 'on' : '') + (i === 29 ? ' td' : '') + '"></i>'; }).join('') + '</div>'; }
+function homeA(d) {
+  var L = caps(d), G = groups(L), p = parse(ST[d].draft), cnt = streakCount(), late = MODE === 'late';
+  var h = tb(d) + strips(d) + '<div class="a-wrap"><div class="a-main">';
+  h += '<div class="only-d" data-unit><div class="a-cap"><span class="a-pr" aria-hidden="true">›</span>' + capField(d, 'Type a thought.  $KAVERIPM  #theme  t: l: p:') + '<kbd>Enter</kbd></div><div class="a-rc" data-rc aria-live="polite">' + recA(p) + '</div>' +
+    '<div class="a-gram"><span><code>$SYM</code> company</span><span><code>#theme</code> theme</span><span><code>t:</code> thesis</span><span><code>l:</code> learning</span><span><code>p:</code> process</span><span>plain = private note</span><span><kbd>/</kbd> jumps here</span></div></div>';
+  h += '<div class="only-p" style="display:grid;gap:10px"><div class="a-pstat"><span>30d</span>' + streakA() + '<span>' + cnt + '/30</span></div><div class="a-pneed">' +
+    needs(d).map(function (n) { return '<button type="button" data-go="' + n[0] + '" class="' + n[3] + '">' + n[1] + ' ' + n[2].split(' ')[0] + (n[0] === 'editor' ? ' stopped' : n[0] === 'review' ? ' to review' : n[0] === 'names' ? ' names' : ' queued') + '</button>'; }).join('') + '</div></div>';
+  h += '<section style="margin-top:18px" aria-label="Today"><div class="a-h"><h2>Today</h2><span>Mon 5 Oct · ' + L.length + ' captures</span></div>' +
+    G.map(function (g) {
+      return '<div class="a-g"><h3>' + (g.sym === '_' ? '—' : '$' + g.sym) + ' <span>' + esc(gname(g)) + ' · ' + g.items.length + '</span></h3><ul class="a-log">' +
+        g.items.map(function (x) { return '<li' + (x.c.q ? ' class="q"' : '') + '><time>' + x.c.t + '</time><span class="a-kind k-' + x.p.kind + '">' + x.p.kind + '</span><span>' + hl(x.c.raw, true) + (x.c.q ? '<span class="a-q">' + I('cloudoff', 's') + 'on this phone</span>' : '') + '</span></li>'; }).join('') + '</ul></div>';
+    }).join('') + '</section></div>';
+  h += '<aside class="a-side only-d"><section><div class="a-h"><h2>Streak</h2><span>' + cnt + ' of 30 days</span></div>' + streakA() + '<div class="a-stl"><span>6 Sep</span><span>today</span></div></section>' +
+    '<section><div class="a-h"><h2>Needs you</h2></div><ul class="a-need">' + needs(d).map(function (n, i) { return '<li><button type="button" data-go="' + n[0] + '"><b' + (n[3] ? ' style="color:var(--bad)"' : '') + '>' + n[1] + '</b>' + n[2] + '</button><kbd>g ' + (i + 1) + '</kbd></li>'; }).join('') + '</ul></section>' +
+    '<section><div class="a-h"><h2>Jobs</h2></div><ul class="a-need"><li><span class="stw ' + (late ? 'bad' : 'good') + '">' + I(late ? 'x' : 'check', 's') + (late ? 'late' : 'ok') + '</span>queue check ' + (late ? '07:32' : '13:30') + '</li><li><span class="stw good">' + I('check', 's') + 'ok</span>daily run 06:00</li></ul></section></aside></div>';
+  h += dock(d, '<div class="a-dock only-p" data-unit><div class="a-keys" role="toolbar" aria-label="Insert grammar">' + ['$', '#', 't:', 'l:', 'p:'].map(function (k) { return '<button type="button" data-ins="' + k + '" aria-label="Insert ' + k + '">' + k + '</button>'; }).join('') +
+    '</div><div class="a-cap"><span class="a-pr" aria-hidden="true">›</span>' + capField(d, 'Type a thought') + '<button type="button" class="a-send" data-send aria-label="Save capture">' + I('send') + '</button></div><div class="a-rc" data-rc aria-live="polite">' + recA(p) + '</div></div>');
+  return h;
+}
+
+/* shared editor pieces */
+function sentHTML(d, s, sup) {
+  var st = s.rule ? (ST[d].allowed[s.id] ? 'al' : 'bad') : '', t = esc(s.t);
+  if (s.hit) t = t.replace(esc(s.hit), '<mark class="hit">' + esc(s.hit) + '</mark>');
+  return '<span class="sent ' + st + '" data-sid="' + s.id + '" tabindex="-1">' + t + '</span>' + (sup && s.rule && !ST[d].allowed[s.id] ? '<sup>' + s.rule + '</sup>' : '');
+}
+function allowBox(d, id) {
+  return '<div class="allow"><label><span class="fine">Reason, saved with the gate decision (required)</span><input data-allow-reason placeholder="e.g. explains my process, not a view on the stock"' + (ST[d].err ? ' aria-invalid="true"' : '') + '></label>' + (ST[d].err ? '<p class="errmsg" role="alert">Add a reason first.</p>' : '') +
+    '<div class="acts" style="margin:0"><button type="button" class="btn sm pri" data-allow-save="' + id + '">Allow this sentence</button><button type="button" class="btn sm" data-allow-cancel>Cancel</button></div><p class="fine">Covers this exact sentence only; editing it runs the check again. Rules 3, 4 and 9 can never be allowed.</p></div>';
+}
+function sentActs(d, s) {
+  var al = ST[d].allowed[s.id];
+  if (al) return '<p class="fine" style="margin-top:6px">Allowed by you: “' + esc(al.r) + '”, 5 Oct ' + al.t + '.</p><div class="acts"><button type="button" class="btn sm" data-allow-remove="' + s.id + '">Remove allowance</button></div>';
+  var a = '<div class="acts"><button type="button" class="btn sm" data-edit="' + s.id + '">' + I('pen', 's') + 'Edit sentence ' + num(s) + '</button>';
+  if (s.rule === 1 && ST[d].open !== s.id) a += '<button type="button" class="btn sm" data-allow-open="' + s.id + '">Allow this sentence…</button>';
+  a += '</div>';
+  if (s.rule === 1 && ST[d].open === s.id) a += allowBox(d, s.id);
+  return a;
+}
+function passes(d) {
+  return [
+    ['pass', 'Rule 2', 'performance claims', 'none found'],
+    ['pass', 'Rule 5', 'disclosure', 'renders with position: No'],
+    ['pass', 'Rule 6', 'learning objective', 'present'],
+    ['pass', 'Body', 'what would prove me wrong', 'section present (sentence 6)'],
+    ['pass', 'Rule 8', 'whole public surface', 'title, slug, objective, body, structured data, preview text'],
+    [ST[d].ck4 ? 'pass' : 'man', 'Rule 4', 'named-security recency', 'checked by hand until Phase 3']
+  ];
+}
+function ck4(d) { return '<label class="chk"><input type="checkbox" data-ck4' + (ST[d].ck4 ? ' checked' : '') + '> I have not changed my stance on Kaveri in my private notes in the last 30 days.</label>'; }
+function canPub(d) { return !fails(d).length && ST[d].ck4; }
+function fieldsHTML(cls) {
+  return '<div class="' + cls + '"><div class="fld"><label for="f-o">What should a reader learn? (learning objective, required)</label><input id="f-o" value="' + esc(F.obj) + '"></div>' +
+    '<div class="fld"><label for="f-a">Figures in this piece are dated</label><input id="f-a" type="date" value="' + F.asof + '"><p class="help">On or before 5 Sep 2026 (30-day lag). OK.</p></div>' +
+    '<div class="fld"><label for="f-h">Do you hold it? (shown in the disclosure)</label><select id="f-h"><option value="yes">Yes</option><option value="no" selected>No</option><option value="nd">Not disclosed</option></select></div>' +
+    '<div class="fld"><label for="f-w">What changed since R2? (change reason)</label><input id="f-w" value="' + esc(F.why) + '"></div></div>';
+}
+function diffLines(d) { return DIFF[ST[d].diff === 'r12' ? 'r12' : 'r23']; }
+
+function editorA(d) {
+  var f = fails(d), h = tb(d) + strips(d) + '<div class="a-ed">';
+  h += '<section class="a-gate" aria-label="Gate check"><div class="a-gh"><b>gate check</b><span>policy sebi-unreg-2026-07</span><span>ran 10:52</span></div><ul class="a-gl">';
+  SENT.filter(function (s) { return s.rule; }).forEach(function (s) {
+    var al = ST[d].allowed[s.id];
+    h += '<li class="' + (al ? 'alw' : 'fail') + '"><div class="r">' + (al ? '<span class="stw good">' + I('check', 's') + 'allowed</span>' : '<span class="stw bad">' + I('x', 's') + 'fail</span>') + '<span class="nm">rule ' + s.rule + '</span><span>' + (s.rule === 1 ? 'actionable language' : '30-day lag') + '</span><span>s' + num(s) + '</span></div><q>' + esc(s.t) + '</q>' + (al ? '' : '<p>' + MSG[s.id] + '</p>') + sentActs(d, s) + '</li>';
+  });
+  passes(d).forEach(function (r) { h += '<li><div class="r"><span class="stw ' + (r[0] === 'pass' ? 'good' : 'warn') + '">' + I(r[0] === 'pass' ? 'check' : 'hand', 's') + (r[0] === 'pass' ? 'pass' : 'by hand') + '</span><span class="nm">' + r[1].toLowerCase() + '</span><span>' + r[2] + '</span></div><p>' + r[3] + '</p>' + (r[1] === 'Rule 4' ? ck4(d) : '') + '</li>'; });
+  h += '</ul><div class="a-gf"><p><b>' + (f.length ? f.length + ' failing. Publishing R3 is blocked.' : canPub(d) ? 'Every rule passes.' : 'Rules pass; tick the rule 4 check.') + '</b>' + (f.length ? ' There is no override: edit the sentence, or allow a rule 1 sentence with a reason.' : '') + '</p><div class="row"><button type="button" class="btn pri" data-publish' + (canPub(d) ? '' : ' disabled') + '>Publish R3</button><button type="button" class="btn" data-rerun>Run again <kbd>Ctrl Enter</kbd></button></div></div></section>';
+  h += '<div><p class="a-crumb">items / kaveri-pumps-motors / thesis / R3 draft</p><h1 class="a-t">' + esc(F.title) + '</h1><p class="fine">R2 is public since 24 Aug 2026 and stays up until R3 passes the gate.</p></div>';
+  h += '<div class="a-fm"><span class="mono fine">kind</span><span class="mono">thesis · public item</span><label for="' + d + 'o">objective</label><input id="' + d + 'o" value="' + esc(F.obj) + '"><label for="' + d + 'a">data_as_of</label><input id="' + d + 'a" type="date" value="' + F.asof + '"><span class="ok">≤ 5 Sep 2026, lag ok</span><label for="' + d + 'h">holds_position</label><select id="' + d + 'h"><option>yes</option><option selected>no</option><option>not disclosed</option></select><label for="' + d + 'w">change_reason</label><input id="' + d + 'w" value="' + esc(F.why) + '"></div>';
+  h += '<ol class="a-body" aria-label="Body, numbered sentences">' + SENT.map(function (s) { return '<li>' + sentHTML(d, s) + '</li>'; }).join('') + '</ol>';
+  var D = diffLines(d);
+  h += '<section class="a-diff" aria-label="Diff"><div class="hd"><span>diff</span><span class="tg" role="group" aria-label="Revisions"><button type="button" data-diff="r12" aria-pressed="' + (ST[d].diff === 'r12') + '">R1→R2</button><button type="button" data-diff="r23" aria-pressed="' + (ST[d].diff !== 'r12') + '">R2→R3</button></span><span>' + esc(D.a) + ' → ' + esc(D.b) + '</span></div><div class="ln eq" style="font-size:12.5px"><span>reason: ' + esc(D.why) + '</span></div>' +
+    D.lines.map(function (l) { return '<div class="ln ' + (l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : 'eq') + '"><span>' + esc(l[1]) + '</span></div>'; }).join('') + '</section>';
+  return h + '</div>' + dock(d, '');
+}
+function inboxA(d) {
+  var h = tb(d) + strips(d) + '<div class="a-wrap a-one"><div class="a-h"><h2>Inbox</h2><span>5 documents · 1 ready</span></div>';
+  h += '<button type="button" class="a-drop" data-drop>' + I('up') + 'Drop files here, or paste a link <kbd>Ctrl V</kbd><span>PDF, photo of a page, Excel, link</span></button>';
+  h += '<div class="a-bud" aria-label="Free-tier budget"><div class="meter"><span>AI pages today</span><span class="bar"><i style="width:68%"></i></span><span class="v">41/60</span></div><div class="meter"><span>Scan pages, Oct</span><span class="bar"><i style="width:57%"></i></span><span class="v">212/375</span></div><p class="fine" style="font-family:\'IBM Plex Sans\',sans-serif">Limits sit at 75% of the free tiers, so work slows down instead of failing.</p></div>';
+  h += '<ul class="a-rows">' + DOCS.map(function (x) {
+    var s = STL[x.st];
+    return '<li><span class="stw ' + s[1] + '">' + I(s[2], 's') + s[0] + '</span><div><div class="nm">' + esc(x.name) + '</div><div class="fl">' + esc(x.file) + ' · ' + x.pages + '</div></div><span class="eta">' + x.eta + '</span><p class="msg">' + esc(x.msg) + '</p>' +
+      (x.st === 'ready' ? '<div class="acts"><button type="button" class="btn sm pri" data-go="review">Review <kbd>Enter</kbd></button></div>' : x.st === 'att' ? '<div class="acts"><button type="button" class="btn sm" data-toast="Opens an empty form for this page.">Enter manually <kbd>m</kbd></button><button type="button" class="btn sm" data-toast="Photo kept on file, no AI reading.">Skip AI <kbd>s</kbd></button></div>' : '') + '</li>';
+  }).join('') + '</ul><p class="a-keysl"><span><kbd>j</kbd> <kbd>k</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>m</kbd> enter manually</span><span><kbd>s</kbd> skip AI</span></p></div>';
+  return h + dock(d, '');
+}
+
+/* shared review pieces */
+function fval(d, key) { var F2 = FLAG[key], r = ST[d].rv[key]; return key === 'fc' ? (r === 'use' ? '48.1' : '41.8') : '53.9'; }
+function flagAt(row, col) { for (var k in FLAG) if (FLAG[k].row === row && FLAG[k].col === col) return k; return null; }
+function rvLeft(d) { return Object.keys(FLAG).filter(function (k) { return !ST[d].rv[k]; }); }
+function cellVal(d, r, c) { var k = flagAt(r, c); return k ? fval(d, k) : PL[r][c]; }
+function cellInput(d, r, c) {
+  var k = flagAt(r, c), cls = k ? (ST[d].rv[k] ? 'fixed' : 'flag') : '';
+  return '<input class="cell ' + cls + '" aria-label="' + esc(PL[r][0]) + ', FY' + (c === 1 ? '26' : '25') + (k && !ST[d].rv[k] ? ', flagged' : '') + '" value="' + cellVal(d, r, c) + '"' + (k ? ' data-cell="' + k + '"' : '') + '>';
+}
+function pageText(d, onlyRow) {
+  var rows = PL.map(function (r, i) {
+    var k = flagAt(i, 1) || flagAt(i, 2), cls = k ? (ST[d].rv[k] ? 'ok' : 'on') : '';
+    return '<div class="ln ' + cls + '"><span>' + esc(r[0]) + '</span><span>' + r[1] + '</span><span>' + r[2] + '</span></div>';
+  });
+  if (onlyRow != null) return '<div class="pgtxt">' + rows[onlyRow] + '</div>';
+  return '<div class="pgtxt"><div class="ln hd"><span>Consolidated statement of profit and loss (₹ crore)</span><span>FY26</span><span>FY25</span></div>' + rows.join('') + '</div>';
+}
+function flagActs(d, k) {
+  var r = ST[d].rv[k];
+  if (r) return '<p class="fine" style="margin-top:4px">' + (k === 'fc' ? (r === 'use' ? 'Set to 48.1, matching the totals.' : 'Kept 41.8 against the totals; noted on the fact.') : 'Confirmed 53.9.') + ' <button type="button" class="lnk" data-fix="' + k + ':undo">Undo</button></p>';
+  return '<div class="acts">' + FLAG[k].a.map(function (a, i) { return '<button type="button" class="btn sm' + (i === 0 ? ' pri' : '') + '" data-fix="' + k + ':' + a[0] + '">' + a[1] + '</button>'; }).join('') + '</div>';
+}
+function fileUnder(d, cls) {
+  if (ST[d].rv.filed) return '<p class="okmsg" role="status">Filed under Kaveri Pumps &amp; Motors and Working capital. 24 figures added to Source facts, as of 31 Mar 2026, each citing page 142. They stay apart from your own notes.</p>';
+  var left = rvLeft(d).length;
+  return '<div class="' + cls + '"><div class="row"><div class="fld"><label for="' + d + 'fc">Company</label><select id="' + d + 'fc"><option selected>Kaveri Pumps &amp; Motors</option><option>Orvel Cables</option><option>Tansa Foods</option></select></div><div class="fld"><label for="' + d + 'ft">Theme</label><select id="' + d + 'ft"><option selected>Working capital</option><option>Capital cycle</option><option>None</option></select></div><div class="fld"><label for="' + d + 'fp">Period</label><input id="' + d + 'fp" value="FY26 and FY25, years to 31 Mar"></div></div>' +
+    '<div class="acts"><button type="button" class="btn pri" data-approve' + (left ? ' disabled' : '') + '>Approve and file</button><span class="fine" style="align-self:center">' + (left ? left + ' flagged value' + (left > 1 ? 's' : '') + ' left to check' : 'All 24 values checked') + '</span></div></div>';
+}
+function reviewA(d) {
+  var t = ST[d].rv.tab, h = tb(d) + strips(d) + '<div class="a-rv">';
+  h += '<div class="full"><p class="a-crumb">inbox / kaveri-ar-fy26.pdf / page 142 of 212</p><h1 class="a-t">Profit and loss, FY26</h1><p class="fine">The machine\'s reading of the page. Check the flagged values, then approve. Nothing here is your words.</p></div>';
+  h += '<div class="full only-p"><span class="tg" role="group" aria-label="Show"><button type="button" data-rtab="vals" aria-pressed="' + (t === 'vals') + '">values</button><button type="button" data-rtab="page" aria-pressed="' + (t === 'page') + '">page</button></span></div>';
+  h += '<section class="a-pane' + (t === 'page' ? '' : ' ph-hide') + '" aria-label="Page text"><div class="hd"><span>page 142 · text layer</span><span>₹ crore</span></div><div class="bd">' + pageText(d) + '</div></section>';
+  h += '<section class="a-pane' + (t === 'vals' ? '' : ' ph-hide') + '" aria-label="Extracted values"><div class="hd"><span>extracted · profit_and_loss v1</span><span>' + rvLeft(d).length + ' flagged</span></div><div class="bd"><table class="a-ft"><thead><tr><th scope="col">line</th><th scope="col">FY26</th><th scope="col">FY25</th></tr></thead><tbody>' +
+    PL.map(function (r, i) { var k = flagAt(i, 1) || flagAt(i, 2); return '<tr' + (k && !ST[d].rv[k] ? ' class="fl"' : '') + '><th scope="row">' + esc(r[0]) + '</th><td>' + cellInput(d, i, 1) + '</td><td>' + cellInput(d, i, 2) + '</td></tr>'; }).join('') + '</tbody></table></div></section>';
+  h += '<div class="full a-fx">' + Object.keys(FLAG).map(function (k) { var f = FLAG[k]; return '<div class="' + (ST[d].rv[k] ? 'done' : '') + '"><div class="r" style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><span class="stw ' + (ST[d].rv[k] ? 'good' : 'bad') + '">' + I(ST[d].rv[k] ? 'check' : 'alert', 's') + (ST[d].rv[k] ? 'checked' : 'flag') + '</span><b style="color:var(--ink)">' + f.title + '</b><span class="mono fine">read ' + f.read + '</span></div><p class="fine" style="margin-top:3px">' + f.why + '</p>' + flagActs(d, k) + '</div>'; }).join('') + '</div>';
+  h += '<div class="full">' + fileUnder(d, 'a-file') + '<p class="a-keysl" style="margin-top:8px"><span><kbd>Tab</kbd> next flag</span><span><kbd>1</kbd> <kbd>2</kbd> choose</span><span><kbd>a</kbd> approve</span></p></div>';
+  return h + '</div>' + dock(d, '');
+}
+function nmDone(d, n) {
+  var s = ST[d].nm[n.id]; if (!s) return '';
+  return s;
+}
+function namesA(d) {
+  var h = tb(d) + strips(d) + '<div class="a-wrap a-one"><div class="a-h"><h2>New names</h2><span>' + namesLeft(d) + ' to confirm</span></div><p class="fine">Symbols and themes you typed that the desk did not know. Each was saved as a stub so nothing was lost.</p>';
+  h += '<table class="a-nt"><thead><tr><th scope="col">token</th><th scope="col">seen</th><th scope="col">resolve</th><th scope="col"><span class="sr">actions</span></th></tr></thead><tbody>' + NAMES.map(function (n) {
+    var done = nmDone(d, n);
+    return '<tr><th scope="row"><span class="tok">' + esc(n.tok) + '</span><br><span class="fine">' + n.type + '</span></th><td class="fine">' + n.seen + '<br>“' + esc(n.quote) + '”</td><td>' + (done ? '<span class="stw good">' + I('check', 's') + 'done</span> ' + esc(done) : n.sug ? 'merge into <b>' + esc(n.sug) + '</b>?' : '<input data-nmin="' + n.id + '" aria-label="Name for ' + esc(n.tok) + '" placeholder="' + (n.type === 'company' ? 'Company name' : 'Theme name') + '">') + '</td><td>' +
+      (done ? '<button type="button" class="lnk" data-name="' + n.id + ':undo">undo</button>' : '<div class="acts" style="margin:0">' + (n.sug ? '<button type="button" class="btn sm pri" data-name="' + n.id + ':merge">Merge</button><button type="button" class="btn sm" data-name="' + n.id + ':new">Keep as new</button>' : '<button type="button" class="btn sm pri" data-name="' + n.id + ':confirm">Confirm</button>') + '</div>') + '</td></tr>';
+  }).join('') + '</tbody></table><p class="a-keysl"><span><kbd>Enter</kbd> confirm</span><span><kbd>m</kbd> merge</span><span><kbd>n</kbd> keep as new</span></p></div>';
+  return h + dock(d, '');
+}
+
+/* ================= B. DAY BOOK ================= */
+function dotsB() { return '<div class="b-dots" aria-hidden="true">' + STREAK.split('').map(function (c, i) { return '<i class="' + (c === '1' ? 'on' : '') + (i === 29 ? ' td' : '') + '"></i>'; }).join('') + '</div>'; }
+function homeB(d) {
+  var L = caps(d), G = groups(L), p = parse(ST[d].draft), cnt = streakCount();
+  var h = tb(d) + strips(d) + '<div class="b-wrap">';
+  h += '<header class="b-date"><p class="b-kick">Monday</p><h1>5 October 2026</h1><p class="b-sub">' + L.length + ' lines today. You have written on ' + cnt + ' of the last 30 days.</p>' + dotsB() + '</header>';
+  h += '<div class="b-cap" data-unit><div class="row">' + capField(d, 'Write what you just noticed…') + '<button type="button" class="b-save" data-send>Save</button></div><div class="b-ps" data-rc aria-live="polite">' + psB(p) + '</div>' +
+    '<details class="b-hint"><summary>How lines are filed</summary><dl><dt>$KAVERIPM</dt><dd>under that company</dd><dt>#capital-cycle</dt><dd>with a theme</dd><dt>t:</dt><dd>a thesis note, or the next revision</dd><dt>l:</dt><dd>a learning note</dd><dt>p:</dt><dd>a process note</dd><dt>anything else</dt><dd>a private note</dd></dl></details></div>';
+  h += '<aside class="b-side"><div class="b-wait"><h2>Waiting for you</h2>' +
+    '<button type="button" data-go="editor">The Kaveri thesis cannot go public yet. <span>See why</span></button>' +
+    '<button type="button" data-go="review">The Kaveri annual report is read. <span>Check 2 numbers</span></button>' +
+    (namesLeft(d) ? '<button type="button" data-go="names">You used ' + namesLeft(d) + ' names the desk does not know. <span>Tell it who they are</span></button>' : '') +
+    (MODE === 'offline' ? '<p style="color:var(--warn)">' + qn(d) + ' lines are on this phone, waiting to sync.</p>' : '') + '</div></aside>';
+  h += G.map(function (g) {
+    return '<section class="b-grp" aria-label="' + esc(gname(g)) + '"><h2>' + esc(gname(g)) + (g.sym !== '_' ? ' · $' + g.sym : '') + '</h2>' + g.items.map(function (x) {
+      return '<article class="b-e' + (x.c.q ? ' q' : '') + '"><time>' + x.c.t + '</time><p>' + hl(x.c.raw, true) + '</p><p class="k">' + esc(kindLine(x.p, x.c.q)) + '</p></article>';
+    }).join('') + '</section>';
+  }).join('');
+  return h + '</div>' + dock(d, '');
+}
+function noteB(d, s) {
+  var al = ST[d].allowed[s.id];
+  return '<div class="b-note' + (al ? ' al' : '') + '"><b>' + (al ? 'Allowed, sentence ' + num(s) + '.' : 'Sentence ' + num(s) + '.') + '</b> ' + (al ? 'Rule 1 would match “' + esc(s.hit) + '”; you marked it as educational.' : MSG[s.id]) + sentActs(d, s) + '</div>';
+}
+function editorB(d) {
+  var f = fails(d), dm = ST[d].diff, h = tb(d) + strips(d) + '<div class="b-wrap b-ed">';
+  h += '<header><p class="b-kick">Thesis · Kaveri Pumps &amp; Motors · draft R3</p><h1 style="font-size:26px;line-height:1.2;letter-spacing:-.015em">' + esc(F.title) + '</h1><p class="b-sub">R2 has been public since 24 Aug 2026 and stays up until this draft passes.</p></header>';
+  h += '<section class="b-q"><h2>Before this goes public</h2>' + fieldsHTML('two') + '</section>';
+  h += '<div class="seg2" role="group" aria-label="Show"><button type="button" data-diff="off" aria-pressed="' + (dm === 'off') + '">The draft</button><button type="button" data-diff="r23" aria-pressed="' + (dm === 'r23') + '">Changes since R2</button><button type="button" data-diff="r12" aria-pressed="' + (dm === 'r12') + '">R1 to R2</button></div>';
+  if (dm === 'off') {
+    h += '<div class="b-doc">' + PAR.map(function (ids) {
+      var ss = ids.map(S), notes = ss.filter(function (s) { return s.rule; });
+      return '<div class="b-par"><p>' + ss.map(function (s) { return sentHTML(d, s); }).join(' ') + '</p><div class="b-notes">' + notes.map(function (s) { return noteB(d, s); }).join('') + '</div></div>';
+    }).join('') + '</div>';
+  } else {
+    var D = DIFF[dm];
+    h += '<div class="b-par"><p>' + D.lines.map(function (l) { return l[0] === '+' ? '<ins class="dx">' + esc(l[1]) + '</ins>' : l[0] === '-' ? '<del class="dx">' + esc(l[1]) + '</del>' : esc(l[1]); }).join(' ') + '</p><div class="b-notes"><div class="b-note al" style="background:var(--surf);border-color:var(--rule2)"><b>' + esc(D.a) + ' to ' + esc(D.b) + '.</b> Reason: “' + esc(D.why) + '”. Struck text was removed, underlined text was added.</div></div></div>';
+  }
+  h += '<div class="b-pub"><p style="font-size:15px;color:var(--ink)">' + (f.length ? '<b>Not yet.</b> ' + f.length + ' sentence' + (f.length > 1 ? 's need' : ' needs') + ' changing before R3 can go public. There is no way around a rule; a sentence that explains your process can be allowed.' : '<b>The sentences pass.</b>') + '</p>' +
+    '<p class="fine">Also checked and fine: performance claims (rule 2), the disclosure with your position (rule 5), the learning objective (rule 6), the “What would prove me wrong” section, and the title, link and preview text (rule 8).</p>' + ck4(d).replace('<label class="chk">', '<label class="chk" style="display:flex;gap:8px;font-size:14px"><span class="sr">Rule 4, by hand until Phase 3:</span>') +
+    '<div class="acts"><button type="button" class="btn pri" data-publish' + (canPub(d) ? '' : ' disabled') + '>Publish R3</button><button type="button" class="btn" data-rerun>Check again</button></div></div>';
+  return h + '</div>' + dock(d, '');
+}
+function inboxB(d) {
+  var h = tb(d) + strips(d) + '<div class="b-wrap" style="max-width:720px;margin:0 auto;width:100%;grid-template-columns:minmax(0,1fr)"><header class="b-date"><p class="b-kick">Inbox</p><h1>Reading pile</h1><p class="b-sub">One is ready for you. Nothing here has been lost.</p></header>';
+  h += '<button type="button" class="b-drop" data-drop>' + I('up') + '<span>Put anything here</span><small>A PDF, a photo of a page, a spreadsheet or a link. The desk reads the pages that matter and tells you when.</small></button><div>';
+  h += DOCS.map(function (x) {
+    var s = STL[x.st];
+    return '<article class="b-doc-e"><h3>' + esc(x.name) + '</h3><p class="st"><span class="stw ' + s[1] + '" style="text-transform:none;letter-spacing:0;font-family:inherit;font-size:inherit">' + I(s[2]) + '</span><span>' + esc(x.msg) + ' <b style="color:var(--ink)">' + x.eta + '.</b></span></p>' + (x.pct ? '<div class="prog" aria-hidden="true"><i style="width:' + x.pct + '%"></i></div>' : '') + '<p class="fl">' + esc(x.file) + ' · ' + x.pages + '</p>' +
+      (x.st === 'ready' ? '<div class="acts"><button type="button" class="btn sm pri" data-go="review">Check the 2 numbers</button></div>' : x.st === 'att' ? '<div class="acts"><button type="button" class="btn sm" data-toast="Opens an empty form for this page.">Type it in myself</button><button type="button" class="btn sm" data-toast="Photo kept on file, no AI reading.">Keep the photo, skip AI</button></div>' : '') + '</article>';
+  }).join('');
+  h += '</div><p class="b-sub" style="font-size:14px">Today the desk can read about 19 more pages with AI, and this month 163 more scanned pages. It stops at three quarters of the free limits, so it slows down rather than breaks.</p><div class="a-bud" style="display:grid;gap:6px"><div class="meter"><span class="fine">Today</span><span class="bar"><i style="width:68%"></i></span><span class="v">41 of 60</span></div><div class="meter"><span class="fine">October</span><span class="bar"><i style="width:57%"></i></span><span class="v">212 of 375</span></div></div>';
+  return h + '</div>' + dock(d, '');
+}
+function reviewB(d) {
+  var h = tb(d) + strips(d) + '<div class="b-wrap b-rv"><header class="full"><p class="b-kick">Kaveri annual report FY26 · page 142</p><h1 style="font-size:24px">Profit and loss, as the desk read it</h1><p class="b-sub">The left side is the page; the right side is what the desk wrote down. These are facts from the filing, not your words.</p></header>';
+  var sheet = '<div class="b-sheet"><p class="cap">Page 142 of 212</p>' + pageText(d) + '</div>';
+  h += '<div class="only-d">' + sheet + '</div>';
+  h += '<div class="b-card"><div class="b-fr hd"><span>₹ crore</span><span>FY26</span><span>FY25</span></div>' + PL.map(function (r, i) {
+    var k = flagAt(i, 1) || flagAt(i, 2), row = '<div class="b-fr"><span>' + esc(r[0]) + '</span>' + cellInput(d, i, 1) + cellInput(d, i, 2) + '</div>';
+    if (k) row += '<div class="b-flagn' + (ST[d].rv[k] ? ' ok' : '') + '"><b>' + (ST[d].rv[k] ? 'Checked. ' : 'Check this. ') + '</b>' + FLAG[k].why + '<div class="b-strip" aria-label="Line on the page">' + esc(r[0]) + ' … ' + r[1] + ' … ' + r[2] + '</div>' + flagActs(d, k) + '</div>';
+    return row;
+  }).join('') + '</div>';
+  h += '<details class="only-p full"><summary class="lnk" style="display:flex;align-items:center">See the whole page</summary>' + sheet + '</details>';
+  h += '<div class="full">' + (ST[d].rv.filed ? fileUnder(d, '') : '<p style="font-size:15px;color:var(--ink);margin-bottom:8px">When the numbers look right, file them:</p>' + fileUnder(d, 'b-q')) + '</div>';
+  return h + '</div>' + dock(d, '');
+}
+function namesB(d) {
+  var h = tb(d) + strips(d) + '<div class="b-wrap" style="max-width:720px;margin:0 auto;width:100%;grid-template-columns:minmax(0,1fr)"><header class="b-date"><p class="b-kick">New names</p><h1>Who are these?</h1><p class="b-sub">You used ' + namesLeft(d) + ' names the desk did not know. Your lines were saved anyway.</p></header><div>';
+  h += NAMES.map(function (n) {
+    var done = nmDone(d, n), q;
+    if (n.sug) q = 'You wrote <b>' + esc(n.tok) + '</b> (' + n.seen + '). Did you mean <b>' + esc(n.sug) + '</b>?';
+    else q = 'You wrote <b>' + esc(n.tok) + '</b> (' + n.seen + '). ' + (n.type === 'company' ? 'Which company is it?' : 'What is this theme called?');
+    return '<article class="b-nm"><p>' + q + '</p><blockquote>' + esc(n.quote) + '</blockquote>' + (done ? '<p class="okmsg">' + esc(done) + ' <button type="button" class="lnk" data-name="' + n.id + ':undo">Undo</button></p>' :
+      n.sug ? '<div class="acts"><button type="button" class="btn sm pri" data-name="' + n.id + ':merge">Yes, the same</button><button type="button" class="btn sm" data-name="' + n.id + ':new">No, a new ' + n.type + '</button></div>' :
+      '<div class="row"><div class="fld"><label for="' + d + n.id + '">' + (n.type === 'company' ? 'Company name' : 'Theme name') + '</label><input id="' + d + n.id + '" data-nmin="' + n.id + '"></div><button type="button" class="btn pri" data-name="' + n.id + ':confirm">Save</button></div>') + '</article>';
+  }).join('');
+  return h + '</div></div>' + dock(d, '');
+}
+
+/* ================= C. TRAYS ================= */
+function barsC() { return '<span class="bar" aria-hidden="true">' + STREAK.split('').map(function (c, i) { return '<i class="' + (i === 29 ? 'td' : c === '1' ? 'on' : '') + '"></i>'; }).join('') + '</span>'; }
+function homeC(d) {
+  var L = caps(d), p = parse(ST[d].draft), cnt = streakCount(), cards = [];
+  cards.push(['bad', 'Publish stopped', 'Kaveri Pumps & Motors thesis, R3', '3 sentences break rules 1 and 3. R2 stays public meanwhile.', 'editor', 'Fix']);
+  cards.push(['acc', 'Ready to review', 'Kaveri annual report FY26', '18 pages read. 2 values to check before filing.', 'review', 'Review']);
+  if (namesLeft(d)) cards.push(['warn', 'New names', namesLeft(d) + ' names from your notes', NAMES.filter(function (n) { return !ST[d].nm[n.id]; }).map(function (n) { return n.tok; }).join(', '), 'names', 'Sort']);
+  if (MODE === 'offline') cards.push(['', 'On this phone', qn(d) + ' notes waiting to sync', 'They upload by themselves when you are online.', null, null]);
+  var h = tb(d) + strips(d) + '<div class="c-wrap"><div class="c-hd"><h1>Desk</h1><div class="c-strk" role="img" aria-label="Captures on ' + cnt + ' of the last 30 days">' + barsC() + '<span>' + cnt + '/30 days</span></div></div>';
+  h += '<div class="c-capbar only-d" data-unit><div class="row">' + capField(d, 'Capture a thought   ($company  #theme  t:  l:  p:)') + '<button type="button" class="btn pri sm" data-send>Save</button></div><div class="c-to" data-rc aria-live="polite">' + toC(p) + '</div></div>';
+  h += '<div class="c-two"><section class="c-tray" aria-label="Needs you"><h2>Needs you <b>' + cards.length + '</b></h2><div class="c-cards">' + cards.map(function (c) {
+    return '<article class="c-card ' + c[0] + '"><span class="stw ' + (c[0] === 'bad' ? 'bad' : c[0] === 'warn' ? 'warn' : 'mut') + '">' + c[1] + '</span><h3>' + esc(c[2]) + '</h3><p>' + esc(c[3]) + '</p>' + (c[4] ? '<div class="acts"><button type="button" class="btn sm' + (c[0] === 'bad' ? ' pri' : '') + '" data-go="' + c[4] + '">' + c[5] + '</button></div>' : '') + '</article>';
+  }).join('') + '</div></section>';
+  h += '<section class="c-tray" aria-label="Today"><h2>Today <b>' + L.length + '</b></h2><ul class="c-today">' + L.slice().reverse().map(function (c) {
+    var pp = parse(c.raw), co = pp.cos[0];
+    return '<li class="' + (c.q ? 'q' : '') + '"><span>' + hl(c.raw, true) + '</span><span class="t">' + (c.q ? 'on phone' : c.t) + '</span><span class="co">' + esc(co ? (co.co ? co.co.n : '$' + co.sym + ', new') : 'No company') + ' · ' + KN[pp.kind] + '</span></li>';
+  }).join('') + '</ul></section></div></div>';
+  h += dock(d, '<div class="c-sheet only-p" data-unit role="group" aria-label="Capture"><div class="top"><b>Capture</b><button type="button" class="btn sm" data-sheet-close>Close</button></div><div class="capbox">' + capField(d, 'What did you just notice?') + '</div><div class="c-to" data-rc aria-live="polite">' + toC(p) + '</div><div class="bot"><span class="fine">Enter saves</span><button type="button" class="btn pri" data-send>Save</button></div></div><button type="button" class="c-fab only-p" data-sheet-open>' + I('plus') + 'Capture</button>');
+  return h;
+}
+function editorC(d) {
+  var f = fails(d), ps = passes(d), r1 = SENT.filter(function (s) { return s.rule === 1; }), r3 = SENT.filter(function (s) { return s.rule === 3; });
+  var r1f = r1.filter(function (s) { return !ST[d].allowed[s.id]; }).length;
+  var items = [
+    ['pass', 'Learning objective', F.obj], ['pass', 'Figures dated 31 Aug 2026', 'On or before 5 Sep 2026, the 30-day line'], ['pass', 'Position disclosed', 'No'], ['pass', 'Change reason', F.why],
+    [r1f ? 'fail' : 'pass', 'Rule 1 · actionable language', r1f ? r1f + ' sentence' + (r1f > 1 ? 's' : '') + ' to fix' : 'clear (1 allowed by you)', r1],
+    ['fail', 'Rule 3 · 30-day data lag', '1 sentence to fix; no allowance', r3]
+  ];
+  ps.forEach(function (r) { items.push([r[0], r[1] + ' · ' + r[2], r[3]]); });
+  var np = items.filter(function (x) { return x[0] === 'pass'; }).length;
+  var h = tb(d) + strips(d) + '<div class="c-ed"><section class="c-ck" aria-label="Publish checklist"><div class="hd"><b>Publish checklist · ' + np + ' of ' + items.length + '</b><div class="c-prog" aria-hidden="true">' + items.map(function (x) { return '<i class="' + (x[0] === 'pass' ? 'p' : x[0] === 'fail' ? 'f' : 'm') + '"></i>'; }).join('') + '</div></div><ul>';
+  h += items.map(function (x) {
+    var hits = (x[3] || []).map(function (s) { return '<div class="hit"><q>' + esc(s.t) + '</q><p class="fine">' + (ST[d].allowed[s.id] ? 'Allowed as educational.' : MSG[s.id]) + '</p>' + sentActs(d, s) + '</div>'; }).join('');
+    return '<li class="' + (x[0] === 'man' ? 'man' : x[0]) + '"><div class="row">' + I(x[0] === 'pass' ? 'check' : x[0] === 'fail' ? 'x' : 'hand') + '<div><p class="nm">' + esc(x[1]) + '</p><p class="dt">' + esc(x[2]) + '</p>' + (x[1].indexOf('Rule 4') === 0 ? ck4(d) : '') + '</div></div>' + (x[0] === 'fail' || (x[3] && x[3].some(function (s) { return ST[d].allowed[s.id]; })) ? hits : '') + '</li>';
+  }).join('') + '</ul></section>';
+  h += '<div><p class="fine">Thesis · Kaveri Pumps &amp; Motors · R3 draft · R2 public since 24 Aug</p><h1 style="font-size:21px;line-height:1.25;margin-top:2px">' + esc(F.title) + '</h1></div>';
+  var t = ST[d].ctab;
+  h += '<div class="c-tabs" role="group" aria-label="View"><button type="button" data-ctab="edit" aria-pressed="' + (t === 'edit') + '">Edit</button><button type="button" data-ctab="fields" aria-pressed="' + (t === 'fields') + '">Details</button><button type="button" data-ctab="changes" aria-pressed="' + (t === 'changes') + '">Changes</button></div>';
+  if (t === 'edit') h += '<div class="c-body">' + PAR.map(function (ids) { return '<p>' + ids.map(function (id) { return sentHTML(d, S(id), true); }).join(' ') + '</p>'; }).join('') + '</div>';
+  else if (t === 'fields') h += fieldsHTML('c-fields');
+  else { var D = DIFF.r23; h += '<div class="c-body"><p class="fine">' + esc(D.a) + ' → ' + esc(D.b) + '. Reason: ' + esc(D.why) + '</p><p>' + D.lines.map(function (l) { return l[0] === '+' ? '<ins class="dx">' + esc(l[1]) + '</ins>' : l[0] === '-' ? '<del class="dx">' + esc(l[1]) + '</del>' : esc(l[1]); }).join(' ') + '</p><p class="fine">Earlier: R1 12 Jun, R2 24 Aug (public).</p></div>'; }
+  h += '</div><div class="c-pubbar"><p>' + (f.length ? '<b style="color:var(--bad)">' + f.length + ' sentences fail.</b> There is no override.' : canPub(d) ? 'Ready.' : 'Tick the rule 4 check.') + '</p><button type="button" class="btn pri" data-publish' + (canPub(d) ? '' : ' disabled') + '>Publish R3</button></div>';
+  return h + dock(d, '');
+}
+function inboxC(d) {
+  var h = tb(d) + strips(d) + '<div class="c-wrap"><div class="c-hd"><h1>Inbox</h1><span class="fine">5 documents</span></div>';
+  h += '<button type="button" class="c-dropbar" data-drop>' + I('up') + '<span>Drop anything, or paste a link</span><small>PDF · photo · Excel · link</small></button>';
+  h += '<div class="a-bud" style="display:grid;gap:6px"><div class="meter"><span class="fine">AI pages today</span><span class="bar"><i style="width:68%"></i></span><span class="v">41/60</span></div><div class="meter"><span class="fine">Scan pages, Oct</span><span class="bar"><i style="width:57%"></i></span><span class="v">212/375</span></div></div>';
+  h += '<div class="c-two" style="align-items:start">' + [TRAY.slice(0, 2), TRAY.slice(2)].map(function (col) {
+    return '<div style="display:grid;gap:20px">' + col.map(function (t) {
+      var ds = DOCS.filter(function (x) { return x.st === t[0]; });
+      return '<section class="c-tray" aria-label="' + t[1] + '"><h2>' + t[1] + ' <b>' + ds.length + '</b></h2>' + ds.map(function (x) {
+        return '<div class="c-row"><h3>' + esc(x.name) + '</h3><span class="eta">' + x.eta + '</span><p class="sub">' + esc(x.msg) + '</p>' +
+          (x.st === 'ready' ? '<div class="acts"><button type="button" class="btn sm pri" data-go="review">Review</button></div>' : x.st === 'att' ? '<div class="acts"><button type="button" class="btn sm pri" data-toast="Opens an empty form for this page.">Enter manually</button><button type="button" class="btn sm" data-toast="Photo kept on file, no AI reading.">Skip AI</button></div>' : '') + '</div>';
+      }).join('') + '</section>';
+    }).join('') + '</div>';
+  }).join('') + '</div></div>';
+  return h + dock(d, '');
+}
+function reviewC(d) {
+  var left = rvLeft(d), k = left[0], h = tb(d) + strips(d) + '<div class="c-rv">';
+  h += '<div class="full"><p class="fine">Kaveri annual report FY26 · page 142 · profit and loss</p><h1 style="font-size:20px;margin-top:2px">' + (left.length ? 'Check ' + (3 - left.length) + ' of 2' : 'All values checked') + '</h1></div>';
+  var list = '<ul class="c-flist">' + PL.map(function (r, i) { var kk = flagAt(i, 1) || flagAt(i, 2), fl = kk && !ST[d].rv[kk]; return '<li class="' + (fl ? 'fl' : '') + '">' + I(fl ? 'alert' : 'check') + '<span>' + esc(r[0]) + '</span><span class="v">' + (kk === 'tax' ? 'FY25 ' + cellVal(d, i, 2) : cellVal(d, i, 1)) + '</span></li>'; }).join('') + '</ul>';
+  h += '<aside class="only-d" aria-label="All values">' + list + '</aside>';
+  if (k) {
+    var f = FLAG[k], row = PL[f.row];
+    h += '<section class="c-focus" aria-label="Flagged value"><span class="n">' + (k === 'fc' ? 'totals disagree' : 'low confidence') + ' · key 1 or 2</span><h3>' + f.title + '</h3><div class="vs"><div class="' + (k === 'fc' ? 'bad' : '') + '"><small>The desk read</small><b>' + f.read + '</b></div><div><small>' + (k === 'fc' ? 'The totals need' : 'The totals agree with') + '</small><b>' + f.page + '</b></div></div><p class="fine">' + f.why + '</p><div class="b-strip" style="font-family:var(--mono);font-size:12px;border:1px solid var(--rule);padding:6px 8px;border-radius:4px;background:var(--surf)">p.142 · ' + esc(row[0]) + ' … ' + row[1] + ' … ' + row[2] + '</div>' +
+      '<div class="acts">' + f.a.map(function (a, i) { return '<button type="button" class="btn' + (i === 0 ? ' pri' : '') + '" data-fix="' + k + ':' + a[0] + '">' + a[1] + ' <kbd>' + (i + 1) + '</kbd></button>'; }).join('') + '</div></section>';
+  } else {
+    h += '<section class="c-focus" aria-label="File">' + (ST[d].rv.filed ? '' : '<h3>File these 24 values</h3>') + fileUnder(d, '') + (ST[d].rv.filed ? '' : '<button type="button" class="lnk" data-fix="fc:undo">Go back to the checks</button>') + '</section>';
+  }
+  h += '<section class="only-d" aria-label="Page"><div style="border:1px solid var(--rule);border-radius:8px;padding:10px 4px">' + pageText(d) + '</div></section>';
+  h += '<details class="only-p"><summary class="lnk" style="display:flex;align-items:center">All 12 lines</summary>' + list + '</details>';
+  return h + '</div>' + dock(d, '');
+}
+function namesC(d) {
+  var h = tb(d) + strips(d) + '<div class="c-wrap"><div class="c-hd"><h1>New names</h1><span class="fine">' + namesLeft(d) + ' to screen</span></div><p class="fine">Like a screener: say who each one is. Your notes were saved either way.</p><div class="c-scr">';
+  h += NAMES.map(function (n) {
+    var done = nmDone(d, n);
+    return '<article class="c-sc' + (done ? ' done' : '') + '"><span class="stw mut">' + n.type + ' · ' + n.seen + '</span><span class="tok">' + esc(n.tok) + '</span><p class="fine">“' + esc(n.quote) + '”</p>' + (done ? '<p class="okmsg">' + esc(done) + ' <button type="button" class="lnk" data-name="' + n.id + ':undo">Undo</button></p>' :
+      '<div class="chs">' + (n.sug ? '<button type="button" class="btn pri" data-name="' + n.id + ':merge">Same as ' + esc(n.sug.replace(/ \(.*/, '')) + '</button><button type="button" class="btn" data-name="' + n.id + ':new">New ' + n.type + '</button>' : '<div class="fld" style="grid-column:1/-1"><label for="' + d + n.id + '">' + (n.type === 'company' ? 'Company name' : 'Theme name') + '</label><input id="' + d + n.id + '" data-nmin="' + n.id + '"></div><button type="button" class="btn pri" data-name="' + n.id + ':confirm">Yes, add it</button>') + '<button type="button" class="btn" data-name="' + n.id + ':plain">Not a ' + n.type + ', keep as text</button></div>') + '</article>';
+  }).join('');
+  return h + '</div></div>' + dock(d, '');
+}
+
+var R = {A: {home: homeA, editor: editorA, inbox: inboxA, review: reviewA, names: namesA}, B: {home: homeB, editor: editorB, inbox: inboxB, review: reviewB, names: namesB}, C: {home: homeC, editor: editorC, inbox: inboxC, review: reviewC, names: namesC}};
+
+/* ---------------- mounting ---------------- */
+function sizeTA(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+function vps(d) { return document.querySelectorAll('[data-render="' + d + '"]'); }
+function mount(d) {
+  each(vps(d), function (vp, k) {
+    vp.innerHTML = '<div class="site">' + R[d][SCREEN](d) + '</div>';
+    each(vp.querySelectorAll('[id]'), function (el) { var n = el.id + '-' + d + k, lab = vp.querySelector('label[for="' + el.id + '"]'); if (lab) lab.htmlFor = n; el.id = n; });
+    each(vp.querySelectorAll('textarea[data-cap]'), sizeTA);
+  });
+}
+function mountAll() { ['A', 'B', 'C'].forEach(mount); each(document.querySelectorAll('[data-url]'), function (u) { u.textContent = 'desk / ' + {home: 'capture', editor: 'items / kaveri-pumps-motors-thesis', inbox: 'inbox', review: 'inbox / kaveri-ar-fy26 / review', names: 'names'}[SCREEN]; }); }
+function dirOf(el) { var v = el.closest('[data-render]'); return v ? v.getAttribute('data-render') : null; }
+function visibleTA(vp) { return Array.prototype.filter.call(vp.querySelectorAll('textarea[data-cap]'), function (t) { return t.getClientRects().length; })[0]; }
+function toast(vp, msg) {
+  var t = vp.querySelector('.toast'); if (!t) return;
+  t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove('on'); }, 2400);
+}
+function rerender(el, after) {
+  var d = dirOf(el), vp = el.closest('[data-render]'), list = Array.prototype.slice.call(vps(d)), idx = list.indexOf(vp), top = vp.scrollTop;
+  mount(d); var nv = vps(d)[idx]; nv.scrollTop = top; if (after) after(nv); return nv;
+}
+function submit(unit) {
+  var d = dirOf(unit), ta = unit.querySelector('textarea[data-cap]'), raw = ta.value.replace(/\s+$/, '');
+  if (!raw.trim()) { ta.focus(); return; }
+  var t = now(), q = MODE === 'offline', p = parse(raw);
+  ST[d].caps.push({t: t, raw: raw, q: q}); ST[d].draft = '';
+  var keepFocus = d !== 'C' || !unit.classList.contains('c-sheet');
+  rerender(unit, function (nv) {
+    var co = p.cos[0];
+    toast(nv, q ? 'Saved on this phone. It will sync.' : 'Saved ' + t + (co ? ' · ' + (co.co ? co.co.n : '$' + co.sym + ' (new)') : ' · private note'));
+    if (keepFocus) { var nt = visibleTA(nv); if (nt) nt.focus(); }
+  });
+}
+
+document.addEventListener('input', function (e) {
+  var el = e.target;
+  if (el.matches && el.matches('textarea[data-cap]')) {
+    var d = dirOf(el), unit = el.closest('[data-unit]'), p = parse(el.value);
+    ST[d].draft = el.value;
+    el.previousElementSibling.innerHTML = hl(el.value);
+    sizeTA(el);
+    var rc = unit && unit.querySelector('[data-rc]'); if (rc) rc.innerHTML = RCV[d](p);
+  }
+});
+document.addEventListener('keydown', function (e) {
+  var el = e.target;
+  if (el.matches && el.matches('textarea[data-cap]') && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(el.closest('[data-unit]')); return; }
+  if ((e.key === '/' || e.key === 'c') && el.classList && el.classList.contains('vp') && SCREEN === 'home') { var ta = visibleTA(el); if (ta) { e.preventDefault(); ta.focus(); } }
+});
+document.addEventListener('mousedown', function (e) { if (e.target.closest && e.target.closest('[data-ins]')) e.preventDefault(); });
+document.addEventListener('change', function (e) {
+  var el = e.target;
+  if (el.matches && el.matches('[data-ck4]')) { var d = dirOf(el); ST[d].ck4 = el.checked; rerender(el); }
+});
+document.addEventListener('click', function (e) {
+  var el = e.target.closest ? e.target : null; if (!el) return;
+  var b, d = dirOf(el), st = d ? ST[d] : null;
+  if ((b = el.closest('[data-go]'))) { SCREEN = b.getAttribute('data-go'); press('[data-screen-btn]', document.querySelector('[data-screen-btn="' + SCREEN + '"]')); mountAll(); each(document.querySelectorAll('.vp'), function (v) { v.scrollTop = 0; }); return; }
+  if ((b = el.closest('[data-send]'))) { submit(b.closest('[data-unit]')); return; }
+  if ((b = el.closest('[data-ins]'))) {
+    var ta = b.closest('[data-unit]').querySelector('textarea[data-cap]'), k = b.getAttribute('data-ins'), s = ta.selectionStart, v = ta.value;
+    var ins = (k.length === 2 ? k + ' ' : k), pre = v.slice(0, s);
+    if (k.length === 2) { ta.value = ins + v.replace(/^\s*[tlp]:\s*/i, ''); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    else { if (pre && !/\s$/.test(pre)) ins = ' ' + ins; ta.value = pre + ins + v.slice(ta.selectionEnd); ta.setSelectionRange(s + ins.length, s + ins.length); }
+    ta.focus(); ta.dispatchEvent(new Event('input', {bubbles: true})); return;
+  }
+  if ((b = el.closest('[data-sheet-open]'))) { var site = b.closest('.site'); site.classList.add('vpopen'); var t2 = site.querySelector('.c-sheet textarea[data-cap]'); t2.focus(); sizeTA(t2); return; }
+  if ((b = el.closest('[data-sheet-close]'))) { b.closest('.site').classList.remove('vpopen'); return; }
+  if ((b = el.closest('[data-allow-open]'))) { st.open = b.getAttribute('data-allow-open'); st.err = false; rerender(b, function (nv) { var i = nv.querySelector('[data-allow-reason]'); if (i && i.getClientRects().length) i.focus(); else { i = Array.prototype.filter.call(nv.querySelectorAll('[data-allow-reason]'), function (x) { return x.getClientRects().length; })[0]; if (i) i.focus(); } }); return; }
+  if ((b = el.closest('[data-allow-cancel]'))) { st.open = null; st.err = false; rerender(b); return; }
+  if ((b = el.closest('[data-allow-save]'))) {
+    var r = b.closest('.allow').querySelector('[data-allow-reason]').value.trim(), id = b.getAttribute('data-allow-save');
+    if (!r) { st.err = true; rerender(b, function (nv) { var i = Array.prototype.filter.call(nv.querySelectorAll('[data-allow-reason]'), function (x) { return x.getClientRects().length; })[0]; if (i) i.focus(); }); return; }
+    st.allowed[id] = {r: r, t: now()}; st.open = null; st.err = false; rerender(b, function (nv) { toast(nv, 'Sentence ' + id.slice(1) + ' allowed. Reason saved with the gate decision.'); }); return;
+  }
+  if ((b = el.closest('[data-allow-remove]'))) { delete st.allowed[b.getAttribute('data-allow-remove')]; rerender(b); return; }
+  if ((b = el.closest('[data-edit]'))) {
+    var vp = b.closest('.vp'), sid = b.getAttribute('data-edit');
+    if (d === 'C' && st.ctab !== 'edit') { st.ctab = 'edit'; vp = rerender(b); }
+    var sp = Array.prototype.filter.call(vp.querySelectorAll('[data-sid="' + sid + '"]'), function (x) { return x.getClientRects().length; })[0];
+    if (sp) { sp.setAttribute('contenteditable', 'true'); sp.focus(); sp.scrollIntoView({block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); sp.classList.add('flash'); setTimeout(function () { sp.classList.remove('flash'); }, 1200); }
+    return;
+  }
+  if ((b = el.closest('[data-diff]'))) { st.diff = b.getAttribute('data-diff'); rerender(b); return; }
+  if ((b = el.closest('[data-ctab]'))) { st.ctab = b.getAttribute('data-ctab'); rerender(b); return; }
+  if ((b = el.closest('[data-rtab]'))) { st.rv.tab = b.getAttribute('data-rtab'); rerender(b); return; }
+  if ((b = el.closest('[data-fix]'))) {
+    var parts = b.getAttribute('data-fix').split(':');
+    if (parts[1] === 'undo') { st.rv[parts[0]] = null; st.rv.filed = false; rerender(b); return; }
+    if (parts[1] === 'type') { st.rv[parts[0]] = 'ok'; rerender(b, function (nv) { var c = Array.prototype.filter.call(nv.querySelectorAll('[data-cell="' + parts[0] + '"]'), function (x) { return x.getClientRects().length; })[0]; if (c) { c.focus(); c.select(); } else toast(nv, 'Type the value in the line list.'); }); return; }
+    st.rv[parts[0]] = parts[1]; rerender(b); return;
+  }
+  if ((b = el.closest('[data-approve]'))) { st.rv.filed = true; rerender(b, function (nv) { toast(nv, 'Filed. 24 source facts added.'); }); return; }
+  if ((b = el.closest('[data-name]'))) {
+    var pr = b.getAttribute('data-name').split(':'), n = NAMES.filter(function (x) { return x.id === pr[0]; })[0];
+    if (pr[1] === 'undo') { delete st.nm[n.id]; rerender(b); return; }
+    if (pr[1] === 'confirm') {
+      var inp = b.closest('tr, article').querySelector('[data-nmin]'), val = inp && inp.value.trim();
+      if (!val) { if (inp) { inp.focus(); inp.setAttribute('aria-invalid', 'true'); inp.placeholder = 'Type a name first'; } return; }
+      st.nm[n.id] = 'Added ' + n.tok + ' as ' + val + '.';
+    } else if (pr[1] === 'merge') st.nm[n.id] = 'Merged into ' + n.sug + '; ' + n.seen.split(',')[0] + ' moved.';
+    else if (pr[1] === 'new') st.nm[n.id] = 'Kept ' + n.tok + ' as a new ' + n.type + '; name it later.';
+    else st.nm[n.id] = n.tok + ' kept as plain text in the note.';
+    rerender(b); return;
+  }
+  if ((b = el.closest('[data-publish]'))) { toast(b.closest('.vp'), 'Sent to the database gate; R3 passed and is public.'); return; }
+  if ((b = el.closest('[data-rerun]'))) { toast(b.closest('.vp'), 'Gate run again: ' + fails(d).length + ' failing.'); return; }
+  if ((b = el.closest('[data-drop]'))) { toast(b.closest('.vp'), 'Opens the file picker; drag and drop works here too.'); return; }
+  if ((b = el.closest('[data-toast]'))) { toast(b.closest('.vp'), b.getAttribute('data-toast')); return; }
+});
+
+var root = document.documentElement;
+function press(sel, btn) { each(document.querySelectorAll(sel), function (x) { x.setAttribute('aria-pressed', x === btn ? 'true' : 'false'); }); }
+each(document.querySelectorAll('[data-theme-btn]'), function (b) { b.addEventListener('click', function () { var t = b.getAttribute('data-theme-btn'); if (t === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t); press('[data-theme-btn]', b); }); });
+each(document.querySelectorAll('[data-layout-btn]'), function (b) { b.addEventListener('click', function () { document.body.classList.toggle('phones', b.getAttribute('data-layout-btn') === 'phones'); press('[data-layout-btn]', b); }); });
+each(document.querySelectorAll('[data-screen-btn]'), function (b) { b.addEventListener('click', function () { SCREEN = b.getAttribute('data-screen-btn'); press('[data-screen-btn]', b); mountAll(); each(document.querySelectorAll('.vp'), function (v) { v.scrollTop = 0; }); }); });
+each(document.querySelectorAll('[data-mode-btn]'), function (b) { b.addEventListener('click', function () { MODE = b.getAttribute('data-mode-btn'); if (MODE !== 'offline') ['A', 'B', 'C'].forEach(function (d) { ST[d].caps.forEach(function (c) { c.q = false; }); }); press('[data-mode-btn]', b); mountAll(); }); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { each(document.querySelectorAll('textarea[data-cap]'), sizeTA); });
+mountAll();
+})();
+</script>
+</body>
+</html>

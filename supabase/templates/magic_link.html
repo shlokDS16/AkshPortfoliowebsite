@@ -1,0 +1,7 @@
+<!-- Magic Link email (final review I4). A token-hash link, verified server-side by /auth/confirm, so it works
+     when the email is opened in a different browser or app from the one that asked for it (no PKCE cookie).
+     Mirror this in the hosted project's Auth > Email Templates > Magic Link. -->
+<h2>Sign in to Aksh Research Desk</h2>
+<p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next=/desk">Sign in to the desk</a></p>
+<p>Or open this address: {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&next=/desk</p>
+<p>The link works once and expires in one hour. If you did not ask for it, ignore this email.</p>

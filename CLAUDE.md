@@ -24,7 +24,7 @@ Personal equity-research system for Aksh Agrawal (student investor, India) with 
 Never run two implementers in parallel. Research and review parallelise; building does not.
 
 ## Commands
-Prefix heavy CLI with `rtk` (`rtk pnpm test`, `rtk git diff`). Use `agent-browser read <url>` for docs. markitdown CLI full path: `C:\Users\Shlok\AppData\Roaming\Python\Python314\Scripts\markitdown.exe`.
+Prefix heavy CLI with `rtk` (`rtk pnpm test`, `rtk git diff`). Supabase CLI: always the project's pinned devDependency (`pnpm supabase ...`, 2.119.0), never a global binary; regenerate types with `pnpm db:types`. Use `agent-browser read <url>` for docs. markitdown CLI full path: `C:\Users\Shlok\AppData\Roaming\Python\Python314\Scripts\markitdown.exe`.
 
 ## End of every session
 Run the End-of-Session Routine in `claude/routines.md`: update `docs/progress.md`, append to the timeline, record decisions as ADRs, log debt and open questions, name the next task with a reason.

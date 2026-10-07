@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en-IN" data-theme="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identity comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Devanagari:wght@500&family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600&family=Inter:wght@400;500;600;700&family=Geist:wght@400;500;600;700&family=Anek+Latin:wght@400;500;600;700&family=Mukta:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ---------- page chrome (neutral; never part of a direction) ---------- */
+:root{--pg-bg:#F2F2F0;--pg-card:#FFFFFF;--pg-ink:#16181B;--pg-muted:#5A5F66;--pg-rule:#D9DBDE;--pg-sel:#16181B;--pg-onsel:#FFFFFF;color-scheme:light}
+:root[data-theme="dark"]{--pg-bg:#0D0E10;--pg-card:#17191C;--pg-ink:#ECEEF0;--pg-muted:#A0A6AD;--pg-rule:#2C3035;--pg-sel:#ECEEF0;--pg-onsel:#111;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pg-bg:#0D0E10;--pg-card:#17191C;--pg-ink:#ECEEF0;--pg-muted:#A0A6AD;--pg-rule:#2C3035;--pg-sel:#ECEEF0;--pg-onsel:#111;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--pg-bg);color:var(--pg-ink);font:15px/1.55 "IBM Plex Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1440px;margin:0 auto;padding:32px 16px 80px}
+h1.pg{font-size:26px;line-height:1.2;margin:0 0 10px;font-weight:600}
+.intro{max-width:78ch;color:var(--pg-muted);margin:0 0 10px}
+.intro b{color:var(--pg-ink);font-weight:600}
+.ctl{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 26px;position:sticky;top:0;z-index:20;background:var(--pg-bg);padding:10px 0}
+.seg{display:inline-flex;border:1px solid var(--pg-rule);border-radius:8px;overflow:hidden;background:var(--pg-card)}
+.seg span{font-size:12.5px;color:var(--pg-muted);padding:7px 10px;border-right:1px solid var(--pg-rule);display:flex;align-items:center}
+.seg button{font:inherit;font-size:13.5px;border:0;background:none;color:var(--pg-ink);padding:7px 12px;cursor:pointer;border-right:1px solid var(--pg-rule);transition:background-color .12s cubic-bezier(.2,0,0,1)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--pg-sel);color:var(--pg-onsel)}
+.seg button:active{transform:scale(.97)}
+button:focus-visible,.m button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--pg-ink);outline-offset:2px}
+h2.sec{font-size:20px;margin:44px 0 6px;font-weight:600}
+.sub{color:var(--pg-muted);margin:0 0 16px;max-width:90ch}
+.glance{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.card{background:var(--pg-card);border:1px solid var(--pg-rule);border-radius:10px;padding:16px;min-width:0}
+.card h3{margin:0 0 2px;font-size:16px;font-weight:600}
+.card .one{color:var(--pg-muted);font-size:13.5px;margin:0 0 12px}
+.lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--pg-muted);margin:14px 0 6px;font-weight:500}
+.wmbox{border-radius:6px;padding:18px 16px;display:flex;flex-direction:column;gap:12px;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+.ogwrap{position:relative;width:100%;aspect-ratio:1200/630;overflow:hidden;border-radius:4px;border:1px solid var(--pg-rule)}
+.ogwrap .og{position:absolute;left:0;top:0;transform-origin:0 0}
+.ogwrap.full{aspect-ratio:auto;height:632px;overflow:auto}
+.ogwrap.full .og{transform:none!important}
+.mini{font:inherit;font-size:12px;background:none;border:1px solid var(--pg-rule);color:var(--pg-ink);border-radius:6px;padding:3px 8px;cursor:pointer;margin-top:6px}
+.favrow{display:flex;flex-direction:column;gap:8px}
+.tabm{display:flex;align-items:flex-end;height:40px;padding:0 8px;border-radius:6px 6px 0 0}
+.tabm .tb{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:8px 8px 0 0;font:12.5px/1 system-ui,sans-serif;max-width:300px;white-space:nowrap;overflow:hidden}
+.tabm.lt{background:#DEE1E6}.tabm.lt .tb{background:#fff;color:#1f1f1f}
+.tabm.dt{background:#202124}.tabm.dt .tb{background:#35363A;color:#E8EAED}
+.favsizes{display:flex;align-items:flex-end;gap:14px;font-size:12px;color:var(--pg-muted)}
+.favsizes div{display:flex;flex-direction:column;align-items:center;gap:4px}
+/* direction sections */
+.dir{margin-top:56px;padding-top:24px;border-top:1px solid var(--pg-rule)}
+.dhead{display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:start}
+.dlet{width:40px;height:40px;border:1.5px solid var(--pg-ink);border-radius:6px;display:grid;place-items:center;font-weight:600;font-size:18px}
+.dhead h2{margin:0;font-size:21px;font-weight:600}
+.dhead .th{margin:2px 0 4px;font-weight:500}
+.dhead .kv{font-size:13px;color:var(--pg-muted)}
+.why{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin:16px 0 14px;font-size:13.5px}
+.why b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--pg-muted);font-weight:500;margin-bottom:4px}
+.why p{margin:0}
+.fontctl{margin:4px 0 14px}
+.stage{display:flex;gap:24px;align-items:flex-start;overflow-x:auto;padding:4px 2px 10px}
+figure.frame{margin:0;flex:none}
+figure.frame figcaption{font-size:12.5px;color:var(--pg-muted);margin-top:6px}
+.browser{width:962px;border:1px solid var(--pg-rule);border-radius:10px;overflow:hidden;background:var(--pg-card)}
+.chrome{height:34px;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--pg-rule);font-size:12px;color:var(--pg-muted)}
+.chrome i{width:9px;height:9px;border-radius:50%;background:var(--pg-rule);display:block}
+.chrome .url{margin-left:10px;padding:3px 10px;border-radius:6px;background:var(--pg-bg)}
+.browser .vp{width:960px;height:720px;overflow:auto}
+.bezel{width:399px;border:12px solid #101113;border-radius:46px;overflow:hidden;background:#101113}
+.bezel .vp{width:375px;height:780px;overflow:auto;border-radius:34px}
+.three{display:none;gap:24px;overflow-x:auto;padding:4px 2px 10px}
+body[data-layout="3p"] .three{display:flex}
+body[data-layout="3p"] .stage{display:none}
+.three figure{flex:none}
+/* token sheet */
+.sheet{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:16px;margin-top:18px}
+.sw{display:grid;grid-template-columns:110px 1fr 1fr;gap:6px 10px;font-size:12.5px;align-items:center}
+.sw .h{color:var(--pg-muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.chipc{display:flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+.chipc i{width:22px;height:16px;border-radius:3px;border:1px solid rgba(128,128,128,.35);display:block;flex:none}
+table.cr{width:100%;border-collapse:collapse;font-size:12.5px}
+table.cr th,table.cr td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--pg-rule);vertical-align:top}
+table.cr td.n{font-family:"IBM Plex Mono",monospace;white-space:nowrap}
+.ok{font-size:11px;padding:1px 5px;border-radius:4px;border:1px solid var(--pg-rule);white-space:nowrap}
+.sheet ul{margin:0;padding-left:18px;font-size:13px}
+.sheet li{margin:0 0 5px}
+.voice{font-size:13px}
+.voice dt{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--pg-muted);margin-top:8px}
+.voice dd{margin:2px 0 0}
+.matrix-scroll{overflow-x:auto}
+table.mx{border-collapse:collapse;width:100%;min-width:900px;font-size:13.5px;background:var(--pg-card)}
+table.mx th,table.mx td{border:1px solid var(--pg-rule);padding:8px 10px;text-align:left;vertical-align:top}
+table.mx thead th{font-weight:600}
+table.mx tbody th{font-weight:500;width:150px}
+details.studied{background:var(--pg-card);border:1px solid var(--pg-rule);border-radius:10px;padding:12px 16px;margin-top:16px}
+details.studied summary{cursor:pointer;font-weight:600}
+details.studied ol{columns:2;column-gap:32px;font-size:13px;padding-left:22px}
+details.studied li{break-inside:avoid;margin-bottom:5px}
+.rec{background:var(--pg-card);border:1.5px solid var(--pg-ink);border-radius:10px;padding:16px 18px;margin-top:20px;max-width:100ch}
+.rec p{margin:6px 0}
+@media (max-width:700px){.ctl{position:static}}
+@media (max-width:1100px){.glance,.sheet{grid-template-columns:1fr}.why{grid-template-columns:1fr 1fr}details.studied ol{columns:1}}
+
+/* ---------- mock: one component set, every colour from direction tokens ---------- */
+.vp{background:var(--bg)}
+.m{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.55;min-height:100%;position:relative}
+.m *{box-sizing:border-box}
+.m button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.m .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.84em;letter-spacing:0}
+.m .disp{font-family:var(--disp);color:var(--ink)}
+.m .mut{color:var(--muted)}
+.m .lk{color:var(--acc);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,var(--acc) 55%,transparent)}
+.m .tnum{font-variant-numeric:tabular-nums}
+.m svg.ico{width:12px;height:12px;flex:none;color:var(--ink);vertical-align:-1px}
+.m svg.ico-s{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+/* strip (B+: quiet line that opens) */
+.m .strip{background:var(--surf);border-bottom:1px solid var(--rule);font-size:13px;color:var(--muted)}
+.m .strip .row{display:flex;align-items:center;gap:8px;padding:8px 20px;flex-wrap:wrap}
+.m .strip .row b{color:var(--ink);font-weight:600}
+.m .strip .dot{color:var(--rule2)}
+.m .strip .det{margin-left:auto;font-size:12.5px;color:var(--ink);display:inline-flex;align-items:center;gap:3px}
+.m .strip .det svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;transition:transform .18s cubic-bezier(.2,0,0,1)}
+.m .strip .more{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s cubic-bezier(.2,0,0,1)}
+.m .strip .more>div{overflow:hidden}
+.m .strip .more p{margin:0;padding:0 20px 10px;max-width:72ch;font-size:13px;color:var(--text)}
+.m .strip.open .more{grid-template-rows:1fr}
+.m .strip.open .det svg{transform:rotate(180deg)}
+/* header */
+.m .top{display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;border-bottom:1px solid var(--rule);background:var(--bg)}
+.m .top .find{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--ink)}
+.m .wm{display:inline-flex;align-items:center;gap:9px;color:var(--ink);white-space:nowrap}
+.m .wm b{font-weight:600;font-family:var(--disp)}
+.m .wm .d{font-size:13px;color:var(--muted)}
+/* layout */
+.m .dkg{display:grid;grid-template-columns:206px 1fr}
+.m .rail{padding:18px 12px 24px 18px;border-right:1px solid var(--rule);font-size:14px;min-height:640px}
+.m .rail a,.m .rail .it{display:flex;justify-content:space-between;padding:6px 8px;border-radius:var(--r);color:var(--text);text-decoration:none}
+.m .rail .it.on{background:var(--surf2);color:var(--ink);font-weight:600}
+.m .rail .it .c{font-size:12px;color:var(--muted)}
+.m .rail .subs{margin:2px 0 6px 12px;border-left:1px solid var(--rule);padding-left:6px}
+.m .rail .subs .it{font-size:13px;padding:4px 8px;color:var(--muted)}
+.m .rail .subs .it.on{background:none;color:var(--ink);font-weight:600;box-shadow:inset 2px 0 0 var(--acc)}
+.m .rail .lg{border-top:1px solid var(--rule);margin-top:14px;padding-top:12px;font-size:12.5px;color:var(--muted)}
+.m .rail .lg b{color:var(--ink);font-weight:600;display:block;font-size:13px}
+.m .mn{padding:22px 34px 40px;min-width:0}
+.m .mn .col{max-width:660px}
+.m .eye{font-size:13px;color:var(--muted);margin:0 0 4px}
+.m h1.t{font-family:var(--disp);color:var(--ink);font-size:36px;line-height:1.12;letter-spacing:-.012em;margin:0 0 10px;font-weight:600}
+.m .stand{font-size:17px;color:var(--text);margin:0 0 18px;max-width:58ch}
+.m h2.h{font-family:var(--disp);font-size:19px;color:var(--ink);font-weight:600;margin:30px 0 4px;display:flex;align-items:baseline;gap:10px}
+.m h2.h .c{font-size:13px;color:var(--muted);font-weight:400;font-family:var(--sans)}
+.m .hs{font-size:13px;color:var(--muted);margin:0 0 10px}
+/* stats */
+.m .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.m .st{padding:12px 14px 12px 0}
+.m .st+.st{padding-left:14px;border-left:1px solid var(--rule)}
+.m .st .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.m .st .v{font-size:30px;line-height:1.1;color:var(--ink);font-weight:500;margin:4px 0 2px;font-variant-numeric:lining-nums}
+.m .st .v small{font-size:13px;color:var(--muted);font-weight:400;margin-left:4px}
+.m .st .x{font-size:12px;color:var(--muted)}
+.m .units{display:grid;grid-template-columns:repeat(10,12px);gap:3px;margin-top:6px}
+.m .units svg{width:12px;height:12px;color:var(--ink)}
+.m .streak{display:flex;gap:2px;margin-top:8px;height:12px}
+.m .streak i{flex:1;background:var(--ink);border-radius:1px}
+.m .streak i.z{background:var(--rule)}
+/* what changed */
+.m .chg{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.m .chg li{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule)}
+.m .chg .d{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.m .chg .w{color:var(--ink);font-size:15px;margin:0}
+.m .chg .s{font-size:12.5px;color:var(--muted);margin-top:2px}
+.m .kind{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--rule2);padding:0 4px;border-radius:var(--r);margin-right:6px;vertical-align:1px}
+/* register */
+.m table.reg{width:100%;border-collapse:collapse;font-size:14px}
+.m table.reg th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:8px 8px 8px 0;border-bottom:1px solid var(--rule2)}
+.m table.reg td{padding:10px 8px 10px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+.m table.reg td.co b{display:block;color:var(--ink);font-weight:600}
+.m table.reg .num{font-family:"IBM Plex Mono",monospace;color:var(--acc);font-size:13px}
+.m .tsum{display:inline-flex;gap:8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.m .tsum span{display:inline-flex;align-items:center;gap:3px}
+.m .rows{border-top:1px solid var(--rule)}
+.m .rw{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:11px 0;border-bottom:1px solid var(--rule)}
+.m .rw b{color:var(--ink);font-weight:600}
+.m .rw .r{font-size:13px;color:var(--muted);text-align:right}
+.m .rw .l3{grid-column:1/3;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+/* empty state */
+.m .empty{border:1px dashed var(--rule2);border-radius:var(--r);padding:14px 16px}
+.m .empty p{margin:0 0 8px;font-size:14px}
+.m .empty .shape{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--rule);padding-top:8px}
+/* file page */
+.m .crumb{font-size:13px;color:var(--muted);margin:0 0 8px}
+.m .tag{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--onacc);background:var(--acc);padding:2px 10px 2px 8px;clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,0 100%);margin-bottom:8px}
+.m .desc{font-size:17px;margin:0 0 14px;max-width:60ch}
+.m .teach{background:var(--surf);border-radius:var(--r);padding:12px 14px;max-width:480px}
+.m .teach .k,.m .dl .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.m .teach p{margin:2px 0 0;color:var(--ink)}
+.m .dl{display:grid;grid-template-columns:repeat(4,auto);justify-content:space-between;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:10px 0;margin:16px 0 0;gap:6px 18px}
+.m .dl .v{color:var(--ink);font-size:14px}
+.m .rf{font-size:13.5px;margin:14px 0 0;color:var(--muted)}
+.m .blk{margin-top:30px}
+.m .bh{display:flex;align-items:center;gap:10px}
+.m .bl{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:500;letter-spacing:.06em;background:var(--ink);color:var(--bg);padding:1px 6px;border-radius:var(--r)}
+.m .bh h2{font-family:var(--disp);font-size:19px;color:var(--ink);font-weight:600;margin:0}
+.m .bs{font-size:13px;color:var(--muted);margin:3px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--rule)}
+.m .view{border-left:2px solid var(--ink);padding-left:16px;max-width:620px}
+.m .view p{margin:0 0 14px;font-size:16.5px;line-height:1.68;color:var(--text)}
+.m .chip{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--acc);border:1px solid var(--rule2);border-radius:var(--rc);padding:0 5px;margin-left:2px;white-space:nowrap;line-height:1.5;vertical-align:1px}
+.m .chip[aria-expanded="true"]{background:var(--accsoft);border-color:var(--acc)}
+.m .scard{display:none;margin:-4px 0 16px;border:1px solid var(--rule2);border-radius:var(--r);background:var(--surf);padding:10px 12px;font-size:13.5px;max-width:520px}
+.m .scard.open{display:block}
+.m .scard .fg{display:flex;gap:18px;align-items:baseline}
+.m .scard .fg b{font-size:22px;color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+.m .scard q{display:block;margin:6px 0;color:var(--text);quotes:"\201C" "\201D"}
+.m .ex{border-top:1px solid var(--ink);padding-top:8px;max-width:620px}
+.m .ex .n{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.m .ex .n .id{font-family:"IBM Plex Mono",monospace;color:var(--acc)}
+.m .ex h3{font-family:var(--disp);font-size:16px;color:var(--ink);margin:2px 0 6px;font-weight:600}
+.m .ex svg.ch{width:100%;height:auto;display:block}
+.m .ex .f{font-size:12px;color:var(--muted);border-top:1px solid var(--rule);padding-top:6px;margin-top:4px}
+.m table.tests{width:100%;border-collapse:collapse;font-size:14px;max-width:680px}
+.m table.tests th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:6px 8px 6px 0;border-bottom:1px solid var(--rule2)}
+.m table.tests td{padding:9px 8px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+.m .stt{display:inline-flex;gap:5px;align-items:center;white-space:nowrap;color:var(--ink)}
+.m .disc{background:var(--surf);border-radius:var(--r);padding:14px 16px;font-size:13.5px;max-width:680px;margin-top:30px}
+.m .disc h3{font-size:14px;margin:0 0 4px;color:var(--ink);font-weight:600}
+.m .disc p{margin:0}
+/* phone */
+.m.ph{font-size:15px}
+.m.ph .top{height:52px;padding:0 16px;position:sticky;top:0;z-index:3}
+.m.ph .pg{padding:16px 16px 24px}
+.m.ph h1.t{font-size:29px}
+.m.ph .stand,.m.ph .desc{font-size:16px}
+.m.ph .stats{grid-template-columns:1fr 1fr}
+.m.ph .st:nth-child(3){padding-left:0;border-left:0}
+.m.ph .st:nth-child(n+3){border-top:1px solid var(--rule)}
+.m.ph .dl{grid-template-columns:1fr 1fr;justify-content:stretch}
+.m.ph .view{padding-left:12px}
+.m.ph .view p{font-size:16px}
+.m.ph .strip .row{padding:7px 16px}
+.m .pidx{position:sticky;top:52px;z-index:2;background:var(--bg);display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--rule)}
+.m .pidx button{padding:11px 0 10px;font-size:14px;color:var(--muted);text-align:center;box-shadow:inset 0 -2px 0 transparent;transition:box-shadow .12s cubic-bezier(.2,0,0,1),color .12s}
+.m .pidx button sup{font-size:10px;margin-left:2px}
+.m .pidx button[aria-selected="true"]{color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--acc)}
+.m .pidx .prog{grid-column:1/5;height:2px;background:var(--rule);position:relative}
+.m .pidx .prog i{position:absolute;left:0;top:0;bottom:0;width:22%;background:var(--ink)}
+.m .tabbar{position:sticky;bottom:0;z-index:3;background:var(--bg);border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(4,1fr);padding:7px 0 16px}
+.m .tabbar button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11.5px;color:var(--muted)}
+.m .tabbar button.on{color:var(--ink);font-weight:600}
+.m .tabbar button.on svg{stroke:var(--acc)}
+.m .sitedisc{margin-top:26px;border-top:1px solid var(--rule);padding-top:12px;font-size:13px;color:var(--muted)}
+.m .sitedisc b{color:var(--ink)}
+/* direction-specific identity touches */
+.dir-a .m .top{border-bottom:3px double var(--rule2)}
+.dir-a .m .mast{font-size:12.5px;color:var(--muted);letter-spacing:.01em;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+.dir-b .m .top{background:var(--surf)}
+.dir-b .m .bl{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.dir-b .m .st .v{font-weight:400;letter-spacing:-.01em}
+.dir-c .m .ex{border-top:2px solid var(--acc)}
+.dir-c .m .bl{background:var(--acc);color:var(--onacc)}
+.dir-c .m .fno{font-family:"IBM Plex Mono",monospace;color:var(--acc);font-size:13px}
+/* OG cards */
+.og{width:1200px;height:630px;background:var(--bg);color:var(--text);font-family:var(--sans);position:relative;overflow:hidden}
+.og .ogt{font-family:var(--disp);color:var(--ink);font-weight:600;letter-spacing:-.02em}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+<style id="tok"></style>
+</head>
+<body data-layout="dp" data-screen="home">
+<div class="wrap">
+<h1 class="pg">Segment 5: identity</h1>
+<p class="intro">Three identities for the same desk, applied to the decided screens: the register home with <b>What changed</b> (segment 2), the <b>B+ Kaveri file</b> (segment 1), the segment 3 exhibit frame, a 1200 × 630 share card and a 32 px favicon. Every mock is one component set. Only the tokens, the wordmark, the mark and the micro-copy change, so the comparison is about identity and not about layout.</p>
+<p class="intro">The rule in all three: <b>the accent is for the hand, ink is for the data.</b> The accent marks links, focus, the active tab and the mark. It never colours a figure, a status or a chart series. Statuses stay ink shapes (filled, half, open, dashed). Charts use ink for the subject, grey for the benchmark and one separate data hue for thresholds. Contrast ratios below are computed live from the tokens. Companies, symbols, figures and dates are invented.</p>
+<div class="ctl" role="toolbar" aria-label="View controls">
+  <div class="seg"><span>Screen</span><button data-scr="home" aria-pressed="true">Desk home</button><button data-scr="file" aria-pressed="false">Kaveri file</button></div>
+  <div class="seg"><span>Theme</span><button data-th="system" aria-pressed="true">System</button><button data-th="light" aria-pressed="false">Light</button><button data-th="dark" aria-pressed="false">Dark</button></div>
+  <div class="seg"><span>Layout</span><button data-lay="dp" aria-pressed="true">Desktop + phone</button><button data-lay="3p" aria-pressed="false">Three phones</button></div>
+</div>
+
+<h2 class="sec">At a glance: wordmark, favicon, share card</h2>
+<p class="sub">Share cards do not follow the reader's theme, so each direction ships one. The favicon is shown at its real 32 px and 16 px sizes in a light and a dark browser tab. Ship it as an SVG with outlined paths and a <code>prefers-color-scheme</code> rule, plus a 32 px PNG fallback.</p>
+<div class="glance" id="glance"></div>
+
+<div class="three" id="three" aria-label="Three phones side by side"></div>
+<div id="dirs"></div>
+
+<h2 class="sec">The same items, direction by direction</h2>
+<div class="matrix-scroll"><table class="mx">
+<thead><tr><th scope="col">Item</th><th scope="col">A. Masthead</th><th scope="col">B. Assay</th><th scope="col">C. Case files</th></tr></thead>
+<tbody>
+<tr><th scope="row">Name (Q5)</th><td>Aksh Agrawal, with "Research desk" beside it. Domain idea: akshagrawal.in</td><td>A coined desk name, always with "by Aksh Agrawal". Candidates: Assay, Plumbline, Nikasha</td><td>Aksh Agrawal, with "Case files" beside it. Domain idea: akshagrawal.in</td></tr>
+<tr><th scope="row">Mark</th><td>None beyond the name. The favicon is an "A" over an ink-blue bar</td><td>A monogram: an A drawn as a crucible filled to a measured line</td><td>A notched file tag reading AA. File and exhibit numbers (File 03, Ex. 03.1) carry the identity</td></tr>
+<tr><th scope="row">Accent</th><td>Blue-black ink #23439A / #9DB4F0</td><td>Cold teal #006A7E / #52C4D8</td><td>Geru red ochre #A13A22 / #E8907A</td></tr>
+<tr><th scope="row">Neutrals</th><td>Paper #FBFAF7 and soft black</td><td>Cool slate #F6F8FA and near-black #0C0E11</td><td>Khadi #F7F2E8 and warm brown-black</td></tr>
+<tr><th scope="row">Data hue (thresholds only)</th><td>Ochre #9A5B13</td><td>Amber #A35F00</td><td>Neel indigo #34478F</td></tr>
+<tr><th scope="row">Radii</th><td>0 px, chips 2 px</td><td>6 px, chips 4 px</td><td>3 px; the tag has a cut corner</td></tr>
+<tr><th scope="row">Imagery</th><td>No photos. One dated portrait on About is allowed. Double rule under the masthead, hairlines everywhere else</td><td>No photos and no portrait. The monogram and instrument glyphs only</td><td>No photos. Cited crops of the primary documents (an annual-report line, a filing header) are the only pictures</td></tr>
+<tr><th scope="row">Voice</th><td>First person, like a letter to partners: "I hold no position"</td><td>Desk voice, terse and numeric: "0 entries"</td><td>Third person about Aksh, explanatory: "Aksh holds no position". This separates the chrome from his own words in VIEW</td></tr>
+<tr><th scope="row">Reads to an AMC head as</th><td>A person's dated record, in the letters-to-partners tradition</td><td>A tool like the ones they use daily (Tegus, Koyfin)</td><td>An Indian broker initiation note: numbered exhibits they can cite in a meeting</td></tr>
+<tr><th scope="row">Main risk</th><td>So quiet it can look unfinished. The name has no equity yet</td><td>A brand can look like a firm offering research, which is the wrong signal while he is unregistered</td><td>Geru sits near "loss red". Warm paper can read as lifestyle. Numbering must never be reused</td></tr>
+</tbody></table></div>
+
+<div class="rec"><b>Designer's recommendation: C (Case files), with A's restraint.</b>
+<p>Publish under Aksh's own name, with file and exhibit numbers as the mark. Use geru only for links, focus, the tag and identifiers, and neel only for chart thresholds. Take A's double-rule masthead line and A's rule that the chrome has no ornament. Keep IBM Plex Sans and Plex Mono: none of the six alternatives was better at tabular figures, Plex has a Devanagari companion, Marcellus shows Plex already reads as Indian asset management, and segments 1 to 3 are already set in it.</p>
+<p>Keep B's names in reserve. A brand fits better once Aksh registers as a Research Analyst, and it should not be used before then.</p>
+<p class="mut" style="color:var(--pg-muted)">Reply with A, B or C, or a mix, for example "C, with B's monogram as the favicon".</p></div>
+
+<details class="studied"><summary>Identities studied: 30 captured, 7 blocked (computed styles read with agent-browser, 5 Oct 2026)</summary>
+<ol>
+<li><b>Stratechery</b>: name-first, freight-sans-pro at 18 px, ink #333 on white, 0 px radii, greys only. Its ethics page is the trust signal.</li>
+<li><b>Marcellus</b>: IBM Plex Sans for headings and body, ink #232931, black links, 0 px radii. An Indian PMS already uses Plex.</li>
+<li><b>Nomad letters (Marcellus US page)</b>: Montserrat and Gotham, navy button #0C0152. The archive is the brand.</li>
+<li><b>Koyfin</b>: AktivGrotesk, ink #191E25, no accent on the marketing pages.</li>
+<li><b>Linear</b>: Inter at weight 510, #08090A, muted #8A8F98, 8 px radii.</li>
+<li><b>Vercel</b>: Geist, black on #EDEDED, 6 px radii.</li>
+<li><b>Stripe</b>: sohne at weight 300 for headings, violet #533AFD (rejected).</li>
+<li><b>Stripe Press</b>: Ivar Text and Ivar Headline, a colour per book, 0 px radii.</li>
+<li><b>Arc</b>: cream #FFFCEC, blue #3139FB, Marlin.</li>
+<li><b>Zerodha Tech blog</b>: Inter at 18 px, #F0F0F0, black links, no accent.</li>
+<li><b>Kite by Zerodha</b>: Open Sans, orange #FF5722 button (saffron-adjacent, rejected for C).</li>
+<li><b>Rainmatter (Zerodha)</b>: Inter, navy #000080 links.</li>
+<li><b>Smallcase</b>: Graphik, blue #1F7AE0, 4 px radii.</li>
+<li><b>Groww</b>: GrowwSans and Soehne, green #04B488, pill radii (gain green, rejected).</li>
+<li><b>Capitalmind</b>: Poppins, mint #B7F6CC with violet #543AF2.</li>
+<li><b>PPFAS</b>: Varela Round, greys.</li>
+<li><b>Screener</b>: Inter, #F1F4F8, violet #645DF9. Violet is the Indian fintech default, so all three directions avoid it.</li>
+<li><b>Bessemer</b>: Libre Franklin, navy #0B101E, pill buttons.</li>
+<li><b>Sequoia</b>: paper #FBF7F0, Rosart serif, link blue #0000EE.</li>
+<li><b>a16z</b>: paper #F6F4EE, domaine-text, 0 px radii.</li>
+<li><b>Tegus</b>: ES Klarheit Kurrent headings with Inter, deep teal #003238. The source of B's cold teal.</li>
+<li><b>Readwise</b>: paper #FBF9F3, Source Serif 4 with Albert Sans, blue #2675DE.</li>
+<li><b>Observable</b>: Inter Variable, ink #1B1E23, 6 px radii.</li>
+<li><b>Our World in Data</b>: Playfair with Lato, navy #1D3D63, 0 px radii, numbered chart tabs.</li>
+<li><b>Oaktree insights (Marks memos)</b>: orpheuspro with Roboto, green #008265.</li>
+<li><b>Berkshire Hathaway</b>: Times New Roman, navy #000080. The bare extreme.</li>
+<li><b>The SEA Analyst</b>: Spectral at 19 px, bronze #B8844D, Substack 12 px radii.</li>
+<li><b>The Economist design system</b>: EconSans, with red kept for the brand box.</li>
+<li><b>The Economist Group</b>: Zirkon thin headings, navy #1F2E7A.</li>
+<li><b>Dalton Investments</b>: Roboto, blue #2F6CA2. dalton.co was unreachable; which "Dalton &amp; Co" was meant is unconfirmed.</li>
+</ol>
+<p style="font-size:13px;color:var(--pg-muted)">Blocked, and the bot checks were not bypassed: ft.com (its check page still showed paper #FFF1E5 and teal #0D7680 links), economist.com, bloomberg.com (the robot page used BW Haas Grotesk and a black header), zerodha.com and Varsity, Ambit, and Scuttleblurb. origami.ft.com redirected to a Google sign-in. Mobbin MCP was unavailable.</p>
+</details>
+</div>
+
+<script>
+/* ================= tokens (single source: CSS variables, swatches and contrast table) ================= */
+var TOK = {
+ a: {light: {bg:"#FBFAF7", surf:"#F3F1EC", surf2:"#EAE7E0", ink:"#16171A", text:"#24262A", muted:"#5E6168", rule:"#E3E0D9", rule2:"#C9C5BC", acc:"#23439A", onacc:"#FFFFFF", accsoft:"#E6EAF5", data:"#9A5B13", ctx:"#7D8087"},
+     dark:  {bg:"#141517", surf:"#1C1E21", surf2:"#24272B", ink:"#EEEEEC", text:"#D9DAD6", muted:"#A3A6AB", rule:"#2A2D31", rule2:"#4A4E55", acc:"#9DB4F0", onacc:"#10141F", accsoft:"#1E2638", data:"#D9A15A", ctx:"#7E838A"}},
+ b: {light: {bg:"#F6F8FA", surf:"#ECF0F3", surf2:"#E2E7EB", ink:"#0E1116", text:"#1C2128", muted:"#55606B", rule:"#DCE1E6", rule2:"#B9C2CB", acc:"#006A7E", onacc:"#FFFFFF", accsoft:"#DDEFF2", data:"#A35F00", ctx:"#808A94"},
+     dark:  {bg:"#0C0E11", surf:"#14171B", surf2:"#1B1F24", ink:"#EDF1F4", text:"#D3D9DF", muted:"#96A0AA", rule:"#22272D", rule2:"#3A424B", acc:"#52C4D8", onacc:"#04161A", accsoft:"#0F2A30", data:"#E0A04A", ctx:"#6F7983"}},
+ c: {light: {bg:"#F7F2E8", surf:"#EEE7D8", surf2:"#E5DCC9", ink:"#1F1A14", text:"#2B251E", muted:"#62594D", rule:"#E0D6C4", rule2:"#C6B9A2", acc:"#A13A22", onacc:"#FFFFFF", accsoft:"#F3DDD2", data:"#34478F", ctx:"#8A8173"},
+     dark:  {bg:"#17140F", surf:"#201C16", surf2:"#29241D", ink:"#F1EBE0", text:"#DED6C8", muted:"#A99F90", rule:"#2E2920", rule2:"#4A4236", acc:"#E8907A", onacc:"#1B0F0B", accsoft:"#3A2219", data:"#9AAAEA", ctx:"#857C6E"}}
+};
+var SHAPE_T = {a: {r: "0px", rc: "2px"}, b: {r: "6px", rc: "4px"}, c: {r: "3px", rc: "3px"}};
+var PLEX = "'IBM Plex Sans', system-ui, sans-serif";
+var FONTS = {
+ a: [{l: "IBM Plex Sans", s: PLEX, d: PLEX}, {l: "Public Sans", s: "'Public Sans', system-ui, sans-serif", d: "'Public Sans', system-ui, sans-serif"}, {l: "Plex + Source Serif 4 titles", s: PLEX, d: "'Source Serif 4', Georgia, serif"}],
+ b: [{l: "IBM Plex Sans", s: PLEX, d: PLEX}, {l: "Inter", s: "'Inter', system-ui, sans-serif", d: "'Inter', system-ui, sans-serif"}, {l: "Geist", s: "'Geist', system-ui, sans-serif", d: "'Geist', system-ui, sans-serif"}],
+ c: [{l: "IBM Plex Sans", s: PLEX, d: PLEX}, {l: "Anek Latin", s: "'Anek Latin', system-ui, sans-serif", d: "'Anek Latin', system-ui, sans-serif"}, {l: "Mukta", s: "'Mukta', system-ui, sans-serif", d: "'Mukta', system-ui, sans-serif"}]
+};
+(function () {
+  function v(t) { return Object.keys(t).map(function (k) { return "--" + k + ":" + t[k]; }).join(";"); }
+  var css = "";
+  ["a", "b", "c"].forEach(function (d) {
+    var L = v(TOK[d].light), D = v(TOK[d].dark);
+    css += ".dir-" + d + "{" + L + ";--r:" + SHAPE_T[d].r + ";--rc:" + SHAPE_T[d].rc + ";--sans:" + FONTS[d][0].s + ";--disp:" + FONTS[d][0].d + "}";
+    css += ":root[data-theme='dark'] .dir-" + d + "{" + D + "}";
+    css += "@media (prefers-color-scheme:dark){:root:not([data-theme='light']) .dir-" + d + "{" + D + "}}";
+    css += ":root .dir-" + d + ".tl.tl{" + L + "}:root .dir-" + d + ".td.td{" + D + "}";
+  });
+  document.getElementById("tok").textContent = css;
+})();
+
+/* ================= shared data (fictional; segments 1 to 3) ================= */
+var COS = [
+  {n: 7, name: "Mirav Housing Finance", sym: "MIRAVHFC", sec: "Financials", rev: 3, d: "1 Oct 2026", to: "30 Jun 2026", t: [1, 1, 2, 0]},
+  {n: 6, name: "Halden Cables &amp; Wires", sym: "HALDENCAB", sec: "Capital goods", rev: 1, d: "29 Sep 2026", to: "30 Jun 2026", t: [0, 2, 0, 0]},
+  {n: 3, name: "Kaveri Pumps &amp; Motors", sym: "KAVERIPMP", sec: "Capital goods", rev: 2, d: "2 Sep 2026", to: "30 Jun 2026", t: [0, 1, 1, 1]},
+  {n: 5, name: "Durvan Cement", sym: "DURVANCEM", sec: "Materials", rev: 1, d: "12 Aug 2026", to: "31 Mar 2026", t: [0, 0, 3, 0]},
+  {n: 4, name: "Tarsa Specialty Chemicals", sym: "TARSACHEM", sec: "Chemicals", rev: 1, d: "5 Aug 2026", to: "31 Mar 2026", t: [0, 0, 2, 1]},
+  {n: 2, name: "Kelvar Cold Chain", sym: "KELVARCC", sec: "Logistics", rev: 1, d: "30 Jul 2026", to: "31 Mar 2026", t: [0, 1, 0, 2]},
+  {n: 1, name: "Ojas Snack Foods", sym: "OJASFOODS", sec: "Consumer staples", rev: 2, d: "27 Jul 2026", to: "31 Mar 2026", t: [0, 1, 1, 0]}
+];
+/* file numbers follow first-written order: Ojas 01 ... Halden 07 (renumbering never happens) */
+var FNO = {MIRAVHFC: "02", HALDENCAB: "07", KAVERIPMP: "03", DURVANCEM: "06", TARSACHEM: "05", KELVARCC: "04", OJASFOODS: "01"};
+var LOG = [
+  {d: "1 Oct", k: "REVISION", w: "Mirav R3: stage 3 loans rose for a second quarter, so test 2 is now met and the view is weaker.", s: "2 paragraphs rewritten · test 2 met · figures to 30 Jun 2026"},
+  {d: "30 Sep", k: "LEARNING", w: "How housing finance companies report stage 3 loans, written so the Mirav revision reads without a lending background.", s: "7 min · linked from Mirav R3"},
+  {d: "29 Sep", k: "NEW FILE", w: "Halden Cables R1: first case study, after the FY26 annual report and two tender filings.", s: "2 tests · 6 facts · figures to 30 Jun 2026"},
+  {d: "24 Sep", k: "PROCESS", w: "How I choose which company to study next: added a check for related-party sales.", s: "1 section added"},
+  {d: "2 Sep", k: "REVISION", w: "Kaveri R2: Q1 FY27 receivable days rose again. Rewrote paragraph 3 and added test 3.", s: "1 paragraph rewritten · 1 test added · figures to 30 Jun 2026"}
+];
+var TSUM = [1, 6, 9, 4]; /* met, watching, not met, no data */
+var STREAK = "110011111101111011110110110111";
+var VIEW = [
+  "I expected Kaveri's FY26 growth to look like demand from farmers. The segment note changed my mind. Revenue rose to ₹1,284 cr{S1|p. 112|rev}, but 61% of it came from PM-KUSUM orders placed through state agencies, up from 48% a year earlier{S1|p. 84|sh}. The growth is real. The question is who is paying, and when.",
+  "The cost shows up in working capital. Receivable days went from 96 to 142 in one year{S1|p. 131|rd}. That is what it looks like when the customer is a state agency that pays after the subsidy is released, not a farmer paying at the counter.",
+  "Q1 FY27 did not settle it. Revenue was ₹311 cr and the scheme share eased to 58%{S2|slide 9|q1}, while industrial and export pumps grew 19%{S2|slide 11|ie}. What I am trying to learn is whether the non-scheme business is big enough to carry the company when the scheme slows."
+];
+var TESTS = [
+  {c: "receivable days fall below 100 in the FY27 annual report without new bill discounting or factoring.", l: "151 days, Q1 FY27 annualised", a: "30 Jun 2026", st: "Not met"},
+  {c: "industrial and export revenue grows faster than 20% a year for four quarters in a row.", l: "+19%; 0 of 4 quarters", a: "30 Jun 2026", st: "Watching"},
+  {c: "the company discloses that states paying within 90 days make up more than half of its scheme order book.", l: "Not disclosed", a: "11 Aug 2026", st: "No data"}
+];
+var RD = [["FY22", 81], ["FY23", 84], ["FY24", 88], ["FY25", 96], ["FY26", 142], ["Q1 FY27", 151]];
+var DISC = "Educational content only. Aksh Agrawal is not a SEBI-registered Research Analyst or Investment Adviser. Nothing here is a recommendation, offer or solicitation to buy or sell any security. Figures are shown with a minimum 30-day lag. Position in the security discussed: <strong>No</strong>. Investments in securities are subject to market risk; consult a SEBI-registered adviser before acting. Last reviewed 2 Sep 2026.";
+
+var ICON = {
+  "Met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>',
+  "Not met": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  "Watching": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 1.4a4.6 4.6 0 0 1 0 9.2z" fill="currentColor"/></svg>',
+  "No data": '<svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>'
+};
+var ST_ORDER = ["Met", "Watching", "Not met", "No data"];
+var SV = {
+  search: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.3"/><path d="m12.8 12.8 3.7 3.7"/></svg>',
+  back: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5"/></svg>',
+  desk: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3.5" width="14" height="13" rx="1.5"/><path d="M3 8h14M7.5 8v8.5"/></svg>',
+  files: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/><path d="M6 3.5v3M6 8.5v3M6 13.5v3"/></svg>',
+  notes: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.8h7l3.2 3.2v11.2H5z"/><path d="M12 2.8V6h3.2M7.5 10h5M7.5 13h5"/></svg>',
+  about: '<svg class="ico-s" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6.3v.2"/></svg>',
+  chev: '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="m3 5 4 4 4-4"/></svg>'
+};
+
+/* ================= marks ================= */
+function markA(s, bare) {
+  return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 32 32" role="img" aria-label="A mark">' + (bare ? '' : '<rect x=".5" y=".5" width="31" height="31" rx="5" fill="var(--bg)" stroke="var(--rule2)"/>') +
+    '<text x="16" y="22.4" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-weight="600" font-size="21" fill="var(--ink)">A</text><rect x="8.5" y="25" width="15" height="2.6" fill="var(--acc)"/></svg>';
+}
+function markB(s, tile) {
+  var st = tile ? "#EDF1F4" : "var(--ink)", fill = tile ? "#52C4D8" : "var(--acc)";
+  return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 32 32" role="img" aria-label="Assay monogram">' + (tile ? '<rect width="32" height="32" rx="7" fill="#0C0E11"/>' : '') +
+    '<path d="M9.2 18H22.8L27.5 27H4.5Z" fill="' + fill + '"/><path d="M16 5 27.5 27H4.5Z" fill="none" stroke="' + st + '" stroke-width="2.4" stroke-linejoin="round"/></svg>';
+}
+function markC(s) {
+  if (s < 20) return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 16 16" role="img" aria-label="File tag"><path d="M1 1H11L15 5V15H1Z" fill="var(--acc)"/><text x="7.6" y="12.2" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-weight="700" font-size="10" fill="var(--onacc)">A</text></svg>';
+  return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 32 32" role="img" aria-label="AA file tag"><path d="M2 2H23L30 9V30H2Z" fill="var(--acc)"/>' +
+    '<text x="15.6" y="21.3" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-weight="700" font-size="12.5" letter-spacing="-.4" fill="var(--onacc)">AA</text></svg>';
+}
+
+/* ================= direction config: wordmark, voice, numbering ================= */
+var DIRS = {
+ a: {L: "A", name: "Masthead", thesis: "Name-led, quiet and editorial: ink and paper with one restrained blue-black, like a run of letters to partners.",
+   kv: "Name: Aksh Agrawal · Research desk  ·  Accent: blue-black ink  ·  Mark: none beyond the name",
+   why: [["References", "Stratechery, Sequoia, Berkshire, Oaktree memos, Nomad letters, Readwise paper, The Economist design system."],
+         ["Borrows", "A paper ground, the name as masthead, link-blue lineage kept for interaction only, a double rule under the masthead, 0 px radii."],
+         ["Rejects", "FT salmon (owned by the FT), a red box logo, a serif body (Shlok chose all-sans), a portrait hero."],
+         ["AMC head", "Reads as one person's dated record, which is how Nomad and Marks earned trust, and it fits what he can legally be: an individual educator."],
+         ["Risks", "So quiet it can read as unfinished. A student's name carries no equity yet. The blue-black sits close to default link blue."]],
+   brand: function (ph) { return '<span class="wm"><b style="font-size:' + (ph ? 16.5 : 17) + 'px">Aksh Agrawal</b>' + (ph ? '' : '<span class="d" style="border-left:1px solid var(--rule2);padding-left:9px">Research desk</span>') + '</span>'; },
+   eye: "Monday 5 October 2026 · Research desk", homeT: "Research files",
+   stand: "Each file says what I expected, what would prove me wrong, and every revision since. Education, not advice.",
+   site: [["Education only", 1], ["Not SEBI-registered"], ["Figures at least 30 days old"]],
+   file: [["Education, not advice", 1], ["I hold no position"], ["Figures to 30 Jun 2026"]],
+   more: "This is my study of a listed company, written to learn, not to tell anyone what to do. I am not SEBI-registered. Every figure is at least 30 days old.",
+   emptyH: "Mistakes", emptyP: "No mistakes recorded yet. When a test proves me wrong, the file, the date and my original sentence go here, unedited.",
+   discH: "Before you read", ex: function () { return '<span class="id">Exhibit 1</span>'; }, exPre: "", tag: false, num: false},
+ b: {L: "B", name: "Assay", thesis: "Desk-brand-led and instrument-grade: a coined name and monogram, cool slate and a cold teal, built like the tools allocators use.",
+   kv: "Name: Assay, by Aksh Agrawal (candidates: Assay, Plumbline, Nikasha)  ·  Accent: cold teal  ·  Mark: crucible monogram",
+   why: [["References", "Tegus (deep teal #003238), Koyfin, Linear, Vercel, Observable, Bessemer navy, and Stripe's monogram discipline."],
+         ["Borrows", "A monogram that holds at 16 px, cool neutrals, teal from Tegus, 6 px radii, statuses as glyphs, a terse desk voice."],
+         ["Rejects", "Violet (Stripe, Screener, Capitalmind), gradients, glow, KPI tiles, dark-only."],
+         ["AMC head", "Looks like the research tools they open every day, so the content gets read as data and not as a blog."],
+         ["Risks", "A brand can look like a firm offering research, the wrong signal while he is unregistered; it must always say \"by Aksh Agrawal\". Trademark and domain checks are needed. It is colder and less human."]],
+   brand: function (ph) { return '<span class="wm">' + markB(22) + '<b style="font-size:17px;letter-spacing:.01em">Assay</b><span class="d">by Aksh Agrawal</span></span>'; },
+   eye: "Desk · 7 files · updated 4 Oct 2026", homeT: "Research files",
+   stand: "Seven case studies of Indian listed companies. Each states an expectation, the tests that would falsify it, and every revision. Education, not advice.",
+   site: [["Education", 1], ["Not SEBI-registered"], ["Data lag ≥ 30 days"]],
+   file: [["Education", 1], ["No position"], ["Data to 30 Jun 2026"]],
+   more: "Educational case study. The author, Aksh Agrawal, is not SEBI-registered. Position: none. Every figure is at least 30 days old.",
+   emptyH: "Mistakes", emptyP: "0 entries. An entry is added when a test reads Met. The original text is kept.",
+   discH: "Status and disclosure", ex: function () { return '<span class="id">E1</span><span>Exhibit</span>'; }, exPre: "", tag: false, num: false},
+ c: {L: "C", name: "Case files", thesis: "Rooted in Indian markets without kitsch: warm khadi neutrals, one confident geru accent, and numbered files and exhibits as the mark.",
+   kv: "Name: Aksh Agrawal · Case files  ·  Accent: geru (red ochre)  ·  Mark: the AA file tag and the numbering",
+   why: [["References", "Marcellus (Plex), Zerodha Tech and Rainmatter (plain Indian sites), Our World in Data's numbered charts, a16z and Arc paper, Indian broker initiation notes."],
+         ["Borrows", "Exhibit numbering as identity (File 03, Ex. 03.1), en-IN figures (₹ cr, FY26), khadi paper, cited document crops as the only imagery."],
+         ["Rejects", "Saffron or Kite orange, Groww green, tricolour, rupee-sign logos, maps of India, paisley or mandala ornament."],
+         ["AMC head", "Reads like a sell-side note they already cite in meetings (\"see Ex. 03.1\"), so it is familiar without copying anyone."],
+         ["Risks", "Geru sits near \"loss red\" in finance, which is safe only because figures are never coloured. Warm paper can read as lifestyle. A file number can never be reused."]],
+   brand: function (ph) { return '<span class="wm">' + markC(ph ? 24 : 26) + '<b style="font-size:17px">Aksh Agrawal</b><span class="d">Case files</span></span>'; },
+   eye: "Case files 01 to 07 · Indian listed companies", homeT: "Case files",
+   stand: "Each file says what Aksh expected, what would prove him wrong, and every revision since. For learning, not advice.",
+   site: [["For learning", 1], ["Aksh is not SEBI-registered"], ["Figures 30+ days old"]],
+   file: [["For learning", 1], ["Aksh holds no position"], ["Figures to 30 Jun 2026"]],
+   more: "A case study Aksh wrote to learn how this business works. It is not advice, and he is not SEBI-registered. Every figure is at least 30 days old.",
+   emptyH: "Mistakes", emptyP: "Nothing here yet. When one of Aksh's tests proves him wrong, that file and the date are listed here first, next to what he wrote before.",
+   discH: "Read this first", ex: function () { return '<span class="id">Ex. 03.1</span>'; }, exPre: "", tag: true, num: true}
+};
+
+/* ================= helpers ================= */
+function strip(items, more, ph) {
+  var row = items.map(function (x, i) { return (i ? '<span class="dot">·</span>' : '') + (x[1] ? '<b>' + x[0] + '</b>' : '<span>' + x[0] + '</span>'); }).join("");
+  return '<div class="strip"><div class="row">' + row + '<button class="det" aria-expanded="false">Details ' + SV.chev + '</button></div><div class="more"><div><p>' + more + '</p></div></div></div>';
+}
+function tsum(t) {
+  var out = [];
+  [["Met", 0], ["Not met", 2], ["Watching", 1], ["No data", 3]].forEach(function (p) { if (t[p[1]]) out.push('<span>' + ICON[p[0]] + t[p[1]] + '</span>'); });
+  return '<span class="tsum" aria-label="' + t[0] + ' met, ' + t[2] + ' not met, ' + t[1] + ' watching, ' + t[3] + ' no data">' + out.join("") + '</span>';
+}
+function units() {
+  var o = "";
+  ST_ORDER.forEach(function (k, i) { for (var j = 0; j < TSUM[i]; j++) o += ICON[k].replace('class="ico"', ''); });
+  return '<div class="units" role="img" aria-label="20 tests: 1 met, 6 watching, 9 not met, 4 no data">' + o + '</div>';
+}
+function streak() { return '<div class="streak" role="img" aria-label="Research logged on 23 of the last 30 days">' + STREAK.split("").map(function (c) { return '<i' + (c === "0" ? ' class="z"' : '') + '></i>'; }).join("") + '</div>'; }
+function stats(ph) {
+  return '<div class="stats">' +
+    '<div class="st"><div class="k">Files</div><div class="v">7<small>companies</small></div><div class="x">6 sectors · last 1 Oct</div></div>' +
+    '<div class="st"><div class="k">Tests</div><div class="v">20</div>' + units() + '</div>' +
+    '<div class="st"><div class="k">Revisions</div><div class="v">12</div><div class="x">each with its reason</div></div>' +
+    '<div class="st"><div class="k">Logged</div><div class="v">23<small>of 30 days</small></div>' + streak() + '</div></div>';
+}
+function changes(d) {
+  return '<h2 class="h">What changed <span class="c">last 5 entries</span></h2><p class="hs">Reason first, then what moved.</p><ul class="chg">' +
+    LOG.map(function (e) { return '<li><span class="d">' + e.d + '</span><div><p class="w">' + (d === "b" ? '<span class="kind">' + e.k + '</span>' : '') + e.w.replace(/^([^:]+):/, '<span class="lk">$1</span>:') + '</p><div class="s">' + (d !== "b" ? e.k.charAt(0) + e.k.slice(1).toLowerCase() + ' · ' : '') + e.s + '</div></div></li>'; }).join("") + '</ul>';
+}
+function register(d, ph) {
+  var C = DIRS[d];
+  var h = '<h2 class="h">' + (d === "c" ? "Files" : "Files") + ' <span class="c">7</span></h2><p class="hs">Sorted by last revision. Every company link opens its file.</p>';
+  if (ph) {
+    return h + '<div class="rows">' + COS.map(function (c) {
+      return '<div class="rw"><span>' + (C.num ? '<span class="fno">' + FNO[c.sym] + '</span> ' : '') + '<b>' + c.name + '</b></span><span class="r"><span class="mono">R' + c.rev + '</span> ' + c.d.replace(" 2026", "") + '</span>' +
+        '<div class="l3"><span>' + c.sec + ' · to ' + c.to.replace(" 2026", "") + '</span>' + tsum(c.t) + '</div></div>';
+    }).join("") + '</div>';
+  }
+  return h + '<table class="reg"><thead><tr>' + (C.num ? '<th>No.</th>' : '') + '<th>Company</th><th>Sector</th><th>Version</th><th>Revised</th><th>Tests</th><th>Figures to</th></tr></thead><tbody>' +
+    COS.map(function (c) {
+      return '<tr>' + (C.num ? '<td><span class="num">' + FNO[c.sym] + '</span></td>' : '') + '<td class="co"><b>' + c.name + '</b><span class="mono mut">' + c.sym + '</span></td><td>' + c.sec + '</td><td class="mono">R' + c.rev + '</td><td class="tnum">' + c.d + '</td><td>' + tsum(c.t) + '</td><td class="tnum">' + c.to + '</td></tr>';
+    }).join("") + '</tbody></table>';
+}
+function empty(d) {
+  var C = DIRS[d];
+  return '<h2 class="h">' + C.emptyH + ' <span class="c">0</span></h2><div class="empty"><p>' + C.emptyP + '</p><div class="shape"><span>File and test</span><span>Date</span><span>Original text</span></div></div>';
+}
+function rail(d, file) {
+  var it = function (l, c, on) { return '<div class="it' + (on ? ' on' : '') + '"><span>' + l + '</span><span class="c">' + (c == null ? '' : c) + '</span></div>'; };
+  var subs = file ? '<div class="subs">' + it('<b style="color:var(--ink)">' + (DIRS[d].num ? '03 ' : '') + 'Kaveri Pumps</b>') + it("View", "3", 1) + it("Tests", "3") + it("Facts", "8") + it("Sources", "3") + it("History", "R2") + it("Disclosure") + '</div>' : '';
+  return '<nav class="rail" aria-label="Desk">' + it("Desk", null, !file) + it("Files", "7", file) + subs + it("Learning notes", "3") + it("Process", "2") + it("Mistakes", "0") + it("About and disclosures") +
+    '<div class="lg"><b>23 of the last 30 days</b>research logged; counts only.' + streak() + '<div style="margin-top:8px">Last entry 4 Oct 2026</div></div></nav>';
+}
+function viewHTML(d, ph) {
+  var cards = {
+    rd: {f: "142", u: "days", p: "96 days in FY25", q: "Trade receivables stood at 142 days of revenue (previous year 96 days), reflecting longer realisation cycles on scheme orders.", s: "S1 · Kaveri Pumps &amp; Motors Ltd, Annual Report 2025-26, p. 131 · filed with NSE on 3 Jul 2026", a: "31 Mar 2026"}
+  };
+  return VIEW.map(function (p, i) {
+    var card = "";
+    var html = p.replace(/\{(S\d)\|([^|]+)\|(\w+)\}/g, function (m, s, loc, k) {
+      var open = k === "rd";
+      if (open) { var c = cards.rd; card = '<div class="scard open" data-card="rd"><div class="fg"><b>' + c.f + '</b><span class="mut">' + c.u + ' · prior ' + c.p + '</span></div><q>' + c.q + '</q><div class="mut" style="font-size:12.5px">' + c.s + ' · as of ' + c.a + '</div></div>'; }
+      return '<button class="chip" aria-expanded="' + open + '"' + (open ? ' data-k="rd"' : '') + '>' + s + ' ' + loc + '</button>';
+    });
+    return '<p>' + html + '</p>' + card;
+  }).join("");
+}
+function exSvg(w, h) {
+  var pl = 34, pr = 46, pt = 14, pb = 26, lo = 60, hi = 170;
+  var X = function (i) { return pl + i * (w - pl - pr) / (RD.length - 1); }, Y = function (v) { return pt + (hi - v) * (h - pt - pb) / (hi - lo); };
+  var s = '<svg class="ch" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Receivable days rose from 81 in FY22 to 142 in FY26 and 151 in Q1 FY27, annualised. Test 1 line at 100 days.">';
+  [80, 120, 160].forEach(function (g) { s += '<line x1="' + pl + '" x2="' + (w - pr) + '" y1="' + Y(g) + '" y2="' + Y(g) + '" stroke="var(--rule)"/><text x="' + (pl - 6) + '" y="' + (Y(g) + 4) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + g + '</text>'; });
+  s += '<line x1="' + pl + '" x2="' + (w - pr) + '" y1="' + Y(100) + '" y2="' + Y(100) + '" stroke="var(--data)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="' + (pl + 4) + '" y="' + (Y(100) - 6) + '" font-size="11.5" fill="var(--data)" font-weight="500">Test 1 line: 100 days</text>';
+  var pts = RD.map(function (r, i) { return X(i) + "," + Y(r[1]); });
+  s += '<polyline points="' + pts.slice(0, 5).join(" ") + '" fill="none" stroke="var(--ink)" stroke-width="2"/><polyline points="' + pts.slice(4).join(" ") + '" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="3 3"/>';
+  RD.forEach(function (r, i) { s += '<circle cx="' + X(i) + '" cy="' + Y(r[1]) + '" r="' + (i === 5 ? 3.5 : 2.6) + '" fill="' + (i === 5 ? 'var(--bg)' : 'var(--ink)') + '" stroke="var(--ink)" stroke-width="1.5"/><text x="' + X(i) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + r[0] + '</text>'; });
+  s += '<text x="' + (X(5) + 7) + '" y="' + (Y(151) + 4) + '" font-size="12" fill="var(--ink)" font-weight="600">151</text><text x="' + (X(0) + 2) + '" y="' + (Y(81) + 16) + '" font-size="12" fill="var(--ink)">81</text>';
+  return s + '</svg>';
+}
+function exhibit(d, ph) {
+  var C = DIRS[d];
+  return '<div class="blk ex"><div class="n">' + C.ex() + '<span>Chart · Table</span></div><h3>Receivable days rose from 96 to 142 in FY26, and to 151 in Q1 FY27</h3>' + exSvg(ph ? 340 : 600, ph ? 190 : 220) +
+    '<div class="f">Ink: Kaveri, days of revenue. Dashed: Q1 FY27 annualised. Source: S1 p. 131; S2 slide 14 · data to 30 Jun 2026</div></div>';
+}
+function tests(d, ph) {
+  var head = '<div class="blk"><div class="bh"><span class="bl">TESTS</span><h2>I would be wrong if</h2></div><p class="bs">' + (d === "c" ? "Three tests Aksh set himself. \"Met\" means his view is wrong." : d === "b" ? "3 tests · last checked 2 Sep 2026 · Met = the view is wrong" : "Three tests I set myself. \"Met\" means my view is wrong.") + '</p>';
+  if (ph) return head + TESTS.map(function (t, i) { return '<div style="padding:10px 0;border-bottom:1px solid var(--rule)"><div style="display:flex;justify-content:space-between;gap:10px"><span class="mono mut">T' + (i + 1) + '</span><span class="stt">' + ICON[t.st] + t.st + '</span></div><div style="color:var(--ink);margin:2px 0">…' + t.c + '</div><div class="mut" style="font-size:13px">' + t.l + ' · data to ' + t.a + '</div></div>'; }).join("") + '</div>';
+  return head + '<table class="tests"><thead><tr><th></th><th>Condition</th><th>Latest reading</th><th>Data to</th><th>Status</th></tr></thead><tbody>' +
+    TESTS.map(function (t, i) { return '<tr><td class="mono mut">T' + (i + 1) + '</td><td style="color:var(--ink)">…' + t.c + '</td><td class="tnum">' + t.l + '</td><td class="tnum" style="white-space:nowrap">' + t.a + '</td><td><span class="stt">' + ICON[t.st] + t.st + '</span></td></tr>'; }).join("") + '</tbody></table></div>';
+}
+
+/* ================= screens ================= */
+function home(d, ph) {
+  var C = DIRS[d];
+  var top = '<header class="top">' + C.brand(ph) + '<span class="find">' + SV.search + (ph ? '' : 'Find a file') + '</span></header>';
+  var lead = (d === "a" ? '<p class="mast">' + C.eye + '</p>' : '<p class="eye">' + C.eye + '</p>') + '<h1 class="t">' + C.homeT + '</h1><p class="stand">' + C.stand + '</p>';
+  var body = lead + stats(ph) + changes(d) + register(d, ph) + empty(d);
+  if (ph) {
+    return '<div class="m ph">' + top + '<div class="pg">' + body + '<div class="sitedisc"><b>' + C.site[0][0] + '</b> · ' + C.site[1][0] + ' · ' + C.site[2][0] + '. <span class="lk">Disclosures</span></div></div>' +
+      '<nav class="tabbar"><button class="on">' + SV.desk + 'Desk</button><button>' + SV.files + 'Files 7</button><button>' + SV.notes + 'Notes 3</button><button>' + SV.about + 'About</button></nav></div>';
+  }
+  return '<div class="m">' + strip(C.site, C.more) + top + '<div class="dkg">' + rail(d, false) + '<main class="mn">' + body + '</main></div></div>';
+}
+function file(d, ph) {
+  var C = DIRS[d];
+  var crumb = '<p class="crumb">' + (ph ? '' : 'Desk / Files / Capital goods / ') + 'Kaveri Pumps · NSE: <span class="mono">KAVERIPMP</span> <span class="mono">(fictional)</span></p>';
+  var tag = C.tag ? '<div><span class="tag">FILE 03 · R2</span></div>' : '';
+  var head = crumb + tag + '<h1 class="t">Kaveri Pumps &amp; Motors</h1><p class="desc">Makes solar and electric water pumps for farms, housing and industry. About three-fifths of FY26 sales came through a government subsidy scheme.</p>' +
+    '<div class="teach"><div class="k">What this teaches</div><p>How to tell whether a manufacturer\'s growth comes from a subsidy scheme or from customers who would pay anyway.</p></div>' +
+    '<div class="dl"><div><div class="k">This version</div><div class="v">R2 of 2</div></div><div><div class="k">Revised</div><div class="v">2 Sep 2026</div></div><div><div class="k">First written</div><div class="v">14 Jul 2026</div></div><div><div class="k">Figures to</div><div class="v">30 Jun 2026</div></div></div>' +
+    '<p class="rf">Read first: <span class="lk">Reading a segment note in an annual report</span> · 6 min</p>';
+  var view = '<div class="blk"><div class="bh"><span class="bl">VIEW</span><h2>' + (d === "c" ? "Aksh's view" : d === "b" ? "View" : "My view") + '</h2></div><p class="bs">' + (d === "a" ? "My own words. Each figure opens the line it came from." : d === "b" ? "Author's words. Chips open the cited line." : "His own words. Each figure opens the line it came from.") + '</p><div class="view">' + viewHTML(d, ph) + '</div></div>';
+  var disc = '<div class="disc"><h3>' + C.discH + '</h3><p>' + DISC + '</p></div>';
+  var body = head + view + exhibit(d, ph) + tests(d, ph) + disc;
+  if (ph) {
+    return '<div class="m ph"><header class="top">' + '<span style="display:inline-flex;align-items:center;gap:4px;color:var(--ink)">' + SV.back + 'Files</span><span style="margin-left:auto;color:var(--ink)">' + SV.search + '</span></header>' + strip(C.file, C.more, 1) +
+      '<div class="pidx" role="tablist"><button role="tab" aria-selected="true">View</button><button role="tab" aria-selected="false">Tests<sup>3</sup></button><button role="tab" aria-selected="false">Facts<sup>8</sup></button><button role="tab" aria-selected="false">History<sup>R2</sup></button><div class="prog"><i></i></div></div>' +
+      '<div class="pg">' + body + '</div><nav class="tabbar"><button>' + SV.desk + 'Desk</button><button class="on">' + SV.files + 'Files 7</button><button>' + SV.notes + 'Notes 3</button><button>' + SV.about + 'About</button></nav></div>';
+  }
+  return '<div class="m"><header class="top">' + C.brand(false) + '<span class="find">' + SV.search + 'Find a file</span></header><div class="dkg">' + rail(d, true) + '<main class="mn" style="padding-top:0;padding-left:0;padding-right:0">' + strip(C.file, C.more) + '<div style="padding:20px 34px 40px">' + body + '</div></main></div></div>';
+}
+
+/* ================= share cards (1200 x 630) ================= */
+function og(d) {
+  var st = '<div style="display:flex;gap:26px;font-size:24px;color:var(--ink)">' + TESTS.map(function (t, i) { return '<span style="display:inline-flex;align-items:center;gap:9px">' + ICON[t.st].replace('class="ico"', 'width="20" height="20"') + 'T' + (i + 1) + ' ' + t.st.toLowerCase() + '</span>'; }).join("") + '</div>';
+  if (d === "a") return '<div class="og dir-a tl" style="padding:64px 76px"><div style="display:flex;align-items:baseline;gap:18px;padding-bottom:18px;border-bottom:4px double var(--rule2)"><span class="ogt" style="font-size:34px;letter-spacing:-.01em">Aksh Agrawal</span><span style="font-size:24px;color:var(--muted)">Research desk</span><span style="margin-left:auto;font-size:21px;color:var(--muted)">Case study · Capital goods</span></div>' +
+    '<div class="ogt" style="font-size:84px;line-height:1.02;margin:64px 0 22px">Kaveri Pumps &amp; Motors</div><div style="font-size:31px;line-height:1.38;max-width:930px;color:var(--text)">How to tell whether a manufacturer\'s growth comes from a subsidy scheme or from customers who would pay anyway.</div>' +
+    '<div style="position:absolute;left:76px;right:76px;bottom:56px;display:flex;justify-content:space-between;font-size:22px;color:var(--muted);border-top:1px solid var(--rule);padding-top:16px"><span>R2 · revised 2 Sep 2026 · figures to 30 Jun 2026</span><span style="color:var(--ink)">Education only. Not investment advice.</span></div><div style="position:absolute;left:76px;bottom:120px;width:120px;height:6px;background:var(--acc)"></div></div>';
+  if (d === "b") return '<div class="og dir-b td" style="padding:60px 72px"><div style="display:flex;align-items:center;gap:14px">' + markB(48) + '<span class="ogt" style="font-size:36px;letter-spacing:.01em">Assay</span><span style="font-size:23px;color:var(--muted)">by Aksh Agrawal</span><span style="margin-left:auto;font-family:\'IBM Plex Mono\',monospace;font-size:21px;color:var(--acc)">KAVERIPMP · R2 · 2 SEP 2026</span></div>' +
+    '<div class="ogt" style="font-size:80px;line-height:1.04;margin:70px 0 22px">Kaveri Pumps &amp; Motors</div><div style="font-size:30px;line-height:1.38;max-width:950px;color:var(--text);margin-bottom:40px">How to tell whether a manufacturer\'s growth comes from a subsidy scheme or from customers who would pay anyway.</div>' + st +
+    '<div style="position:absolute;left:72px;right:72px;bottom:46px;font-size:21px;color:var(--muted);border-top:1px solid var(--rule2);padding-top:14px">Education only. Not investment advice. Data to 30 Jun 2026.</div></div>';
+  return '<div class="og dir-c tl" style="display:grid;grid-template-columns:270px 1fr"><div style="background:var(--acc);color:var(--onacc);padding:60px 40px;display:flex;flex-direction:column;justify-content:space-between;clip-path:polygon(0 0,calc(100% - 46px) 0,100% 46px,100% 100%,0 100%)"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:23px;letter-spacing:.04em">FILE</span><span class="ogt" style="color:var(--onacc);font-size:150px;line-height:.9;font-variant-numeric:tabular-nums">03</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:23px">R2</span></div>' +
+    '<div style="padding:58px 66px;position:relative"><div style="display:flex;align-items:baseline;gap:14px;font-size:26px"><span class="ogt" style="font-size:30px">Aksh Agrawal</span><span style="color:var(--muted)">Case files</span></div><div class="ogt" style="font-size:78px;line-height:1.04;margin:76px 0 22px">Kaveri Pumps &amp; Motors</div>' +
+    '<div style="font-size:30px;line-height:1.38;color:var(--text)">How to tell whether a manufacturer\'s growth comes from a subsidy scheme or from customers who would pay anyway.</div><div style="position:absolute;left:66px;right:66px;bottom:52px;display:flex;justify-content:space-between;font-size:21px;color:var(--muted);border-top:1px solid var(--rule2);padding-top:14px"><span>Revised 2 Sep 2026 · figures to 30 Jun 2026</span><span style="color:var(--ink)">For learning, not advice</span></div></div></div>';
+}
+function fav(d, s, mode) {
+  if (d === "a") return markA(s);
+  if (d === "b") return markB(s, 1);
+  return markC(s);
+}
+function wordmarkBig(d) {
+  if (d === "a") return '<div style="display:flex;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:3px double var(--rule2)"><span class="disp" style="font-family:var(--disp);font-size:30px;font-weight:600;letter-spacing:-.01em">Aksh Agrawal</span><span style="color:var(--muted);font-size:17px">Research desk</span></div>';
+  if (d === "b") return '<div style="display:flex;align-items:center;gap:12px">' + markB(40) + '<span style="font-family:var(--disp);font-size:30px;font-weight:600;letter-spacing:.01em">Assay</span><span style="color:var(--muted);font-size:15px;align-self:flex-end;margin-bottom:5px">by Aksh Agrawal</span></div><div style="font-size:12.5px;color:var(--muted)">Also tested: <b style="color:var(--ink)">Plumbline</b> · <b style="color:var(--ink)">Nikasha</b></div>';
+  return '<div style="display:flex;align-items:center;gap:12px">' + markC(42) + '<span><span style="display:block;font-family:var(--disp);font-size:30px;font-weight:600;line-height:1.05">Aksh Agrawal</span><span style="color:var(--muted);font-size:15px">Case files · <span style="font-family:\'IBM Plex Sans Devanagari\';font-size:14px">अक्ष अग्रवाल</span> <i style="font-size:12px">(optional line)</i></span></span></div>' +
+    '<div style="display:flex;gap:16px;font-family:\'IBM Plex Mono\',monospace;font-size:13px;color:var(--acc)"><span>FILE 03</span><span>Ex. 03.1</span><span>T1 to T3</span></div>';
+}
+
+/* ================= contrast ================= */
+function lum(h) { h = h.replace("#", ""); var c = [0, 2, 4].map(function (i) { var v = parseInt(h.substr(i, 2), 16) / 255; return v <= .04045 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; }
+function cr(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
+var PAIRS = [["Body text on page", "text", "bg", 4.5], ["Headings and figures", "ink", "bg", 4.5], ["Muted text on page", "muted", "bg", 4.5], ["Muted text on strip", "muted", "surf", 4.5], ["Accent link on page", "acc", "bg", 4.5], ["Accent on strip or card", "acc", "surf", 4.5], ["Accent on active-chip tint", "acc", "accsoft", 4.5], ["Text on accent fill", "onacc", "acc", 4.5], ["Threshold hue on page (text)", "data", "bg", 4.5], ["Benchmark grey line (graphic)", "ctx", "bg", 3], ["Accent against ink (links are underlined)", "acc", "ink", 0]];
+function sheet(d) {
+  var T = TOK[d], k = ["bg", "surf", "surf2", "ink", "text", "muted", "rule2", "acc", "accsoft", "data", "ctx"];
+  var names = {bg: "Page", surf: "Strip, card", surf2: "Active row", ink: "Ink: headings, data, status", text: "Body text", muted: "Muted", rule2: "Strong hairline", acc: "Accent (hand only)", accsoft: "Accent tint", data: "Threshold hue (charts)", ctx: "Benchmark grey (charts)"};
+  var sw = '<div class="sw"><span class="h">Token</span><span class="h">Light</span><span class="h">Dark</span>' + k.map(function (x) { return '<span>' + names[x] + '</span><span class="chipc"><i style="background:' + T.light[x] + '"></i>' + T.light[x] + '</span><span class="chipc"><i style="background:' + T.dark[x] + '"></i>' + T.dark[x] + '</span>'; }).join("") + '</div>';
+  var rows = PAIRS.map(function (p) {
+    var l = cr(T.light[p[1]], T.light[p[2]]), dk = cr(T.dark[p[1]], T.dark[p[2]]);
+    var tag = function (v) { return p[3] ? (v >= p[3] ? '<span class="ok">AA ' + (p[3] === 3 ? "3:1" : "") + '✓</span>' : '<span class="ok">fails</span>') : '<span class="ok">underline</span>'; };
+    return '<tr><td>' + p[0] + '</td><td class="n">' + l.toFixed(2) + ' ' + tag(l) + '</td><td class="n">' + dk.toFixed(2) + ' ' + tag(dk) + '</td></tr>';
+  }).join("");
+  var C = DIRS[d], f = FONTS[d];
+  var imagery = {a: ["No stock photos, illustrations or icons beyond the UI set.", "Allowed: the name, hairlines, one double rule under the masthead, numbered exhibits.", "Allowed: one real, dated, monochrome portrait on About only.", "Share card: name, title, learning objective, dates. No picture."],
+    b: ["No photos, no portrait, no illustrations.", "Allowed: the monogram, instrument glyphs (status shapes, meters), mono IDs.", "The monogram is outlined to paths and needs at least 2 px clear space.", "Share card: dark tile with the monogram, ID line and test glyphs."],
+    c: ["No photos, no saffron or tricolour, no rupee-sign logos, no maps or ornament.", "Allowed: the AA tag, file and exhibit numbers, hairlines.", "Allowed: cited crops of primary documents (an annual-report line, a filing header), always with source and page.", "Share card: the geru tag with the file number, then title and dates."]}[d];
+  var voice = '<dl class="voice"><dt>Strip (file)</dt><dd>' + C.file.map(function (x) { return x[0]; }).join(" · ") + '</dd><dt>Empty state (Mistakes)</dt><dd>' + C.emptyP + '</dd><dt>Disclosure heading</dt><dd>' + C.discH + ' (the disclosure text itself is fixed by the publishing rules)</dd></dl>';
+  return '<div class="sheet"><div class="card"><h3>Token sheet</h3><p class="one">Neutrals, one accent, two chart hues. Radii: ' + SHAPE_T[d].r + ' blocks, ' + SHAPE_T[d].rc + ' chips. Motion: the decided Instrument tokens (120/180/220 ms, cubic-bezier(0.2,0,0,1)).</p>' + sw +
+    '<div class="lbl">Contrast (WCAG 2.2, computed from the tokens)</div><table class="cr"><thead><tr><th>Pair</th><th>Light</th><th>Dark</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="card dir-' + d + '"><h3>Type</h3><p class="one">Plex Mono stays for IDs in every option. Switch the pairing above the mocks.</p>' +
+    f.map(function (x, i) { return '<div style="border-top:1px solid var(--pg-rule);padding:8px 0"><div style="font-size:11px;color:var(--pg-muted)">' + (i ? "Alternative " + i : "Current") + ': ' + x.l + '</div><div style="font-family:' + x.d.replace(/'/g, "&#39;") + ';font-size:22px;font-weight:600;line-height:1.2">Kaveri Pumps &amp; Motors</div><div style="font-family:' + x.s.replace(/'/g, "&#39;") + ';font-size:14.5px">Receivable days went from 96 to 142. <span style="font-variant-numeric:tabular-nums">₹1,284 · 902 · 311 · 14.1%</span></div></div>'; }).join("") +
+    '<div class="lbl">Dataviz check: accent never meets a series</div><div style="background:var(--bg);border-radius:6px;padding:10px 12px">' + seriesDemo(d) + '</div></div>' +
+    '<div class="card"><h3>Imagery policy</h3><ul>' + imagery.map(function (x) { return '<li>' + x + '</li>'; }).join("") + '</ul><div class="lbl">Voice of the micro-copy</div>' + voice + '</div></div>';
+}
+function seriesDemo(d) {
+  var w = 300, h = 90, k = [100, 108, 121, 140, 146, 138, 117, 108], n = [100, 103, 105, 101, 100, 104, 106, 107];
+  var X = function (i) { return 10 + i * 30; }, Y = function (v) { return 80 - (v - 95) * 1.25; };
+  var pl = function (a) { return a.map(function (v, i) { return X(i) + "," + Y(v); }).join(" "); };
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" role="img" aria-label="Series swatch"><defs><pattern id="hx' + d + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--rule2)" stroke-width="2"/></pattern></defs>' +
+    '<rect x="220" y="6" width="70" height="76" fill="url(#hx' + d + ')"/><line x1="10" x2="220" y1="' + Y(115) + '" y2="' + Y(115) + '" stroke="var(--data)" stroke-dasharray="5 4" stroke-width="1.5"/>' +
+    '<polyline points="' + pl(n) + '" fill="none" stroke="var(--ctx)" stroke-width="1.6"/><polyline points="' + pl(k) + '" fill="none" stroke="var(--ink)" stroke-width="2"/>' +
+    '<text x="224" y="20" font-size="10" fill="var(--muted)">withheld</text></svg><div style="font-size:11.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px"><span style="color:var(--ink)">— subject (ink)</span><span>— benchmark (grey)</span><span style="color:var(--data)">- - threshold</span><span>▨ withheld</span><span class="m" style="min-height:0;background:none;font-size:11.5px"><span class="lk">accent = links only</span></span></div>';
+}
+
+/* ================= build page ================= */
+function build() {
+  var g = "";
+  ["a", "b", "c"].forEach(function (d) {
+    var C = DIRS[d];
+    g += '<div class="card"><h3>' + C.L + '. ' + C.name + '</h3><p class="one">' + C.thesis + '</p>' +
+      '<div class="lbl">Wordmark</div><div class="wmbox dir-' + d + '">' + wordmarkBig(d) + '</div>' +
+      '<div class="lbl">Favicon at real size</div><div class="favrow"><div class="tabm lt dir-' + d + ' tl"><div class="tb">' + fav(d, 16) + 'Kaveri Pumps &amp; Motors · ' + (d === "b" ? "Assay" : "Aksh Agrawal") + '</div></div><div class="tabm dt dir-' + d + ' td"><div class="tb">' + fav(d, 16) + 'Kaveri Pumps &amp; Motors · ' + (d === "b" ? "Assay" : "Aksh Agrawal") + '</div></div>' +
+      '<div class="favsizes"><div class="dir-' + d + ' tl">' + fav(d, 32) + '32 px</div><div class="dir-' + d + ' td" style="background:#202124;padding:4px;border-radius:4px">' + fav(d, 32) + '<span style="color:#ccc">dark</span></div><div class="dir-' + d + ' tl">' + fav(d, 16) + '16 px</div><div class="dir-' + d + ' tl">' + fav(d, 96) + '3× inspect</div></div></div>' +
+      '<div class="lbl">Share card, 1200 × 630 (scaled)</div><div class="ogwrap">' + og(d) + '</div><button class="mini" data-full>Show at actual size</button></div>';
+  });
+  document.getElementById("glance").innerHTML = g;
+  var h = "";
+  ["a", "b", "c"].forEach(function (d) {
+    var C = DIRS[d];
+    h += '<section class="dir" aria-labelledby="h' + d + '"><div class="dhead"><div class="dlet">' + C.L + '</div><div><h2 id="h' + d + '">' + C.L + '. ' + C.name + '</h2><p class="th">' + C.thesis + '</p><div class="kv">' + C.kv + '</div></div></div>' +
+      '<div class="why">' + C.why.map(function (w) { return '<div><b>' + w[0] + '</b><p>' + w[1] + '</p></div>'; }).join("") + '</div>' +
+      '<div class="seg fontctl"><span>Type</span>' + FONTS[d].map(function (f, i) { return '<button data-font="' + d + ':' + i + '" aria-pressed="' + (i === 0) + '">' + f.l + '</button>'; }).join("") + '</div>' +
+      '<div class="stage"><figure class="frame"><div class="browser"><div class="chrome"><i></i><i></i><i></i><span class="url" data-url="' + d + '"></span></div><div class="vp dir-' + d + '" data-r="' + d + ':dk" tabindex="0" role="region" aria-label="' + C.name + ', desktop mock"></div></div><figcaption>Desktop, 960 px</figcaption></figure>' +
+      '<figure class="frame"><div class="bezel"><div class="vp dir-' + d + '" data-r="' + d + ':ph" tabindex="0" role="region" aria-label="' + C.name + ', phone mock"></div></div><figcaption>Phone, 375 px</figcaption></figure></div>' + sheet(d) + '</section>';
+  });
+  document.getElementById("dirs").innerHTML = h;
+  document.getElementById("three").innerHTML = ["a", "b", "c"].map(function (d) { return '<figure class="frame"><div class="bezel"><div class="vp dir-' + d + '" data-r="' + d + ':ph" tabindex="0" role="region" aria-label="' + DIRS[d].name + ', phone"></div></div><figcaption>' + DIRS[d].L + '. ' + DIRS[d].name + ', 375 px</figcaption></figure>'; }).join("");
+}
+var DOMAIN = {a: "akshagrawal.in", b: "assaydesk.in", c: "akshagrawal.in"};
+function render() {
+  var scr = document.body.getAttribute("data-screen");
+  document.querySelectorAll("[data-r]").forEach(function (el) {
+    var p = el.getAttribute("data-r").split(":");
+    el.innerHTML = (scr === "home" ? home : file)(p[0], p[1] === "ph");
+  });
+  document.querySelectorAll("[data-url]").forEach(function (el) { var d = el.getAttribute("data-url"); el.textContent = DOMAIN[d] + (scr === "home" ? "/" : (d === "c" ? "/files/03-kaveri-pumps" : "/files/kaveri-pumps")); });
+}
+function fitOG() { document.querySelectorAll(".ogwrap").forEach(function (w) { var o = w.querySelector(".og"); o.style.transform = "scale(" + (w.clientWidth / 1200) + ")"; }); }
+build(); render(); fitOG();
+window.addEventListener("resize", fitOG);
+function press(group, btn) { document.querySelectorAll(group).forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); }); }
+document.addEventListener("click", function (e) {
+  var b = e.target.closest("button"); if (!b) return;
+  if (b.hasAttribute("data-scr")) { press("[data-scr]", b); document.body.setAttribute("data-screen", b.getAttribute("data-scr")); render(); }
+  else if (b.hasAttribute("data-th")) { press("[data-th]", b); document.documentElement.setAttribute("data-theme", b.getAttribute("data-th")); }
+  else if (b.hasAttribute("data-lay")) { press("[data-lay]", b); document.body.setAttribute("data-layout", b.getAttribute("data-lay")); }
+  else if (b.hasAttribute("data-font")) {
+    var p = b.getAttribute("data-font").split(":"), f = FONTS[p[0]][+p[1]];
+    press('[data-font^="' + p[0] + ':"]', b);
+    document.querySelectorAll(".dir-" + p[0]).forEach(function (el) { el.style.setProperty("--sans", f.s); el.style.setProperty("--disp", f.d); });
+  }
+  else if (b.hasAttribute("data-full")) { var w = b.previousElementSibling; w.classList.toggle("full"); b.textContent = w.classList.contains("full") ? "Fit to column" : "Show at actual size"; fitOG(); }
+  else if (b.classList.contains("det")) { var s = b.closest(".strip"); s.classList.toggle("open"); b.setAttribute("aria-expanded", String(s.classList.contains("open"))); }
+  else if (b.classList.contains("chip") && b.getAttribute("data-k")) { var c = b.closest(".view").querySelector('[data-card="' + b.getAttribute("data-k") + '"]'); var o = c.classList.toggle("open"); b.setAttribute("aria-expanded", String(o)); }
+  else if (b.getAttribute("role") === "tab") { b.parentNode.querySelectorAll('[role="tab"]').forEach(function (t) { t.setAttribute("aria-selected", String(t === b)); }); }
+});
+</script>
+</body>
+</html>

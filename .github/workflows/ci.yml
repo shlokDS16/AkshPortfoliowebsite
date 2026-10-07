@@ -1,0 +1,78 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Placeholders so `next build` can evaluate modules; nothing calls Supabase at build time.
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3100
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      SUPABASE_SECRET_KEY: sb_secret_ci_placeholder
+      ADMIN_EMAIL: admin@desk.test
+      CRON_SECRET: ci-only-cron-secret-0123456789abcdef0123
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  # One Supabase CLI everywhere: 2.119.0, the exact devDependency (`pnpm supabase ...` locally).
+  db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0 # = the "supabase" devDependency in package.json; bump both together
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db
+
+  # Every Playwright project (anon, setup, desk-mobile, desk-desktop) against a LOCAL Supabase stack.
+  # No repository secrets and no hosted project: playwright.config.ts reads the local URL and keys
+  # from `supabase status -o env`, refuses a non-local API URL, then builds and starts the app with
+  # that explicit env (NEXT_PUBLIC_* are inlined at build time, so the build happens in the web server step).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0 # = the "supabase" devDependency in package.json; bump both together
+      - run: supabase start
+      - run: supabase db reset
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
