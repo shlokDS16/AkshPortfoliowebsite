@@ -28,7 +28,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
   if (!isItemId(id)) notFound();
   const data = await loadEditor(id);
   if (!data) notFound();
-  const { item, revisions, current, pending, latest, candidate, company, preview, body, sheet, decision, decisionRevNo, latestFigure } = data;
+  const { item, revisions, current, pending, latest, candidate, isFile, company, preview, body, sheet, decision, decisionRevNo, latestFigure } = data;
   const isPublic = item.visibility === "public";
   const errorMessage = errorText(error);
   const noticeMessage = noticeText(notice);
@@ -66,12 +66,13 @@ export default async function ItemPage({ params, searchParams }: Props) {
             companyAction={company ? makeCompanyPublicAction.bind(null, company.id, item.id) : null}
             publishAction={candidate ? publishCheckedAction.bind(null, item.id, candidate.id) : null}
             publishLabel={candidate ? `Run the publishing gate on revision #${candidate.revNo}` : ""}
+            figureReminder={isFile}
             live={isPublic && current ? { revNo: current.revNo, unpublish: unpublishItemAction.bind(null, item.id) } : null}
           />
           <GateDecisionPanel itemId={item.id} decision={decision} decisionRevNo={decisionRevNo} latestId={latest?.id ?? null} />
         </aside>
         <div className="min-w-0 space-y-(--block-gap)">
-          {body ? <BodyPreview itemId={item.id} body={body} /> : null}
+          {body ? <BodyPreview itemId={item.id} body={body} named={item.companyId !== null} /> : null}
           {!isPublic ? <FiguresToHint latest={latestFigure} figuresTo={item.dataAsOf} action={setFiguresToAction.bind(null, item.id)} /> : null}
           <MetaForm item={item} />
           <RevisionEditor key={latest?.id ?? "none"} action={saveCaseFileRevisionAction.bind(null, item.id)} bodyMd={latest?.bodyMd ?? ""} sheet={sheet} isPublic={isPublic} />

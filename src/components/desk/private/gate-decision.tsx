@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { istDateTime } from "@/lib/dates";
 import { allowSentenceAction } from "@/modules/compliance/actions";
 import { RULE_TITLES, type GateDecision, type LintField } from "@/modules/compliance/client";
+import { splitAtMatch } from "./match-split";
 
 const FIELD_LABELS: Record<LintField, string> = {
   title: "Title",
@@ -16,17 +17,14 @@ const FIELD_LABELS: Record<LintField, string> = {
   themeName: "Theme name",
 };
 
-/** `match` comes from the folded text, so it may not occur verbatim: highlight when it does, always name it. */
 function Highlight({ sentence, match }: { sentence: string; match: string | null }) {
-  const at = match ? sentence.toLowerCase().indexOf(match.toLowerCase()) : -1;
-  if (!match || at < 0) return <>{sentence}</>;
+  const split = splitAtMatch(sentence, match);
+  if (!split) return <>{sentence}</>;
   return (
     <>
-      {sentence.slice(0, at)}
-      <mark className="bg-bad-wash font-semibold text-bad">
-        {sentence.slice(at, at + match.length)}
-      </mark>
-      {sentence.slice(at + match.length)}
+      {split.before}
+      <mark className="bg-bad-wash font-semibold text-bad">{split.hit}</mark>
+      {split.after}
     </>
   );
 }

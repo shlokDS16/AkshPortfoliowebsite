@@ -8,19 +8,19 @@ import { AllowanceForm } from "./allowance-form";
 import { EDIT_EVENT } from "./edit-event";
 
 // design-dna 13.2 gate notes, verbatim where the design fixed them.
-function messageFor(flag: BodyFlag): string {
+function messageFor(flag: BodyFlag, named: boolean): string {
   const match = flag.match ?? "";
-  if (flag.rule === "1") return `Rule 1, no actionable language: "${match}" about a named company. Rewrite it as a scenario range, or remove it.`;
+  if (flag.rule === "1") return `Rule 1, no actionable language: "${match}"${named ? " about a named company" : ""}. Rewrite it as a scenario range, or remove it.`;
   if (flag.rule === "2") return `Rule 2, no performance claims: "${match}". Rewrite it as what you expected and what happened, without a return figure. Rule 2 has no allowance; rewrite it.`;
   if (flag.rule === "3") return `Rule 3, 30-day lag: ${flag.message} Rule 3 has no allowance.`;
   return flag.message;
 }
 
 /** The advisory preview's note under a sentence. An allowance is offered only for a rule 1 sentence the gate has recorded. */
-export function GateNote({ itemId, flag }: { itemId: string; flag: BodyFlag }) {
+export function GateNote({ itemId, flag, named }: { itemId: string; flag: BodyFlag; named: boolean }) {
   return (
     <div className="my-2 border-l-2 border-bad bg-bad-wash p-3 text-body text-ink">
-      <p>{messageFor(flag)}</p>
+      <p>{messageFor(flag, named)}</p>
       {flag.rule === "1" ? (
         <p className="mt-1 text-small text-ink-muted">
           {flag.allowable

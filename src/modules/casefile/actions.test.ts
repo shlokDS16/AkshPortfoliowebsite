@@ -75,6 +75,16 @@ describe("saveCaseFileRevisionAction", () => {
     expect(repo.revisions.at(-1)?.structured).toEqual({ keep: "me" });
   });
 
+  it("says the revision is waiting for the gate on a public item, and keeps the body exactly as typed", async () => {
+    const item = await repo.insertItem({ kind: "learning", title: "Note", companyId: null, themeId: null, learningObjective: "Learn." });
+    await repo.insertRevision({ itemId: item.id, bodyMd: "v1", structured: {}, changeReason: null, author: "aksh" });
+    repo.setVisibility(item.id, "public");
+    const typed = "  indented\n\n- list\n";
+    const to = await target(() => saveCaseFileRevisionAction(item.id, form({ bodyMd: typed })));
+    expect(to).toBe(`/desk/items/${item.id}?notice=revision-pending-gate`);
+    expect(repo.revisions.at(-1)?.bodyMd).toBe(typed);
+  });
+
   it("maps a malformed id to the not-found code", async () => {
     expect(param(await target(() => saveCaseFileRevisionAction("nope", form({ bodyMd: "x" }))), "error")).toBe("item-not-found");
   });

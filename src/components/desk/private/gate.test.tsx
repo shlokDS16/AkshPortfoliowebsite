@@ -19,9 +19,8 @@ const flag = { hash: "a".repeat(64), rule: "1", match: "buy", message: "x", allo
 
 describe("GatedSentence and GateNote", () => {
   it("marks the sentence: wavy crimson underline, the matched words bold, the rule number", () => {
-    const { container } = render(<GatedSentence segment={{ text: flag.sentence, flag, allowed: null }} first />);
+    const { container } = render(<GatedSentence segment={{ text: flag.sentence, flag, allowed: null }} />);
     const s = screen.getByTestId("preview-flag");
-    expect(s).toHaveAttribute("id", "first-flag");
     expect(s).toHaveClass("decoration-wavy", "decoration-bad");
     expect(within(s).getByText("buy")).toHaveClass("font-semibold", "text-bad");
     expect(within(s).getByText("1")).toHaveProperty("tagName", "SUP");
@@ -29,7 +28,7 @@ describe("GatedSentence and GateNote", () => {
   });
 
   it("rule 1 recorded by the gate explains itself and offers an allowance with a reason; never an override", () => {
-    render(<GateNote itemId="i1" flag={flag} />);
+    render(<GateNote itemId="i1" flag={flag} named />);
     expect(screen.getByText(/Rule 1, no actionable language: "buy" about a named company/)).toBeInTheDocument();
     expect(screen.getByText(/The gate recorded this sentence/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit sentence" })).toBeInTheDocument();
@@ -38,16 +37,16 @@ describe("GatedSentence and GateNote", () => {
   });
 
   it("a rule 1 flag the gate has not recorded offers no allowance, and says how to get one", () => {
-    render(<GateNote itemId="i1" flag={{ ...flag, allowable: false }} />);
+    render(<GateNote itemId="i1" flag={{ ...flag, allowable: false }} named />);
     expect(screen.getByText(/Run the publishing gate; if it records this sentence under rule 1 you can then allow it with a reason\./)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Allow this sentence" })).toBeNull();
   });
 
   it("rule 2 and rule 3 have no allowance", () => {
-    const { rerender } = render(<GateNote itemId="i1" flag={{ ...flag, rule: "2", match: "my calls", allowable: false }} />);
+    const { rerender } = render(<GateNote itemId="i1" flag={{ ...flag, rule: "2", match: "my calls", allowable: false }} named />);
     expect(screen.getByText(/Rule 2 has no allowance; rewrite it\./)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Allow this sentence" })).toBeNull();
-    rerender(<GateNote itemId="i1" flag={{ ...flag, rule: "3", match: null, message: "A case study needs data_as_of at least 30 days old.", allowable: false }} />);
+    rerender(<GateNote itemId="i1" flag={{ ...flag, rule: "3", match: null, message: "A case study needs data_as_of at least 30 days old.", allowable: false }} named />);
     expect(screen.getByText(/Rule 3 has no allowance/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Allow this sentence" })).toBeNull();
   });
@@ -67,6 +66,7 @@ describe("BodyPreview", () => {
     render(
       <BodyPreview
         itemId="i1"
+        named
         body={{ paragraphs: [[{ text: "Margins held.", flag: null, allowed: null }]], unplaced: [{ rule: "3", field: "structured", sentence: null, sentenceHash: null, match: null, message }] }}
       />,
     );
@@ -75,26 +75,23 @@ describe("BodyPreview", () => {
     expect(screen.getByText(/Rule 3: 30-day data lag/)).toBeInTheDocument();
   });
 
-  it("gives #first-flag to the first flagged sentence only, with its note under that paragraph", () => {
+  it("puts one note under each flagged sentence, and drops 'about a named company' when no company is named", () => {
     const second = { ...flag, hash: "b".repeat(64), sentence: "Sell the laggard." };
-    render(
-      <BodyPreview
-        itemId="i1"
-        body={{
-          paragraphs: [
-            [{ text: "Plain opening.", flag: null, allowed: null }],
-            [{ text: flag.sentence, flag, allowed: null }],
-            [{ text: second.sentence, flag: second, allowed: null }],
-          ],
-          unplaced: [],
-        }}
-      />,
-    );
-    const marked = screen.getAllByTestId("preview-flag");
-    expect(marked).toHaveLength(2);
-    expect(marked[0]).toHaveAttribute("id", "first-flag");
-    expect(marked[1]).not.toHaveAttribute("id");
+    const body = {
+      paragraphs: [
+        [{ text: "Plain opening.", flag: null, allowed: null }],
+        [{ text: flag.sentence, flag, allowed: null }],
+        [{ text: second.sentence, flag: second, allowed: null }],
+      ],
+      unplaced: [],
+    };
+    const { rerender } = render(<BodyPreview itemId="i1" body={body} named />);
+    expect(screen.getAllByTestId("preview-flag")).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Edit sentence" })).toHaveLength(2);
+    expect(screen.getAllByText(/about a named company/)).toHaveLength(2);
+    rerender(<BodyPreview itemId="i1" body={body} named={false} />);
+    expect(screen.queryByText(/about a named company/)).toBeNull();
+    expect(screen.getAllByText(/Rule 1, no actionable language: "buy"\. Rewrite it/)).toHaveLength(2);
   });
 });
 
@@ -123,6 +120,19 @@ describe("PublishChecklist", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: "I have not changed my stance on Kaveri Pumps (fictional) in my private notes in the last 30 days." }));
     expect(new FormData(form).get("rule4")).toBe("on");
     expect(screen.getByText("Preview passes. The gate decides and records the result.")).toBeInTheDocument();
+  });
+
+  it("a file whose company brief is missing still offers the rule-4 tick the server requires", async () => {
+    const { container } = render(<PublishChecklist items={items} rule4Needed {...base} companyName={null} />);
+    const form = container.querySelector("form")!;
+    await userEvent.click(screen.getByRole("checkbox", { name: "I have not changed my stance on this company in my private notes in the last 30 days." }));
+    expect(new FormData(form).get("rule4")).toBe("on");
+  });
+
+  it("with no items there is no '0 of 0' heading or bar", () => {
+    render(<PublishChecklist items={[]} rule4Needed={false} {...base} publishAction={null} publishLabel="" />);
+    expect(screen.queryByRole("heading", { name: /Publish checklist/ })).toBeNull();
+    expect(screen.queryByText(/0 of 0/)).toBeNull();
   });
 
   it("with nothing to run it says how to get something to publish; a live item can be unpublished", () => {

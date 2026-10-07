@@ -35,15 +35,19 @@ export function PublishChecklist({ items, rule4Needed, companyName, companyActio
     ? `Preview: ${reason}. The gate decides and records the result; you can run it now.`
     : "Preview passes. The gate decides and records the result.";
   return (
-    <section aria-labelledby="checklist-head" className="space-y-3">
-      <h2 id="checklist-head" className="text-subtitle text-ink">
-        Publish checklist · {passed} of {items.length}
-      </h2>
-      <div aria-hidden className="flex h-1.5 gap-0.5">
-        {items.map((i) => (
-          <span key={i.id} className={cn("flex-1 transition-colors duration-(--motion-fast)", i.id === "rule-4" && rule4 ? SEGMENT.pass : SEGMENT[i.state])} />
-        ))}
-      </div>
+    <section aria-label="Publish checklist" className="space-y-3">
+      {items.length > 0 ? (
+        <>
+          <h2 className="text-subtitle text-ink">
+            Publish checklist · {passed} of {items.length}
+          </h2>
+          <div aria-hidden className="flex h-1.5 gap-0.5">
+            {items.map((i) => (
+              <span key={i.id} className={cn("flex-1 transition-colors duration-(--motion-fast)", i.id === "rule-4" && rule4 ? SEGMENT.pass : SEGMENT[i.state])} />
+            ))}
+          </div>
+        </>
+      ) : null}
       <ul className="divide-y divide-rule">
         {items.map((i) => {
           const done = i.id === "rule-4" && rule4;
@@ -76,7 +80,7 @@ export function PublishChecklist({ items, rule4Needed, companyName, companyActio
           action={publishAction}
           label={publishLabel}
           summary={summary}
-          rule4={rule4Needed && companyName ? { company: companyName, checked: rule4, onChange: setRule4 } : null}
+          rule4={rule4Needed ? { company: companyName ?? "this company", checked: rule4, onChange: setRule4 } : null}
         />
       ) : !live ? (
         <p className="text-small text-ink-muted">Save a revision to publish it.</p>

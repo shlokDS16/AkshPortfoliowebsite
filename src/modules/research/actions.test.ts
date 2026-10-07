@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("./repo", () => ({ createSupabaseResearchRepo: () => createRepo() }));
 
-import { addRevisionAction, createItemAction, updateItemMetaAction } from "./actions";
+import { createItemAction, updateItemMetaAction } from "./actions";
 
 let repo: MemoryResearchRepo;
 const form = (values: Record<string, string>) => {
@@ -73,7 +73,6 @@ describe("every action checks the admin first", () => {
   it.each([
     ["createItemAction", () => createItemAction(form({ kind: "note", title: "T" }))],
     ["updateItemMetaAction", () => updateItemMetaAction(randomUUID(), form({ title: "T" }))],
-    ["addRevisionAction", () => addRevisionAction(randomUUID(), form({ bodyMd: "x" }))],
   ])("%s calls requireAdmin before opening a database client", async (_name, run) => {
     await target(run);
     expect(order[0]).toBe("requireAdmin");
@@ -126,29 +125,5 @@ describe("updateItemMetaAction", () => {
     expect(errorOf(to)).toBe("save-failed");
     expect(decodeURIComponent(to)).not.toMatch(/private\.settings/);
     expect(console.error).toHaveBeenCalledWith("research action failed", { name: "DbError", op: "research.getItem", code: "XX000" });
-  });
-});
-
-describe("addRevisionAction", () => {
-  it("saves a revision on a private item", async () => {
-    const { item } = await (await import("./service")).createItem(repo, { kind: "note", title: "T", bodyMd: "v1" });
-    const to = await target(() => addRevisionAction(item.id, form({ bodyMd: "v2", changeReason: "sharper" })));
-    expect(to).toBe(`/desk/items/${item.id}?notice=revision-saved`);
-    expect(repo.revisions.map((r) => r.bodyMd)).toEqual(["v1", "v2"]);
-  });
-
-  it("says the revision is waiting for the gate on a public item", async () => {
-    const { item, revision } = await (await import("./service")).createItem(repo, { kind: "learning", title: "T", bodyMd: "v1" });
-    repo.setVisibility(item.id, "public");
-    const to = await target(() => addRevisionAction(item.id, form({ bodyMd: "v2" })));
-    expect(to).toBe(`/desk/items/${item.id}?notice=revision-pending-gate`);
-    expect(repo.items.get(item.id)?.currentRevisionId).toBe(revision.id);
-    expect(repo.revisions).toHaveLength(2);
-  });
-
-  it("keeps the body exactly as typed (no trimming of Markdown)", async () => {
-    const { item } = await (await import("./service")).createItem(repo, { kind: "note", title: "T" });
-    await target(() => addRevisionAction(item.id, form({ bodyMd: "  indented\n\n- list\n" })));
-    expect(repo.revisions[1].bodyMd).toBe("  indented\n\n- list\n");
   });
 });

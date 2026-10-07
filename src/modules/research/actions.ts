@@ -7,8 +7,8 @@ import { requireAdmin } from "@/modules/identity";
 import { ItemNotFoundError } from "@/lib/errors";
 import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabaseResearchRepo } from "./repo";
-import { addRevisionInput, createItemInput, isItemId, updateItemMetaInput } from "./schema";
-import { addRevision, createItem, updateItemMeta } from "./service";
+import { createItemInput, isItemId, updateItemMetaInput } from "./schema";
+import { createItem, updateItemMeta } from "./service";
 
 function field(formData: FormData, key: string): string | null {
   const value = formData.get(key);
@@ -53,25 +53,4 @@ export async function updateItemMetaAction(itemId: string, formData: FormData): 
   }
   revalidatePath(back);
   doneTo(back, "details-saved");
-}
-
-export async function addRevisionAction(itemId: string, formData: FormData): Promise<void> {
-  await requireAdmin();
-  if (!isItemId(itemId)) failTo("/desk/items", new ItemNotFoundError(String(itemId)), "research");
-  const back = `/desk/items/${itemId}`;
-  const body = formData.get("bodyMd");
-  const parsed = addRevisionInput.safeParse({
-    itemId,
-    bodyMd: typeof body === "string" ? body : "",
-    changeReason: field(formData, "changeReason"),
-  });
-  if (!parsed.success) failTo(back, parsed.error, "research");
-  let pendingGate: boolean;
-  try {
-    pendingGate = (await addRevision(await repo(), parsed.data)).pendingGate;
-  } catch (error) {
-    failTo(back, error, "research");
-  }
-  revalidatePath(back);
-  doneTo(back, pendingGate ? "revision-pending-gate" : "revision-saved");
 }
