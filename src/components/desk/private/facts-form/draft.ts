@@ -75,11 +75,17 @@ export function draftToSheet(d: Draft): string {
   return serializeFactsSheet(cf);
 }
 
-/** Ids are never renumbered (a body citation keeps pointing at the same fact); a new row takes the next free number. */
+/**
+ * Ids are never renumbered, and never reused: a new row takes one past the high-water mark of every id passed in
+ * (the rows now, the rows as loaded, the body's citations), so a removed F4 cited as [F4] is never silently replaced.
+ */
 export function nextId(prefix: string, ids: string[]): string {
-  const top = Math.max(0, ...ids.map((id) => Number(id.slice(prefix.length))).filter(Number.isFinite));
+  const own = ids.filter((id) => new RegExp(`^${prefix}\\d+$`).test(id));
+  const top = Math.max(0, ...own.map((id) => Number(id.slice(prefix.length))));
   return `${prefix}${top + 1}`;
 }
+
+export const draftIds = (d: Draft): string[] => [...d.sources, ...d.facts, ...d.tests, ...d.exhibits].map((r) => r.id);
 
 export const blankSource = (id: string): SourceDraft => ({ id, doc: "", type: "Annual report", filedOn: "", url: "" });
 export const blankFact = (id: string, sourceId: string): FactDraft => ({

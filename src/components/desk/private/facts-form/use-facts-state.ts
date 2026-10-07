@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { latestFigureDate, parseFactsSheet, type SheetError } from "@/modules/casefile/client";
-import { draftToSheet, toDraft, type Draft } from "./draft";
+import { draftIds, draftToSheet, toDraft, type Draft } from "./draft";
 import { brokenCitations, fieldErrors, rowErrors } from "./validate";
 
 export type FactsMode = "form" | "text";
@@ -21,6 +21,8 @@ export function useFactsState(sheet: string, bodyMd: string) {
   const [draft, setDraft] = useState<Draft | null>(initial.draft);
   // The form's sheet when it opened: switching back with no change keeps Aksh's own text.
   const [origin, setOrigin] = useState(() => (initial.draft ? draftToSheet(initial.draft) : ""));
+  // Every id the form has loaded: a new row never reuses one, even after its row was removed (see nextId).
+  const [loaded, setLoaded] = useState(() => (initial.draft ? draftIds(initial.draft) : []));
   const [refusal, setRefusal] = useState<{ to: FactsMode; errors: SheetError[] } | null>(null);
 
   const formText = useMemo(() => (draft ? draftToSheet(draft) : ""), [draft]);
@@ -33,7 +35,9 @@ export function useFactsState(sheet: string, bodyMd: string) {
     const flagged = new Set(Object.keys(fields).map((k) => k.split(".")[0]));
     return Object.fromEntries(Object.entries(all).filter(([key]) => !flagged.has(key)));
   }, [sheetText, parsed.errors, fields]);
-  const broken = useMemo(() => (mode === "form" && draft ? brokenCitations(bodyMd, draft) : []), [mode, draft, bodyMd]);
+  // In Text sheet mode the check runs whenever the text parses (an unparsed sheet cannot be saved anyway).
+  const factKey = mode === "form" ? (draft?.facts.map((f) => f.id).join(",") ?? "") : parsed.errors.length === 0 ? parsed.caseFile.facts.map((f) => f.id).join(",") : null;
+  const broken = useMemo(() => (factKey === null ? [] : brokenCitations(bodyMd, factKey.split(","))), [factKey, bodyMd]);
   const fieldCount = Object.keys(fields).length;
 
   function switchTo(next: FactsMode) {
@@ -42,6 +46,7 @@ export function useFactsState(sheet: string, bodyMd: string) {
       if (parsed.errors.length > 0) return setRefusal({ to: "form", errors: parsed.errors });
       const fresh = toDraft(parsed.caseFile);
       setDraft(fresh);
+      setLoaded((ids) => [...new Set([...ids, ...draftIds(fresh)])]);
       setOrigin(draftToSheet(fresh));
     } else {
       if (fieldCount > 0) return setRefusal({ to: "text", errors: [] });
@@ -57,7 +62,11 @@ export function useFactsState(sheet: string, bodyMd: string) {
     switchTo,
     refusal,
     text,
-    setText,
+    setText: (value: string) => {
+      setText(value);
+      if (refusal?.to === "form") setRefusal(null);
+    },
+    loaded,
     draft,
     update: (fn: (d: Draft) => Draft) => setDraft((d) => (d ? fn(d) : d)),
     sheetText,

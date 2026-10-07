@@ -74,7 +74,7 @@ export function FactsEditor({ facts: s, bodyMd, figuresTo }: Props) {
       ) : s.draft ? (
         <>
           <input type="hidden" name="factsSheet" value={s.sheetText} />
-          <FactsForm draft={s.draft} update={s.update} fields={s.fields} rows={s.rows} bodyMd={bodyMd} />
+          <FactsForm draft={s.draft} update={s.update} fields={s.fields} rows={s.rows} bodyMd={bodyMd} loaded={s.loaded} />
           <div aria-live="polite" className="space-y-1 text-small text-bad">
             {fileErrors.map((e) => (
               <p key={e}>{e}</p>

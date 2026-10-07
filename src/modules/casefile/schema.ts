@@ -3,6 +3,10 @@ import { SOURCE_TYPES, TEST_STATUSES } from "@/lib/desk-types";
 
 export const CASEFILE_SCHEMA = "casefile/1";
 export const PERIOD_RE = /^(?:FY\d{2}|Q[1-4] FY\d{2})$/;
+/** A learning note's slug, as listed under Read first. */
+export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+/** Row caps per section (the desk's Facts form hides Add at these). */
+export const CASEFILE_LIMITS = { sources: 30, facts: 80, tests: 12, exhibits: 6, readFirst: 4 } as const;
 /**
  * Rule 9: a DCF output is a price target by another name; public scenario tables show operating figures only.
  * Matched against folded text (see foldForRule9), so spacing, hyphens, case and look-alike letters do not slip past.
@@ -116,11 +120,11 @@ export const caseFileSchema = z
   .object({
     schema: z.literal(CASEFILE_SCHEMA),
     oneLiner: text(160).nullable(),
-    sources: z.array(sourceSchema).max(30),
-    facts: z.array(factSchema).max(80),
-    tests: z.array(testSchema).max(12),
-    exhibits: z.array(exhibitSchema).max(6),
-    readFirst: z.array(z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)).max(4),
+    sources: z.array(sourceSchema).max(CASEFILE_LIMITS.sources),
+    facts: z.array(factSchema).max(CASEFILE_LIMITS.facts),
+    tests: z.array(testSchema).max(CASEFILE_LIMITS.tests),
+    exhibits: z.array(exhibitSchema).max(CASEFILE_LIMITS.exhibits),
+    readFirst: z.array(z.string().regex(SLUG_RE)).max(CASEFILE_LIMITS.readFirst),
     scenario: scenarioSchema.nullable(),
   })
   .superRefine((cf, ctx) => {

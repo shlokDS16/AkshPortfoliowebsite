@@ -42,10 +42,21 @@ export function RowFrame({ kind, id, onRemove, errors = [], note, children }: Fr
   );
 }
 
-type SectionProps = { title: string; hint?: string; addLabel?: string; onAdd?: () => void; children: ReactNode; className?: string };
+type SectionProps = {
+  title: string;
+  hint?: string;
+  addLabel?: string;
+  onAdd?: () => void;
+  /** The Add button's id, so Remove can land focus on it when the last row goes. */
+  addId?: string;
+  /** Shown instead of the Add button when the section is at the schema's cap. */
+  fullNote?: string | null;
+  children: ReactNode;
+  className?: string;
+};
 
 /** A labelled block of rows with its Add button at the foot, where the next row will appear. */
-export function FormSection({ title, hint, addLabel, onAdd, children, className }: SectionProps) {
+export function FormSection({ title, hint, addLabel, onAdd, addId, fullNote, children, className }: SectionProps) {
   // No landmark per block (the Facts editor is the one region); the h4 is there for heading navigation.
   return (
     <section className={cn("space-y-3", className)}>
@@ -56,8 +67,10 @@ export function FormSection({ title, hint, addLabel, onAdd, children, className 
         {hint ? <p className="text-caption text-ink-muted">{hint}</p> : null}
       </div>
       {children}
-      {onAdd && addLabel ? (
-        <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+      {fullNote ? (
+        <p className="text-caption text-ink-muted">{fullNote}</p>
+      ) : onAdd && addLabel ? (
+        <Button id={addId} type="button" variant="outline" size="sm" onClick={onAdd}>
           {addLabel}
         </Button>
       ) : null}

@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { parseFactsSheet, serializeFactsSheet } from "@/modules/casefile/client";
 import { KAVERI } from "@/test/fixtures/casefile";
 import { expectTokenOnly } from "@/test/ui";
 import { RevisionEditor } from "../revision-editor";
-import { draftToSheet, toDraft } from "./draft";
+import { draftToSheet, nextId, toDraft } from "./draft";
 import { rowErrors } from "./validate";
 
 const { bodyMd, sheet } = KAVERI.revisions[1];
 const canonical = serializeFactsSheet(parseFactsSheet(sheet).caseFile);
 
-const open = (action = vi.fn()) => ({ action, ...render(<RevisionEditor action={action} bodyMd={bodyMd} sheet={canonical} figuresTo="2026-01-31" />) });
+const open = (action = vi.fn(), body = bodyMd, text = canonical) => ({ action, ...render(<RevisionEditor action={action} bodyMd={body} sheet={text} figuresTo="2026-01-31" />) });
 const toText = () => userEvent.click(screen.getByRole("radio", { name: "Text sheet" }));
 const toForm = () => userEvent.click(screen.getByRole("radio", { name: "Form" }));
 const group = (name: string) => within(screen.getByRole("group", { name }));
@@ -22,6 +22,12 @@ const save = () => screen.getByRole("button", { name: "Save revision" });
 describe("Facts form draft", () => {
   it("writes the seeded Kaveri file back through casefile's serializer unchanged", () => {
     expect(draftToSheet(toDraft(parseFactsSheet(sheet).caseFile))).toBe(canonical);
+  });
+
+  it("takes new ids past the high-water mark, never reusing one", () => {
+    expect(nextId("F", ["F1", "F2"])).toBe("F3");
+    expect(nextId("F", ["F1", "F4", "S9", "X7"])).toBe("F5");
+    expect(nextId("X", [])).toBe("X1");
   });
 
   it("places a parser error on the row it came from", () => {
@@ -113,5 +119,100 @@ describe("Facts form (Form is the default; Text sheet stays for pasting)", () =>
     await userEvent.click(screen.getByRole("button", { name: "Remove source S1" }));
     expect(screen.getByRole("alert")).toHaveTextContent("S1 is the source of F1, F2, F3, F4, X1");
     expect(group("Source S1").getByLabelText("Document")).toBeInTheDocument();
+  });
+
+  it("never gives a removed, cited fact's id to a new row", async () => {
+    open();
+    await userEvent.click(screen.getByRole("button", { name: "Remove fact F4" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add fact" }));
+    expect(screen.queryByRole("group", { name: "Fact F4" })).toBeNull();
+    expect(screen.getByRole("group", { name: "Fact F5" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("The body cites [F4]");
+  });
+
+  it("moves focus to the new row on Add, and to the next row or the Add button on Remove", async () => {
+    open();
+    await userEvent.click(screen.getByRole("button", { name: "Add fact" }));
+    expect(document.activeElement).toBe(group("Fact F5").getByLabelText("Metric"));
+    await userEvent.click(screen.getByRole("button", { name: "Remove fact F2" }));
+    expect(document.activeElement).toBe(group("Fact F3").getByLabelText("Metric"));
+    await userEvent.click(screen.getByRole("button", { name: "Remove exhibit X1" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Add exhibit" }));
+    await userEvent.click(screen.getByRole("button", { name: "Remove output Y2" }));
+    expect(document.activeElement).toBe(group("Output Y1").getByLabelText("Output"));
+  });
+
+  it("checks citations in Text sheet mode too, whenever the text parses", async () => {
+    open();
+    await toText();
+    fireEvent.change(screen.getByLabelText("Facts sheet"), { target: { value: canonical.replace(/^F3 \|.*\n/m, "") } });
+    expect(screen.getByRole("alert")).toHaveTextContent("The body cites [F3]");
+  });
+
+  it("holds the save only for newly broken citations; ones broken at load only warn", async () => {
+    const { action } = open(vi.fn(), `${bodyMd}\nSee also [F9].`);
+    expect(screen.getByRole("alert")).toHaveTextContent("already cited [F9]");
+    await userEvent.click(save());
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+  });
+
+  it("holds the save for a citation the body newly breaks, then saves on the second press", async () => {
+    const { action } = open();
+    await userEvent.type(screen.getByLabelText("Body (Markdown)"), " See [[F9].");
+    await userEvent.click(save());
+    expect(action).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("The body cites [F9]");
+    expect(screen.getByRole("alert")).toHaveTextContent("Press Save revision again");
+    await userEvent.click(save());
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    expect(String((action.mock.calls[0][0] as FormData).get("bodyMd"))).toMatch(/See \[F9\]\.$/);
+  });
+
+  it("refuses Form to Text while a field is marked, and clears a Text to Form refusal once the text changes", async () => {
+    open();
+    await userEvent.clear(group("Fact F1").getByLabelText("Metric"));
+    await toText();
+    expect(screen.getByRole("alert")).toHaveTextContent("One field needs fixing before the facts can turn into the text sheet");
+    expect(screen.getByRole("radio", { name: "Form" })).toHaveAttribute("aria-checked", "true");
+    await userEvent.type(group("Fact F1").getByLabelText("Metric"), "Revenue");
+    await toText();
+    await userEvent.type(screen.getByLabelText("Facts sheet"), "\nZ1 | ?");
+    await toForm();
+    expect(screen.getByRole("alert")).toHaveTextContent("cannot open as a form yet");
+    await userEvent.type(screen.getByLabelText("Facts sheet"), "{backspace}");
+    expect(screen.queryByText(/cannot open as a form yet/)).toBeNull();
+  });
+
+  it("hides Add at the schema's cap with a short note", () => {
+    const cf = parseFactsSheet(sheet).caseFile;
+    const full = { ...cf, exhibits: [1, 2, 3, 4, 5, 6].map((n) => ({ ...cf.exhibits[0], id: `X${n}` })) };
+    open(vi.fn(), bodyMd, serializeFactsSheet(full));
+    expect(screen.queryByRole("button", { name: "Add exhibit" })).toBeNull();
+    expect(screen.getByText("That is the most a file can hold: 6 exhibits.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove the last scenario (scenario 3)" })).toBeInTheDocument();
+  });
+
+  it("keeps typed values, selects included, after the form action resolves (a failed save redirects back)", async () => {
+    const action = vi.fn(async () => {});
+    open(action);
+    await userEvent.clear(group("Fact F1").getByLabelText("Metric"));
+    await userEvent.type(group("Fact F1").getByLabelText("Metric"), "Net revenue");
+    await userEvent.selectOptions(group("Source S1").getByLabelText("Type"), "Filing");
+    await userEvent.selectOptions(group("Test reading T1").getByLabelText("Status"), "met");
+    expect(group("Source S1").getByLabelText("Type")).toHaveValue("Filing");
+    await userEvent.type(screen.getByLabelText("Body (Markdown)"), " One more line.");
+    await userEvent.type(screen.getByLabelText("Change reason"), "typed");
+    await userEvent.click(save());
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(group("Fact F1").getByLabelText("Metric")).toHaveValue("Net revenue");
+    expect(group("Source S1").getByLabelText("Type")).toHaveValue("Filing");
+    expect(group("Test reading T1").getByLabelText("Status")).toHaveValue("met");
+    expect(screen.getByLabelText("Body (Markdown)")).toHaveValue(`${bodyMd} One more line.`);
+    expect(screen.getByLabelText("Change reason")).toHaveValue("typed");
+    await toText();
+    expect(sheetValue()).toMatch(/^F1 \| Net revenue \|/m);
   });
 });

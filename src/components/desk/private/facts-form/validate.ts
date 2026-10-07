@@ -1,4 +1,4 @@
-import { httpUrl, isIsoDate, parseNumber, PERIOD_RE, scenarioBreaksRule9, type SheetError } from "@/modules/casefile/client";
+import { httpUrl, isIsoDate, parseNumber, PERIOD_RE, scenarioBreaksRule9, SLUG_RE, type SheetError } from "@/modules/casefile/client";
 import type { Draft } from "./draft";
 
 /** Field errors keyed "F3.value", "X1.points.2.period", "Y0.label": plain words next to the field (rule 2). */
@@ -53,7 +53,7 @@ export function fieldErrors(d: Draft): FieldErrors {
       num(`${x.id}.points.${i}.value`, p.value, true);
     });
   });
-  d.readFirst.forEach((slug, i) => !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) && set(`R${i}.slug`, SLUG));
+  d.readFirst.forEach((slug, i) => !SLUG_RE.test(slug) && set(`R${i}.slug`, SLUG));
   if (d.scenario) scenarioErrors(d.scenario, set);
   pipeErrors(d, set);
   return out;
@@ -116,7 +116,10 @@ export function rowErrors(sheet: string, errors: SheetError[]): Record<string, s
 }
 
 /** Body citations ([F3]) with no fact row: removing a cited fact warns before saving, and the body is never edited (rule 4). */
-export function brokenCitations(bodyMd: string, d: Draft): string[] {
-  const facts = new Set(d.facts.map((f) => f.id));
-  return [...new Set([...bodyMd.matchAll(/\[(F\d{1,3})\]/g)].map((m) => m[1]))].filter((id) => !facts.has(id));
+export function brokenCitations(bodyMd: string, factIds: string[]): string[] {
+  const facts = new Set(factIds);
+  return citedFacts(bodyMd).filter((id) => !facts.has(id));
 }
+
+/** Every fact id the body cites as [F3], once each. */
+export const citedFacts = (bodyMd: string): string[] => [...new Set([...bodyMd.matchAll(/\[(F\d{1,3})\]/g)].map((m) => m[1]))];

@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import type { ExhibitDraft, PointDraft, SourceDraft } from "./draft";
 import { sourceOptions } from "./fact-row";
 import { SelectField, TextField } from "./field";
+import { neighbour, type Focus } from "./focus";
 import { RowFrame } from "./row-frame";
 import type { FieldErrors } from "./validate";
 
@@ -13,13 +14,24 @@ type Props = {
   onRemove(): void;
   errors: FieldErrors;
   rowErrors?: string[];
+  focus: Focus;
 };
 
 const MAX_POINTS = 12;
 const MIN_POINTS = 2;
 
-export function ExhibitRow({ row, sources, testIds, onChange, onRemove, errors, rowErrors }: Props) {
+export function ExhibitRow({ row, sources, testIds, onChange, onRemove, errors, rowErrors, focus }: Props) {
   const f = (k: string) => ({ id: `ff-${row.id}-${k.replace(/\./g, "-")}`, error: errors[`${row.id}.${k}`] });
+  const periodId = (i: number) => `ff-${row.id}-points-${i}-period`;
+  const addPoint = () => {
+    onChange({ points: [...row.points, { period: "", value: "" }] });
+    focus(periodId(row.points.length));
+  };
+  const removePoint = (i: number) => {
+    const n = neighbour(i, row.points.length);
+    onChange({ points: row.points.filter((_, k) => k !== i) });
+    focus(n === null ? `ff-add-point-${row.id}` : periodId(n));
+  };
   const setPoint = (i: number, patch: Partial<PointDraft>) => onChange({ points: row.points.map((p, k) => (k === i ? { ...p, ...patch } : p)) });
   const tests = [{ value: "", label: "None" }, ...[...new Set([...testIds, ...(row.testId ? [row.testId] : [])])].map((t) => ({ value: t, label: t }))];
   return (
@@ -40,7 +52,7 @@ export function ExhibitRow({ row, sources, testIds, onChange, onRemove, errors, 
               className="mb-1.5 pointer-coarse:mb-0"
               disabled={row.points.length <= MIN_POINTS}
               aria-label={`Remove period ${i + 1} from exhibit ${row.id}`}
-              onClick={() => onChange({ points: row.points.filter((_, k) => k !== i) })}
+              onClick={() => removePoint(i)}
             >
               Remove
             </Button>
@@ -49,7 +61,7 @@ export function ExhibitRow({ row, sources, testIds, onChange, onRemove, errors, 
       </ol>
       {row.points.length < MAX_POINTS ? (
         <div className="col-span-2 desk:col-span-4">
-          <Button type="button" variant="outline" size="sm" onClick={() => onChange({ points: [...row.points, { period: "", value: "" }] })} aria-label={`Add a period to exhibit ${row.id}`}>
+          <Button id={`ff-add-point-${row.id}`} type="button" variant="outline" size="sm" onClick={addPoint} aria-label={`Add a period to exhibit ${row.id}`}>
             Add a period
           </Button>
         </div>
