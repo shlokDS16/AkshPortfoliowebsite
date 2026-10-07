@@ -9,6 +9,4 @@ export type InboxActions = {
   readSelected: (documentId: string) => Promise<ActionResult>;
   /** After an upload: the server drains in the background and answers at once. */
   kick: () => Promise<void>;
-  /** While the tab is open: drain for a short slice; `more` says whether to ask again. */
-  keepReading: () => Promise<{ more: boolean }>;
 };

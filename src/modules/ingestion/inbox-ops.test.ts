@@ -149,6 +149,16 @@ describe("skipDocument", () => {
     expect(inbox.jobs.get(job)?.cancelled).toBe(true);
   });
 
+  it("cancels the job before it marks the document skipped, so a failed status write leaves nothing running", async () => {
+    const seen: string[] = [];
+    const cancel = ports.inbox.cancelJob;
+    ports.inbox.cancelJob = async (id) => (seen.push("cancel"), cancel(id));
+    const update = docs.update;
+    docs.update = async (id, patch) => (seen.push(`status ${patch.status}`), update(id, patch));
+    await skipDocument(ports, DOC);
+    expect(seen).toEqual(["cancel", "status skipped"]);
+  });
+
   it("is repeatable", async () => {
     await skipDocument(ports, DOC);
     await expect(skipDocument(ports, DOC)).resolves.toBeUndefined();

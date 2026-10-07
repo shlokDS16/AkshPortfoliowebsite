@@ -4,12 +4,12 @@ import { requireAdmin } from "@/modules/identity";
 import { listCompanyOptions, listInbox } from "@/modules/ingestion";
 import { aiReadingOn } from "@/modules/ops/jobs";
 import { readSelectedAction, setPageSelectedAction } from "./page-actions";
-import { keepReadingAction, kickReadingAction } from "./pump-actions";
+import { kickReadingAction } from "./pump-actions";
 
 // The tab's own pump and the upload kick drain for up to 200 s inside this route's functions: the Hobby maximum (spec s8).
 export const maxDuration = 300;
 
-const actions = { setPageSelected: setPageSelectedAction, readSelected: readSelectedAction, kick: kickReadingAction, keepReading: keepReadingAction };
+const actions = { setPageSelected: setPageSelectedAction, readSelected: readSelectedAction, kick: kickReadingAction };
 
 async function load() {
   const db = await createSupabaseServerClient();

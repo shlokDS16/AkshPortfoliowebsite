@@ -1,15 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import type { InboxActions } from "./types";
+import { useEffect, useRef } from "react";
+import { fetchSlice } from "./pump-client";
 
 /** Pause between two slices while the last one found work (spec s8), and between two checks while documents only wait. */
 export const SLICE_PAUSE_MS = 3_000;
-export const IDLE_PAUSE_MS = 30_000;
+export const IDLE_PAUSE_MS = 10_000;
 
 type Props = {
-  keepReading: InboxActions["keepReading"];
+  /** One slice of reading; the pump route by default. */
+  keepReading?: () => Promise<{ more: boolean }>;
   /** True while any document is being read, waiting to start or paused: the tab keeps asking. */
   active: boolean;
 };
@@ -19,8 +20,13 @@ type Props = {
  * the screen, waits and asks again as long as the last slice found work. Hidden tabs ask nothing; the 15-minute pump
  * still runs. Renders nothing.
  */
-export function KeepReading({ keepReading, active }: Props) {
+export function KeepReading({ keepReading = fetchSlice, active }: Props) {
   const router = useRouter();
+  // Server references arrive as a new function after every refresh: the loop reads the latest one without restarting.
+  const slice = useRef(keepReading);
+  useEffect(() => {
+    slice.current = keepReading;
+  });
   useEffect(() => {
     if (!active) return;
     let live = true;
@@ -44,7 +50,7 @@ export function KeepReading({ keepReading, active }: Props) {
         while (live && document.visibilityState === "visible") {
           let more = false;
           try {
-            more = (await keepReading()).more;
+            more = (await slice.current()).more;
           } catch {
             more = false;
           }
@@ -69,6 +75,6 @@ export function KeepReading({ keepReading, active }: Props) {
       wake?.();
       document.removeEventListener("visibilitychange", resume);
     };
-  }, [active, keepReading, router]);
+  }, [active, router]);
   return null;
 }

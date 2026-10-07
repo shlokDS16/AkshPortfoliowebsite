@@ -86,13 +86,12 @@ export function PageChooser({ doc, aiOn, pagesLeft, actions }: Props) {
                 className="mt-0.5 size-5 shrink-0 accent-ink"
                 checked={page.selected}
                 disabled={pending}
-                aria-label={`Page ${page.pageNo}, ${pageLabel(page)}`}
+                aria-labelledby={`${doc.id}-p${page.pageNo}`}
                 onChange={(e) => toggle(page.pageNo, e.target.checked)}
               />
               <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="font-mono text-mono-id text-ink-muted">p. {page.pageNo}</span>
-                  <span className="text-small font-semibold text-ink">{pageLabel(page)}</span>
+                <span id={`${doc.id}-p${page.pageNo}`} className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-mono text-mono-id text-ink-muted">p. {page.pageNo}</span> <span className="text-small font-semibold text-ink">{pageLabel(page)}</span>
                 </span>
                 {page.firstLine ? <span className="block truncate text-caption text-ink-muted">{page.firstLine}</span> : null}
               </span>

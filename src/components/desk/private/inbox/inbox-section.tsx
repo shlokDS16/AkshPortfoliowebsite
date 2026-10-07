@@ -69,7 +69,7 @@ export function InboxSection({ docs, usage, aiOn, companies, actions }: Props) {
           </div>
         </details>
       ) : null}
-      <KeepReading keepReading={actions.keepReading} active={active} />
+      <KeepReading active={active} />
     </div>
   );
 }

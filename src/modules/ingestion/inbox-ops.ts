@@ -68,8 +68,9 @@ export async function skipAttention(p: InboxPorts, documentId: string): Promise<
  */
 export async function skipDocument(p: InboxPorts, documentId: string): Promise<void> {
   const doc = await documentOf(p, documentId, ["active", "skipped"]);
-  if (doc.status === "active") await p.docs.update(doc.id, { status: "skipped" });
+  // The job stops first: if the status write then fails, Skip can be pressed again, and nothing keeps spending the allowance.
   await p.inbox.cancelJob(doc.id);
+  if (doc.status === "active") await p.docs.update(doc.id, { status: "skipped" });
 }
 
 /** Documents read while AI was off: queue an extract step for every ticked page that has none. */
