@@ -60,3 +60,18 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - 2026-10-07 (later): Plan 1B Tasks 5-11 complete and reviewed (exhibits/ledger/history, home components and /dev/preview, casefile module with rule-9 and verbatim diff, migration 0005 pushed to hosted, showcase public view models, private desk shell with refile, capture sheet). Compliance hardening from reviews: withheld figures stripped from every view model and aria label, public test status hidden while withheld (Q10), new publish rule 3a (Figures to covers every figure). CI first run green on PR #1. Ingestion proposal for Phase 2 written; Groq's AUP rules out a second account's key. Docker socket crash fixed. Task 12 (item editor) in progress at session end (usage limit).
 - 2026-10-07 (day 2): Plan 1B Tasks 12-15 complete (item editor, new names + local seed, public site + login note, B+ company file page). Controller now visually checks each page task (60-screenshot QA pass; fixes: meter label overlap, diff wrap, 'Figures to' label). Shlok chose to add Task 15b, a row-form facts editor, before Aksh's trial; Tasks 15-16 on opus. Incident: worktree HEAD had become detached so 17 commits were on no branch; fixed and push verification added. Session paused at the usage limit with Task 15b running.
 - 2026-10-07 (day 2, end): Task 15b (row-form facts editor) complete after one fix round (ids never reused so body citations stay correct; keyboard focus on add/remove; a React 19 form reset that reverted dropdowns after a failed save was found and fixed). Only Task 16 remains in Plan 1B. Next session starts with Task 16 on opus.
+
+## 2026-10-07 - Plan 1B complete (design system, public desk, private desk screens, seed)
+- Built: Case files tokens and Plex subsets, Motion/NumberFlow/ViewTransition foundation, 60+ desk components, the
+  register home, B+ file page, notes, process, about, 404, favicon and share cards, the trays desk with capture
+  sheet, the editor with gate notes and checklist, the facts row form (Task 15b), New names, and a UI-driven seed of
+  two fictional files (local stacks only).
+- Data model: migration 20261007000005 (file numbers, figures-to rule, capture days, New names tables; the IST lag
+  came with 20261007000004); ADR-002.
+- Task 16: WCAG 2.2 AA axe scans of every public page (375/1280, light/dark) and the desk, keyboard-complete desk,
+  LCP/CLS budget on throttled 4G, reduced-motion e2e project, local-only visual baselines of /dev/preview, and the
+  3-day usage-trial checklist (docs/trials/2026-10-06-phase-1-usage-trial.md).
+- Decisions D1-D32 are in the plan header; the ones Shlok should know: fictional seed must be unpublished before
+  launch wherever it was seeded (D20); visual baselines are local-only (D29); the receipt wording for a thesis
+  without a company (D32).
+- Next: the 3-day usage trial, then the Phase 1 rubric review.

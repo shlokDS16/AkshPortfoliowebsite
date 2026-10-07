@@ -50,6 +50,13 @@ export default defineConfig({
         },
       })),
     ),
+    // The phone file page and register under prefers-reduced-motion: reduce.
+    {
+      name: "reduced-motion",
+      testMatch: spec("motion"),
+      dependencies: ["seed"],
+      use: { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" },
+    },
     {
       name: "desk-mobile",
       ...desk,

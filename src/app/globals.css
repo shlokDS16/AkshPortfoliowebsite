@@ -400,6 +400,11 @@
     background-repeat: no-repeat; padding-bottom: 3px;
   }
   .chip-hit::after { content: ""; position: absolute; inset: -8px -3px; }
+  /* CountFlow swaps its server-rendered span for NumberFlow after hydration. NumberFlow's default
+     vertical mask pads its box well past the line height (46 px against 33 px for a 30 px figure),
+     which pushed the home page down by 12 px (CLS 0.016, Task 16). A 1 px mask keeps the box on the
+     line; a roll (only when a count changes on the client, D22) clips with a hairline fade instead. */
+  number-flow-react { --number-flow-mask-height: 0px; }
   .progress-hairline { transform-origin: left; transform: scaleX(0); }
   @supports (animation-timeline: scroll()) {
     .progress-hairline { animation: hairline linear both; animation-timeline: scroll(root block); }

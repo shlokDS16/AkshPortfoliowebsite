@@ -13,7 +13,7 @@ test.describe("desk red strip", () => {
   test("is absent while both clocks are fresh", async ({ page }) => {
     await resetToFreshHeartbeats(requireStack());
     await page.goto("/desk");
-    await expect(page.getByRole("link", { name: "Capture" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Capture", exact: true })).toBeVisible();
     await expect(page.getByTestId("health-strip")).toHaveCount(0);
   });
 
