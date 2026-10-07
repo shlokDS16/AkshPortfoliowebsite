@@ -115,6 +115,9 @@ returns setof public.job_steps
 language plpgsql security definer set search_path = ''
 as $$
 begin
+  if p_owner is null then
+    raise exception 'a lease needs an owner' using errcode = '22023';
+  end if;
   if p_lease_seconds is null or p_lease_seconds not between 30 and 290 then
     raise exception 'lease must be 30-290 seconds' using errcode = '22023';
   end if;
@@ -165,12 +168,14 @@ as $$
 $$;
 
 -- 7. The machine write boundary (ADR-004 s4.2, layer 1). service_role holds no privilege on items or
--- item_revisions; this trigger refuses the insert even if a grant is ever added.
+-- item_revisions; this trigger refuses the insert even if a grant is ever added, and also when a SECURITY DEFINER
+-- function is called with the secret key (current_user is then the owner, but the request's JWT role is not).
 create function private.reject_machine_revision()
 returns trigger language plpgsql set search_path = ''
 as $$
 begin
-  if current_user = 'service_role' then
+  if current_user = 'service_role'
+     or nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role' = 'service_role' then
     raise exception 'machines do not author revisions (ADR-004 s4.2)' using errcode = '42501';
   end if;
   return new;
@@ -202,8 +207,9 @@ create policy jobs_admin_cancel on public.jobs for update to authenticated
 create policy job_steps_admin_read   on public.job_steps for select to authenticated using ((select private.is_admin()));
 create policy job_steps_admin_insert on public.job_steps for insert to authenticated
   with check ((select private.is_admin()) and kind in ('pdf_text', 'extract_page') and status = 'queued');
+-- A running step is never touched from the desk (its lease holder may still be working: no double run).
 create policy job_steps_admin_update on public.job_steps for update to authenticated
-  using ((select private.is_admin())) with check ((select private.is_admin()) and status in ('queued', 'skipped'));
+  using ((select private.is_admin()) and status <> 'running') with check ((select private.is_admin()) and status in ('queued', 'skipped'));
 
 revoke all on public.documents, public.document_pages, public.jobs, public.job_steps
   from public, anon, authenticated, service_role;
@@ -222,7 +228,9 @@ grant select on public.documents to service_role;
 grant update (page_count, status) on public.documents to service_role;
 grant select, insert on public.document_pages to service_role;
 grant update (text, kind, basis, score, selected, selected_by) on public.document_pages to service_role;
-grant select, insert, update on public.jobs, public.job_steps to service_role;
+-- No UPDATE on jobs: job code never changes a job, and must never clear Aksh's cancel (cancelled_at).
+grant select, insert on public.jobs to service_role;
+grant select, insert, update on public.job_steps to service_role;
 
 -- 9. The private bucket (PDF only in 2a; 50 MB is the Free plan ceiling, spec s9).
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

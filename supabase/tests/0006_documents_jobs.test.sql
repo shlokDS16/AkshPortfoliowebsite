@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(70);
+select plan(81);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -47,6 +47,13 @@ select throws_ok($$ insert into public.item_revisions (item_id, body_md)
   '42501', 'machines do not author revisions (ADR-004 s4.2)', 'a granted service_role still cannot author a revision');
 reset role;
 revoke insert on public.item_revisions from service_role;
+-- A SECURITY DEFINER function runs as its owner; called with the secret key, the request's JWT role is service_role.
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+select throws_ok($$ insert into public.item_revisions (item_id, body_md)
+                    values ('a1000000-0000-4000-8000-000000000001', 'definer words') $$,
+  '42501', 'machines do not author revisions (ADR-004 s4.2)',
+  'an owner-rights insert under service_role claims (a definer RPC on the secret key) is refused too');
+select set_config('request.jwt.claims', '', true);
 
 -- The admin still authors revisions.
 set local role authenticated;
@@ -82,6 +89,13 @@ select throws_ok($$ insert into public.documents (title, sha256, bytes, storage_
 select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select is((select count(*) from public.documents), 0::bigint, 'a non-admin sees no documents');
 select is((select count(*) from public.job_steps), 0::bigint, 'nor job steps');
+select throws_ok($$ insert into public.documents (title, sha256, bytes) values ('Client', repeat('9', 64), 10) $$,
+  '42501', null, 'a non-admin cannot insert a document');
+select throws_ok($$ insert into public.jobs (kind, document_id) values ('ingest_pdf', 'd2000000-0000-4000-8000-000000000002') $$,
+  '42501', null, 'a non-admin cannot insert a job');
+select throws_ok($$ insert into public.job_steps (job_id, kind, page_no)
+                    values ('f2000000-0000-4000-8000-000000000002', 'extract_page', 9) $$,
+  '42501', null, 'a non-admin cannot insert a job step');
 reset role;
 
 -- Page text is written once by job code; a scan page may be filled once; selection stays editable.
@@ -175,6 +189,13 @@ select throws_ok($$ update public.jobs set cancelled_at = null where id = 'f2000
 select throws_ok($$ update public.jobs set document_id = 'd1000000-0000-4000-8000-000000000001'
                     where id = 'f2000000-0000-4000-8000-000000000002' $$,
   '42501', null, 'the admin can change no other job column');
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
+select is_empty($$ update public.jobs set cancelled_at = now() where id = 'f1000000-0000-4000-8000-000000000001' returning id $$,
+  'a non-admin cancel affects no row');
+reset role;
+set local role service_role;
+select throws_ok($$ update public.jobs set cancelled_at = null where id = 'f2000000-0000-4000-8000-000000000002' $$,
+  '42501', null, 'job code (service_role) cannot clear a cancel: it holds no UPDATE on jobs');
 reset role;
 
 -- The claim: service_role only, a lease, oldest first, expired leases counted, cancelled jobs skipped.
@@ -213,6 +234,8 @@ select throws_ok($$ select * from public.claim_job_step('0e000000-0000-4000-8000
   '22023', 'lease must be 30-290 seconds', 'a lease under 30 s is refused');
 select throws_ok($$ select * from public.claim_job_step('0e000000-0000-4000-8000-000000000005', 291) $$,
   '22023', 'lease must be 30-290 seconds', 'a lease over 290 s is refused');
+select throws_ok($$ select * from public.claim_job_step(null) $$,
+  '22023', 'a lease needs an owner', 'a claim without an owner is refused');
 reset role;
 
 -- Queue health: a number, to anon and authenticated (R11).
@@ -236,6 +259,10 @@ select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-0000000
 select is(public.queue_age(), 25200, 'an admin session reads queue_age too');
 select throws_ok($$ update public.job_steps set status = 'running' where id = 'e5000000-0000-4000-8000-000000000003' $$,
   '42501', null, 'the admin cannot set a step running (with check)');
+select is_empty($$ update public.job_steps set status = 'queued' where id = 'e5000000-0000-4000-8000-000000000002' returning id $$,
+  'the admin cannot requeue a running step (no double run): 0 rows');
+select is((select status from public.job_steps where id = 'e5000000-0000-4000-8000-000000000002'), 'running',
+  'and the running step keeps its lease');
 select lives_ok($$ update public.job_steps set status = 'skipped' where id = 'e5000000-0000-4000-8000-000000000003' $$,
   'the admin can skip a step');
 select is((select status from public.job_steps where id = 'e5000000-0000-4000-8000-000000000003'), 'skipped',
@@ -253,6 +280,13 @@ select is((select count(*) from storage.objects where bucket_id = 'documents'), 
   'a non-admin cannot list the documents bucket');
 select ok((select storage_bytes is null and database_bytes is null from public.storage_usage()),
   'storage_usage returns nulls to a non-admin');
+reset role;
+set local role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+select throws_ok($$ insert into storage.objects (bucket_id, name) values ('documents', 'f1000000-0000-4000-8000-000000000001.pdf') $$,
+  '42501', null, 'anon cannot upload into the documents bucket');
+select is((select count(*) from storage.objects where bucket_id = 'documents'), 0::bigint,
+  'anon cannot list the documents bucket');
 reset role;
 select ok((select not b.public and b.file_size_limit = 52428800 and b.allowed_mime_types = array['application/pdf']
              from storage.buckets b where b.id = 'documents'),
