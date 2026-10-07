@@ -7,10 +7,15 @@ The free Supabase plan has no downloadable backups, and a free project is paused
 - Workflow: `.github/workflows/backup.yml` ("backup" in the GitHub Actions tab). Daily at 21:00 UTC (02:30 IST); GitHub may start it a little late.
 - It dumps three files from the hosted database with the pinned Supabase CLI (2.119.0): `roles.sql`, `schema.sql`, `data.sql`. It adds a `manifest.txt` (time, git commit, CLI version, row counts per table), packs them into one `.tar.gz`, and encrypts it with GPG (AES-256).
 - Only the encrypted `.gpg` file is uploaded. The repository is public, so a plaintext backup must never be uploaded anywhere.
-- The dump also counts as database activity, which helps keep the free project from being paused.
+- The dump is database activity, which may help against the pause, but that is unverified. The daily heartbeat cron is the keep-awake mechanism, not this backup.
+- Nothing runs until `backup.yml` is on the default branch `main`: GitHub only honours the schedule, and shows the Run workflow button, for workflows on the default branch. After the merge, run it once by hand and check it is green.
 - Needs two repository secrets (Settings > Secrets and variables > Actions): `SUPABASE_DB_URL` and `BACKUP_PASSPHRASE`. The run fails with a clear message when either is missing, and GitHub emails the owner when a run fails.
   - `SUPABASE_DB_URL`: Dashboard > Connect > Session pooler connection string (the free plan's direct host is IPv6-only, which GitHub runners lack). Percent-encode special characters in the password (`@` becomes `%40`).
-  - `BACKUP_PASSPHRASE`: a long random passphrase. It lives in Shlok's password manager and as the GitHub secret. Never put it in the repository, an issue or a chat. Lose it and the backups cannot be opened.
+  - `BACKUP_PASSPHRASE`: a long random passphrase on ONE line; paste it with no trailing newline or space (in the secret box and in the password manager). It lives in Shlok's password manager and as the GitHub secret. Never put it in the repository, an issue or a chat. Lose it and the backups cannot be opened.
+
+## If the nightly run fails (email from GitHub)
+
+Open the failed run in the Actions tab and read the log. Check the secrets first: the usual causes are a wrong or missing `SUPABASE_DB_URL` or `BACKUP_PASSPHRASE`. If you reset the database password or change the pooler, update the `SUPABASE_DB_URL` secret, or every nightly run fails. After fixing, use Run workflow to take a backup straight away.
 
 ## Where the backups are
 
@@ -20,10 +25,23 @@ GitHub > repository > Actions > "backup" > pick a run > Artifacts > `db-backup-Y
 
 Actions > backup > Run workflow > Run. Do this before any risky change (a big migration, a Supabase plan change). A run on the same day replaces that day's artifact.
 
-## Open a backup (needs gpg)
+## Tools you need
+
+- `gpg`: ships with Git for Windows (use Git Bash) or install Gpg4win; on Linux/macOS it is usually installed.
+- `psql` (only for restoring): install the PostgreSQL client tools, or on Windows with Docker run psql from an image instead. The image tag must match the server's major version (Dashboard > Settings > Infrastructure; this repo's `supabase/config.toml` says 17):
 
 ```bash
-gpg --batch --pinentry-mode loopback --decrypt db-backup-<timestamp>.tar.gz.gpg > bundle.tar.gz   # asks for the passphrase
+MSYS_NO_PATHCONV=1 docker run --rm -it -v "$PWD:/r" -w /r postgres:17 psql \
+  --single-transaction --variable ON_ERROR_STOP=1 \
+  --file roles.sql --file schema.sql \
+  --command 'SET session_replication_role = replica' --file data.sql \
+  --dbname "$NEW_DB_URL"
+```
+
+## Open a backup
+
+```bash
+gpg --output bundle.tar.gz --decrypt db-backup-<timestamp>.tar.gz.gpg   # prompts for the passphrase
 mkdir restore && tar -xzf bundle.tar.gz -C restore && cat restore/manifest.txt
 ```
 
@@ -35,7 +53,7 @@ Follows https://supabase.com/docs/guides/platform/migrating-within-supabase/back
 
 1. Create a new Supabase project (Dashboard > New project). Note its database password.
 2. In the new project, enable any non-default extensions the old one used (Database > Extensions) before restoring.
-3. Get the new project's Session pooler connection string (Dashboard > Connect) as `NEW_DB_URL`.
+3. Get the new project's Session pooler connection string (Dashboard > Connect) as `NEW_DB_URL`. Percent-encode the password inside it (`@` becomes `%40`, `/` becomes `%2F`).
 4. From the `restore` folder, run:
 
 ```bash
@@ -62,7 +80,7 @@ Dashboard > the paused project > Resume (or "Restore project"). Possible for 90 
 
 ## Prove the format still restores (local, safe)
 
-With the local stack running (`pnpm db:start`): `bash scripts/backup/restore-drill.sh`. It refuses to run against anything but 127.0.0.1/localhost, wipes the LOCAL database, round-trips the backup format through encryption, restores it and compares row counts and per-table checksums. The last line is `PASS: ...` or `FAIL: ...`. Afterwards the local database is reset with the seed. Run it after any schema migration batch.
+With the local stack running (`pnpm db:start`): `bash scripts/backup/restore-drill.sh --yes` (without `--yes` it only explains and exits). It refuses to run against anything but 127.0.0.1/localhost, wipes the LOCAL database, round-trips the backup format through encryption, restores it and compares row counts and per-table checksums. The last line is `PASS: ...` or `FAIL: ...`. Afterwards the local database is reset with the seed. Run it after any schema migration batch.
 
 ## Limits
 

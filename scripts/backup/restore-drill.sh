@@ -7,6 +7,7 @@
 #   -> encrypt/decrypt round trip with a throwaway passphrase -> `supabase db reset --no-seed`
 #   -> restore the DECRYPTED data file -> recount + checksum -> diff. Ends with a PASS/FAIL line.
 # WARNING: wipes the local database (reset), then leaves it freshly reset with the seed.
+# Usage: bash scripts/backup/restore-drill.sh --yes   (or DRILL_CONFIRM=1); without it, it only explains and exits.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 
@@ -23,6 +24,13 @@ db_url="$(pnpm --silent supabase status -o env 2>/dev/null | sed -n 's/^DB_URL="
 [ -n "$db_url" ] || fail "supabase status gave no DB_URL (is the local stack running? pnpm db:start)"
 host="$(printf '%s' "$db_url" | sed -E 's#^[a-z]+://[^@]*@([^:/?]+).*#\1#')"
 case "$host" in 127.0.0.1|localhost) ;; *) fail "refusing to run: DB host is '$host', not local" ;; esac
+
+# -- Confirmation: this wipes the local database ---------------------------------------------
+if [ "${1:-}" != "--yes" ] && [ "${DRILL_CONFIRM:-}" != "1" ]; then
+  echo "This drill WIPES the local database at $db_url (supabase db reset), then restores it from a fresh backup" >&2
+  echo "and resets it again with the seed. Re-run with --yes (or DRILL_CONFIRM=1) to proceed." >&2
+  exit 2
+fi
 
 # -- psql: local binary if installed, else inside the Supabase DB container ------------------
 project_id="$(sed -n 's/^project_id *= *"\(.*\)"/\1/p' supabase/config.toml | head -1)"
@@ -57,9 +65,9 @@ SQL
 
 dump_all() { # same commands as the workflow, --db-url form
   local d; d="$(native "$1")"
-  pnpm --silent supabase db dump --db-url "$db_url" --role-only -f "$d/roles.sql" >/dev/null
-  pnpm --silent supabase db dump --db-url "$db_url" -f "$d/schema.sql" >/dev/null
-  pnpm --silent supabase db dump --db-url "$db_url" --use-copy --data-only -f "$d/data.sql" >/dev/null 2>&1
+  pnpm --silent supabase db dump --db-url "$db_url" --role-only -f "$d/roles.sql" >/dev/null     || fail "roles dump failed"
+  pnpm --silent supabase db dump --db-url "$db_url" -f "$d/schema.sql" >/dev/null     || fail "schema dump failed"
+  pnpm --silent supabase db dump --db-url "$db_url" --use-copy --data-only -f "$d/data.sql" >/dev/null 2>&1     || fail "data dump failed"
 }
 
 # -- 2. Make sure there is something to lose -------------------------------------------------
