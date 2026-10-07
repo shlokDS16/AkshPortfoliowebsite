@@ -2,7 +2,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(27);
 
 -- Table-level access.
 select is_empty($$
@@ -33,9 +33,24 @@ select ok(has_table_privilege('service_role', 'public.heartbeats', 'select')
 select is_empty($$
   select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'
-     and c.relname not in ('heartbeats', 'documents', 'document_pages', 'jobs', 'job_steps')
+     and c.relname not in ('heartbeats', 'documents', 'document_pages', 'jobs', 'job_steps',
+                           'extractions', 'proposals', 'provider_usage')
      and has_table_privilege('service_role', c.oid, 'select,insert,update,delete')
-$$, 'service_role has no privilege on any other public table (job tables: 0006_documents_jobs)');
+$$, 'service_role has no privilege on any other public table (job tables: 0006, extraction tables: 0007)');
+select is_empty($$
+  select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'r'
+     and c.relname not in ('heartbeats', 'documents', 'document_pages', 'jobs', 'job_steps',
+                           'extractions', 'proposals', 'provider_usage', 'items', 'item_revisions')
+     and has_any_column_privilege('service_role', c.oid, 'select,insert,update,references')
+$$, 'service_role holds no column privilege elsewhere (items and item_revisions: column SELECT only, exact set in 0007)');
+select ok(not has_any_column_privilege('service_role', 'public.items', 'insert,update,references')
+      and not has_any_column_privilege('service_role', 'public.item_revisions', 'insert,update,references')
+      and not has_column_privilege('service_role', 'public.item_revisions', 'body_md', 'select')
+      and not has_column_privilege('service_role', 'public.item_revisions', 'change_reason', 'select')
+      and not has_column_privilege('service_role', 'public.items', 'learning_objective', 'select')
+      and not has_column_privilege('service_role', 'public.items', 'visibility', 'select'),
+  'service_role reads facts on items and revisions, never Aksh''s words, and writes neither (ADR-004 s4.2)');
 
 -- Column-level public tier (anon): only what the public views need.
 select ok(has_column_privilege('anon', 'public.companies', 'one_liner', 'select')

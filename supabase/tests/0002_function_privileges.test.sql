@@ -44,8 +44,9 @@ $$, 'authenticated can execute no function in public except queue_age and storag
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('service_role', p.oid, 'execute')
-     and p.proname not in ('publish_revision', 'unpublish_item', 'add_lint_allowance', 'remove_lint_allowance', 'claim_job_step')
-$$, 'service_role can execute no function in public except the four gate functions and claim_job_step');
+     and p.proname not in ('publish_revision', 'unpublish_item', 'add_lint_allowance', 'remove_lint_allowance', 'claim_job_step',
+                           'reserve_usage', 'prune_provider_usage')
+$$, 'service_role can execute no function in public except the four gate functions, claim_job_step and the usage ledger pair');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'

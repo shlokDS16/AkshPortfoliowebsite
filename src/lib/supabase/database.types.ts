@@ -322,6 +322,106 @@ export type Database = {
           },
         ]
       }
+      extractions: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          input_hash: string
+          model: string
+          output: NonNullable<Json>
+          page_no: number
+          prompt_version: string
+          tokens_used: number
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          input_hash: string
+          model: string
+          output: NonNullable<Json>
+          page_no: number
+          prompt_version: string
+          tokens_used?: number
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          input_hash?: string
+          model?: string
+          output?: NonNullable<Json>
+          page_no?: number
+          prompt_version?: string
+          tokens_used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extractions_document_id_page_no_fkey"
+            columns: ["document_id", "page_no"]
+            isOneToOne: false
+            referencedRelation: "document_pages"
+            referencedColumns: ["document_id", "page_no"]
+          },
+        ]
+      }
+      fact_provenance: {
+        Row: {
+          created_at: string
+          edited: boolean
+          fact_id: string
+          id: string
+          proposal_id: string
+          revision_id: string
+        }
+        Insert: {
+          created_at?: string
+          edited: boolean
+          fact_id: string
+          id?: string
+          proposal_id: string
+          revision_id: string
+        }
+        Update: {
+          created_at?: string
+          edited?: boolean
+          fact_id?: string
+          id?: string
+          proposal_id?: string
+          revision_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fact_provenance_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["revision_id"]
+          },
+        ]
+      }
       gate_decisions: {
         Row: {
           created_at: string
@@ -760,6 +860,155 @@ export type Database = {
         }
         Relationships: []
       }
+      proposals: {
+        Row: {
+          accepted_value: Json | null
+          created_at: string
+          decided_at: string | null
+          dedupe_key: string
+          document_id: string
+          extraction_id: string
+          flags: string[]
+          id: string
+          item_id: string | null
+          machine_value: NonNullable<Json>
+          page_no: number
+          reason: string
+          revision_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_value?: Json | null
+          created_at?: string
+          decided_at?: string | null
+          dedupe_key: string
+          document_id: string
+          extraction_id: string
+          flags?: string[]
+          id?: string
+          item_id?: string | null
+          machine_value: NonNullable<Json>
+          page_no: number
+          reason: string
+          revision_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_value?: Json | null
+          created_at?: string
+          decided_at?: string | null
+          dedupe_key?: string
+          document_id?: string
+          extraction_id?: string
+          flags?: string[]
+          id?: string
+          item_id?: string | null
+          machine_value?: NonNullable<Json>
+          page_no?: number
+          reason?: string
+          revision_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_extraction_id_fkey"
+            columns: ["extraction_id"]
+            isOneToOne: false
+            referencedRelation: "extractions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["revision_id"]
+          },
+        ]
+      }
+      provider_usage: {
+        Row: {
+          at: string
+          block_reason: string | null
+          blocked_until: string | null
+          bucket: string
+          id: string
+          kind: string
+          remaining_requests: number | null
+          remaining_tokens: number | null
+          retry_after_s: number | null
+          status: string | null
+          tokens_est: number | null
+          tokens_used: number | null
+        }
+        Insert: {
+          at?: string
+          block_reason?: string | null
+          blocked_until?: string | null
+          bucket: string
+          id?: string
+          kind: string
+          remaining_requests?: number | null
+          remaining_tokens?: number | null
+          retry_after_s?: number | null
+          status?: string | null
+          tokens_est?: number | null
+          tokens_used?: number | null
+        }
+        Update: {
+          at?: string
+          block_reason?: string | null
+          blocked_until?: string | null
+          bucket?: string
+          id?: string
+          kind?: string
+          remaining_requests?: number | null
+          remaining_tokens?: number | null
+          retry_after_s?: number | null
+          status?: string | null
+          tokens_est?: number | null
+          tokens_used?: number | null
+        }
+        Relationships: []
+      }
       themes: {
         Row: {
           archived_at: string | null
@@ -974,6 +1223,10 @@ export type Database = {
           ok: boolean
         }[]
       }
+      prune_provider_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       publish_revision: {
         Args: {
           p_actor: string
@@ -1003,6 +1256,22 @@ export type Database = {
       remove_lint_allowance: {
         Args: { p_actor: string; p_item_id: string; p_sentence_hash: string }
         Returns: boolean
+      }
+      reserve_usage: {
+        Args: {
+          p_bucket: string
+          p_rpd: number
+          p_rpm: number
+          p_tokens: number
+          p_tpd: number
+          p_tpm: number
+        }
+        Returns: {
+          not_before: string
+          ok: boolean
+          reason: string
+          reservation_id: string
+        }[]
       }
       storage_usage: {
         Args: Record<PropertyKey, never>
