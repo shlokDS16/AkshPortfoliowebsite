@@ -15,7 +15,11 @@ const hydrated = (page: Page) => expect(page.getByRole("button", { name: "Captur
 
 async function saveRevision(page: Page, bodyMd: string, sheet: string | null, reason: string) {
   await page.getByLabel("Body (Markdown)").fill(bodyMd);
-  if (sheet !== null) await page.getByLabel("Facts sheet").fill(sheet);
+  if (sheet !== null) {
+    // The Facts editor opens as a form; the seed pastes the whole sheet, as Aksh can, in Text sheet mode.
+    await page.getByRole("radio", { name: "Text sheet" }).click();
+    await page.getByLabel("Facts sheet").fill(sheet);
+  }
   await page.getByLabel("Change reason").fill(reason);
   await page.getByRole("button", { name: "Save revision" }).click();
   await expect(status(page, /^Revision saved\.$|waiting for the publishing gate/)).toBeVisible();

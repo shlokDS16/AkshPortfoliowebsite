@@ -159,6 +159,7 @@ describe("RevisionEditor", () => {
   it("keeps Aksh's words and the facts sheet in separate fields and checks the sheet line by line", async () => {
     render(<RevisionEditor action={vi.fn()} bodyMd={KAVERI.revisions[0].bodyMd} sheet={KAVERI.revisions[0].sheet} />);
     expect(screen.getByLabelText("Body (Markdown)")).toHaveValue(KAVERI.revisions[0].bodyMd);
+    await userEvent.click(screen.getByRole("radio", { name: "Text sheet" }));
     const sheet = screen.getByLabelText("Facts sheet");
     expect(parseFactsSheet((sheet as HTMLTextAreaElement).value).errors).toEqual([]);
     expect(screen.getByLabelText("Change reason")).toHaveValue("");
@@ -169,6 +170,7 @@ describe("RevisionEditor", () => {
 
   it("checks a scenario with casefile's own rule 9 (a value row is refused in words)", async () => {
     render(<RevisionEditor action={vi.fn()} bodyMd="x" sheet="" />);
+    await userEvent.click(screen.getByRole("radio", { name: "Text sheet" }));
     await userEvent.type(screen.getByLabelText("Facts sheet"), "SC | Slow | Base{enter}Y | Intrinsic value per share | ₹ | 100 | 200");
     expect(screen.getByText(/Rule 9: public scenario tables show operating outputs only/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save revision" })).toBeDisabled();
@@ -177,6 +179,7 @@ describe("RevisionEditor", () => {
   it("a note has no facts sheet", () => {
     render(<RevisionEditor action={vi.fn()} bodyMd="A note." sheet={null} />);
     expect(screen.queryByLabelText("Facts sheet")).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Facts editor" })).toBeNull();
   });
 
   it("selects the sentence in the body when a gate note asks to edit it", async () => {

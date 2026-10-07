@@ -103,8 +103,12 @@ export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: She
 
 const join = (cells: (string | number | null | undefined)[]) => cells.map((c) => (c === null || c === undefined ? "-" : String(c))).join(" | ");
 
+/** A case file whose number cells may still be the text being typed (the desk's Facts form writes cells verbatim). */
+type Loose<T> = T extends number ? number | string : T extends object ? { [K in keyof T]: Loose<T[K]> } : T;
+export type SheetCaseFile = Loose<CaseFile>;
+
 /** The live revision shown back as a sheet; parseFactsSheet(serializeFactsSheet(x)) equals x. */
-export function serializeFactsSheet(cf: CaseFile): string {
+export function serializeFactsSheet(cf: SheetCaseFile): string {
   const lines: string[] = [SHEET_LEGEND];
   if (cf.oneLiner) lines.push(join(["O", cf.oneLiner]));
   for (const s of cf.sources) lines.push(join([s.id, s.doc, s.type, s.filedOn, ...(s.url ? [s.url] : [])]));

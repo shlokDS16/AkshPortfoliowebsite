@@ -12,9 +12,10 @@ if (process.env.CI && !stack) {
 // Anchored on the file name: a bare /clocks\.spec\.ts/ would also match desk-clocks.spec.ts.
 const spec = (names: string) => new RegExp(`[\\\\/](?:${names})\\.spec\\.ts$`);
 
+// After the seed (which runs after setup): desk-facts-form edits the seeded Kaveri file.
 const desk = {
   testMatch: spec("desk-[a-z0-9-]+"),
-  dependencies: ["setup"],
+  dependencies: ["seed"],
 };
 
 export default defineConfig({

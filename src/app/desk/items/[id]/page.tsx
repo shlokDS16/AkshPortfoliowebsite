@@ -75,7 +75,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
           {body ? <BodyPreview itemId={item.id} body={body} named={item.companyId !== null} /> : null}
           {!isPublic ? <FiguresToHint latest={latestFigure} figuresTo={item.dataAsOf} action={setFiguresToAction.bind(null, item.id)} /> : null}
           <MetaForm item={item} />
-          <RevisionEditor key={latest?.id ?? "none"} action={saveCaseFileRevisionAction.bind(null, item.id)} bodyMd={latest?.bodyMd ?? ""} sheet={sheet} isPublic={isPublic} />
+          <RevisionEditor key={latest?.id ?? "none"} action={saveCaseFileRevisionAction.bind(null, item.id)} bodyMd={latest?.bodyMd ?? ""} sheet={sheet} isPublic={isPublic} figuresTo={item.dataAsOf} />
           <WordingGuide />
           <History revisions={revisions} currentId={current?.id ?? null} pendingIds={new Set(pending.map((r) => r.id))} from={from} to={to} />
         </div>
