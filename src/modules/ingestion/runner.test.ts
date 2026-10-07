@@ -5,8 +5,8 @@ import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { MIN_STEP_MS } from "./caps";
 import { machineDocuments, type DrainDeps } from "./deps";
 import type { QueueRepo } from "./queue-repo";
-import { drain } from "./runner";
-import type { NewStep, Step, StepHandler, StepKind, StepOutcome } from "./types";
+import { drain, PROVIDER_GAVE_UP, SCHEMA_GAVE_UP } from "./runner";
+import type { NewStep, Step, StepContext, StepHandler, StepKind, StepOutcome } from "./types";
 
 const T0 = Date.parse("2026-10-07T10:00:00Z");
 
@@ -126,7 +126,7 @@ describe("drain", () => {
     expect(summary).toMatchObject({ ran: 1, deferred: 1, attention: 0 });
   });
 
-  it("a schema failure retries at once; the second goes to needs_attention with the error", async () => {
+  it("a schema failure retries at once with the raw issues; the second goes to needs_attention with a plain sentence", async () => {
     const outcome = always({ kind: "retry", failure: "schema", error: "rows[0].value: expected number" });
     const { repo, steps, finishes } = memoryRepo([step("extract_page", 5)]);
     const summary = await drain(deps(), repo, handlers({ extract_page: outcome }), 240_000);
@@ -135,7 +135,8 @@ describe("drain", () => {
       ["queued", 1, T0],
       ["needs_attention", 2, T0],
     ]);
-    expect(steps[0]).toMatchObject({ status: "needs_attention", schemaFailures: 2, lastError: "rows[0].value: expected number" });
+    expect(finishes[0].patch.lastError).toBe("rows[0].value: expected number"); // the retry prompt names the issues
+    expect(steps[0]).toMatchObject({ status: "needs_attention", schemaFailures: 2, lastError: `${SCHEMA_GAVE_UP} (rows[0].value: expected number)` });
     expect(summary).toMatchObject({ ran: 2, attention: 1 });
   });
 
@@ -148,7 +149,32 @@ describe("drain", () => {
     };
     expect(await run(0)).toMatchObject({ status: "queued", providerFailures: 1, notBefore: new Date(T0 + 60_000).toISOString() });
     expect(await run(1)).toMatchObject({ status: "queued", providerFailures: 2, notBefore: new Date(T0 + 120_000).toISOString() });
-    expect(await run(2)).toMatchObject({ status: "needs_attention", providerFailures: 3, lastError: "503" });
+    expect(await run(2)).toMatchObject({ status: "needs_attention", providerFailures: 3, lastError: `${PROVIDER_GAVE_UP} (503)` });
+  });
+
+  it("after three database failures Aksh reads a plain sentence with the operation and code beside it", async () => {
+    const down: StepHandler = async () => {
+      throw new DbError("documents.download", undefined, "Object not found: secret/path.pdf");
+    };
+    const { repo, steps } = memoryRepo([step("pdf_text", 1, { providerFailures: 2 })]);
+    await drain(deps(), repo, handlers({ pdf_text: down }), 240_000);
+    expect(steps[0]).toMatchObject({
+      status: "needs_attention",
+      lastError: "This step could not finish after three tries. Try again, or enter the figures yourself. (documents.download, no code)",
+    });
+  });
+
+  it("hands a handler its deps without the client (ruling R7)", async () => {
+    let seen: StepContext["deps"] | null = null;
+    const look: StepHandler = async (ctx) => {
+      seen = ctx.deps;
+      // @ts-expect-error -- StepDeps has no db: a handler reaches the database only through ctx.deps.repos.
+      void ctx.deps.db;
+      return { kind: "done" };
+    };
+    await drain(deps(), memoryRepo([step("pdf_text", 1)]).repo, handlers({ pdf_text: look }), 240_000);
+    expect(seen).not.toBeNull();
+    expect(Object.keys(seen!).sort()).toEqual(["clock", "llm", "models", "now", "repos"]);
   });
 
   it("a step whose lease expired twice goes to needs_attention without running its handler", async () => {

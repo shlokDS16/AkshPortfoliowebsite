@@ -9,7 +9,7 @@ import type { StepHandler, StepOutcome } from "../types";
 export const PDF_NOT_OPENED = "This PDF could not be opened (it may be password-protected or damaged).";
 export const PDF_WRONG_FILE = "The stored file is not the PDF that was uploaded. Upload it again.";
 export const PDF_TOO_LONG = "This PDF has more than 5,000 pages. Upload the financial statements section on its own.";
-export const PDF_NOT_STORED = "The original PDF is no longer stored, so its pages cannot be read.";
+export const PDF_NOT_STORED = "The original PDF is no longer stored, so its pages cannot be read. Upload it again, or skip this document.";
 
 /** Kept free before the drain deadline for the batch write and the step's finish. */
 const WRITE_MARGIN_MS = 20_000;
@@ -19,13 +19,28 @@ const attention = (error: string): StepOutcome => ({ kind: "attention", error })
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const startsLikePdf = (bytes: Uint8Array) => Buffer.from(bytes.subarray(0, PDF_MAGIC.length)).toString("latin1") === PDF_MAGIC;
 
+/** A page pdf.js cannot read is stored empty (a scan page, for OCR in Plan 2b) instead of halting the document. */
+async function readPage(pdf: PdfDoc, pageNo: number): Promise<string> {
+  try {
+    return await pageText(pdf, pageNo);
+  } catch {
+    return "";
+  }
+}
+
 export const pdfText: StepHandler = async ({ step, documentId, deadline, deps }) => {
   const documents = deps.repos.documents;
   const start = deps.clock();
   const doc = await documents.get(documentId);
-  if (!doc?.storagePath) return attention(PDF_NOT_STORED);
+  // "Done with this document" deletes the original but keeps storage_path, so original_deleted_at is checked too.
+  if (!doc?.storagePath || doc.originalDeletedAt) return attention(PDF_NOT_STORED);
 
-  const bytes = await documents.download(doc.storagePath);
+  let bytes: Uint8Array;
+  try {
+    bytes = await documents.download(doc.storagePath);
+  } catch {
+    return attention(PDF_NOT_STORED); // a plain sentence on the card, never "documents.download (no code)"
+  }
   // The server never saw the upload's bytes: the hash and type the browser claimed are checked here, before parsing.
   if (sha256(bytes) !== doc.sha256 || !startsLikePdf(bytes)) return attention(PDF_WRONG_FILE);
 
@@ -48,7 +63,7 @@ export const pdfText: StepHandler = async ({ step, documentId, deadline, deps })
     let next = from;
     // At least one page per step, so the step it enqueues is always a later page (job_steps_once would drop a repeat).
     do {
-      batch.push({ pageNo: next, text: await pageText(pdf, next) });
+      batch.push({ pageNo: next, text: await readPage(pdf, next) });
       next += 1;
       if (batch.length === PDF_TEXT_BATCH) {
         await documents.insertPages(documentId, batch);

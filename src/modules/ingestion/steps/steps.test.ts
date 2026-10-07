@@ -1,11 +1,10 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { LlmPort } from "@/lib/providers/llm";
-import type { Db } from "@/lib/supabase/types";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
-import { fixturePdfBytes, makePdf } from "@/test/fixtures/pdf";
+import { fixturePdfBytes, fixtureWithBrokenPage2, makePdf } from "@/test/fixtures/pdf";
 import { PDF_TEXT_MS } from "../caps";
-import { machineDocuments, type DrainDeps } from "../deps";
+import { machineDocuments, type StepDeps } from "../deps";
 import type { Step, StepContext } from "../types";
 import { pdfText, PDF_NOT_OPENED, PDF_NOT_STORED, PDF_TOO_LONG, PDF_WRONG_FILE } from "./pdf-text";
 import { selectPagesStep } from "./select-pages";
@@ -30,8 +29,7 @@ function repoWith(bytes: Uint8Array, opts: { sha256?: string; pageCount?: number
 }
 
 function ctx(repo: MemoryDocumentsRepo, step: Partial<Step>, opts: { clock?: () => number; llm?: LlmPort | null } = {}): StepContext {
-  const deps: DrainDeps = {
-    db: {} as Db,
+  const deps: StepDeps = {
     llm: opts.llm === undefined ? null : opts.llm,
     models: { text: "test-model" },
     repos: { documents: machineDocuments(repo) },
@@ -124,6 +122,30 @@ describe("pdf_text", () => {
     const repo = repoWith(fixturePdfBytes());
     repo.docs.set(DOC, { ...repo.docs.get(DOC)!, storagePath: null });
     expect(await pdfText(ctx(repo, {}))).toEqual({ kind: "attention", error: PDF_NOT_STORED });
+  });
+
+  it("needs attention, without downloading, when Aksh finished the document and its original was deleted", async () => {
+    const repo = repoWith(fixturePdfBytes());
+    repo.docs.set(DOC, { ...repo.docs.get(DOC)!, originalDeletedAt: new Date(T0).toISOString() });
+    const download = vi.spyOn(repo, "download");
+    expect(await pdfText(ctx(repo, {}))).toEqual({ kind: "attention", error: PDF_NOT_STORED });
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it("turns any download failure into the plain not-stored sentence, never the database operation", async () => {
+    const repo = repoWith(fixturePdfBytes());
+    repo.files.clear(); // the object is gone; the fake throws a DbError like the real repo
+    const outcome = await pdfText(ctx(repo, {}));
+    expect(outcome).toEqual({ kind: "attention", error: PDF_NOT_STORED });
+    expect(PDF_NOT_STORED).toMatch(/Upload it again, or skip this document\.$/);
+  });
+
+  it("stores a page pdf.js cannot read as empty text (a scan page) and carries on with the document", async () => {
+    const repo = repoWith(fixtureWithBrokenPage2());
+    const outcome = await pdfText(ctx(repo, {}));
+    expect(outcome).toEqual({ kind: "done", result: { from: 1, through: 2 }, enqueue: [{ kind: "select_pages", pageNo: null }] });
+    expect(repo.pages.get(`${DOC}:1`)?.text).toContain("Kaveri Fixtures Limited");
+    expect(repo.pages.get(`${DOC}:2`)).toMatchObject({ text: "", isScan: true });
   });
 
   it("writes page text in batches of 25, so a long PDF keeps what it read if the function dies", async () => {

@@ -4,7 +4,7 @@ import type { StepHandler } from "../types";
 // select_pages (spec s6.3): classify every page, keep the verdicts of statement pages, tick the best pages within the
 // document's budget as the rule's choice, and enqueue one extract_page per page when AI reading is on.
 
-export const DOCUMENT_GONE = "This document is no longer on the desk.";
+export const DOCUMENT_GONE = "This document is no longer on your desk, so its pages cannot be chosen. Skip this step, or upload the PDF again.";
 
 export const selectPagesStep: StepHandler = async ({ documentId, deps }) => {
   const documents = deps.repos.documents;

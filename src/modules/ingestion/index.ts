@@ -4,7 +4,7 @@ import "server-only";
 
 export * from "./caps";
 export type { NewStep, Step, StepContext, StepHandler, StepKind, StepOutcome, StepStatus, WaitReason } from "./types";
-export { machineDocuments, type DrainDeps, type MachineDocumentsRepo, type MachineRepos } from "./deps";
+export { machineDocuments, type DrainDeps, type StepDeps, type MachineDocumentsRepo, type MachineRepos } from "./deps";
 export { llmTimeoutMs } from "./deadline";
 export { estimateReadyBy, formatReadyBy, type Eta, type EtaInput } from "./eta";
 export { createQueueRepo, type FinishPatch, type QueueRepo } from "./queue-repo";

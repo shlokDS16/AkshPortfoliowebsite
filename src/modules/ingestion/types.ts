@@ -1,5 +1,5 @@
 // Browser-safe types for the ingestion job engine (ADR-004 s4.4). No runtime code here.
-import type { DrainDeps } from "./deps";
+import type { StepDeps } from "./deps";
 
 export type StepKind = "pdf_text" | "select_pages" | "extract_page";
 export type StepStatus = "queued" | "running" | "done" | "skipped" | "needs_attention";
@@ -29,5 +29,5 @@ export type StepOutcome =
   | { kind: "retry"; failure: "schema" | "provider"; error: string }
   | { kind: "attention"; error: string };
 
-export type StepContext = { step: Step; documentId: string; deadline: number; deps: DrainDeps };
+export type StepContext = { step: Step; documentId: string; deadline: number; deps: StepDeps };
 export type StepHandler = (ctx: StepContext) => Promise<StepOutcome>;

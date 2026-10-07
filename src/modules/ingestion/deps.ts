@@ -25,6 +25,9 @@ export type DrainDeps = {
   clock: () => number;
 };
 
+/** What a step handler gets: the drain's deps without the client (ruling R7, enforced by the compiler and the graph test). */
+export type StepDeps = Omit<DrainDeps, "db">;
+
 /** Narrows a full documents repo to the machine's surface: the methods are copied, so `update` cannot leak. */
 export function machineDocuments(repo: DocumentsRepo): MachineDocumentsRepo {
   return {

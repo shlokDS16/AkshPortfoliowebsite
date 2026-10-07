@@ -1,16 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { safeErrorText } from "@/lib/supabase/errors";
 import { LEASE_EXPIRY_LIMIT, MIN_STEP_MS, PROVIDER_FAILURE_LIMIT, SCHEMA_FAILURE_LIMIT } from "./caps";
-import type { DrainDeps } from "./deps";
+import type { DrainDeps, StepDeps } from "./deps";
 import type { QueueRepo } from "./queue-repo";
 import type { StepHandler, StepKind, StepOutcome } from "./types";
 
 export type DrainSummary = { ran: number; done: number; deferred: number; attention: number; leaseLost: number };
 
 export const STOPPED_TWICE = "This step stopped twice before finishing.";
+/** Shown on the Needs-attention card when retries run out; the technical note follows in brackets. */
+export const PROVIDER_GAVE_UP = "This step could not finish after three tries. Try again, or enter the figures yourself.";
+export const SCHEMA_GAVE_UP = "The AI's reading of this page came back in the wrong form twice. Try again, or enter the figures yourself.";
 const ERROR_MAX = 500;
 // last_error is readable on the desk: a database failure is stored as its operation and code, never the raw message.
 const text = (e: unknown) => safeErrorText(e).slice(0, ERROR_MAX);
+/** "documents.download (no code)" reads as "(documents.download, no code)" beside the plain sentence. */
+const note = (error: string) => error.replace(/^(\S+) \(([^()]*)\)$/, "$1, $2");
+const gaveUp = (failure: "schema" | "provider", error: string) =>
+  `${failure === "schema" ? SCHEMA_GAVE_UP : PROVIDER_GAVE_UP} (${note(error)})`.slice(0, ERROR_MAX);
+
+/** What a handler gets: everything but the client (ruling R7), so a step cannot reach the database except through repos. */
+const stepDeps = (deps: DrainDeps): StepDeps => ({ llm: deps.llm, models: deps.models, repos: deps.repos, now: deps.now, clock: deps.clock });
 
 /**
  * Claims and runs steps until the budget is spent or nothing is runnable (ADR-004 s4.4). Never throws for a
@@ -21,6 +31,7 @@ export async function drain(deps: DrainDeps, repo: QueueRepo, handlers: Record<S
   const owner = randomUUID();
   const deadline = deps.clock() + budgetMs;
   const summary: DrainSummary = { ran: 0, done: 0, deferred: 0, attention: 0, leaseLost: 0 };
+  const forSteps = stepDeps(deps);
   while (deadline - deps.clock() >= MIN_STEP_MS) {
     const step = await repo.claim(owner);
     if (!step) break;
@@ -29,7 +40,7 @@ export async function drain(deps: DrainDeps, repo: QueueRepo, handlers: Record<S
     if (step.leaseExpiries >= LEASE_EXPIRY_LIMIT) outcome = { kind: "attention", error: STOPPED_TWICE };
     else {
       try {
-        outcome = await handlers[step.kind]({ step, documentId: step.documentId, deadline, deps });
+        outcome = await handlers[step.kind]({ step, documentId: step.documentId, deadline, deps: forSteps });
       } catch (error) {
         outcome = { kind: "retry", failure: "provider", error: text(error) };
       }
@@ -58,7 +69,8 @@ export async function drain(deps: DrainDeps, repo: QueueRepo, handlers: Record<S
         schemaFailures: schema,
         providerFailures: provider,
         notBefore: new Date(now.getTime() + backoffMs),
-        lastError: outcome.error.slice(0, ERROR_MAX),
+        // A retry keeps the raw issues (a schema retry sends them back to the model); a stop shows Aksh a sentence.
+        lastError: stop ? gaveUp(outcome.failure, outcome.error) : outcome.error.slice(0, ERROR_MAX),
       });
       summary.attention += Number(ok && stop);
     }

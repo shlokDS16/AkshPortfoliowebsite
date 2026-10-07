@@ -40,3 +40,14 @@ export function makePdf(pages: string[][]): Uint8Array {
   out += `trailer\n<< /Size ${objs.length + 1} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return new Uint8Array(Buffer.from(out, "latin1"));
 }
+
+/**
+ * The fixture with p. 2's page object replaced by a number, padded so every byte offset holds. pdf.js then reports two
+ * pages and throws on reading p. 2: a page that cannot be read.
+ */
+export function fixtureWithBrokenPage2(): Uint8Array {
+  const text = Buffer.from(fixturePdfBytes()).toString("latin1");
+  const page2 = /7 0 obj\n(<< \/Type \/Page [^\n]*>>)\nendobj/.exec(text)?.[1];
+  if (!page2) throw new Error("fixtureWithBrokenPage2: the fixture's p. 2 object was not found");
+  return new Uint8Array(Buffer.from(text.replace(page2, "42".padEnd(page2.length, " ")), "latin1"));
+}
