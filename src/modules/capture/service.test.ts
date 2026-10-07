@@ -52,6 +52,25 @@ describe("saveCapture", () => {
     expect(catalog.companies.size).toBe(1);
   });
 
+  it("files under the first resolvable symbol when an earlier one is ignored", async () => {
+    const { deps, catalog, captures } = setup();
+    catalog.ignored.add("symbol:AND");
+    await saveCapture(deps, input("$AND $KAVPUMP note on dealers"));
+    const company = [...catalog.companies.values()][0];
+    expect(catalog.companies.size).toBe(1);
+    expect(company).toMatchObject({ nseSymbol: "KAVPUMP" });
+    expect(captures.records[0].companyId).toBe(company.id);
+  });
+
+  it("files as plain text when every token is ignored", async () => {
+    const { deps, catalog, captures } = setup();
+    catalog.ignored.add("symbol:AND");
+    catalog.ignored.add("theme:capex");
+    await saveCapture(deps, input("$AND #capex only noise"));
+    expect(catalog.companies.size + catalog.themes.size).toBe(0);
+    expect(captures.records[0]).toMatchObject({ companyId: null, themeId: null });
+  });
+
   it("links #theme to a stub theme", async () => {
     const { deps, catalog, captures } = setup();
     await saveCapture(deps, input("#capital-cycle cement adds capacity"));

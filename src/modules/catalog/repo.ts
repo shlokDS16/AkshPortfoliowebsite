@@ -24,6 +24,16 @@ export function createSupabaseCatalogRepo(db: Db): CatalogRepo {
       if (error) throw dbError("catalog.findCompanyBySymbol", error);
       return data ? toCompany(data) : null;
     },
+    async findCompanyByAlias(symbol) {
+      const { data, error } = await db.from("company_aliases").select(`company:companies(${COMPANY_COLUMNS})`).eq("symbol", symbol).maybeSingle();
+      if (error) throw dbError("catalog.findCompanyByAlias", error);
+      return data?.company ? toCompany(data.company) : null;
+    },
+    async isIgnored(kind, token) {
+      const { data, error } = await db.from("ignored_tokens").select("token").eq("kind", kind).eq("token", token).maybeSingle();
+      if (error) throw dbError("catalog.isIgnored", error);
+      return data !== null;
+    },
     async insertCompany(row) {
       const { data, error } = await db
         .from("companies")

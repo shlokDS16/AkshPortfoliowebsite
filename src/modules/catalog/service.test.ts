@@ -21,7 +21,7 @@ describe("ensureCompany", () => {
     const repo = createMemoryCatalogRepo();
     repo.simulateRace("INFY");
     const company = await ensureCompany(repo, "INFY");
-    expect(company.nseSymbol).toBe("INFY");
+    expect(company!.nseSymbol).toBe("INFY");
     expect(repo.companies.size).toBe(1);
   });
 
@@ -35,10 +35,32 @@ describe("ensureCompany", () => {
     await expect(ensureCompany(createMemoryCatalogRepo(), token)).rejects.toBeInstanceOf(InvalidCatalogTokenError);
   });
 
-  it("does not hide a unique violation that is not a same-symbol race (slug clash)", async () => {
+  it("falls back to a suffixed slug on a slug clash", async () => {
     const repo = createMemoryCatalogRepo();
     await ensureCompany(repo, "M&M");
-    await expect(ensureCompany(repo, "M-AND-M")).rejects.toBeInstanceOf(DbError);
+    const clash = await ensureCompany(repo, "M-AND-M");
+    expect(clash).toMatchObject({ nseSymbol: "M-AND-M", slug: "m-and-m-2" });
+    expect(repo.companies.size).toBe(2);
+  });
+
+  it("gives up after five slug attempts and rethrows the unique violation", async () => {
+    const repo = createMemoryCatalogRepo();
+    const clashing = { ...repo, insertCompany: () => Promise.reject(new DbError("catalog.insertCompany", "23505", "duplicate")) };
+    await expect(ensureCompany(clashing, "TCS")).rejects.toBeInstanceOf(DbError);
+  });
+
+  it("an ignored symbol returns null and creates nothing", async () => {
+    const repo = createMemoryCatalogRepo();
+    repo.ignored.add("symbol:AND");
+    expect(await ensureCompany(repo, "and")).toBeNull();
+    expect(repo.companies.size).toBe(0);
+  });
+
+  it("an alias returns the target company and creates nothing", async () => {
+    const repo = createMemoryCatalogRepo();
+    const target = (await ensureCompany(repo, "KAVPUMP"))!;
+    repo.aliases.set("KAVPUMPS", target.id);
+    expect(await ensureCompany(repo, "kavpumps")).toEqual(target);
     expect(repo.companies.size).toBe(1);
   });
 
@@ -62,8 +84,15 @@ describe("ensureTheme", () => {
     const repo = createMemoryCatalogRepo();
     repo.simulateThemeRace("moats");
     const theme = await ensureTheme(repo, "moats");
-    expect(theme.slug).toBe("moats");
+    expect(theme!.slug).toBe("moats");
     expect(repo.themes.size).toBe(1);
+  });
+
+  it("an ignored theme returns null and creates nothing", async () => {
+    const repo = createMemoryCatalogRepo();
+    repo.ignored.add("theme:capex");
+    expect(await ensureTheme(repo, "Capex")).toBeNull();
+    expect(repo.themes.size).toBe(0);
   });
 
   it("rejects a token with nothing usable", async () => {

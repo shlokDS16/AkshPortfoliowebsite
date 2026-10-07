@@ -25,6 +25,9 @@ const ERRORS = {
   "file-structure": "The file's view, tests and facts do not line up yet. The checklist names what is missing.",
   "facts-sheet-invalid": "The facts sheet has a problem; the line is marked in the editor.",
   "name-not-screened": "Screen this name on the New names tab first.",
+  "name-required": "Give the name.",
+  "choose-sector": "Choose a sector from the list.",
+  "name-on-public-item": "A public item names this. Unpublish that item before changing what this name is.",
   "no-figure-date": "This file has no dated figure yet, so there is nothing to set Figures to.",
 } as const;
 
@@ -45,6 +48,7 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   FILE_STRUCTURE: "file-structure",
   FACTS_SHEET_INVALID: "facts-sheet-invalid",
   NAME_NOT_SCREENED: "name-not-screened",
+  NAME_ON_PUBLIC_ITEM: "name-on-public-item",
   NO_FIGURE_DATE: "no-figure-date",
 };
 
@@ -85,6 +89,7 @@ const NOTICES = {
   "company-public": "Company made public. It is listed only once a file that names it passes the gate.",
   "figures-to-set": "Figures to updated to the latest figure date. Run the publishing gate again.",
   refiled: "Filed.",
+  "name-saved": "Saved. The name is screened.",
   "revision-pending-gate":
     "Revision saved. This item is public, so the new revision is waiting for the publishing gate; the public page still shows the previous one.",
 } as const;

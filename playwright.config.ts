@@ -29,6 +29,13 @@ export default defineConfig({
     // Signed-out checks: the public page, the sign-in flow, every guard, the job routes and health.
     { name: "anon", testMatch: spec("smoke|auth|guard|clocks") },
     { name: "setup", testMatch: /[\\/]auth\.setup\.ts$/ },
+    // Publishes two fictional files and three notes through the desk UI (LOCAL stack only; never the hosted project).
+    {
+      name: "seed",
+      testMatch: /[\\/]seed[\\/]seed\.setup\.ts$/,
+      dependencies: ["setup"],
+      use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
+    },
     {
       name: "desk-mobile",
       ...desk,

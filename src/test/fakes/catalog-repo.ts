@@ -5,6 +5,10 @@ import type { CatalogRepo, Company, Theme } from "@/modules/catalog";
 export type MemoryCatalogRepo = CatalogRepo & {
   companies: Map<string, Company>;
   themes: Map<string, Theme>;
+  /** Alias symbol to company id. */
+  aliases: Map<string, string>;
+  /** `${kind}:${token}` entries. */
+  ignored: Set<string>;
   /** The next insert of this symbol loses a race: another request inserts it first. */
   simulateRace(symbol: string): void;
   /** The next insert of this theme slug loses a race: another request inserts it first. */
@@ -16,6 +20,8 @@ const duplicate = (op: string) => new DbError(op, "23505", "duplicate key value 
 export function createMemoryCatalogRepo(): MemoryCatalogRepo {
   const companies = new Map<string, Company>();
   const themes = new Map<string, Theme>();
+  const aliases = new Map<string, string>();
+  const ignored = new Set<string>();
   let racingSymbol: string | null = null;
   let racingTheme: string | null = null;
   const addCompany = (row: { slug: string; name: string; nseSymbol: string; needsReview: boolean }): Company => {
@@ -31,6 +37,8 @@ export function createMemoryCatalogRepo(): MemoryCatalogRepo {
   return {
     companies,
     themes,
+    aliases,
+    ignored,
     simulateRace(symbol) {
       racingSymbol = symbol;
     },
@@ -39,6 +47,13 @@ export function createMemoryCatalogRepo(): MemoryCatalogRepo {
     },
     async findCompanyBySymbol(symbol) {
       return [...companies.values()].find((c) => c.nseSymbol === symbol) ?? null;
+    },
+    async findCompanyByAlias(symbol) {
+      const id = aliases.get(symbol);
+      return id ? (companies.get(id) ?? null) : null;
+    },
+    async isIgnored(kind, token) {
+      return ignored.has(`${kind}:${token}`);
     },
     async insertCompany(row) {
       if (racingSymbol === row.nseSymbol) {

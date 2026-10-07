@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
 import { createCaptureDeps, listCapturesSince, refileCapture, saveCapture } from "@/modules/capture";
-import { createSupabaseCatalogRepo, ensureCompany } from "@/modules/catalog";
+import { createSupabaseCatalogRepo, decideName, ensureCompany } from "@/modules/catalog";
 import { requireStack, tokenHashFor } from "./support/auth";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
 
@@ -150,4 +150,51 @@ test("c opens the capture sheet from any desk screen; the receipt says where it 
   await expect(dialog.getByText("$NEWNAME → New names")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
+});
+
+test("New names decisions teach capture: an alias files under its target, an ignored token files as plain text", async () => {
+  const deps = createCaptureDeps(db);
+  const linked = async (captureId: string) => {
+    const { data } = await db.from("captures").select("company_id, theme_id").eq("id", captureId).single();
+    return data;
+  };
+  const companyCount = async (symbol: string) => {
+    const { count } = await db.from("companies").select("id", { count: "exact", head: true }).eq("nse_symbol", symbol);
+    return count;
+  };
+
+  const targetSymbol = `E2E${RUN}T`;
+  const stubSymbol = `E2E${RUN}S`;
+  const targetCapture = await saveCapture(deps, entry(`$${targetSymbol} anchor`));
+  const targetId = (await linked(targetCapture.captureId))?.company_id ?? "";
+  await decideName(db, "company", targetId, { kind: "new", name: `E2E Target ${RUN}`, sector: "Other" });
+
+  const stray = await saveCapture(deps, entry(`$${stubSymbol} stray note`));
+  const stubId = (await linked(stray.captureId))?.company_id ?? "";
+  expect(stubId).not.toBe(targetId);
+  await decideName(db, "company", stubId, { kind: "merge", intoId: targetId });
+  expect((await linked(stray.captureId))?.company_id).toBe(targetId);
+  const { data: archived } = await db.from("companies").select("needs_review, archived_at").eq("id", stubId).single();
+  expect(archived?.needs_review).toBe(false);
+  expect(archived?.archived_at).not.toBeNull();
+
+  const again = await saveCapture(deps, entry(`$${stubSymbol} second look`));
+  expect((await linked(again.captureId))?.company_id).toBe(targetId);
+  expect(await companyCount(stubSymbol)).toBe(1); // the archived stub only: no new row
+
+  const noiseSymbol = `E2E${RUN}N`;
+  const noiseSlug = `noise-${RUN.toLowerCase()}`;
+  const noisy = await saveCapture(deps, entry(`$${noiseSymbol} #${noiseSlug} chatter`));
+  const row = await linked(noisy.captureId);
+  await decideName(db, "company", row?.company_id ?? "", { kind: "plain" });
+  await decideName(db, "theme", row?.theme_id ?? "", { kind: "plain" });
+  expect(await linked(noisy.captureId)).toEqual({ company_id: null, theme_id: null });
+
+  const quiet = await saveCapture(deps, entry(`$${noiseSymbol} #${noiseSlug} more chatter`));
+  expect(quiet.parseError).toBeNull();
+  expect(await linked(quiet.captureId)).toEqual({ company_id: null, theme_id: null });
+  expect(await companyCount(noiseSymbol)).toBe(1);
+
+  // Deciding a stub twice is refused: only an unscreened, live stub can be decided.
+  await expect(decideName(db, "company", stubId, { kind: "plain" })).rejects.toThrow();
 });

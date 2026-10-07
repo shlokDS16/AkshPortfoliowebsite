@@ -3,8 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { PALETTE } from "@/test/palette";
 
-// Task 13 adds "src/app/desk" once Plan 1A's plain desk screens are replaced.
-const ROOTS = ["src/components", "src/app/(public)"];
+const ROOTS = ["src/components", "src/app/(public)", "src/app/desk"];
 const HEX = /#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/;
 
 function walk(dir: string): string[] {

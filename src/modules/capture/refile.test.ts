@@ -77,6 +77,19 @@ describe("refileCapture", () => {
     expect(captures.records[0].itemId).toBe(saved.itemId);
   });
 
+  it("a refiled link skips an ignored symbol and uses the first resolvable one", async () => {
+    const { deps, captures, research, catalog } = setup();
+    catalog.ignored.add("symbol:AND");
+    vi.spyOn(captures, "attach").mockRejectedValueOnce(new Error("db blip"));
+    const saved = await saveCapture(deps, input("$AND $KAVPUMP dealers pay later"));
+    research.revisions[0].createdAt = after(captures.records[0].createdAt, 2000).toISOString();
+
+    await refileCapture(deps, saved.captureId, after(captures.records[0].createdAt, REFILE_AFTER_MS + 1000));
+    const company = [...catalog.companies.values()][0];
+    expect(company.nseSymbol).toBe("KAVPUMP");
+    expect(captures.records[0].companyId).toBe(company.id);
+  });
+
   it("does not link a capture to an unrelated revision that only contains its short text", async () => {
     const { deps, captures, research } = setup();
     const other = await saveCapture(deps, input("I would buy more of this"));

@@ -14,7 +14,7 @@ test.beforeAll(async () => {
 
 // Every signed-out redirect check lives here, so it runs once (in `anon`) and not once per desk viewport.
 test.describe("signed out", () => {
-  for (const path of ["/desk", "/desk/items", "/desk/items/00000000-0000-4000-8000-000000000000"]) {
+  for (const path of ["/desk", "/desk/items", "/desk/items/00000000-0000-4000-8000-000000000000", "/desk/names", "/desk/companies"]) {
     test(`${path} sends the visitor to the sign-in page`, async ({ page }) => {
       await page.goto(path);
       await expect(page).toHaveURL(/\/login$/);

@@ -44,9 +44,18 @@ type Filed = { itemId: string; company: Company | null; theme: Theme | null };
 /** A thesis append past the body limit is not a failure to retry: filing it again would fail the same way. */
 export const bodyTooLong = (e: unknown) => e instanceof ZodError && e.issues.some((i) => i.message === BODY_TOO_LONG_MESSAGE);
 
+/** The first token that resolves to a row; ignored tokens resolve to null and are skipped. */
+export async function firstResolved<T>(tokens: string[], resolve: (token: string) => Promise<T | null>): Promise<T | null> {
+  for (const token of tokens) {
+    const found = await resolve(token);
+    if (found) return found;
+  }
+  return null;
+}
+
 export async function fileCapture(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<Filed> {
-  const company = parsed.symbols[0] ? await ensureCompany(deps.catalog, parsed.symbols[0]) : null;
-  const theme = parsed.themes[0] ? await ensureTheme(deps.catalog, parsed.themes[0]) : null;
+  const company = await firstResolved(parsed.symbols, (s) => ensureCompany(deps.catalog, s));
+  const theme = await firstResolved(parsed.themes, (t) => ensureTheme(deps.catalog, t));
   if (parsed.kind === "thesis" && company) {
     const existing = await deps.research.findThesisForCompany(company.id);
     if (existing) {

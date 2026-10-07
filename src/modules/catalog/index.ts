@@ -4,3 +4,5 @@ export { createSupabaseCatalogRepo } from "./repo";
 export { countNamesToReview } from "./counts";
 export { listKnownTokens, type KnownTokenLists } from "./tokens";
 export { getCompanyBrief, setCompanyPublic, type CompanyBrief } from "./companies";
+export { decideName, listNamesToScreen, planDecision, SECTORS, suggestMatch, type NameDecision, type NameOp, type NameStub, type NameToScreen, type Sector } from "./names";
+export { NameNotScreenedError, NameOnPublicItemError } from "./errors";
