@@ -57,6 +57,8 @@ export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: She
       if (cells[10]) pendingQuotes.push({ sourceId: cells[6] ?? "", factId: key, quote: cells[10] });
     } else if (key === "G") {
       if (!cells[1]) return err("G: name the topic.");
+      // A | or a tab typed into the topic would have split it into more columns (or sits inside a tab-split cell).
+      if (cells.slice(3).some(Boolean) || cells[1].includes("|")) return err("G: a topic cannot hold a | or a tab; the sheet uses them to split columns.");
       topics.push({ line, topic: cells[1], ids: (cells[2] ?? "").split(/[\s,]+/).filter(Boolean) });
     } else if (/^T\d+$/.test(key)) {
       const status = STATUS[(cells[5] ?? "").toLowerCase()];

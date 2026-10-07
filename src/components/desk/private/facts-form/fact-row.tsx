@@ -14,6 +14,9 @@ type Props = {
   cited: boolean;
 };
 
+/** The `<datalist>` of the file's topics, rendered once by FactsForm; every Topic field suggests from it. */
+export const TOPICS_LIST = "ff-topics";
+
 export const sourceOptions = (sources: SourceDraft[], value: string) => [
   ...(sources.some((s) => s.id === value) ? [] : [{ value, label: sources.length ? "Pick a source" : "Add a source first" }]),
   ...sources.map((s) => ({ value: s.id, label: s.doc.trim() ? `${s.id} · ${s.doc}` : s.id })),
@@ -40,6 +43,7 @@ export function FactRow({ row, sources, onChange, onRemove, errors, rowErrors, c
       <TextField {...f("priorLabel")} label="Prior period" value={row.priorLabel} onChange={set("priorLabel")} placeholder="FY25" />
       <TextField {...f("priorValue")} label="Prior value" value={row.priorValue} onChange={set("priorValue")} placeholder="1102" />
       <TextField {...f("quote")} label="Quoted line (optional)" value={row.quote} onChange={set("quote")} className="col-span-2" />
+      <TextField {...f("topic")} label="Topic (optional)" list={TOPICS_LIST} value={row.topic} onChange={set("topic")} placeholder="Working capital" className="col-span-2" />
     </RowFrame>
   );
 }

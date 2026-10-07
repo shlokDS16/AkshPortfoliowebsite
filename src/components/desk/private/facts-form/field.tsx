@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 type Base = { id: string; label: string; error?: string; className?: string };
-type TextProps = Base & { value: string; onChange(value: string): void } & Pick<ComponentProps<"input">, "type" | "inputMode" | "placeholder">;
+type TextProps = Base & { value: string; onChange(value: string): void } & Pick<ComponentProps<"input">, "type" | "inputMode" | "placeholder" | "list">;
 type SelectProps = Base & { value: string; onChange(value: string): void; options: { value: string; label: string }[] };
 
 /** Label above, error below in plain words; the error is the field's description, so a screen reader hears it. */

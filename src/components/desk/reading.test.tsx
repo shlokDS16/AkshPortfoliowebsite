@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ViewBlockData } from "@/lib/view-types";
-import { CHIP_F1, FACT_GROUPS, READ_FIRST, SOURCES, USED_IN, VIEW_BLOCKS } from "@/test/fixtures/desk-ui";
+import { CHIP_F1, FACT_GROUPS, FACT_GROUPS_BY_TOPIC, READ_FIRST, SOURCES, USED_IN, VIEW_BLOCKS } from "@/test/fixtures/desk-ui";
 import { expectNoMotion, expectTokenOnly, mockMatchMedia, renderWithMotion } from "@/test/ui";
 import { BlockHeader } from "./block-header";
 import { FactTable } from "./fact-table";
@@ -102,6 +102,16 @@ describe("FactTable and SourceList", () => {
     expect(tr).toHaveTextContent("[withheld until 25 Oct 2026]");
     expect(tr.textContent).not.toContain("977");
     expect(within(tr).getAllByText("—")).toHaveLength(1);
+  });
+
+  it("under a topic heading, names each metric's period after it; period groups do not repeat it", () => {
+    const { container } = render(<FactTable groups={FACT_GROUPS_BY_TOPIC} />);
+    expect(screen.getByText("Working capital")).toBeInTheDocument();
+    expect(screen.getByText("Receivable days").closest("td")).toHaveTextContent(/^Receivable days · FY26$/);
+    expect(screen.getByText("Order book").closest("td")).toHaveTextContent(/^Order book · Q1 FY27$/);
+    expect(screen.getByText("Dealer count").closest("td")).toHaveTextContent(/^Dealer count$/);
+    expect(screen.getByText("as of 25 Sep 2026")).toBeInTheDocument();
+    expectTokenOnly(container);
   });
 
   it("two groups with the same title render without a key collision", () => {

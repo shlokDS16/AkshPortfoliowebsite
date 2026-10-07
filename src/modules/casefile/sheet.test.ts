@@ -83,6 +83,15 @@ describe("topics (G rows) and Notes sources", () => {
     expect(errors.map((e) => e.line)).toContain(5);
   });
 
+  it("refuses a | or a tab inside a topic in plain words, since either would split the G row", () => {
+    const tabbed = base.map((l) => l.split(" | ").join("\t"));
+    const message = "G: a topic cannot hold a | or a tab; the sheet uses them to split columns.";
+    expect(parseFactsSheet([...base, "G | P|L | F1"].join("\n")).errors).toEqual([{ line: 5, message }]);
+    expect(parseFactsSheet([...tabbed, "G\tP|L\tF1"].join("\n")).errors).toEqual([{ line: 5, message }]);
+    expect(parseFactsSheet([...tabbed, "G\tP\tL\tF1"].join("\n")).errors).toEqual([{ line: 5, message }]);
+    expect(parseFactsSheet([...base, "G | P&L | F1 |"].join("\n")).errors).toEqual([]);
+  });
+
   it("round-trips topics through the serializer, one G row per topic in first-seen order", () => {
     const { caseFile } = parseFactsSheet([...base, "G | Working capital | F3 F2", "G | P&L | F1"].join("\n"));
     const text = serializeFactsSheet(caseFile);

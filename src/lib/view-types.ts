@@ -28,13 +28,14 @@ export type ViewBlockData =
 export type FactRow = {
   id: string;
   label: string;
+  period: string | null; // set only when the row sits in a topic group (the group title is then the topic, not the period)
   value: string | null;
   unit: string | null;
   prior: string | null;
   source: SourceRef;
   withheldUntil: ISODate | null;
 };
-export type FactGroup = { title: string; asOf: ISODate; rows: FactRow[] };
+export type FactGroup = { title: string; asOf: ISODate; rows: FactRow[] }; // title: the topic, or the period for facts with none
 export type SourceListItem = SourceRef & { type: SourceType };
 export type MeterData = {
   min: number;

@@ -6,7 +6,7 @@ import { istDate } from "@/lib/dates";
 import { CASEFILE_LIMITS as MAX, splitThesisBody } from "@/modules/casefile/client";
 import { blankExhibit, blankFact, blankSource, blankTest, nextId, type Draft } from "./draft";
 import { ExhibitRow } from "./exhibit-row";
-import { FactRow } from "./fact-row";
+import { FactRow, TOPICS_LIST } from "./fact-row";
 import { TextField } from "./field";
 import { neighbour, useFocusNext } from "./focus";
 import { FormSection, RowFrame } from "./row-frame";
@@ -58,6 +58,7 @@ export function FactsForm({ draft: d, update, fields, rows, bodyMd, loaded }: Pr
   };
   const firstSource = d.sources[0]?.id ?? "";
   const missing = conditions.filter((c) => !d.tests.some((t) => t.id === c.id));
+  const topics = [...new Set(d.facts.map((f) => f.topic.trim()).filter(Boolean))];
   return (
     <div className="space-y-(--block-gap)">
       <FormSection title="Company line">
@@ -83,6 +84,11 @@ export function FactsForm({ draft: d, update, fields, rows, bodyMd, loaded }: Pr
         fullNote={full(d.facts.length, MAX.facts, "facts")}
         onAdd={() => add("facts", blankFact(freshId("facts", "F"), firstSource))}
       >
+        <datalist id={TOPICS_LIST}>
+          {topics.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
         {d.facts.map((f) => (
           <FactRow key={f.id} row={f} sources={d.sources} onChange={patch("facts", f.id)} onRemove={remove("facts", f.id)} errors={fields} rowErrors={rows[f.id]} cited={cited.includes(f.id)} />
         ))}

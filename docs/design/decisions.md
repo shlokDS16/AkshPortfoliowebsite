@@ -22,6 +22,8 @@ Each entry: segment, options shown, choice, reason, date. Never redo a decided s
 - **PROVISIONAL (controller, Shlok in class; confirm or overturn):** B's exhibit frame for every figure block; exhibit 1 opens on A's ledger table with the sticky phone key row as its Table tab; C's distance-to-threshold meters for kill criteria; B's large figures with unit squares for the register-home stat tiles; B's heatmap only in the private valuation panel.
 - **Compliance ruling (rule 9):** public scenario tables never show equity value or per-share value; operating outputs only. Equity/per-share values live in the private panel.
 - **Status:** CONFIRMED by Shlok 2026-10-05.
+- **Topic groups (2026-10-07, Plan 2a Task 2, E10):** facts may carry a topic (G rows). Options: A topic heading, the period after each metric ("Receivable days · FY26"), as-of once per group, untopiced facts keep their period groups after the topics; B topic heading with period sub-captions above each run of rows. A built as the E10 default; B exists only as a static mock. Screenshots: `.superpowers/sdd/2026-10-07-phase-2a-ingestion/task-2-shots/`.
+- **Topic groups status:** PENDING Shlok's pick (A built; switch to B only if he picks it).
 
 ## Segment 6: motion (pulled forward at Shlok's request)
 - **Options shown (2026-10-05):** Instrument (snap/tick/roll, 120-220 ms, one ease-out), Paper (glide/draw/settle, 160-300 ms, shared-element morph), Terminal (draw/count/stamp, instant feedback). `comparisons/06-motion.html` (CSS + Web Animations API, no library; CLS 0 measured), brief `segment-06-motion-brief.md`. Research: `docs/research/2026-10-05-motion-landscape.md`.

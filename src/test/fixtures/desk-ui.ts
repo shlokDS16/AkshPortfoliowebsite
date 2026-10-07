@@ -41,15 +41,40 @@ export const FACT_GROUPS: FactGroup[] = [
     title: "FY26",
     asOf: "2026-03-31",
     rows: [
-      { id: "F1", label: "Revenue from operations", value: "1,284", unit: "₹ cr", prior: "1,102", source: SOURCE_S1, withheldUntil: null },
-      { id: "F2", label: "Gross margin", value: "31.4", unit: "%", prior: "30.9", source: SOURCE_S1, withheldUntil: null },
-      { id: "F3", label: "Receivable days", value: "142", unit: "days", prior: "131", source: SOURCE_S1, withheldUntil: null },
+      { id: "F1", label: "Revenue from operations", period: null, value: "1,284", unit: "₹ cr", prior: "1,102", source: SOURCE_S1, withheldUntil: null },
+      { id: "F2", label: "Gross margin", period: null, value: "31.4", unit: "%", prior: "30.9", source: SOURCE_S1, withheldUntil: null },
+      { id: "F3", label: "Receivable days", period: null, value: "142", unit: "days", prior: "131", source: SOURCE_S1, withheldUntil: null },
     ],
   },
   {
     title: "Q1 FY27",
     asOf: "2026-09-25",
-    rows: [{ id: "F4", label: "Order book", value: null, unit: "₹ cr", prior: null, source: SOURCE_S2, withheldUntil: "2026-10-25" }],
+    rows: [{ id: "F4", label: "Order book", period: null, value: null, unit: "₹ cr", prior: null, source: SOURCE_S2, withheldUntil: "2026-10-25" }],
+  },
+];
+
+/** The same facts filed under topics (Phase 2 G rows): the period moves after each metric; untopiced facts keep period groups. */
+export const FACT_GROUPS_BY_TOPIC: FactGroup[] = [
+  {
+    title: "P&L",
+    asOf: "2026-03-31",
+    rows: [
+      { ...FACT_GROUPS[0].rows[0], period: "FY26" },
+      { ...FACT_GROUPS[0].rows[1], period: "FY26" },
+    ],
+  },
+  {
+    title: "Working capital",
+    asOf: "2026-09-25",
+    rows: [
+      { ...FACT_GROUPS[0].rows[2], period: "FY26" },
+      { ...FACT_GROUPS[1].rows[0], period: "Q1 FY27" },
+    ],
+  },
+  {
+    title: "FY26",
+    asOf: "2026-03-31",
+    rows: [{ id: "F5", label: "Dealer count", period: null, value: "1,900", unit: "dealers", prior: "1,840", source: SOURCE_S1, withheldUntil: null }],
   },
 ];
 

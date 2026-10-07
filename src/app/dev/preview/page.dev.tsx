@@ -72,6 +72,9 @@ export default function Preview() {
             <ScenarioTable data={F.SCENARIO} />
             <SourceList sources={F.SOURCES} />
           </Spec>
+          <Spec name="FACTS grouped by topic (E10): period after each metric, as-of once per group">
+            <FactTable groups={F.FACT_GROUPS_BY_TOPIC} />
+          </Spec>
           <Spec name="HISTORY">
             <BlockHeader label="HISTORY" id="history" title="Revisions" />
             <RevisionDiff data={F.REVISION_DIFF} />

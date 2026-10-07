@@ -23,6 +23,9 @@ const withLastPoint = (value: number): CaseFile => ({
   exhibits: cf.exhibits.map((x) => ({ ...x, points: x.points.map((p) => (p.period === "FY26" ? { ...p, value } : p)) })),
 });
 
+/** The seeded Kaveri file (F1-F4, all FY26); `topics` files facts under a topic heading, as G rows would. */
+const fixtureCaseFile = ({ topics = {} }: { topics?: Record<string, string> } = {}): CaseFile => withFacts((f) => ({ topic: topics[f.id] ?? null }));
+
 describe("figures and lag", () => {
   it("formats figures the Indian way and maps fiscal periods to year ends", () => {
     expect(formatFigure(1284, "₹ cr")).toBe("₹1,284 cr");
@@ -64,6 +67,23 @@ describe("view builders", () => {
     const young = withFacts((f) => ({ asOf: "2026-09-25", value: 98765, prior: f.prior ? { ...f.prior, value: 87654 } : null }));
     const json = JSON.stringify([buildViewBlocks(R1_VIEW, young, TODAY), buildFactGroups(young, TODAY), buildSourceList(young)]);
     for (const leaked of ["98,765", "87,654", "98765", "87654", "Revenue from operations rose"]) expect(json).not.toContain(leaked);
+  });
+
+  it("groups by topic first, then by period for facts without a topic, with the period on topic rows", () => {
+    const cf = fixtureCaseFile({ topics: { F1: "P&L", F2: "Working capital", F3: "Working capital" } }); // F4 has no topic
+    const groups = buildFactGroups(cf, "2026-10-07");
+    expect(groups.map((g) => g.title)).toEqual(["P&L", "Working capital", "FY26"]);
+    expect(groups[1]?.rows.map((r) => r.period)).toEqual(["FY26", "FY26"]);
+    expect(groups[2]?.rows[0]?.period).toBeNull();
+  });
+
+  it("dates a topic group by its latest fact, and still withholds a young fact inside it (rule 3)", () => {
+    const young = fixtureCaseFile({ topics: { F3: "Working capital", F4: "Working capital" } });
+    young.facts[3] = { ...young.facts[3], period: "Q1 FY27", asOf: "2026-09-25" };
+    const [wc] = buildFactGroups(young, "2026-10-07");
+    expect(wc).toMatchObject({ title: "Working capital", asOf: "2026-09-25" });
+    expect(wc.rows.map((r) => [r.id, r.period, r.value])).toEqual([["F3", "FY26", "142"], ["F4", "Q1 FY27", null]]);
+    expect(JSON.stringify(wc)).not.toContain("2,150");
   });
 
   it("joins Aksh's conditions with the sheet's readings by T-number; a test without a reading is No data", () => {
