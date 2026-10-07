@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { formatNumber } from "@/lib/format";
 import type { LineChartData } from "@/lib/view-types";
-import { buildGeometry, chartLabel } from "./chart-geometry";
+import { buildGeometry, chartLabel, thresholdLabelY } from "./chart-geometry";
 import { ChartReadout } from "./chart-readout";
 
 type Props = { data: LineChartData; height: { phone: number; desk: number } };
@@ -89,7 +89,7 @@ export function LineChart({ data, height }: Props) {
           {g.thresholds.map((t) => (
             <g key={t.label} data-threshold>
               <line x1={g.plot.left} x2={g.plot.right} y1={t.y} y2={t.y} className="stroke-neel" strokeWidth="1.5" strokeDasharray="5 4" />
-              <text x={g.plot.left + 4} y={t.y - 5} className="fill-neel text-caption font-medium">
+              <text x={g.plot.left + 4} y={thresholdLabelY(t.y)} className="fill-neel text-caption font-medium">
                 {t.label}
               </text>
             </g>

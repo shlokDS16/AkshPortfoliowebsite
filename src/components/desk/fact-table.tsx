@@ -18,7 +18,7 @@ export function FactTable({ groups }: { groups: FactGroup[] }) {
     <div className="space-y-(--block-gap)">
       {groups.map((group, g) => (
         <Table key={`${g}-${group.title}`} className="max-desk:block">
-          <caption className="mb-2 text-left text-subtitle text-ink desk:text-subtitle-desk">
+          <caption className="mb-2 text-left max-desk:block text-subtitle text-ink desk:text-subtitle-desk">
             {group.title}{" "}
             <span className="text-small font-normal text-ink-muted">
               · <AsOf date={group.asOf} prefix="as of" />

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EXHIBIT } from "@/test/fixtures/desk-ui";
 import type { ChartPoint } from "@/lib/view-types";
-import { buildGeometry, chartLabel } from "./chart-geometry";
+import { buildGeometry, chartLabel, thresholdLabelY } from "./chart-geometry";
 
 describe("buildGeometry", () => {
   const g = buildGeometry(EXHIBIT.chart, 640, 240);
@@ -73,5 +73,12 @@ describe("chartLabel", () => {
     const label = chartLabel({ ...EXHIBIT.chart, series: [{ ...base, points: hold(4, "2026-08-15") }, { ...base, kind: "benchmark", label: "Peer", points: hold(3, "2026-07-30") }] });
     expect(label).toBe("Receivable days: some values withheld until 30 Jul 2026");
     expect(label).not.toContain("142");
+  });
+});
+
+describe("thresholdLabelY", () => {
+  it("sits the label above its line, or below it when the line is the top tick (the label would clip)", () => {
+    expect(thresholdLabelY(80)).toBe(75);
+    expect(thresholdLabelY(12)).toBe(27);
   });
 });

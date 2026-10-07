@@ -17,6 +17,14 @@ export type Geometry = {
   capX: number | null;
 };
 
+// A caption label (12 px) set 5 px above its line needs 16 px of headroom inside the viewBox.
+const LABEL_HEADROOM = 16;
+
+/** Threshold label baseline: above the line, or below it when the line sits too near the top to fit the label. */
+export function thresholdLabelY(y: number): number {
+  return y < LABEL_HEADROOM ? y + 15 : y - 5;
+}
+
 /** Even category spacing; the first and last y tick set the domain. Withheld or missing points break the line. */
 export function buildGeometry(data: LineChartData, width: number, height: number): Geometry {
   const plot = { left: PAD.left, right: width - PAD.right, top: PAD.top, bottom: height - PAD.bottom };

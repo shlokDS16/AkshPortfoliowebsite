@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import type { FileNo, HoldsPosition, ISODate } from "@/lib/desk-types";
 import type { RailCurrent, RailSection, SiteChrome, TabCurrent } from "@/lib/view-types";
 import { ComplianceStrip } from "./compliance-strip";
@@ -36,7 +37,11 @@ export function PublicFrame({ current, chrome, strip, topBar = "home", file, chi
       <TopBar variant={topBar} />
       <div className="mx-auto flex max-w-page gap-8 desk:px-(--gutter)">
         {chrome ? <DeskRail current={current} counts={chrome.counts} streak={chrome.streak} file={file} /> : null}
-        <main id="main" className="min-w-0 flex-1 px-(--gutter) pb-[calc(var(--tab-bar-h)+2rem)] desk:px-0 desk:pb-16">
+        {/* design-dna 3.3, 8.2: on a file the whole main column, strip and data blocks included, is the 660 px reading column. */}
+        <main
+          id="main"
+          className={cn("min-w-0 flex-1 px-(--gutter) pb-[calc(var(--tab-bar-h)+2rem)] desk:px-0 desk:pb-16", strip.variant === "file" && "desk:max-w-read")}
+        >
           {strip.variant === "file" ? (
             <div className="-mx-(--gutter) desk:mx-0">
               <ComplianceStrip variant="file" holdsPosition={strip.holdsPosition} dataAsOf={strip.dataAsOf} />
