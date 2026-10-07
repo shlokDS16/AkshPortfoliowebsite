@@ -89,6 +89,31 @@ describe("buildProposals: headings, units and what is dropped", () => {
     expect(out[0].machineValue.unit).toBeNull();
   });
 
+  it("treats a heading the page does not print as unread: lakh on the page, crore from the model, is unit_unknown", () => {
+    const lakh = PL_TEXT.replace("(Rs. in crore)", "(Rs. in lakh)");
+    const out = pl({}, lakh);
+    expect(out.every((p) => p.flags.includes("unit_unknown") && p.machineValue.unit === null)).toBe(true);
+    const noYear = pl({ current_header: "Year ended March 31, 2027" });
+    expect(noYear[0].flags).toContain("period_unknown");
+    expect(noYear[0].machineValue).toMatchObject({ period: null, asOf: null });
+  });
+
+  it("flags a value that is not on its own quoted line, even when the line is printed", () => {
+    const rows = [{ label: "Revenue from operations", current_text: "1,102.00", prior_text: "1,284.00", line: "Revenue from operations 1,284.00 1,102.00" }];
+    expect(pl({ rows })[0].flags).toEqual(["quote_not_on_page"]);
+    const other = [{ label: "Revenue from operations", current_text: "152.60", prior_text: "1,102.00", line: "Revenue from operations 1,284.00 1,102.00" }];
+    expect(pl({ rows: other })[0].flags).toContain("quote_not_on_page");
+  });
+
+  it("flags a current value that comes after the prior in the line, and accepts the same value printed twice in order", () => {
+    const swapped = [{ label: "Revenue from operations", current_text: "1,102.00", prior_text: "1,102.00", line: "Revenue from operations 1,284.00 1,102.00" }];
+    expect(pl({ rows: swapped })[0].flags).toContain("quote_not_on_page");
+    const text = `${PL_TEXT}
+Revenue from operations 9.00 9.00`;
+    const same = [{ label: "Revenue from operations", current_text: "9.00", prior_text: "9.00", line: "Revenue from operations 9.00 9.00" }];
+    expect(pl({ rows: same }, text)[0].flags).toEqual([]);
+  });
+
   it("drops a row whose current figure does not parse", () => {
     const rows = [{ label: "Total income", current_text: "n/a", prior_text: null, line: "Total income n/a" }, ...fixture("Profit and Loss").rows];
     expect(pl({ rows }).map((p) => p.machineValue.label)).not.toContain("Total income");

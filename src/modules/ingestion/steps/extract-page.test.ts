@@ -188,6 +188,21 @@ describe("extract_page: reading the page", () => {
     expect(complete).not.toHaveBeenCalled();
   });
 
+  it("when the cap leaves room for only some lines, keeps the core ones before the movers", async () => {
+    const lines = ["Travel 170.00 100.00", "Revenue from operations 1,284.00 1,102.00", "Finance costs 41.20 38.90"];
+    const rows = lines.map((line) => {
+      const [label, current, prior] = [line.replace(/ [\d,.]+ [\d,.]+$/, ""), line.split(" ").at(-2)!, line.split(" ").at(-1)!];
+      return { label, current_text: current, prior_text: prior, line };
+    });
+    const { llm } = fake({ kind: "ok", data: { ...EXTRACTION, rows }, usage: USAGE, rate: NO_RATE });
+    const s = setup(`${PL_TEXT}
+${lines[0]}`);
+    const filler = Array.from({ length: MAX_PROPOSALS_PER_DOCUMENT - 2 }, (_, i) => ({ documentId: DOC, pageNo: 1, extractionId: "x", dedupeKey: `k${i}`, machineValue: {} as never, flags: [], reason: "core" as const }));
+    await s.proposals.insertProposals(filler);
+    await extractPage(ctx(s, llm));
+    expect(s.proposals.proposals.slice(-2).map((p) => p.machineValue.label)).toEqual(["Revenue from operations", "Finance costs"]);
+  });
+
   it("keeps a non-core line the file already tracks (a label match), and reads the file through the research repo", async () => {
     const file = {
       schema: "casefile/1", oneLiner: null,

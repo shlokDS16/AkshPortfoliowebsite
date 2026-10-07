@@ -1,4 +1,4 @@
-import { onPage, parsePrinted, type Basis, type PageKind } from "@/modules/documents/client";
+import { normaliseText, onPage, parsePrinted, type Basis, type PageKind } from "@/modules/documents/client";
 import type { Extraction } from "./prompts";
 import { periodFromHeader, unitFromHeader } from "./periods";
 import { classifyRow, normaliseLabel, type RowClass } from "./relevance";
@@ -25,11 +25,31 @@ type Input = {
   fileLabels: Set<string>;
 };
 
+/** Printed figures of a line with their positions, grouping commas removed: "1,284.00" and "(41.20)" are one token each. */
+const figureTokens = (line: string) =>
+  [...normaliseText(line).matchAll(/\(?-?\d[\d,]*(?:\.\d+)?\)?/g)].map((m) => m[0].replace(/,/g, ""));
+
+/**
+ * True when the value is a figure of the quoted line and, with a prior, the prior is a figure after it: a column read
+ * in the wrong order, or a value that is not on its own quoted line, is a flag (the quote proves nothing about it).
+ */
+function lineHoldsValues(line: string, currentText: string, priorText: string | null): boolean {
+  const tokens = figureTokens(line);
+  const want = figureTokens(currentText)[0];
+  const at = want === undefined ? -1 : tokens.indexOf(want);
+  if (at === -1) return false;
+  if (priorText === null) return true;
+  const wantPrior = figureTokens(priorText)[0];
+  return wantPrior !== undefined && tokens.indexOf(wantPrior, at + 1) !== -1;
+}
+
 export function buildProposals(i: Input): NewProposal[] {
   const { extraction: ex, pageNo, pageText } = i;
-  const current = periodFromHeader(ex.current_header);
-  const prior = periodFromHeader(ex.prior_header);
-  const unit = unitFromHeader(ex.unit_header);
+  // Headings are the model's words: one that is not printed on the page counts as unread, so the flag is raised.
+  const printed = (header: string | null) => (header !== null && onPage(header, pageText) ? header : null);
+  const current = periodFromHeader(printed(ex.current_header));
+  const prior = periodFromHeader(printed(ex.prior_header));
+  const unit = unitFromHeader(printed(ex.unit_header));
   const basis: Basis = ex.basis !== "unknown" ? ex.basis : (i.pageBasis ?? i.docBasis);
 
   const seen = new Set<string>();
@@ -44,8 +64,12 @@ export function buildProposals(i: Input): NewProposal[] {
     if (!klass) continue;
 
     const flags: Flag[] = [];
-    if (!onPage(row.current_text, pageText)) flags.push("value_not_on_page");
-    if (!onPage(row.line, pageText)) flags.push("quote_not_on_page");
+    const valueOnPage = onPage(row.current_text, pageText);
+    if (!valueOnPage) flags.push("value_not_on_page");
+    // The quote must be a printed line and must hold the value (and the prior after it): a true quote of another row is no
+    // proof. A value that is not on the page at all is already flagged, so it is not flagged twice for the same misread.
+    const holds = !valueOnPage || lineHoldsValues(row.line, row.current_text, priorValue === null ? null : priorText);
+    if (!onPage(row.line, pageText) || !holds) flags.push("quote_not_on_page");
     if (priorText !== null && priorValue !== null && !onPage(priorText, pageText)) flags.push("prior_not_on_page");
     if (!current || (priorValue !== null && !prior)) flags.push("period_unknown");
     if (!unit) flags.push("unit_unknown");

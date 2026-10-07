@@ -19,10 +19,13 @@ export const KEY_REFUSED = "The AI service did not accept the desk's key. Check 
 export const REQUEST_REFUSED = "The AI service refused to read this page. Enter the figures yourself.";
 /** How long a step waits when AI reading is off; turning it on (a key, then a redeploy) does not need the step to be touched. */
 const AI_OFF_RETRY_MS = 6 * 60 * 60 * 1000;
-/** A step that finds under 20 s left tries again almost at once, in the next drain (no failure is counted). */
+/** A step that finds under 20 s left tries again almost at once, in the next drain (no failure is counted).
+ * WaitReason has no neutral value; groq_minute reads as a short wait, which is what it is. */
 const SHORT_WAIT_MS = 5_000;
 const ISSUES_MAX = 400;
 
+/** When the document cap leaves room for only some of a page, core lines go first, then tracked labels, then movers. */
+const RANK = { core: 0, label_match: 1, moved: 2 } as const;
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
 /** The labels of the company's newest file, as the relevance filter compares them (empty when there is no file). */
@@ -96,7 +99,9 @@ export const extractPage: StepHandler = async (ctx) => {
   const extractionId = await proposals.insertExtraction({ documentId, pageNo, model, promptVersion: PROMPT_VERSION, inputHash, output: extraction, tokensUsed: tokens });
   const built = buildProposals({
     extraction, pageNo, pageText: text, pageKind: page.kind ?? extraction.page_kind, pageBasis: page.basis, docBasis: doc.basis, fileLabels,
-  }).slice(0, MAX_PROPOSALS_PER_DOCUMENT - have);
+  })
+    .sort((a, b) => RANK[a.reason] - RANK[b.reason])
+    .slice(0, MAX_PROPOSALS_PER_DOCUMENT - have);
   await proposals.insertProposals(
     built.map((p) => ({ documentId, pageNo, extractionId, dedupeKey: p.dedupeKey, machineValue: p.machineValue, flags: p.flags, reason: p.reason })),
   );
