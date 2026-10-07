@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { addDays, istDate } from "@/lib/dates";
 import { DbError } from "@/lib/supabase/errors";
 import { createFakeComplianceRepo, type FakeComplianceRepo } from "@/test/fakes/compliance-repo";
 import { sentenceHash } from "./hash";
@@ -34,7 +35,9 @@ vi.mock("./gate-rpc", () => ({
   },
 }));
 
-import { allowSentenceAction, publishCheckedAction, publishRevision, removeAllowanceAction, unpublishItem, unpublishItemAction } from "./actions";
+import * as actions from "./actions";
+import { allowSentenceAction, publishCheckedAction, removeAllowanceAction, unpublishItemAction } from "./actions";
+import { publishRevision, unpublishItem } from "./gate-service";
 
 const ITEM = "0b6f3c1e-8a2d-4f5b-9c7e-1d2a3b4c5d6e";
 const REV = "7e8d9c0b-1a2b-4c3d-8e4f-5a6b7c8d9e0f";
@@ -85,6 +88,12 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("the server-action surface (M1)", () => {
+  it("exports only the *Action form handlers: publishRevision and unpublishItem (caller-supplied hand checks) are not endpoints", () => {
+    expect(Object.keys(actions).sort()).toEqual(["allowSentenceAction", "publishCheckedAction", "removeAllowanceAction", "unpublishItemAction"]);
+  });
 });
 
 describe("every action checks the admin first", () => {
@@ -186,6 +195,14 @@ describe("publishCheckedAction (the editor's Run the publishing gate; the only f
   it("confirms a pass and opens the gate section", async () => {
     expect(await target(() => publishCheckedAction(ITEM, REV, form()))).toBe(`/desk/items/${ITEM}?notice=published#gate`);
     expect(repo.published[0].lintResult).toMatchObject({ handChecks: {} });
+  });
+
+  it("I1: a pass whose figures are not yet 30 days old says it waits for the lag, not 'Published.'", async () => {
+    const today = istDate(new Date());
+    repo.context = { ...context("Margins held."), item: { ...context("x").item, dataAsOf: addDays(today, -29) } };
+    expect(await target(() => publishCheckedAction(ITEM, REV, form()))).toBe(`/desk/items/${ITEM}?notice=published-lagged#gate`);
+    repo.context = { ...context("Margins held."), item: { ...context("x").item, dataAsOf: addDays(today, -30) } };
+    expect(await target(() => publishCheckedAction(ITEM, REV, form()))).toBe(`/desk/items/${ITEM}?notice=published#gate`);
   });
 
   it("shows a failure on the gate panel, with no error banner", async () => {

@@ -15,7 +15,7 @@ const NO_SECRET_CLIENT = {
   message: "The secret-key client is job code (src/modules/ops) plus the one gate RPC file (ADR-001 s3, ADR-003).",
 };
 // ADR-003: the publish gate's functions are service_role only; this one server-only file calls them after
-// requireAdmin(). gate.graph.test.ts proves only compliance/actions.ts imports it.
+// requireAdmin(). gate.graph.test.ts proves only compliance/gate-service.ts imports it.
 const GATE_RPC_FILE = "src/modules/compliance/gate-rpc.ts";
 const restrict = (...patterns) => ({ "no-restricted-imports": ["error", { patterns }] });
 

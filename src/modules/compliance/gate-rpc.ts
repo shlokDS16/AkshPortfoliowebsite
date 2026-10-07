@@ -8,7 +8,7 @@ import type { GateRpc } from "./repo";
  * The gate's write path (ADR-003). publish_revision, unpublish_item and the lint-allowance writers are
  * executable by service_role only, so an admin access token on its own (for example one lifted by XSS) can
  * neither publish nor forge a lint result. This is the one file outside job code that holds the secret-key
- * client (ESLint and gate.graph.test.ts enforce it); only compliance/actions.ts uses it, and only after
+ * client (ESLint and gate.graph.test.ts enforce it); only compliance/gate-service.ts uses it, and only after
  * requireAdmin() has verified the caller, whose id it passes as p_actor for the SQL to re-check.
  */
 export function createGateRpc(db: Db = createSupabaseServiceClient()): GateRpc {

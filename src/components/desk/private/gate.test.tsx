@@ -138,9 +138,22 @@ describe("PublishChecklist", () => {
   it("with nothing to run it says how to get something to publish; a live item can be unpublished", () => {
     const { rerender } = render(<PublishChecklist items={[]} rule4Needed={false} {...base} publishAction={null} publishLabel="" />);
     expect(screen.getByText("Save a revision to publish it.")).toBeInTheDocument();
-    rerender(<PublishChecklist items={[]} rule4Needed={false} {...base} publishAction={null} publishLabel="" live={{ revNo: 3, unpublish: vi.fn() }} />);
+    rerender(<PublishChecklist items={[]} rule4Needed={false} {...base} publishAction={null} publishLabel="" live={{ revNo: 3, unpublish: vi.fn(), dataAsOf: null, today: "2026-10-07" }} />);
     expect(screen.getByText("Live: revision #3")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unpublish" })).toBeInTheDocument();
+  });
+
+  it("I1: a public file whose figures are not yet 30 days old says when it shows, not 'Live' (public_items hides it until then)", () => {
+    const live = { revNo: 3, unpublish: vi.fn(), today: "2026-10-07" };
+    const { rerender } = render(<PublishChecklist items={[]} rule4Needed={false} {...base} publishAction={null} publishLabel="" live={{ ...live, dataAsOf: "2026-09-20" }} />);
+    expect(screen.getByText("Passed the gate. Shows on the public site from 20 Oct 2026 (30-day lag)")).toBeInTheDocument();
+    expect(screen.queryByText(/^Live/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Unpublish" })).toBeInTheDocument();
+    // Lagged exactly today (07 Sep + 30 days = 07 Oct), and an item with no Figures-to date (SQL is_lagged(null) is true): live.
+    rerender(<PublishChecklist items={[]} rule4Needed={false} {...base} publishAction={null} publishLabel="" live={{ ...live, dataAsOf: "2026-09-07" }} />);
+    expect(screen.getByText("Live: revision #3")).toBeInTheDocument();
+    rerender(<PublishChecklist items={[]} rule4Needed={false} {...base} publishAction={null} publishLabel="" live={{ ...live, dataAsOf: null }} />);
+    expect(screen.getByText("Live: revision #3")).toBeInTheDocument();
   });
 
   it("reminds that exhibit titles and summaries must not quote figures younger than 30 days (carried from Task 7)", () => {
@@ -174,6 +187,14 @@ describe("RevisionEditor", () => {
     await userEvent.type(screen.getByLabelText("Facts sheet"), "SC | Slow | Base{enter}Y | Intrinsic value per share | ₹ | 100 | 200");
     expect(screen.getByText(/Rule 9: public scenario tables show operating outputs only/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save revision" })).toBeDisabled();
+  });
+
+  it("I2: on a public file, says Figures to cannot move forward and newer figures mean unpublishing; not on a private one", () => {
+    const sentence = /Figures to cannot move forward while this file is public/;
+    const { rerender } = render(<RevisionEditor action={vi.fn()} bodyMd="x" sheet="" isPublic />);
+    expect(screen.getByText(sentence)).toHaveTextContent("To use newer figures, unpublish it: the file goes offline until its new figures are 30 days old.");
+    rerender(<RevisionEditor action={vi.fn()} bodyMd="x" sheet="" isPublic={false} />);
+    expect(screen.queryByText(sentence)).toBeNull();
   });
 
   it("a note has no facts sheet", () => {

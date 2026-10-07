@@ -7,6 +7,7 @@ import { History } from "@/components/desk/private/history";
 import { PublishChecklist } from "@/components/desk/private/publish-checklist";
 import { RevisionEditor } from "@/components/desk/private/revision-editor";
 import { WordingGuide } from "@/components/desk/private/wording-guide";
+import { istDate } from "@/lib/dates";
 import { errorText, noticeText } from "@/lib/messages";
 import { setFiguresToAction, saveCaseFileRevisionAction } from "@/modules/casefile/actions";
 import { makeCompanyPublicAction } from "@/modules/catalog/actions";
@@ -67,7 +68,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
             publishAction={candidate ? publishCheckedAction.bind(null, item.id, candidate.id) : null}
             publishLabel={candidate ? `Run the publishing gate on revision #${candidate.revNo}` : ""}
             figureReminder={isFile}
-            live={isPublic && current ? { revNo: current.revNo, unpublish: unpublishItemAction.bind(null, item.id) } : null}
+            live={isPublic && current ? { revNo: current.revNo, unpublish: unpublishItemAction.bind(null, item.id), dataAsOf: item.dataAsOf, today: istDate(new Date()) } : null}
           />
           <GateDecisionPanel itemId={item.id} decision={decision} decisionRevNo={decisionRevNo} latestId={latest?.id ?? null} />
         </aside>

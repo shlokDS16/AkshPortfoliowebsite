@@ -60,7 +60,12 @@ export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figure
     <form action={action} onSubmit={onSubmit} ref={form} className="space-y-4">
       <h2 className="text-title text-ink desk:text-title-desk">New revision</h2>
       {isPublic ? (
-        <p className="text-small text-ink-muted">This item is public. A new revision is stored at once but stays hidden until it passes the publishing gate.</p>
+        <p className="text-small text-ink-muted">
+          This item is public. A new revision is stored at once but stays hidden until it passes the publishing gate.
+          {sheet !== null
+            ? " Figures to cannot move forward while this file is public. To use newer figures, unpublish it: the file goes offline until its new figures are 30 days old."
+            : null}
+        </p>
       ) : null}
       <div className="space-y-1">
         <Label htmlFor="bodyMd">Body (Markdown)</Label>

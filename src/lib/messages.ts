@@ -83,6 +83,7 @@ const NOTICES = {
   "details-saved": "Details saved.",
   "revision-saved": "Revision saved.",
   published: "Published.",
+  "published-lagged": "Passed the gate. The file shows on the public site once its Figures to date is 30 days old (30-day lag); the date is beside Unpublish.",
   unpublished: "Unpublished. The item is private again and can be edited.",
   "allowance-saved": "Sentence allowed. Run the publishing gate again.",
   "allowance-removed": "Allowance removed. Run the publishing gate again.",

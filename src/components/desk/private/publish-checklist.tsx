@@ -3,7 +3,8 @@
 import { Check, CircleDashed, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { formatCount } from "@/lib/format";
+import { addDays, isPastLag, PUBLICATION_LAG_DAYS } from "@/lib/dates";
+import { formatCount, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ChecklistItem } from "@/modules/compliance/client";
 import { PublishBar } from "./publish-bar";
@@ -15,7 +16,8 @@ type Props = {
   companyAction: ((formData: FormData) => Promise<void>) | null;
   publishAction: ((formData: FormData) => Promise<void>) | null;
   publishLabel: string;
-  live: { revNo: number; unpublish: (formData: FormData) => Promise<void> } | null;
+  /** `today` is the India date from the server; `dataAsOf` the item's Figures to (null: no lag applies, as in SQL is_lagged). */
+  live: { revNo: number; unpublish: (formData: FormData) => Promise<void>; dataAsOf: string | null; today: string } | null;
   /** Company files carry exhibits whose titles and summaries no check can read for figures (carried from Task 7). */
   figureReminder?: boolean;
 };
@@ -87,7 +89,11 @@ export function PublishChecklist({ items, rule4Needed, companyName, companyActio
       ) : null}
       {live ? (
         <form action={live.unpublish} className="flex items-center justify-between gap-2 border-t border-rule pt-3 text-small">
-          <span>Live: revision #{live.revNo}</span>
+          <span>
+            {live.dataAsOf && !isPastLag(live.dataAsOf, live.today)
+              ? `Passed the gate. Shows on the public site from ${formatDate(addDays(live.dataAsOf, PUBLICATION_LAG_DAYS))} (30-day lag)`
+              : `Live: revision #${live.revNo}`}
+          </span>
           <Button type="submit" variant="outline" size="sm">
             Unpublish
           </Button>

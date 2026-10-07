@@ -2,8 +2,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// ADR-003: the secret-key client reaches the gate functions from exactly one file, and only the compliance
-// actions (which call requireAdmin() first) import that file. ESLint enforces the first; this proves both.
+// ADR-003: the secret-key client reaches the gate functions from exactly one file, only the server-only gate service
+// imports it, and only the compliance actions (which call requireAdmin() first) import that. ESLint enforces the first.
 const SRC = resolve(__dirname, "../..");
 
 function files(dir: string): string[] {
@@ -26,8 +26,13 @@ describe("gate-rpc confinement", () => {
     expect(users).toEqual(["modules/compliance/gate-rpc.ts"]);
   });
 
-  it("only compliance/actions.ts imports gate-rpc", () => {
-    expect(importers(/from\s+"(\.\/gate-rpc|@\/modules\/compliance\/gate-rpc)"/)).toEqual(["modules/compliance/actions.ts"]);
+  it("only compliance/gate-service.ts imports gate-rpc, and only compliance/actions.ts imports gate-service", () => {
+    expect(importers(/from\s+"(\.\/gate-rpc|@\/modules\/compliance\/gate-rpc)"/)).toEqual(["modules/compliance/gate-service.ts"]);
+    expect(importers(/from\s+"(\.\/gate-service|@\/modules\/compliance\/gate-service)"/)).toEqual(["modules/compliance/actions.ts"]);
+  });
+
+  it("M1: gate-service is server-only, so publishRevision (which takes a caller-supplied hand check) is not a server action", () => {
+    expect(readFileSync(resolve(__dirname, "gate-service.ts"), "utf8")).toMatch(/^import "server-only";/);
   });
 
   it("gate-rpc is server-only and is not re-exported from the compliance index", () => {
