@@ -1,6 +1,6 @@
 # ADR-004: Ingestion pipeline and the machine write boundary
 
-Status: Proposed (desk-architect, 2026-10-07). Becomes Accepted when Shlok approves it with the Phase 2 spec.
+Status: Accepted (Shlok, 2026-10-07; proposed by desk-architect the same day). Approved together with the Phase 2 spec and the five ingestion-proposal defaults.
 Records: the five defaults Shlok accepted on 2026-10-07 (`docs/architecture/proposals/2026-10-07-ingestion-flexibility.md`, "Decisions Shlok needs to make").
 Amends: ADR-001 s9.1 (vision calls carry one image, not three), ADR-002 (`casefile/1` gains the `Notes` source type and an optional fact `topic`, read-compatible).
 Depends on: ADR-001 (binding), ADR-002, ADR-003. Spec: `docs/specs/2026-10-07-phase-2-ingestion-design.md`. Plans: `docs/plans/2026-10-07-phase-2a-ingestion.md`, `docs/plans/2026-10-07-phase-2b-ingestion.md`.
