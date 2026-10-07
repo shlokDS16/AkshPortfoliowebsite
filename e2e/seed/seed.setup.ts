@@ -94,7 +94,7 @@ async function seedFile(page: Page, file: SeedFile) {
   await page.getByLabel("Title").fill(file.title);
   await page.getByLabel("Learning objective").fill(file.learningObjective);
   await page.getByLabel("Holds position").selectOption(file.holdsPosition);
-  await page.getByLabel("Data as of").fill(daysAgo(45));
+  await page.getByLabel("Figures to").fill(daysAgo(45));
   await page.getByRole("button", { name: "Save details" }).click();
   await expect(status(page, "Details saved.")).toBeVisible();
   for (const revision of file.revisions) {

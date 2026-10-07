@@ -24,7 +24,7 @@ export default async function Home() {
   const s = snapshot.data;
   const files = buildRegister(s);
   const stats = buildHomeStats(s);
-  const last = files.map((f) => f.fileNo).sort().at(-1);
+  const last = files.map((f) => f.fileNo).sort((a, b) => Number(a) - Number(b)).at(-1);
   return (
     <PublicFrame current="desk" chrome={buildSiteChrome(s)} strip={{ variant: "site" }}>
       <header className="pt-8 pb-6">

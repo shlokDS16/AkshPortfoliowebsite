@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Wordmark } from "@/components/desk/wordmark";
 import { LoginForm } from "./login-form";
 
-export const metadata = { title: "Sign in" };
+export const metadata = { title: "Sign in", robots: { index: false, follow: false } };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;

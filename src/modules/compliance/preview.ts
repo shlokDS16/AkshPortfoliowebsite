@@ -36,7 +36,7 @@ export function previewGate({ ctx, today, companyPublic, structureProblems }: Pr
       "30-day data lag",
       "3",
       item.dataAsOf ? `Figures to ${formatDate(item.dataAsOf)}` : "No dated figures",
-      isFile && !item.dataAsOf ? ['Set "Data as of" in Details: it is the "Figures to" date.'] : [],
+      isFile && !item.dataAsOf ? ['Set "Figures to" in Details.'] : [],
     ),
     row("rule-5", "Position disclosed", "5", item.companyId ? "Holds position is set" : "No company named"),
     row("rule-6", "What this teaches", "6", "Learning objective is set"),

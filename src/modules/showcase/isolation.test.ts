@@ -71,6 +71,7 @@ function walkFiles(dir: string, out: string[] = []): string[] {
 describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they import", () => {
   const entries = [
     ...walkFiles(join(ROOT, "app/(public)")),
+    join(ROOT, "app/layout.tsx"),
     join(ROOT, "app/not-found.tsx"),
     join(ROOT, "app/opengraph-image.tsx"),
   ];
@@ -79,7 +80,7 @@ describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they im
   const names = [...reach.keys()].map((f) => f.slice(ROOT.length + 1).replaceAll("\\", "/"));
 
   it("finds the public pages and the components under them", () => {
-    expect(names).toEqual(expect.arrayContaining(["app/(public)/page.tsx", "app/(public)/about/page.tsx", "components/desk/public-frame.tsx", "modules/showcase/queries.ts"]));
+    expect(names).toEqual(expect.arrayContaining(["app/layout.tsx", "app/(public)/page.tsx", "app/(public)/about/page.tsx", "components/desk/public-frame.tsx", "modules/showcase/queries.ts"]));
   });
 
   it("no public route imports the service client or the server secrets", () => {

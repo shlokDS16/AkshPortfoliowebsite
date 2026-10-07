@@ -42,9 +42,9 @@ export function History({ revisions, currentId, pendingIds, from, to }: Props) {
           <p className="mb-1 text-caption text-ink-muted">
             Changes from #{older.revNo} to #{newer.revNo}
           </p>
-          <pre data-testid="diff" className="overflow-x-auto rounded-sm border border-rule bg-surface p-2 font-mono text-caption text-ink-body">
+          <pre data-testid="diff" className="rounded-sm border border-rule bg-surface p-2 font-mono text-caption break-words whitespace-pre-wrap text-ink-body">
             {lines.map((line, index) => (
-              <div key={index} data-op={line.op} className={LINE_STYLE[line.op]}>
+              <div key={index} data-op={line.op} className={`${LINE_STYLE[line.op]} indent-[-2ch] pl-[2ch]`}>
                 {LINE_MARK[line.op]}
                 {line.text}
               </div>

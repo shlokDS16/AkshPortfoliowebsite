@@ -30,7 +30,7 @@ export function DeskShell({ names, liveness, signOut, capture, children }: Props
       </header>
       <LivenessStrip state={liveness} />
       <OfflineStrip />
-      <main id="main" className="mx-auto max-w-page px-(--gutter) pt-6 pb-[calc(var(--tab-bar-h)+5rem)] desk:pb-12">
+      <main id="main" className="mx-auto max-w-page px-(--gutter) pt-6 pb-[calc(var(--tab-bar-h)+6rem)] desk:pb-12">
         {children}
       </main>
       <DeskTabs names={names} variant="bottom" />

@@ -32,13 +32,13 @@ test("create an item, save details and revisions, and read the diff", async ({ p
 
   await page.getByLabel("Learning objective").fill("Recognise a capex peak.");
   await page.getByLabel("Holds position").selectOption("no");
-  await page.getByLabel("Data as of").fill("2026-08-01");
+  await page.getByLabel("Figures to").fill("2026-08-01");
   await page.getByRole("button", { name: "Save details" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Details saved." })).toHaveText("Details saved.");
   await page.reload();
   await expect(page.getByLabel("Learning objective")).toHaveValue("Recognise a capex peak.");
   await expect(page.getByLabel("Holds position")).toHaveValue("no");
-  await expect(page.getByLabel("Data as of")).toHaveValue("2026-08-01");
+  await expect(page.getByLabel("Figures to")).toHaveValue("2026-08-01");
 
   await saveRevision(page, "line a\nline b", "first draft");
   await expect(page.getByRole("status").filter({ hasText: "Revision saved." })).toHaveText("Revision saved.");

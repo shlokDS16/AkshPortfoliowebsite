@@ -43,7 +43,7 @@ export function MetaForm({ item }: { item: Item }) {
             </select>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="dataAsOf">Data as of</Label>
+            <Label htmlFor="dataAsOf">Figures to</Label>
             <Input id="dataAsOf" name="dataAsOf" type="date" defaultValue={item.dataAsOf ?? ""} />
           </div>
         </div>
