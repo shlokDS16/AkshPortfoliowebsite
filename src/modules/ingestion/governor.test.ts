@@ -48,7 +48,46 @@ describe("callWithinBudget: before the call", () => {
   });
 });
 
+describe("callWithinBudget: a call that can never fit (Task 11 carry)", () => {
+  it.each([[GROQ_CAPS.tpm + 1], [0], [-5], [Number.NaN]])("returns too_large for an estimate of %s without touching the ledger", async (estimate) => {
+    const repo = fakeUsage();
+    const call = vi.fn();
+    const out = await run(repo, call, estimate);
+    expect(out).toEqual({ kind: "too_large", estimate, cap: Math.min(GROQ_CAPS.tpm, GROQ_CAPS.tpd) });
+    expect(repo.reserve).not.toHaveBeenCalled();
+    expect(call).not.toHaveBeenCalled();
+  });
+
+  it("lets an estimate at exactly the cap through", async () => {
+    const repo = fakeUsage();
+    const out = await run(repo, async () => ({ kind: "ok", data: "x", usage: usage(5_000), rate: rate() }), GROQ_CAPS.tpm);
+    expect(out.kind).toBe("called");
+  });
+});
+
 describe("callWithinBudget: settling", () => {
+  it("releases the reservation for an unrecoverable 4xx and returns it as called", async () => {
+    const repo = fakeUsage();
+    const rejected: LlmResult<string> = { kind: "rejected", status: 413, message: "request_too_large", rate: rate() };
+    expect(await run(repo, async () => rejected)).toEqual({ kind: "called", result: rejected });
+    expect(repo.settle).toHaveBeenCalledWith("res-1", 0, "released");
+    expect(repo.block).not.toHaveBeenCalled();
+  });
+
+  it("keeps a paid result when recording the header observation fails", async () => {
+    const repo = fakeUsage();
+    repo.block.mockRejectedValueOnce(new Error("db down"));
+    const result: LlmResult<string> = { kind: "ok", data: "x", usage: usage(4_000), rate: rate({ remainingTokens: 3_000 }) };
+    expect(await run(repo, async () => result, 4_500)).toEqual({ kind: "called", result });
+    expect(repo.settle).toHaveBeenCalledWith("res-1", 4_000, "used");
+  });
+
+  it("still throws when recording a 429 block fails: the deferral must not be lost", async () => {
+    const repo = fakeUsage();
+    repo.block.mockRejectedValueOnce(new Error("db down"));
+    await expect(run(repo, async () => ({ kind: "rate_limited", rate: rate({ retryAfterSeconds: 5 }) }))).rejects.toThrow("db down");
+  });
+
   it("settles ok at the provider's own total", async () => {
     const repo = fakeUsage();
     const result: LlmResult<string> = { kind: "ok", data: "x", usage: usage(3_900), rate: rate() };

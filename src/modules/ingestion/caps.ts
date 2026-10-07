@@ -31,6 +31,8 @@ export const GROQ_CAPS = { tpm: 6_000, tpd: 150_000, rpm: 22, rpd: 750 } as cons
 /** Characters of one statement page sent to the model; with a 700-char system prompt and EXTRACT_MAX_COMPLETION, one call is about 5,100 tokens. */
 export const PAGE_CHAR_LIMIT = 12_000;
 export const EXTRACT_MAX_COMPLETION = 1_500;
+/** A document proposes at most this many figures; past it extract_page reads nothing more (spec s6.4). */
+export const MAX_PROPOSALS_PER_DOCUMENT = 60;
 /** Tokens one statement page costs (spec s9 estimate until Task 16 measures the median). */
 export const TOKENS_PER_PAGE_DEFAULT = 3_400;
 /** The GitHub pump runs every 15 minutes (spec s8); each run drains for DRAIN_MS.pump. */

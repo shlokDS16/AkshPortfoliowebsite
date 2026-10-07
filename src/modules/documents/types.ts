@@ -47,6 +47,8 @@ export type PageRow = {
 export type PageText = { pageNo: number; text: string };
 /** What select_pages and extract_page read of a page. */
 export type PageForReading = { pageNo: number; text: string; isScan: boolean };
+/** What extract_page reads of one page: its text and the selector's verdict (null when the rule never classed it). */
+export type PageForExtraction = PageForReading & { kind: PageKind | null; basis: Basis | null };
 
 /** What the browser claims about a file before it uploads it. Every field is checked on the server. */
 export type StartUploadInput = {

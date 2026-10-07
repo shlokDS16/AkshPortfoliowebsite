@@ -6,3 +6,4 @@ export type { InboxDoc } from "./inbox";
 export type { DocState, Tray, TrayView } from "./trays";
 export { UPLOAD_NOT_FINISHED } from "./trays";
 export type { ActionFailure, ActionResult, FinishUploadResult, StartUploadResult } from "./upload-flow";
+export { FLAGS, machineFactSchema, proposedFactSchema, type Flag, type MachineFact, type ProposedFact } from "./proposed-fact";

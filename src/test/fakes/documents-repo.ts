@@ -119,7 +119,7 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
     },
     async getPage(documentId, pageNo) {
       const p = pages.get(key(documentId, pageNo));
-      return p ? { pageNo: p.pageNo, text: p.text, isScan: p.isScan } : null;
+      return p ? { pageNo: p.pageNo, text: p.text, isScan: p.isScan, kind: p.kind, basis: p.basis } : null;
     },
   };
   return repo;

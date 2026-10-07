@@ -1,7 +1,7 @@
 // Server-side entry. Client code imports limits, types and hashFile from "./client" instead.
 import "server-only";
 
-export type { Basis, DocSourceType, DocumentListItem, DocumentRow, DocumentStatus, PageForReading, PageKind, PageRow, PageText, StartUploadInput } from "./types";
+export type { Basis, DocSourceType, DocumentListItem, DocumentRow, DocumentStatus, PageForExtraction, PageForReading, PageKind, PageRow, PageText, StartUploadInput } from "./types";
 export * from "./limits";
 export { DOCUMENT_ERROR_TEXT, DocumentError, type DocumentErrorCode } from "./errors";
 export { createSupabaseDocumentsRepo, type DocumentPatch, type DocumentsRepo } from "./repo";

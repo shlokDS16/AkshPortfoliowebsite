@@ -1,6 +1,7 @@
 import type { LlmPort } from "@/lib/providers/llm";
 import type { Db } from "@/lib/supabase/types";
 import type { DocumentsRepo } from "@/modules/documents";
+import type { ProposalsRepo } from "./proposals-repo";
 import type { UsageRepo } from "./usage-repo";
 
 /**
@@ -13,8 +14,13 @@ export type MachineDocumentsRepo = Pick<
   "get" | "download" | "insertPages" | "setPageCount" | "listPagesForSelection" | "setVerdicts" | "setSelection" | "getPage"
 >;
 
+/** What job code may read of Aksh's research (E5): the labels of his newest file for a company, never his words. */
+export type MachineResearch = {
+  latestFileForCompany(companyId: string): Promise<{ itemId: string; title: string; structured: unknown } | null>;
+};
+
 /** Every repo a step handler uses, built once by src/modules/ops/drain.ts (ruling R7). Tests pass fakes. */
-export type MachineRepos = { documents: MachineDocumentsRepo; usage: UsageRepo };
+export type MachineRepos = { documents: MachineDocumentsRepo; usage: UsageRepo; proposals: ProposalsRepo; research: MachineResearch };
 
 export type DrainDeps = {
   /** The secret-key client ops hands the runner; the queue repo is built on it. Handlers use `repos`. */

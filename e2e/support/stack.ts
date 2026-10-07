@@ -53,5 +53,7 @@ export function appEnv(stack: LocalStack): Record<string, string> {
     SUPABASE_SECRET_KEY: stack.secretKey,
     ADMIN_EMAIL: E2E_ADMIN_EMAIL,
     CRON_SECRET: E2E_CRON_SECRET,
+    // The committed answers stand in for Groq (src/lib/providers/fixtures). Set here and never on Vercel, which refuses it.
+    LLM_ADAPTER: "fixture",
   };
 }

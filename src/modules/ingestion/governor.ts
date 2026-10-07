@@ -8,6 +8,8 @@ export const estimateTokens = (system: string, user: string, maxCompletion: numb
 
 export type BudgetResult<T> =
   | { kind: "deferred"; notBefore: Date; reason: BlockReason }
+  /** The estimate can never be reserved (over the smaller of the minute and day caps, or under one token): waiting cannot help. */
+  | { kind: "too_large"; estimate: number; cap: number }
   | { kind: "called"; result: LlmResult<T> };
 
 const DAY_AFTER_SECONDS = 600; // a retry-after longer than 10 minutes means the day allowance, not the minute
@@ -25,6 +27,9 @@ export async function callWithinBudget<T>(
   call: () => Promise<LlmResult<T>>,
 ): Promise<BudgetResult<T>> {
   const at = (seconds: number) => new Date(deps.now().getTime() + Math.max(seconds, MIN_WAIT_SECONDS) * 1000);
+  const cap = Math.min(GROQ_CAPS.tpm, GROQ_CAPS.tpd);
+  // reserve_usage raises for these; refusing here keeps a step from failing on a database error for a page that is simply too big.
+  if (!Number.isFinite(estimate) || estimate < 1 || estimate > cap) return { kind: "too_large", estimate, cap };
   const r = await deps.usage.reserve(bucket, estimate, GROQ_CAPS);
   if (!r.ok) {
     const earliest = at(MIN_WAIT_SECONDS);
@@ -45,16 +50,21 @@ export async function callWithinBudget<T>(
     await deps.usage.block(bucket, "rate_limited", notBefore, reason, result.rate);
     return { kind: "deferred", notBefore, reason };
   }
-  if (result.kind === "provider_error") {
+  if (result.kind === "provider_error" || result.kind === "rejected") {
     await deps.usage.settle(r.id, 0, "released");
     return { kind: "called", result };
   }
   const used = result.usage?.totalTokens ?? estimate;
   await deps.usage.settle(r.id, used, "used");
-  if (result.rate.remainingRequests !== null && result.rate.remainingRequests <= 1) {
-    await deps.usage.block(bucket, "observation", at(3600), "groq_day", result.rate);
-  } else if (result.rate.remainingTokens !== null && result.rate.remainingTokens < estimate) {
-    await deps.usage.block(bucket, "observation", at(60), "groq_minute", result.rate);
+  // The answer is already paid for: failing to note a header observation must never lose it (a 429 block above still throws).
+  try {
+    if (result.rate.remainingRequests !== null && result.rate.remainingRequests <= 1) {
+      await deps.usage.block(bucket, "observation", at(3600), "groq_day", result.rate);
+    } else if (result.rate.remainingTokens !== null && result.rate.remainingTokens < estimate) {
+      await deps.usage.block(bucket, "observation", at(60), "groq_minute", result.rate);
+    }
+  } catch {
+    // The next reservation reads the ledger afresh; Groq's own 429 would defer us if the bucket is really empty.
   }
   return { kind: "called", result };
 }

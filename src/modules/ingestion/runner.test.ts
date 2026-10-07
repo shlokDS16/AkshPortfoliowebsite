@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
+import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { MIN_STEP_MS } from "./caps";
 import { machineDocuments, type DrainDeps } from "./deps";
@@ -22,7 +23,12 @@ function deps(time = fakeTime()): DrainDeps {
     db: {} as Db,
     llm: null,
     models: { text: "test-model" },
-    repos: { documents: machineDocuments(createMemoryDocumentsRepo()), usage: createMemoryUsageRepo() },
+    repos: {
+      documents: machineDocuments(createMemoryDocumentsRepo()),
+      usage: createMemoryUsageRepo(),
+      proposals: createMemoryProposalsRepo(),
+      research: createMemoryResearch(),
+    },
     now: time.now,
     clock: time.clock,
   };

@@ -21,7 +21,9 @@ export type LlmResult<T> =
   | { kind: "ok"; data: T; usage: LlmUsage; rate: RateHeaders }
   | { kind: "invalid"; raw: string; issues: string[]; usage: LlmUsage | null; rate: RateHeaders }
   | { kind: "rate_limited"; rate: RateHeaders }
-  | { kind: "provider_error"; status: number | null; message: string; rate: RateHeaders };
+  | { kind: "provider_error"; status: number | null; message: string; rate: RateHeaders }
+  /** An unrecoverable 4xx (bad key, request too large, context length, refused request): retrying the same call cannot help. */
+  | { kind: "rejected"; status: number; message: string; rate: RateHeaders };
 
 export interface LlmPort {
   readonly name: "groq" | "fixture";

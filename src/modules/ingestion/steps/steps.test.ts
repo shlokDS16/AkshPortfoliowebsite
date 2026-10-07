@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { LlmPort } from "@/lib/providers/llm";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
+import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { fixturePdfBytes, fixtureWithBrokenPage2, makePdf } from "@/test/fixtures/pdf";
 import { PDF_TEXT_MS } from "../caps";
@@ -33,7 +34,12 @@ function ctx(repo: MemoryDocumentsRepo, step: Partial<Step>, opts: { clock?: () 
   const deps: StepDeps = {
     llm: opts.llm === undefined ? null : opts.llm,
     models: { text: "test-model" },
-    repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo() },
+    repos: {
+      documents: machineDocuments(repo),
+      usage: createMemoryUsageRepo(),
+      proposals: createMemoryProposalsRepo(),
+      research: createMemoryResearch(),
+    },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),
   };

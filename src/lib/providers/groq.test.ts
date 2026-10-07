@@ -134,6 +134,37 @@ describe("createGroqLlm: the result", () => {
     expect(out).toMatchObject({ kind: "provider_error", status: null, message: "TimeoutError" });
   });
 
+  it("calls a timeout while reading a 200 body a provider_error, never invalid (Task 9 carry)", async () => {
+    const stalled = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"choices":'));
+          setTimeout(() => controller.error(new DOMException("The operation timed out.", "TimeoutError")), 5);
+        },
+      }),
+      { status: 200 },
+    );
+    const out = await setup(stalled).llm.complete(req);
+    expect(out).toMatchObject({ kind: "provider_error", status: null, message: "TimeoutError" });
+  });
+
+  it.each([
+    [400, "context_length_exceeded"],
+    [400, "invalid_request_error"],
+    [401, "invalid_api_key"],
+    [403, "forbidden"],
+    [413, "request_too_large"],
+  ])("returns rejected, not provider_error, for an unrecoverable %i (%s)", async (status, code) => {
+    const out = await setup(reply(status, { error: { message: `Invalid API Key ${KEY}`, code } })).llm.complete(req);
+    expect(out).toMatchObject({ kind: "rejected", status, message: code });
+    expect(JSON.stringify(out)).not.toContain(KEY);
+  });
+
+  it("keeps a 408 and a 5xx as provider_error: they can recover", async () => {
+    expect(await setup(reply(408, {})).llm.complete(req)).toMatchObject({ kind: "provider_error", status: 408 });
+    expect(await setup(reply(503, {})).llm.complete(req)).toMatchObject({ kind: "provider_error", status: 503 });
+  });
+
   it("never puts the key in any result", async () => {
     const replies = [
       reply(200, answer('{"ok":true,"note":null}')),

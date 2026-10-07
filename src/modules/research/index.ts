@@ -25,3 +25,4 @@ export { diffRevisions } from "./diff";
 export { bodyHoldsText } from "./match";
 export { createSupabaseResearchRepo } from "./repo";
 export { addRevision, appendRevision, createItem, getItemWithHistory, listRecentItems, updateItemMeta } from "./service";
+export { latestFileForCompany } from "./queries";

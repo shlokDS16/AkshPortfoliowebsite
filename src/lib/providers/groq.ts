@@ -12,6 +12,8 @@ import { strictJsonSchema } from "./strict-schema";
 const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_TIMEOUT_MS = 90_000;
 const NO_RATE: RateHeaders = { remainingTokens: null, remainingRequests: null, retryAfterSeconds: null };
+/** A 4xx that the same request will meet again (bad key, too large, refused). 408, 409 and 425 can pass, so they are not here. */
+const REJECTED = new Set([400, 401, 403, 404, 413, 422]);
 const num = (v: string | null): number | null => (v === null || v.trim() === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
 function readRate(h: Headers): RateHeaders {
@@ -66,7 +68,19 @@ export function createGroqLlm(opts: { apiKey: string; fetch?: typeof fetch; time
       }
       const rate = readRate(res.headers);
       if (res.status === 429) return { kind: "rate_limited", rate };
-      const json = (await res.json().catch(() => null)) as Body | null;
+      // A timeout or abort while the body streams in is a provider failure that can pass, never a bad answer.
+      let text: string;
+      try {
+        text = await res.text();
+      } catch (error) {
+        return { kind: "provider_error", status: null, message: error instanceof Error ? error.name : "network", rate };
+      }
+      let json: Body | null = null;
+      try {
+        json = JSON.parse(text) as Body | null;
+      } catch {
+        json = null;
+      }
       if (!res.ok) {
         // Strict mode can still refuse a generation (400 json_validate_failed; Groq community reports, 2026).
         // failed_generation is the model's text: never returned.
@@ -74,7 +88,8 @@ export function createGroqLlm(opts: { apiKey: string; fetch?: typeof fetch; time
           return { kind: "invalid", raw: "", issues: [String(json.error.message ?? "json_validate_failed").slice(0, 300)], usage: null, rate };
         }
         // The code, never the message: a 401 message can quote the key it refused.
-        return { kind: "provider_error", status: res.status, message: String(json?.error?.code ?? res.statusText).slice(0, 200), rate };
+        const message = String(json?.error?.code ?? res.statusText).slice(0, 200);
+        return { kind: REJECTED.has(res.status) ? "rejected" : "provider_error", status: res.status, message, rate };
       }
       const usage = readUsage(json?.usage);
       const choice = json?.choices?.[0];

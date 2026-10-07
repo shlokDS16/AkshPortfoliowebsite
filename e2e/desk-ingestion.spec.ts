@@ -58,7 +58,7 @@ async function pump(request: APIRequestContext) {
 }
 
 const stepsOf = async (jobId: string) => {
-  const { data, error } = await admin.from("job_steps").select("kind, page_no, status, result, last_error").eq("job_id", jobId).order("created_at");
+  const { data, error } = await admin.from("job_steps").select("kind, page_no, status, result, last_error").eq("job_id", jobId).order("created_at").order("page_no");
   if (error) throw error;
   return data;
 };
@@ -111,7 +111,7 @@ test("the machine's page methods hold under service_role: download, idempotent p
     expect(untick.error).toBeNull();
     expect(await machine.setSelection(documentId, [2, 3], "rule")).toEqual([2]);
     expect(await machine.setSelection(documentId, [2, 3], "rule")).toEqual([2]); // a repeated run gives the same answer
-    expect(await machine.getPage(documentId, 2)).toEqual({ ...pages[1], isScan: false });
+    expect(await machine.getPage(documentId, 2)).toEqual({ ...pages[1], isScan: false, kind: "pl", basis: "consolidated" });
 
     const { data } = await admin.from("document_pages").select("page_no, kind, basis, score, selected, selected_by").eq("document_id", documentId).order("page_no");
     expect(data?.slice(1, 3)).toEqual([
@@ -123,17 +123,38 @@ test("the machine's page methods hold under service_role: download, idempotent p
   }
 });
 
-test("the pump reads an uploaded PDF's pages and selects its statement pages, with AI reading off", async ({ request }) => {
+test("the pump reads an uploaded PDF's pages, selects its statement pages and reads each into proposals (fixture AI)", async ({ request }) => {
   const documentId = await upload(uniquePdf("pump"), "pump");
   let jobId: string | null = null;
   try {
     jobId = await createQueueRepo(admin).createJob(documentId, { kind: "pdf_text", pageNo: 1 });
     await pump(request);
 
-    expect(await stepsOf(jobId)).toEqual([
-      { kind: "pdf_text", page_no: 1, status: "done", result: { from: 1, through: 6 }, last_error: null },
-      { kind: "select_pages", page_no: null, status: "done", result: { selected: 3, aiOff: true }, last_error: null },
+    const steps = await stepsOf(jobId);
+    expect(steps.map((s) => [s.kind, s.page_no, s.status, s.last_error])).toEqual([
+      ["pdf_text", 1, "done", null],
+      ["select_pages", null, "done", null],
+      ["extract_page", 3, "done", null],
+      ["extract_page", 4, "done", null],
+      ["extract_page", 5, "done", null],
     ]);
+    expect(steps[0].result).toEqual({ from: 1, through: 6 });
+    expect(steps[1].result).toEqual({ selected: 3 });
+    // p. 3 has no figures; p. 4 has three lines (one misread on purpose) and p. 5 two. A repeat of a page text already
+    // read on an earlier run is copied from the cache at 0 tokens.
+    expect(steps.slice(2).map((s) => (s.result as { proposals: number; flagged: number }).proposals)).toEqual([0, 3, 2]);
+    expect(steps.slice(2).map((s) => (s.result as { proposals: number; flagged: number }).flagged)).toEqual([0, 1, 0]);
+
+    // What the desk (the admin's session, RLS) can read back: pending proposals with the machine's values, never decided.
+    const { data: proposals, error } = await admin.from("proposals").select("page_no, dedupe_key, machine_value, flags, reason, status, accepted_value").eq("document_id", documentId).order("page_no").order("dedupe_key");
+    expect(error).toBeNull();
+    expect(proposals).toHaveLength(5);
+    expect(proposals?.every((p) => p.status === "pending" && p.accepted_value === null && p.reason === "core")).toBe(true);
+    const finance = proposals?.find((p) => p.dedupe_key === "finance costs|FY26|consolidated");
+    expect(finance).toMatchObject({ page_no: 4, flags: ["value_not_on_page"], machine_value: { value: 41.7, unit: "₹ cr", period: "FY26", locator: "p. 4" } });
+    const { count: extractions } = await admin.from("extractions").select("id", { count: "exact", head: true }).eq("document_id", documentId);
+    expect(extractions).toBe(3);
+
     const { data: doc } = await admin.from("documents").select("page_count, status").eq("id", documentId).single();
     expect(doc).toEqual({ page_count: 6, status: "active" });
     const { data: pages } = await admin.from("document_pages").select("page_no, kind, selected_by, text").eq("document_id", documentId).order("page_no");

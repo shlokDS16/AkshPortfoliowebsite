@@ -3,7 +3,8 @@ import { serverEnv } from "@/lib/env.server";
 import { createLlmPort, type LlmPort } from "@/lib/providers";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
-import { createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
+import { createProposalsRepo, createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
+import { latestFileForCompany } from "@/modules/research";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
 import type { Step } from "./steps";
 
@@ -26,7 +27,12 @@ function buildDeps(): DrainDeps {
     llm: buildLlm(),
     models: { text: serverEnv().GROQ_MODEL_TEXT },
     // Built once per drain; handlers use only these (ruling R7). The documents surface has no update.
-    repos: { documents: machineDocuments(createSupabaseDocumentsRepo(db)), usage: createUsageRepo(db) },
+    repos: {
+      documents: machineDocuments(createSupabaseDocumentsRepo(db)),
+      usage: createUsageRepo(db),
+      proposals: createProposalsRepo(db),
+      research: { latestFileForCompany: (companyId) => latestFileForCompany(db, companyId) },
+    },
     now: () => new Date(),
     clock: Date.now,
   };

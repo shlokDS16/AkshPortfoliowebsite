@@ -65,6 +65,15 @@ describe("strictJsonSchema (Groq strict mode, structured-outputs docs)", () => {
     expect(row.format).toEqual({ type: "string" });
   });
 
+  it("removes the minimum and maximum zod writes for an integer, keeping the type (Task 9 carry)", () => {
+    const ints = strictJsonSchema(z.object({ n: z.number().int(), m: z.number().int().min(1).max(5).nullable(), minimum: z.string() })) as Json;
+    const p = ints.properties as Record<string, Json>;
+    expect(p.n).toEqual({ type: "integer" });
+    expect(p.m).toEqual({ type: ["integer", "null"] });
+    expect(p.minimum).toEqual({ type: "string" }); // a property NAMED minimum survives
+    expect(JSON.stringify(ints)).not.toMatch(/"(?:minimum|maximum|exclusiveMinimum|exclusiveMaximum)":-?\d/);
+  });
+
   it("does not change the Zod schema it was given", () => {
     expect(schema.safeParse({ label: null, kind: "other", basis: null, url: "https://x.in", rows: [] }).success).toBe(false);
   });

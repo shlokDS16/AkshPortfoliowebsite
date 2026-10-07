@@ -59,7 +59,7 @@ describe("createFixtureLlm", () => {
     expect(await llm.complete(req("page 4: Consolidated Statement of Profit and Loss ..."))).toEqual({
       kind: "ok",
       data: income,
-      usage: { promptTokens: 2500, completionTokens: 500, totalTokens: 3000 },
+      usage: { promptTokens: 800, completionTokens: 200, totalTokens: 1000 },
       rate: { remainingTokens: null, remainingRequests: null, retryAfterSeconds: null },
     });
   });

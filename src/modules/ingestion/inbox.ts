@@ -3,6 +3,7 @@ import type { Db } from "@/lib/supabase/types";
 import { createSupabaseDocumentsRepo, type Basis, type DocumentStatus, type PageKind } from "@/modules/documents";
 import { GROQ_CAPS, TOKENS_PER_PAGE_DEFAULT } from "./caps";
 import { estimateReadyBy, formatReadyBy } from "./eta";
+import { tallyPending } from "./proposal-counts";
 import { trayFor, type DocState, type TrayView } from "./trays";
 import type { StepKind, StepStatus, WaitReason } from "./types";
 
@@ -17,7 +18,7 @@ export type InboxDoc = {
   status: DocumentStatus;
   pageCount: number | null;
   budget: number;
-  /** Figures waiting for Aksh's check, and the flagged ones among them (0 until extraction exists). */
+  /** Figures waiting for Aksh's check, and the flagged ones among them. */
   pending: number;
   flagged: number;
   view: TrayView;
@@ -82,7 +83,7 @@ export async function listInbox(
   const activeIds = open.data.filter((d) => d.status === "active").map((d) => d.id);
   const companyIds = [...new Set(rows.flatMap((d) => (d.company_id ? [d.company_id] : [])))];
 
-  const [jobs, pages, companies] = await Promise.all([
+  const [jobs, pages, companies, proposals] = await Promise.all([
     activeIds.length === 0
       ? { data: [], error: null }
       : db
@@ -100,10 +101,16 @@ export async function listInbox(
           .order("document_id")
           .order("page_no"),
     companyIds.length === 0 ? { data: [], error: null } : db.from("companies").select("id, nse_symbol").in("id", companyIds),
+    // At most 60 per document (MAX_PROPOSALS_PER_DOCUMENT); only the flags are read.
+    activeIds.length === 0
+      ? { data: [], error: null }
+      : db.from("proposals").select("document_id, flags").in("document_id", activeIds).eq("status", "pending"),
   ]);
   if (jobs.error) throw dbError("inbox.listSteps", jobs.error);
   if (pages.error) throw dbError("inbox.listPages", pages.error);
   if (companies.error) throw dbError("inbox.listCompanies", companies.error);
+  if (proposals.error) throw dbError("inbox.listProposals", proposals.error);
+  const waiting = tallyPending(proposals.data);
 
   const stepsOf = new Map<string, StepRow[]>(jobs.data.map((j) => [j.document_id, j.job_steps]));
   const symbolOf = new Map(companies.data.map((c) => [c.id, c.nse_symbol]));
@@ -132,8 +139,8 @@ export async function listInbox(
       pageCount: d.page_count,
       pagesRead: readCounts.get(d.id) ?? 0,
       aiOn,
-      pending: 0,
-      flagged: 0,
+      pending: waiting.get(d.id)?.pending ?? 0,
+      flagged: waiting.get(d.id)?.flagged ?? 0,
       steps,
     };
     return {

@@ -9,7 +9,8 @@ export type FixtureEntry = { when: string; output: unknown };
 
 const FIXTURES = FIXTURE_TABLE as FixtureEntry[];
 const EMPTY_PAGE = { page_kind: "other", basis: "unknown", unit_header: null, current_header: null, prior_header: null, rows: [] };
-const USAGE = { promptTokens: 2500, completionTokens: 500, totalTokens: 3000 };
+// Small on purpose: three fixture reads in a minute must fit the 6,000 TPM cap, or the e2e would meet a real deferral.
+const USAGE = { promptTokens: 800, completionTokens: 200, totalTokens: 1000 };
 const NO_RATE = { remainingTokens: null, remainingRequests: null, retryAfterSeconds: null };
 
 export function createFixtureLlm(table: readonly FixtureEntry[] = FIXTURES): LlmPort {

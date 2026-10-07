@@ -6,6 +6,7 @@ import { makeFixturePdf } from "../scripts/make-fixture-pdf.mjs";
 import { requireStack, tokenHashFor } from "./support/auth";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
 import { KAVERI } from "../src/test/fixtures/casefile";
+import { makePdf } from "../src/test/fixtures/pdf";
 
 // The Inbox screen on the LOCAL stack, in desk-desktop and desk-mobile. `documents.sha256` is unique and the local
 // database is not reset, so every run (and each viewport) uploads its own copy of the fixture PDF (a `Run` line on
@@ -21,7 +22,19 @@ test.beforeAll(async () => {
   if (error) throw error;
 });
 
-test("upload a PDF: it is read, its statement pages are ticked, AI reading is off, and the same file is refused", async ({ page }, testInfo) => {
+const documentIdOf = async (title: string) => {
+  const { data, error } = await db.from("documents").select("id").eq("title", title).single();
+  if (error) throw error;
+  return data.id;
+};
+
+/** Leaves nothing behind in the shared local inbox: the job is cancelled and the document skipped (the admin's own RLS rights). */
+async function retire(documentId: string) {
+  await db.from("jobs").update({ cancelled_at: new Date().toISOString() }).eq("document_id", documentId).is("cancelled_at", null);
+  await db.from("documents").update({ status: "skipped" }).eq("id", documentId);
+}
+
+test("upload a PDF: it is read, its statement pages are ticked, its figures wait for a check, and the same file is refused", async ({ page }, testInfo) => {
   test.setTimeout(150_000);
   const run = `${Date.now().toString(36)}${testInfo.project.name === "desk-mobile" ? "M" : "D"}`.toUpperCase();
   const symbol = `KVF${run}`;
@@ -53,8 +66,9 @@ test("upload a PDF: it is read, its statement pages are ticked, AI reading is of
   // Within 60 s the keep-reading loop has read the pages and the card is in Ready for you. (A card that moves tray is a
   // new element, so the chooser is opened only after that.)
   await expect(card.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 60_000 });
-  await expect(card.getByText("Read. AI reading is off; open it beside your file to enter figures.")).toBeVisible();
-  await expect(page.getByText(/^AI reading is off\. Pages are still read and searchable/)).toBeVisible();
+  // The fixture answers (LLM_ADAPTER=fixture) give 3 P&L and 2 balance-sheet lines; "Finance costs" is misread on purpose.
+  await expect(card.getByText("5 figures ready to check. 1 needs a look.")).toBeVisible();
+  await expect(page.getByText(/AI reading is off/)).toHaveCount(0);
   await card.getByText("Pages to read").click();
   await expect(card.getByRole("checkbox", { name: /^p\. 4 P&L · consolidated$/ })).toBeChecked();
   await expect(card.getByRole("checkbox", { name: /^p\. 5 Balance sheet · consolidated$/ })).toBeChecked();
@@ -77,17 +91,28 @@ test("upload a PDF: it is read, its statement pages are ticked, AI reading is of
   await link.click();
   await expect(card).toBeInViewport();
 
-  // Skip it: the card moves to Finished and its job stops.
-  await card.getByRole("button", { name: "Skip this document" }).click();
-  await expect(page.locator("details", { hasText: /^Finished/ }).locator("article", { hasText: title })).toHaveCount(1);
+  // Figures wait for Aksh's check, so the document cannot be skipped from the card: he reviews it.
+  await expect(card.getByRole("link", { name: "Review" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Skip this document" })).toHaveCount(0);
+  await retire(documentId);
+
+  // A document with nothing to review can be skipped: the card moves to Finished and its job stops.
+  const quietTitle = `notice-${run}`;
+  await page.getByLabel("Choose a PDF").setInputFiles({ name: `${quietTitle}.pdf`, mimeType: "application/pdf", buffer: Buffer.from(makePdf([[`Notice of meeting ${run}`]])) });
+  const quiet = page.locator("article", { hasText: quietTitle });
+  await expect(quiet.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 60_000 });
+  await expect(quiet.getByText("Read. No figures matched; open it beside your file.")).toBeVisible();
+  await quiet.getByRole("button", { name: "Skip this document" }).click();
+  await expect(page.locator("details", { hasText: /^Finished/ }).locator("article", { hasText: quietTitle })).toHaveCount(1);
 
   // The job was cancelled with it, so no queued step can spend the allowance.
+  const quietId = await documentIdOf(quietTitle);
   await expect(async () => {
-    const jobs = await db.from("jobs").select("cancelled_at").eq("document_id", documentId);
+    const jobs = await db.from("jobs").select("cancelled_at").eq("document_id", quietId);
     expect(jobs.error).toBeNull();
     expect(jobs.data?.length).toBeGreaterThan(0);
     expect(jobs.data?.every((j) => j.cancelled_at !== null)).toBe(true);
-    const doc = await db.from("documents").select("status").eq("id", documentId).single();
+    const doc = await db.from("documents").select("status").eq("id", quietId).single();
     expect(doc.data?.status).toBe("skipped");
   }).toPass({ timeout: 10_000 });
 });
@@ -152,4 +177,6 @@ test("the document pane beside the Kaveri editor: step to p. 4, use it as a sour
   await pane.getByRole("button", { name: "Check my quotes" }).click();
   await expect(pane.getByText("found on p. 4", { exact: true })).toBeVisible();
   await expect(pane.getByText("value printed there")).toBeVisible();
+
+  await retire(await documentIdOf(title));
 });

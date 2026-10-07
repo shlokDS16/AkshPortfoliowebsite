@@ -3,7 +3,7 @@ import { dbError, jobDbError } from "@/lib/supabase/errors";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
 import type { PageVerdict } from "./selector";
-import type { Basis, DocSourceType, DocumentRow, DocumentStatus, PageForReading, PageText } from "./types";
+import type { Basis, DocSourceType, DocumentRow, DocumentStatus, PageForExtraction, PageForReading, PageKind, PageText } from "./types";
 
 const BUCKET = "documents";
 const DOCUMENT_COLUMNS =
@@ -52,7 +52,7 @@ export interface DocumentsRepo {
    * by the rule (the ones to read), so a repeated run gives the same answer.
    */
   setSelection(documentId: string, pageNos: number[], by: "rule"): Promise<number[]>;
-  getPage(documentId: string, pageNo: number): Promise<PageForReading | null>;
+  getPage(documentId: string, pageNo: number): Promise<PageForExtraction | null>;
 }
 
 const toDocument = (r: Row): DocumentRow => ({
@@ -240,12 +240,12 @@ function machinePages(db: Db): Pick<
     async getPage(documentId, pageNo) {
       const { data, error } = await db
         .from("document_pages")
-        .select("page_no, text, is_scan")
+        .select("page_no, text, is_scan, kind, basis")
         .eq("document_id", documentId)
         .eq("page_no", pageNo)
         .maybeSingle();
       if (error) throw jobDbError("documents.getPage", error);
-      return data ? toPage(data) : null;
+      return data ? { ...toPage(data), kind: data.kind as PageKind | null, basis: data.basis as Basis | null } : null;
     },
   };
 }

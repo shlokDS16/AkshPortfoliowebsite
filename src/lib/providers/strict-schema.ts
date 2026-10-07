@@ -3,11 +3,12 @@ import { z } from "zod";
 // Zod -> the JSON Schema Groq's strict mode accepts (https://console.groq.com/docs/structured-outputs, checked
 // 2026-10-07): every object closes (`additionalProperties: false`) and requires all its properties; a nullable
 // field is a type array (`["string", "null"]`). Length, count, pattern and format limits are not documented for
-// strict mode, so they are removed here and enforced by the Zod parse that follows every answer.
+// strict mode, so they are removed here and enforced by the Zod parse that follows every answer. That includes the
+// minimum and maximum Zod writes for every integer (the safe-integer range): an integer field keeps its type only.
 
 type Node = Record<string, unknown>;
 
-const DROPPED = ["minItems", "maxItems", "minLength", "maxLength", "pattern", "format"] as const;
+const DROPPED = ["minItems", "maxItems", "minLength", "maxLength", "pattern", "format", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"] as const;
 /** Keys whose value is one subschema, a list of them, or a name -> subschema map. Nothing else is a schema. */
 const ONE = ["items", "additionalProperties", "not"] as const;
 const MANY = ["anyOf", "oneOf", "allOf", "prefixItems"] as const;
