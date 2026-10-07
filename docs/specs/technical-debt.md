@@ -25,3 +25,8 @@ Shortcuts, TODOs, known limitations, and refactor opportunities.
 - (Plan 1B final review) The public streak can be up to 1 h stale (home page ISR, `revalidate = 3600`).
 - (Plan 1B final review) `SegmentedControl` lacks Up/Down/Home/End keys (APG radiogroup pattern). Fix before public launch.
 - (Plan 1B final review) Screen-reader check (VoiceOver, NVDA) of the display:block phone tables is still owed before AMC readers see the site.
+
+## 2026-10-07 (data safety: nightly backup)
+- (Backup) Backup artifacts expire after 90 days (`retention-days: 90`, the GitHub maximum for this plan). Consider a monthly copy of one `.gpg` file to Shlok's drive.
+- (Backup) Supabase Storage buckets are not covered by the database dump. None are used yet; revisit in Phase 2 when PDFs land in Storage (an object-level copy plus the same encryption).
+- (Backup) The restore drill proves data restore into a schema built from migrations, not `schema.sql` / `roles.sql` into a fresh hosted project; do a one-time real restore into a scratch Supabase project before launch.

@@ -1,0 +1,114 @@
+name: backup
+
+# Nightly encrypted logical backup of the hosted Supabase database (free plan has no downloadable
+# backups). The repository is PUBLIC: only a GPG-encrypted file is ever uploaded, never plaintext.
+# Runbook: docs/runbooks/backup-and-restore.md
+#
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_DB_URL     Postgres connection string of the hosted project, percent-encoded
+#                       (Dashboard > Connect > Session pooler; the free direct host is IPv6-only)
+#   BACKUP_PASSPHRASE   long random passphrase; also stored in Shlok's password manager
+on:
+  schedule:
+    - cron: "0 21 * * *" # 21:00 UTC = 02:30 IST (GitHub may start it late under load)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Two backups never overlap: a late run waits instead of cancelling the one in flight.
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check secrets
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          : "${SUPABASE_DB_URL:?repository secret SUPABASE_DB_URL is not set}"
+          : "${BACKUP_PASSPHRASE:?repository secret BACKUP_PASSPHRASE is not set}"
+
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: supabase/setup-cli@v3.0.1
+        with:
+          version: 2.119.0 # = the "supabase" devDependency in package.json; bump both together
+
+      - name: Dump roles, schema and data
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          # Flags per `supabase db dump --help` (2.119.0) and the Supabase backup-and-restore guide.
+          # Runs from the repo root: the CLI reads supabase/config.toml (db.major_version = 17)
+          # to pick the matching pg_dump image.
+          dir="$RUNNER_TEMP/backup"
+          mkdir -p "$dir"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f "$dir/roles.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f "$dir/schema.sql"
+          supabase db dump --db-url "$SUPABASE_DB_URL" --use-copy --data-only -f "$dir/data.sql"
+          cd "$dir"
+          # A silent empty dump is the worst failure: refuse it.
+          for f in roles.sql schema.sql data.sql; do
+            test -s "$f" || { echo "::error::$f is empty"; exit 1; }
+          done
+          grep -q '^CREATE TABLE' schema.sql || { echo "::error::schema.sql has no CREATE TABLE"; exit 1; }
+          grep -q '^COPY "public"' data.sql || { echo "::error::data.sql has no public table data"; exit 1; }
+
+      - name: Write manifest
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/backup"
+          {
+            echo "created_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "git_sha: $GITHUB_SHA"
+            echo "workflow_run: $GITHUB_RUN_ID"
+            echo "supabase_cli: $(supabase --version)"
+            echo "files: roles.sql schema.sql data.sql"
+            echo "row_counts:"
+            # Best effort: a failing count query must not lose the backup itself.
+            psql "$SUPABASE_DB_URL" -At -F ' ' -f "$GITHUB_WORKSPACE/scripts/backup/row-counts.sql" 2>/dev/null \
+              | sed 's/^/  /' || echo "  (unavailable)"
+          } > manifest.txt
+
+      - name: Bundle and encrypt
+        id: pack
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          day="$(date -u +%Y-%m-%d)"
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          cd "$RUNNER_TEMP/backup"
+          tar -czf bundle.tar.gz manifest.txt roles.sql schema.sql data.sql
+          mkdir -p "$RUNNER_TEMP/out"
+          out="$RUNNER_TEMP/out/db-backup-$stamp.tar.gz.gpg"
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+            --symmetric --cipher-algo AES256 --passphrase-fd 0 --output "$out" bundle.tar.gz
+          # Prove the file decrypts and unpacks before it is the only copy that matters.
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --pinentry-mode loopback \
+            --passphrase-fd 0 --decrypt "$out" | tar -tzf - > "$RUNNER_TEMP/listing.txt"
+          grep -q '^data.sql$' "$RUNNER_TEMP/listing.txt"
+          # Plaintext never leaves this step.
+          shred -u roles.sql schema.sql data.sql manifest.txt bundle.tar.gz 2>/dev/null || rm -f roles.sql schema.sql data.sql manifest.txt bundle.tar.gz
+          ls -l "$RUNNER_TEMP/out"
+          echo "day=$day" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: db-backup-${{ steps.pack.outputs.day }}
+          path: ${{ runner.temp }}/out/*.gpg
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: true # a manual re-run on the same day replaces that day's artifact
