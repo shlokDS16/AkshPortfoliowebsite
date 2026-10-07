@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EXHIBIT } from "@/test/fixtures/desk-ui";
 import type { ChartPoint } from "@/lib/view-types";
-import { buildGeometry, chartLabel, thresholdLabelY } from "./chart-geometry";
+import { buildGeometry, CAPTION_PX, chartLabel, LABEL_HEADROOM, PAD, thresholdLabelY } from "./chart-geometry";
 
 describe("buildGeometry", () => {
   const g = buildGeometry(EXHIBIT.chart, 640, 240);
@@ -79,6 +79,9 @@ describe("chartLabel", () => {
 describe("thresholdLabelY", () => {
   it("sits the label above its line, or below it when the line is the top tick (the label would clip)", () => {
     expect(thresholdLabelY(80)).toBe(75);
-    expect(thresholdLabelY(12)).toBe(27);
+    expect(thresholdLabelY(LABEL_HEADROOM)).toBe(LABEL_HEADROOM - 5);
+    expect(thresholdLabelY(LABEL_HEADROOM - 1)).toBe(LABEL_HEADROOM - 1 + 5 + CAPTION_PX);
+    expect(thresholdLabelY(PAD.top)).toBeGreaterThan(PAD.top + CAPTION_PX);
+    expect(LABEL_HEADROOM).toBeGreaterThan(PAD.top);
   });
 });

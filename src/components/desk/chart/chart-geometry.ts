@@ -17,12 +17,15 @@ export type Geometry = {
   capX: number | null;
 };
 
-// A caption label (12 px) set 5 px above its line needs 16 px of headroom inside the viewBox.
-const LABEL_HEADROOM = 16;
+/** --text-caption (globals.css) in viewBox units: the chart is drawn at 1 unit = 1 css px. */
+export const CAPTION_PX = 12;
+const LABEL_GAP = 5;
+/** Above its line a label needs gap + caption height inside the viewBox; PAD.top (12) is less, so a top-tick line labels below. */
+export const LABEL_HEADROOM = LABEL_GAP + CAPTION_PX;
 
-/** Threshold label baseline: above the line, or below it when the line sits too near the top to fit the label. */
+/** Threshold label baseline: LABEL_GAP above the line, or one caption height plus the gap below it when it would clip. */
 export function thresholdLabelY(y: number): number {
-  return y < LABEL_HEADROOM ? y + 15 : y - 5;
+  return y < LABEL_HEADROOM ? y + LABEL_GAP + CAPTION_PX : y - LABEL_GAP;
 }
 
 /** Even category spacing; the first and last y tick set the domain. Withheld or missing points break the line. */

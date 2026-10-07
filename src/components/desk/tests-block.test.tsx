@@ -84,17 +84,28 @@ describe("ThresholdMeter", () => {
     expect(container.querySelector("[data-mark='threshold']")?.getAttribute("style")).toContain("left: 64.29%");
   });
 
-  it("keeps the threshold label inside the track at the extremes", () => {
+  it("gives the threshold label its own row above the track, so it never meets the min/max captions (T1, T2)", () => {
+    for (const t of KILL_TESTS.slice(0, 2)) {
+      const { container, unmount } = render(<ThresholdMeter meter={t.meter!} />);
+      const rows = [...container.querySelectorAll("[data-row]")].map((r) => r.getAttribute("data-row"));
+      expect(rows).toEqual(["threshold-label", "track", "scale"]);
+      const labelRow = container.querySelector("[data-row='threshold-label']")!;
+      const scaleRow = container.querySelector("[data-row='scale']")!;
+      expect(labelRow.textContent).toBe(t.meter!.labels.threshold);
+      expect([...scaleRow.children].map((c) => c.textContent)).toEqual([t.meter!.labels.min, t.meter!.labels.max]);
+      unmount();
+    }
+  });
+
+  it("anchors the label at its own matching point, so its box stays inside the meter at any threshold", () => {
     const base = KILL_TESTS[0].meter!;
-    const label = (threshold: number) => {
+    for (const [threshold, at] of [[base.min, 0], [150, 64.29], [base.max, 100]] as const) {
       const { unmount } = render(<ThresholdMeter meter={{ ...base, threshold }} />);
       const el = screen.getByText(base.labels.threshold);
-      const cls = el.className;
+      expect(parseFloat(el.style.left)).toBe(at);
+      expect(el.style.transform).toMatch(/^translateX\(-[\d.]+%\)$/);
+      expect(parseFloat(el.style.transform.slice("translateX(-".length))).toBe(at);
       unmount();
-      return cls;
-    };
-    expect(label(base.min)).toContain("translate-x-0");
-    expect(label(base.max)).toContain("-translate-x-full");
-    expect(label(130)).toContain("-translate-x-1/2");
+    }
   });
 });

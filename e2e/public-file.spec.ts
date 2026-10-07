@@ -23,6 +23,24 @@ test("the file reads in B+ order with its strip, dateline, view, tests, facts, h
   }
 });
 
+test("no threshold-meter label overlaps another or leaves its meter", async ({ page }) => {
+  await page.goto("/companies/kavpump#tests");
+  const meters = page.locator("[role='img']:has([data-row='threshold-label'])");
+  await expect(meters).toHaveCount(2);
+  for (const meter of await meters.all()) {
+    const box = (await meter.boundingBox())!;
+    const label = (await meter.locator("[data-row='threshold-label'] > span").boundingBox())!;
+    const ends = await Promise.all((await meter.locator("[data-row='scale'] > span").all()).map(async (e) => (await e.boundingBox())!));
+    expect(label.x).toBeGreaterThanOrEqual(box.x - 0.5);
+    expect(label.x + label.width).toBeLessThanOrEqual(box.x + box.width + 0.5);
+    for (const b of ends) {
+      const overlaps = label.x < b.x + b.width && b.x < label.x + label.width && label.y < b.y + b.height && b.y < label.y + label.height;
+      expect(overlaps).toBe(false);
+    }
+    expect(ends[0].x + ends[0].width).toBeLessThan(ends[1].x);
+  }
+});
+
 test("the revision diff gives the reason first and can show R1 in full", async ({ page }) => {
   await page.goto("/companies/kavpump#history");
   const history = page.getByRole("region", { name: "Revisions" });
@@ -48,4 +66,6 @@ test("the file's share card is an image linked from its metadata", async ({ page
   const image = await request.get(url ?? "/missing");
   expect(image.status()).toBe(200);
   expect(image.headers()["content-type"]).toContain("image/png");
+  const unknown = await request.get(new URL(url!).pathname.replace("/kavpump/", "/no-such-file/"));
+  expect(unknown.status()).toBe(404);
 });
