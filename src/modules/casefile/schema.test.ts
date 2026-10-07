@@ -120,7 +120,7 @@ describe("casefile/1 schema", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(Object.keys(result.data).sort()).toEqual(Object.keys(EMPTY_CASEFILE).sort());
-      expect(Object.keys(result.data.facts[0]).sort()).toEqual(["asOf", "id", "label", "locator", "period", "prior", "sourceId", "unit", "value"]);
+      expect(Object.keys(result.data.facts[0]).sort()).toEqual(["asOf", "id", "label", "locator", "period", "prior", "sourceId", "topic", "unit", "value"]);
       expect(JSON.stringify(result.data)).not.toContain("Aksh's");
     }
   });

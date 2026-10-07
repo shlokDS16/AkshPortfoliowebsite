@@ -61,6 +61,7 @@ export function draftToSheet(d: Draft): string {
     facts: d.facts.map((f) => ({
       id: f.id, label: f.label, value: f.value, unit: f.unit, period: f.period, asOf: f.asOf, sourceId: f.sourceId, locator: f.locator,
       prior: f.priorLabel.trim() === "" && f.priorValue.trim() === "" ? null : { label: f.priorLabel, value: f.priorValue },
+      topic: null,
     })),
     tests: d.tests.map((t) => ({
       id: t.id, current: orNull(t.current), unit: t.unit, readingAsOf: orNull(t.readingAsOf), lastChecked: t.lastChecked, status: t.status,

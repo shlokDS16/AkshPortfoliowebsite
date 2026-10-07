@@ -10,7 +10,7 @@ export const TEST_STATUSES = ["met", "watching", "not_met", "no_data"] as const;
 export type TestStatus = (typeof TEST_STATUSES)[number];
 export type TestCounts = Record<TestStatus, number>;
 
-export const SOURCE_TYPES = ["Annual report", "Presentation", "Filing", "Transcript", "Other"] as const;
+export const SOURCE_TYPES = ["Annual report", "Presentation", "Filing", "Transcript", "Notes", "Other"] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 
 export type SourceRef = { id: string; doc: string; locator: string; filedOn?: ISODate; url?: string };

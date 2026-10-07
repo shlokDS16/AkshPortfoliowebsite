@@ -7,17 +7,19 @@ export type SheetError = { line: number; message: string };
 export const SHEET_LEGEND = `// O | one line about the company
 // S1 | document | type | filed on (YYYY-MM-DD) | link (optional)
 // F1 | metric | value | unit | period | as of | source | page | prior period | prior value | quoted line
+// G | topic | F1 F2 (facts under one heading)
 // T1 | reading or - | unit | reading date or - | last checked | met / watching / not met / no data | min | max | threshold | above or below | prior
 // X1 | exhibit title | unit | source | test or - | FY22=81 | FY23=95 | ...
 // R | learning-note-slug
 // SC | Slow | Base | Fast   then  A | input | values...   and  Y | output | unit | values...`;
 
 const STATUS: Record<string, TestStatus> = { met: "met", watching: "watching", "not met": "not_met", not_met: "not_met", "no data": "no_data", no_data: "no_data" };
-const ROW_KINDS = "Start a row with O, S1, F1, T1, X1, R, SC, A or Y.";
+const ROW_KINDS = "Start a row with O, S1, F1, G, T1, X1, R, SC, A or Y.";
 const date = (v: string | undefined) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 const dash = (v: string | undefined) => !v || v === "-" || v === "—";
 
 type Lines = { sources: number[]; facts: number[]; tests: number[]; exhibits: number[] };
+type TopicRow = { line: number; topic: string; ids: string[] };
 type ScenarioLines = { sc: number; assumptions: number[]; outputs: number[] };
 
 export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: SheetError[] } {
@@ -25,6 +27,7 @@ export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: She
   const errors: SheetError[] = [];
   const at: Lines = { sources: [], facts: [], tests: [], exhibits: [] };
   const scenarioAt: ScenarioLines = { sc: 0, assumptions: [], outputs: [] };
+  const topics: TopicRow[] = [];
   const pendingQuotes: { sourceId: string; factId: string; quote: string }[] = [];
   let scenario: CfScenario | null = null;
   text.replace(/\r\n/g, "\n").split("\n").forEach((raw, index) => {
@@ -50,8 +53,11 @@ export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: She
       // The serializer writes "- | -" before a quote when there is no prior.
       const prior = !dash(cells[8]) && !dash(cells[9]) ? { label: cells[8] ?? "", value: n(cells[9], "prior value") } : null;
       at.facts.push(line);
-      cf.facts.push({ id: key, label: cells[1] ?? "", value, unit: cells[3] ?? "", period: cells[4] ?? "", asOf: date(cells[5]) ?? "", sourceId: cells[6] ?? "", locator: cells[7] ?? "", prior });
+      cf.facts.push({ id: key, label: cells[1] ?? "", value, unit: cells[3] ?? "", period: cells[4] ?? "", asOf: date(cells[5]) ?? "", sourceId: cells[6] ?? "", locator: cells[7] ?? "", prior, topic: null });
       if (cells[10]) pendingQuotes.push({ sourceId: cells[6] ?? "", factId: key, quote: cells[10] });
+    } else if (key === "G") {
+      if (!cells[1]) return err("G: name the topic.");
+      topics.push({ line, topic: cells[1], ids: (cells[2] ?? "").split(/[\s,]+/).filter(Boolean) });
     } else if (/^T\d+$/.test(key)) {
       const status = STATUS[(cells[5] ?? "").toLowerCase()];
       if (!status) return err(`${key}: the status must be met, watching, not met or no data.`);
@@ -83,22 +89,43 @@ export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: She
       }
     } else err(ROW_KINDS);
   });
+  const topicLineByFact = assignTopics(cf, topics, errors);
   for (const q of pendingQuotes) {
     const source = cf.sources.find((s) => s.id === q.sourceId);
     if (source) source.quote[q.factId] = q.quote;
   }
   cf.scenario = scenario;
-  if (errors.length > 0) return { caseFile: cf, errors };
+  if (errors.length > 0) return { caseFile: cf, errors: errors.sort((a, b) => a.line - b.line) };
   const checked = caseFileSchema.safeParse(cf);
   if (checked.success) return { caseFile: checked.data, errors };
   for (const issue of checked.error.issues) {
     const [group, section, i] = issue.path;
     let lineNo = 0;
     if (group === "scenario") lineNo = (section === "assumptions" || section === "outputs") && typeof i === "number" ? (scenarioAt[section][i] ?? scenarioAt.sc) : scenarioAt.sc;
+    else if (group === "facts" && typeof section === "number" && i === "topic") lineNo = topicLineByFact.get(cf.facts[section]?.id ?? "") ?? at.facts[section] ?? 0;
     else if (typeof group === "string" && typeof section === "number" && group in at) lineNo = at[group as keyof Lines][section] ?? 0;
     errors.push({ line: lineNo, message: issue.message });
   }
   return { caseFile: cf, errors };
+}
+
+/** Applies the G rows to the facts (they may come before or after them); returns the G line each fact's topic came from. */
+function assignTopics(cf: CaseFile, topics: TopicRow[], errors: SheetError[]): Map<string, number> {
+  const lineByFact = new Map<string, number>();
+  for (const { line, topic, ids } of topics) {
+    for (const id of ids) {
+      const fact = cf.facts.find((f) => f.id === id);
+      const first = lineByFact.get(id);
+      if (!fact) errors.push({ line, message: `G: ${id} is not a fact in this sheet.` });
+      else if (first === line) continue;
+      else if (first !== undefined) errors.push({ line, message: `${id} is in two topics (lines ${first} and ${line}).` });
+      else {
+        fact.topic = topic;
+        lineByFact.set(id, line);
+      }
+    }
+  }
+  return lineByFact;
 }
 
 const join = (cells: (string | number | null | undefined)[]) => cells.map((c) => (c === null || c === undefined ? "-" : String(c))).join(" | ");
@@ -117,6 +144,9 @@ export function serializeFactsSheet(cf: SheetCaseFile): string {
     const tail = f.prior ? [f.prior.label, f.prior.value, ...(quote ? [quote] : [])] : quote ? ["-", "-", quote] : [];
     lines.push(join([f.id, f.label, f.value, f.unit, f.period, f.asOf, f.sourceId, f.locator, ...tail]));
   }
+  const byTopic = new Map<string, string[]>();
+  for (const f of cf.facts) if (f.topic) byTopic.set(f.topic, [...(byTopic.get(f.topic) ?? []), f.id]);
+  for (const [topic, ids] of byTopic) lines.push(join(["G", topic, ids.join(" ")]));
   for (const t of cf.tests) {
     const word = { met: "met", watching: "watching", not_met: "not met", no_data: "no data" }[t.status];
     lines.push(join([t.id, t.current, t.unit, t.readingAsOf, t.lastChecked, word, t.min, t.max, t.threshold, t.direction, t.prior]));

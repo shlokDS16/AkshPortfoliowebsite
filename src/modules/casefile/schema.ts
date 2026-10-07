@@ -91,6 +91,7 @@ const sourceSchema = z.object({
 const factSchema = z.object({
   id: id("F"), label: text(80), value: num, unit: z.string().trim().max(12), period: z.string().regex(PERIOD_RE),
   asOf: date, sourceId: id("S"), locator: text(40), prior: z.object({ label: z.string().regex(PERIOD_RE), value: num }).nullable(),
+  topic: z.string().trim().min(1).max(40).nullable().default(null),
 });
 const testSchema = z
   .object({
