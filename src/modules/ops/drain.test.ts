@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { aiReadingOn, SERVER_DAILY_STEPS, SERVER_PUMP_STEPS, summaryText } from "./drain";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
+
+const env = vi.hoisted(() => ({ value: {} as Record<string, string | undefined> }));
+vi.mock("@/lib/env.server", () => ({ serverEnv: () => env.value }));
 
 describe("the server step lists (extend Phase 1, do not replace it)", () => {
   it("keeps each clock's heartbeat first and adds one ingestion step", () => {
@@ -20,8 +23,22 @@ describe("summaryText (the heartbeat detail: counts only, never document or erro
   });
 });
 
-describe("aiReadingOn", () => {
-  it("is off until Task 9 wires the LLM port", () => {
+describe("aiReadingOn (createLlmPort over the server env)", () => {
+  it("is off without a Groq key or the fixture adapter", () => {
+    env.value = {};
+    expect(aiReadingOn()).toBe(false);
+  });
+
+  it("is on with a Groq key", () => {
+    env.value = { GROQ_API_KEY: `gsk_${"k".repeat(40)}` };
+    expect(aiReadingOn()).toBe(true);
+  });
+
+  it("is on with the fixture adapter locally, and off when Vercel would get fake figures (R27)", () => {
+    env.value = { LLM_ADAPTER: "fixture" };
+    expect(aiReadingOn()).toBe(true);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    env.value = { LLM_ADAPTER: "fixture", VERCEL_ENV: "production" };
     expect(aiReadingOn()).toBe(false);
   });
 });

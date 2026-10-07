@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 
 const SRC = resolve(__dirname, "../..");
 
-/** `x` is `x.ts`, or a folder module's `x/index.ts` (@/modules/ingestion, @/modules/documents). */
-const asFile = (base: string) => (existsSync(`${base}.ts`) ? `${base}.ts` : join(base, "index.ts"));
+/** `x.json` is itself; `x` is `x.ts`, or a folder module's `x/index.ts` (@/modules/ingestion, @/lib/providers). */
+const asFile = (base: string) =>
+  base.endsWith(".json") ? base : existsSync(`${base}.ts`) ? `${base}.ts` : join(base, "index.ts");
 
 /** Every file reachable from an entry through relative imports and "@/" aliases (runtime imports only). */
 function reachable(entry: string): Map<string, string> {

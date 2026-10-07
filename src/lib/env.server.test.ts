@@ -50,3 +50,33 @@ describe("parseServerEnv", () => {
     expect(env).not.toHaveProperty("OCRSPACE_API_KEY");
   });
 });
+
+describe("parseServerEnv: the LLM settings (optional; unset means AI reading is off)", () => {
+  it("treats an empty GROQ_API_KEY from the template as unset", () => {
+    expect(parseServerEnv({ ...valid, GROQ_API_KEY: "" }).GROQ_API_KEY).toBeUndefined();
+    expect(parseServerEnv(valid).GROQ_API_KEY).toBeUndefined();
+  });
+
+  it("refuses a key too short to be a Groq key, without echoing it", () => {
+    expect(() => parseServerEnv({ ...valid, GROQ_API_KEY: "gsk_123456" })).toThrow(/GROQ_API_KEY/);
+    expect(() => parseServerEnv({ ...valid, GROQ_API_KEY: "gsk_123456" })).not.toThrow(/gsk_123456/);
+    expect(parseServerEnv({ ...valid, GROQ_API_KEY: `gsk_${"k".repeat(40)}` }).GROQ_API_KEY).toBe(`gsk_${"k".repeat(40)}`);
+  });
+
+  it("defaults GROQ_MODEL_TEXT to openai/gpt-oss-120b, also when the template leaves it empty", () => {
+    expect(parseServerEnv(valid).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-120b");
+    expect(parseServerEnv({ ...valid, GROQ_MODEL_TEXT: "" }).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-120b");
+    expect(parseServerEnv({ ...valid, GROQ_MODEL_TEXT: "openai/gpt-oss-20b" }).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-20b");
+  });
+
+  it("accepts LLM_ADAPTER groq or fixture and refuses anything else", () => {
+    expect(parseServerEnv({ ...valid, LLM_ADAPTER: "fixture" }).LLM_ADAPTER).toBe("fixture");
+    expect(parseServerEnv({ ...valid, LLM_ADAPTER: "" }).LLM_ADAPTER).toBeUndefined();
+    expect(() => parseServerEnv({ ...valid, LLM_ADAPTER: "other" })).toThrow(/LLM_ADAPTER/);
+  });
+
+  it("reads VERCEL_ENV (set by Vercel) so the fixture adapter can be refused there", () => {
+    expect(parseServerEnv({ ...valid, VERCEL_ENV: "preview" }).VERCEL_ENV).toBe("preview");
+    expect(parseServerEnv(valid).VERCEL_ENV).toBeUndefined();
+  });
+});

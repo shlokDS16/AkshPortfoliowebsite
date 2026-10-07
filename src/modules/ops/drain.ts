@@ -1,5 +1,6 @@
 import "server-only";
-import type { LlmPort } from "@/lib/providers/llm";
+import { serverEnv } from "@/lib/env.server";
+import { createLlmPort, type LlmPort } from "@/lib/providers";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { createQueueRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
@@ -8,12 +9,9 @@ import type { Step } from "./steps";
 
 // Job code: the one place the ingestion runner gets the secret-key client (ADR-001 s3, ADR-004 s4.4).
 
-/** Until Task 9 reads GROQ_MODEL_TEXT; the spec s9 default. */
-const TEXT_MODEL = "openai/gpt-oss-120b";
-
-/** The LLM port, or null when AI reading is off. Null until Task 9 wires createLlmPort(serverEnv()). */
+/** The LLM port, or null when AI reading is off (no GROQ_API_KEY, and no LLM_ADAPTER=fixture off Vercel). */
 function buildLlm(): LlmPort | null {
-  return null;
+  return createLlmPort(serverEnv());
 }
 
 /** True when steps that need the LLM can run; the inbox says "AI reading is off" otherwise. */
@@ -26,7 +24,7 @@ function buildDeps(): DrainDeps {
   return {
     db,
     llm: buildLlm(),
-    models: { text: TEXT_MODEL },
+    models: { text: serverEnv().GROQ_MODEL_TEXT },
     // Built once per drain; handlers use only these (ruling R7). The documents surface has no update.
     repos: { documents: machineDocuments(createSupabaseDocumentsRepo(db)) },
     now: () => new Date(),
