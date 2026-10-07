@@ -3,7 +3,7 @@ import { serverEnv } from "@/lib/env.server";
 import { createLlmPort, type LlmPort } from "@/lib/providers";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
-import { createQueueRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
+import { createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
 import type { Step } from "./steps";
 
@@ -26,7 +26,7 @@ function buildDeps(): DrainDeps {
     llm: buildLlm(),
     models: { text: serverEnv().GROQ_MODEL_TEXT },
     // Built once per drain; handlers use only these (ruling R7). The documents surface has no update.
-    repos: { documents: machineDocuments(createSupabaseDocumentsRepo(db)) },
+    repos: { documents: machineDocuments(createSupabaseDocumentsRepo(db)), usage: createUsageRepo(db) },
     now: () => new Date(),
     clock: Date.now,
   };
@@ -54,6 +54,17 @@ export function summaryText(s: DrainSummary): string {
     .join(", ");
 }
 
+/** The sweep's heartbeat detail: the drain's counts, then how many ledger rows the prune removed (nothing when none). */
+export function sweepText(s: DrainSummary, pruned: number): string {
+  return pruned > 0 ? `${summaryText(s)}, pruned ${pruned}` : summaryText(s);
+}
+
+/** The daily sweep: drain, then keep the provider ledger to two days (the governor looks back 24 h). */
+async function sweep(): Promise<string> {
+  const summary = await drainFor(DRAIN_MS.daily);
+  return sweepText(summary, await pruneUsage(createSupabaseServiceClient()));
+}
+
 /** Phase 1's clocks first (each its own heartbeat), then the ingestion drain. */
 export const SERVER_PUMP_STEPS: readonly Step[] = [
   ...PUMP_STEPS,
@@ -61,5 +72,5 @@ export const SERVER_PUMP_STEPS: readonly Step[] = [
 ];
 export const SERVER_DAILY_STEPS: readonly Step[] = [
   ...DAILY_STEPS,
-  { job: "ingestion:sweep", run: async () => summaryText(await drainFor(DRAIN_MS.daily)) },
+  { job: "ingestion:sweep", run: sweep },
 ];

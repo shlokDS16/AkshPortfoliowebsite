@@ -28,6 +28,9 @@ export const MAX_PDF_PAGES = 5_000;
 
 /** Groq free tier per bucket (model id), at 75% of 30 RPM, 1K RPD, 8K TPM, 200K TPD (spec s9, verified 2026-10-07). */
 export const GROQ_CAPS = { tpm: 6_000, tpd: 150_000, rpm: 22, rpd: 750 } as const;
+/** Characters of one statement page sent to the model; with a 700-char system prompt and EXTRACT_MAX_COMPLETION, one call is about 5,100 tokens. */
+export const PAGE_CHAR_LIMIT = 12_000;
+export const EXTRACT_MAX_COMPLETION = 1_500;
 /** Tokens one statement page costs (spec s9 estimate until Task 16 measures the median). */
 export const TOKENS_PER_PAGE_DEFAULT = 3_400;
 /** The GitHub pump runs every 15 minutes (spec s8); each run drains for DRAIN_MS.pump. */

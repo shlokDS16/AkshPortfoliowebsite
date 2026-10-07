@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { aiReadingOn, SERVER_DAILY_STEPS, SERVER_PUMP_STEPS, summaryText } from "./drain";
+import { aiReadingOn, SERVER_DAILY_STEPS, SERVER_PUMP_STEPS, summaryText, sweepText } from "./drain";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
 
 const env = vi.hoisted(() => ({ value: {} as Record<string, string | undefined> }));
@@ -20,6 +20,16 @@ describe("summaryText (the heartbeat detail: counts only, never document or erro
 
   it("says when there was nothing to do", () => {
     expect(summaryText({ ran: 0, done: 0, deferred: 0, attention: 0, leaseLost: 0 })).toBe("nothing to run");
+  });
+});
+
+describe("sweepText (the daily sweep also prunes the usage ledger)", () => {
+  const idle = { ran: 0, done: 0, deferred: 0, attention: 0, leaseLost: 0 };
+
+  it("says how many ledger rows the prune removed, and stays quiet when none", () => {
+    expect(sweepText(idle, 0)).toBe("nothing to run");
+    expect(sweepText(idle, 12)).toBe("nothing to run, pruned 12");
+    expect(sweepText({ ...idle, ran: 2, done: 2 }, 3)).toBe("ran 2, done 2, pruned 3");
   });
 });
 

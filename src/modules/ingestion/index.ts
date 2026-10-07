@@ -6,6 +6,8 @@ export * from "./caps";
 export type { NewStep, Step, StepContext, StepHandler, StepKind, StepOutcome, StepStatus, WaitReason } from "./types";
 export { machineDocuments, type DrainDeps, type StepDeps, type MachineDocumentsRepo, type MachineRepos } from "./deps";
 export { llmTimeoutMs } from "./deadline";
+export { callWithinBudget, estimateTokens, type BudgetResult } from "./governor";
+export { createUsageRepo, pruneUsage, type Block, type BlockReason, type Caps, type UsageRepo } from "./usage-repo";
 export { estimateReadyBy, formatReadyBy, type Eta, type EtaInput } from "./eta";
 export { createQueueRepo, type FinishPatch, type QueueRepo } from "./queue-repo";
 export { drain, STOPPED_TWICE, type DrainSummary } from "./runner";

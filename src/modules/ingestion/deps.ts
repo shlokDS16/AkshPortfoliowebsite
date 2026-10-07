@@ -1,6 +1,7 @@
 import type { LlmPort } from "@/lib/providers/llm";
 import type { Db } from "@/lib/supabase/types";
 import type { DocumentsRepo } from "@/modules/documents";
+import type { UsageRepo } from "./usage-repo";
 
 /**
  * What job code may do to documents (ADR-004 s4.2). Never `update`: documents.status 'done' and 'skipped' are
@@ -13,7 +14,7 @@ export type MachineDocumentsRepo = Pick<
 >;
 
 /** Every repo a step handler uses, built once by src/modules/ops/drain.ts (ruling R7). Tests pass fakes. */
-export type MachineRepos = { documents: MachineDocumentsRepo };
+export type MachineRepos = { documents: MachineDocumentsRepo; usage: UsageRepo };
 
 export type DrainDeps = {
   /** The secret-key client ops hands the runner; the queue repo is built on it. Handlers use `repos`. */

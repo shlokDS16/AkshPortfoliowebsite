@@ -1,0 +1,60 @@
+import type { LlmResult } from "@/lib/providers/llm";
+import { GROQ_CAPS } from "./caps";
+import type { BlockReason, UsageRepo } from "./usage-repo";
+
+/** About 3.5 characters per token for the English and numeric text of statements; the completion cap is added whole. */
+export const estimateTokens = (system: string, user: string, maxCompletion: number): number =>
+  Math.ceil((system.length + user.length) / 3.5) + maxCompletion;
+
+export type BudgetResult<T> =
+  | { kind: "deferred"; notBefore: Date; reason: BlockReason }
+  | { kind: "called"; result: LlmResult<T> };
+
+const DAY_AFTER_SECONDS = 600; // a retry-after longer than 10 minutes means the day allowance, not the minute
+const NO_RATE = { remainingTokens: null, remainingRequests: null, retryAfterSeconds: null };
+const MIN_WAIT_SECONDS = 1; // a deferral is always in the future, whatever the clocks or headers say
+
+/**
+ * Reserve, call, settle. Groq's own counters win over our estimate (they also show whether limits are pooled).
+ * Over a cap is always a deferral with a time, never a failure.
+ */
+export async function callWithinBudget<T>(
+  deps: { usage: UsageRepo; now: () => Date },
+  bucket: string,
+  estimate: number,
+  call: () => Promise<LlmResult<T>>,
+): Promise<BudgetResult<T>> {
+  const at = (seconds: number) => new Date(deps.now().getTime() + Math.max(seconds, MIN_WAIT_SECONDS) * 1000);
+  const r = await deps.usage.reserve(bucket, estimate, GROQ_CAPS);
+  if (!r.ok) {
+    const earliest = at(MIN_WAIT_SECONDS);
+    return { kind: "deferred", notBefore: r.notBefore.getTime() < earliest.getTime() ? earliest : r.notBefore, reason: r.reason };
+  }
+  let result: LlmResult<T>;
+  try {
+    result = await call();
+  } catch (error) {
+    await deps.usage.settle(r.id, 0, "released");
+    return { kind: "called", result: { kind: "provider_error", status: null, message: error instanceof Error ? error.name : "error", rate: NO_RATE } };
+  }
+  if (result.kind === "rate_limited") {
+    await deps.usage.settle(r.id, 0, "released");
+    const wait = Math.max(result.rate.retryAfterSeconds ?? 60, MIN_WAIT_SECONDS);
+    const reason: BlockReason = wait > DAY_AFTER_SECONDS ? "groq_day" : "groq_minute";
+    const notBefore = at(wait);
+    await deps.usage.block(bucket, "rate_limited", notBefore, reason, result.rate);
+    return { kind: "deferred", notBefore, reason };
+  }
+  if (result.kind === "provider_error") {
+    await deps.usage.settle(r.id, 0, "released");
+    return { kind: "called", result };
+  }
+  const used = result.usage?.totalTokens ?? estimate;
+  await deps.usage.settle(r.id, used, "used");
+  if (result.rate.remainingRequests !== null && result.rate.remainingRequests <= 1) {
+    await deps.usage.block(bucket, "observation", at(3600), "groq_day", result.rate);
+  } else if (result.rate.remainingTokens !== null && result.rate.remainingTokens < estimate) {
+    await deps.usage.block(bucket, "observation", at(60), "groq_minute", result.rate);
+  }
+  return { kind: "called", result };
+}
