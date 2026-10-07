@@ -52,3 +52,9 @@ export function positionWord(h: HoldsPosition): "Yes" | "No" | "Not disclosed" {
 export function withheldText(availableOn: ISODate): string {
   return `[withheld until ${formatDate(availableOn)}]`;
 }
+
+/** At most `max` characters (code points, so an emoji or Devanagari conjunct is never split), ending with an ellipsis when cut. */
+export function clipWithEllipsis(text: string, max: number): string {
+  const chars = Array.from(text);
+  return chars.length <= max ? text : `${chars.slice(0, max).join("").trimEnd()}…`;
+}

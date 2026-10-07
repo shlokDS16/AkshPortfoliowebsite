@@ -4,9 +4,11 @@ import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatDate } from "@/lib/format";
+import { clipWithEllipsis, formatDate } from "@/lib/format";
 import { SECTORS } from "@/lib/sectors";
 import type { NameToScreen } from "@/modules/catalog";
+
+const QUOTE_MAX = 200;
 
 type Props = { name: NameToScreen; action: (formData: FormData) => Promise<void> };
 
@@ -21,7 +23,7 @@ export function NameCard({ name, action }: Props) {
         {noun} · first seen {formatDate(name.firstSeen)}
       </p>
       <p className="mt-1 font-mono text-subtitle text-ink">{name.token}</p>
-      {name.quote ? <blockquote className="mt-1 text-small text-ink-muted">“{name.quote}”</blockquote> : null}
+      {name.quote ? <blockquote className="mt-1 text-small text-ink-muted">“{clipWithEllipsis(name.quote, QUOTE_MAX)}”</blockquote> : null}
       <form action={action} className="mt-3 space-y-2">
         {name.suggestion ? <input type="hidden" name="intoId" value={name.suggestion.id} /> : null}
         {adding ? (

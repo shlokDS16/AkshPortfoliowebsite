@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDate, formatFileNo, formatNumber, formatTime, positionText, positionWord, withheldText } from "./format";
+import { clipWithEllipsis, formatCount, formatDate, formatFileNo, formatNumber, formatTime, positionText, positionWord, withheldText } from "./format";
 
 describe("format", () => {
   it("writes dates as '2 Sep 2026' and reads timestamps in IST", () => {
@@ -30,5 +30,17 @@ describe("format", () => {
     expect(positionText(null)).toBe("Position not disclosed");
     expect(positionWord("not_disclosed")).toBe("Not disclosed");
     expect(withheldText("2026-11-12")).toBe("[withheld until 12 Nov 2026]");
+  });
+});
+
+describe("clipWithEllipsis", () => {
+  it("leaves short text alone and cuts long text with an ellipsis", () => {
+    expect(clipWithEllipsis("short", 10)).toBe("short");
+    expect(clipWithEllipsis("abcdefghij", 10)).toBe("abcdefghij");
+    expect(clipWithEllipsis("abcdefghijk", 10)).toBe("abcdefghij…");
+  });
+
+  it("counts code points, so a surrogate pair is never split", () => {
+    expect(clipWithEllipsis("😀".repeat(5), 3)).toBe("😀😀😀…");
   });
 });

@@ -21,6 +21,11 @@ describe("NameCard", () => {
     expectTokenOnly(container);
   });
 
+  it("clips a long quote to 200 characters with an ellipsis", () => {
+    render(<NameCard name={{ ...stub, quote: "x".repeat(500) }} action={vi.fn()} />);
+    expect(screen.getByText(`“${"x".repeat(200)}…”`)).toBeInTheDocument();
+  });
+
   it("'New company' asks for the name and a sector, then 'Yes, add it'", async () => {
     render(<NameCard name={stub} action={vi.fn()} />);
     await userEvent.click(screen.getByRole("button", { name: "New company" }));

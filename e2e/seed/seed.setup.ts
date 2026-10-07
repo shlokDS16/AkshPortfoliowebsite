@@ -1,4 +1,5 @@
 import { expect, test as setup, type Page } from "@playwright/test";
+import { requireStack } from "../support/auth";
 import { KAVERI, NOTES, PROCESS_NOTE, SAHYADRI, type SeedFile, type SeedNote } from "../../src/test/fixtures/casefile";
 
 // LOCAL stack only (e2e/support/stack.ts refuses any other API URL). Every write goes through the desk screens
@@ -87,6 +88,7 @@ async function seedFile(page: Page, file: SeedFile) {
 }
 
 setup("seed two fictional files and three notes through the desk UI", async ({ page }) => {
+  requireStack(); // explicit local-only guard (refuses a non-local API URL), whatever ran before
   setup.setTimeout(300_000);
   for (const note of [...NOTES, PROCESS_NOTE]) await seedNote(page, note);
   for (const file of [KAVERI, SAHYADRI]) await seedFile(page, file);

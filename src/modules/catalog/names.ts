@@ -87,6 +87,12 @@ export async function decideName(db: Db, type: "company" | "theme", id: string, 
     if (target.error) throw dbError("catalog.decideName.target", target.error);
     if (!target.data) throw new InvalidInputError();
   }
+  if (decision.kind === "merge" && stub.key !== null) {
+    // An alias is never re-pointed (no update or delete policy): a symbol already aliased elsewhere is a conflict.
+    const alias = await db.from("company_aliases").select("company_id").eq("symbol", stub.key).maybeSingle();
+    if (alias.error) throw dbError("catalog.decideName.alias", alias.error);
+    if (alias.data && alias.data.company_id !== decision.intoId) throw new InvalidInputError();
+  }
   for (const op of planDecision(stub, decision, now.toISOString())) {
     if (op.op === "insert") {
       const { error } = await db.from(op.table).upsert(op.row as never, { onConflict: op.table === "company_aliases" ? "symbol" : "kind,token", ignoreDuplicates: true });
@@ -102,39 +108,41 @@ export async function decideName(db: Db, type: "company" | "theme", id: string, 
   }
 }
 
-function firstQuotes(rows: { raw_text: string; created_at: string; company_id: string | null; theme_id: string | null }[], column: "company_id" | "theme_id") {
-  const quotes = new Map<string, string>();
-  for (const row of [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
-    const key = row[column];
-    if (key && !quotes.has(key)) quotes.set(key, row.raw_text);
-  }
-  return quotes;
+/** How many stubs one screen shows, oldest first; the rest are counted by the caller (countNamesToReview). */
+export const NAMES_PAGE_SIZE = 50;
+const CANDIDATE_LIMIT = 500;
+
+/** The earliest capture that named this stub: ordered by time then id, one row. */
+async function firstQuote(db: Db, column: "company_id" | "theme_id", id: string): Promise<string | null> {
+  const { data, error } = await db
+    .from("captures")
+    .select("raw_text")
+    .eq(column, id)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw dbError("catalog.firstQuote", error);
+  return data?.raw_text ?? null;
 }
 
 export async function listNamesToScreen(db: Db): Promise<NameToScreen[]> {
   const [stubs, themes, screened] = await Promise.all([
-    db.from("companies").select("id, nse_symbol, name, created_at").eq("needs_review", true).is("archived_at", null),
-    db.from("themes").select("id, slug, name, created_at").eq("needs_review", true).is("archived_at", null),
-    db.from("companies").select("id, nse_symbol, name").eq("needs_review", false).is("archived_at", null),
+    db.from("companies").select("id, nse_symbol, name, created_at").eq("needs_review", true).is("archived_at", null).order("created_at", { ascending: true }).order("id", { ascending: true }).limit(NAMES_PAGE_SIZE),
+    db.from("themes").select("id, slug, name, created_at").eq("needs_review", true).is("archived_at", null).order("created_at", { ascending: true }).order("id", { ascending: true }).limit(NAMES_PAGE_SIZE),
+    db.from("companies").select("id, nse_symbol, name").eq("needs_review", false).is("archived_at", null).order("name", { ascending: true }).limit(CANDIDATE_LIMIT),
   ]);
   for (const r of [stubs, themes, screened]) if (r.error) throw dbError("catalog.listNamesToScreen", r.error);
-  const companyIds = (stubs.data ?? []).map((c) => c.id);
-  const themeIds = (themes.data ?? []).map((t) => t.id);
-  const columns = "raw_text, created_at, company_id, theme_id";
-  const [byCompany, byTheme] = await Promise.all([
-    companyIds.length ? db.from("captures").select(columns).in("company_id", companyIds) : Promise.resolve({ data: [], error: null }),
-    themeIds.length ? db.from("captures").select(columns).in("theme_id", themeIds) : Promise.resolve({ data: [], error: null }),
-  ]);
-  if (byCompany.error) throw dbError("catalog.firstQuotes", byCompany.error);
-  if (byTheme.error) throw dbError("catalog.firstQuotes", byTheme.error);
-  const companyQuotes = firstQuotes(byCompany.data ?? [], "company_id");
-  const themeQuotes = firstQuotes(byTheme.data ?? [], "theme_id");
   const candidates = (screened.data ?? []).map((c) => ({ id: c.id, symbol: c.nse_symbol, name: c.name }));
-  return [
-    ...(stubs.data ?? []).map((c): NameToScreen => {
+  type Stub = Omit<NameToScreen, "quote">;
+  const all: Stub[] = [
+    ...(stubs.data ?? []).map((c): Stub => {
       const token = `$${c.nse_symbol ?? c.name}`;
-      return { id: c.id, token, type: "company", firstSeen: c.created_at, quote: companyQuotes.get(c.id) ?? null, suggestion: suggestMatch(token, candidates) };
+      return { id: c.id, token, type: "company", firstSeen: c.created_at, suggestion: suggestMatch(token, candidates) };
     }),
-    ...(themes.data ?? []).map((t): NameToScreen => ({ id: t.id, token: `#${t.slug}`, type: "theme", firstSeen: t.created_at, quote: themeQuotes.get(t.id) ?? null, suggestion: null })),
-  ].sort((a, b) => a.firstSeen.localeCompare(b.firstSeen));
+    ...(themes.data ?? []).map((t): Stub => ({ id: t.id, token: `#${t.slug}`, type: "theme", firstSeen: t.created_at, suggestion: null })),
+  ];
+  // The oldest NAMES_PAGE_SIZE across both kinds: one first-capture read each, so the work is bounded.
+  const page = all.sort((a, b) => a.firstSeen.localeCompare(b.firstSeen) || a.id.localeCompare(b.id)).slice(0, NAMES_PAGE_SIZE);
+  return Promise.all(page.map(async (n): Promise<NameToScreen> => ({ ...n, quote: await firstQuote(db, n.type === "company" ? "company_id" : "theme_id", n.id) })));
 }
