@@ -88,3 +88,8 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - Admin: hosted has one account, Aksh's, already admin; ADMIN_EMAIL set for Preview and Production.
 - Incident: the controller printed the hosted DB password twice while validating SUPABASE_DB_URL (shell fallbacks echoed the value); Shlok reset it each time; checks now go through a script that prints booleans only. The current password was later pasted in chat; reset pending.
 - Phase 2: Shlok accepted the five ingestion defaults and approved ADR-004; spec and plans 2a (16 tasks, slices A manual / B upload+PDF text / C Groq) and 2b (9 tasks) on branch phase-2a. Slice A waits for the trial before reaching Aksh.
+
+## 2026-10-07 (late) - Plan 2a Tasks 1-11
+- Pre-flight of Plan 2a (opus): 29 findings ruled R1-R29 (incl. the provenance policy that could never pass, e2e that could only run once, steps outliving the function).
+- Built and reviewed: casefile topics + Notes (T1-2, topic layout A picked by Shlok), migration 0006 documents/jobs/bucket/machine boundary hardened in place (T3), signed upload (T4), job engine + queue health (T5), PDF text + page selector with hash/%PDF check (T6), Inbox with a POST pump route (T7), document pane (T8), Groq adapter (T9, live smoke 200), migration 0007 extraction/provenance/usage hardened in place (T10), budget governor (T11). 0006/0007 local only until phase-2a merges.
+- Session ended with Task 12 mid-build; see the ledger's SESSION END line.
