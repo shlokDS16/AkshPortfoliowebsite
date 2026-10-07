@@ -1,0 +1,28 @@
+import type { LlmPort } from "@/lib/providers/llm";
+import type { Db } from "@/lib/supabase/types";
+import type { DocumentsRepo } from "@/modules/documents";
+
+/**
+ * What job code may do to documents (ADR-004 s4.2). Never `update`: documents.status 'done' and 'skipped' are
+ * Aksh's alone, and the secret-key client could otherwise set them (migration 0006 grants it the column).
+ * Task 6 widens this pick with the page-text methods (download, insertPages, setPageCount, ...).
+ */
+export type MachineDocumentsRepo = Pick<DocumentsRepo, "get">;
+
+/** Every repo a step handler uses, built once by src/modules/ops/drain.ts (ruling R7). Tests pass fakes. */
+export type MachineRepos = { documents: MachineDocumentsRepo };
+
+export type DrainDeps = {
+  /** The secret-key client ops hands the runner; the queue repo is built on it. Handlers use `repos`. */
+  db: Db;
+  llm: LlmPort | null;
+  models: { text: string };
+  repos: MachineRepos;
+  now: () => Date;
+  clock: () => number;
+};
+
+/** Narrows a full documents repo to the machine's surface: the methods are copied, so `update` cannot leak. */
+export function machineDocuments(repo: DocumentsRepo): MachineDocumentsRepo {
+  return { get: (id) => repo.get(id) };
+}

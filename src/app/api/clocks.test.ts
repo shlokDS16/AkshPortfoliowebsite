@@ -6,6 +6,7 @@ const fake = vi.hoisted(() => ({
   ages: [] as { job: string; age_seconds: number; ok: boolean }[],
   failReads: false,
   rpcCalls: [] as string[],
+  claims: 0,
 }));
 
 // The job routes' only database door is the secret-key repo; the health route's is the anon client.
@@ -15,12 +16,21 @@ vi.mock("@/modules/ops/job-deps", () => ({
     latestRuns: async () => ({}),
   }),
 }));
+// The ingestion drain (Phase 2) claims through the secret-key client: an empty queue here.
+vi.mock("@/lib/supabase/service", () => ({
+  createSupabaseServiceClient: () => ({
+    rpc: async (name: string) => {
+      if (name === "claim_job_step") fake.claims += 1;
+      return { data: [], error: null };
+    },
+  }),
+}));
 vi.mock("@/lib/supabase/public", () => ({
   createSupabasePublicClient: () => ({
     rpc: async (name: string) => {
       fake.rpcCalls.push(name);
       if (fake.failReads) return { data: null, error: { message: "paused", code: "08006" } };
-      return { data: fake.ages, error: null };
+      return { data: name === "queue_age" ? null : fake.ages, error: null };
     },
   }),
 }));
@@ -44,6 +54,7 @@ beforeEach(() => {
   fake.rpcCalls.length = 0;
   fake.ages = [];
   fake.failReads = false;
+  fake.claims = 0;
 });
 
 describe("GET /api/cron/daily", () => {
@@ -59,11 +70,15 @@ describe("GET /api/cron/daily", () => {
     expect(response.status).toBe(401);
   });
 
-  it("writes the daily heartbeat", async () => {
+  it("writes the daily heartbeat, then sweeps the job queue under its own heartbeat", async () => {
     const response = await daily(new NextRequest("http://x/api/cron/daily", { headers: authed }));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(fake.beats).toEqual([{ job: "heartbeat:daily", ok: true, detail: "alive" }]);
+    expect(fake.beats).toEqual([
+      { job: "heartbeat:daily", ok: true, detail: "alive" },
+      { job: "ingestion:sweep", ok: true, detail: "nothing to run" },
+    ]);
+    expect(fake.claims).toBe(1);
   });
 });
 
@@ -75,13 +90,19 @@ describe("POST /api/jobs/run", () => {
     expect(fake.beats).toEqual([]);
   });
 
-  it("writes the pump heartbeat on every call", async () => {
+  it("writes the pump heartbeat on every call, then drains the job queue", async () => {
     const call = () => pump(new NextRequest("http://x/api/jobs/run", { method: "POST", headers: authed }));
     const response = await call();
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, results: [{ job: "heartbeat:pump", ok: true }] });
+    expect(await response.json()).toEqual({
+      ok: true,
+      results: [
+        { job: "heartbeat:pump", ok: true },
+        { job: "ingestion:drain", ok: true },
+      ],
+    });
     await call();
-    expect(fake.beats.map((b) => b.job)).toEqual(["heartbeat:pump", "heartbeat:pump"]);
+    expect(fake.beats.map((b) => b.job)).toEqual(["heartbeat:pump", "ingestion:drain", "heartbeat:pump", "ingestion:drain"]);
   });
 });
 
@@ -91,12 +112,13 @@ describe("GET /api/health", () => {
     const response = await health();
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(fake.rpcCalls).toEqual(["heartbeat_ages"]);
+    expect(fake.rpcCalls.sort()).toEqual(["heartbeat_ages", "queue_age"]);
     expect(await response.json()).toEqual({
       ok: true,
       checks: [
         { job: "heartbeat:pump", ageSeconds: 600, ok: true },
         { job: "heartbeat:daily", ageSeconds: 36_000, ok: true },
+        { job: "queue", ageSeconds: null, ok: true },
       ],
     });
   });

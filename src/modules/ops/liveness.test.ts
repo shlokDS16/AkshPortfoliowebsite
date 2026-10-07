@@ -5,7 +5,7 @@ import { getLiveness, livenessFromReport } from "./liveness";
 
 const NOW = new Date("2026-10-06T08:35:00Z");
 const ago = (minutes: number, ok = true) => ({ ranAt: new Date(NOW.getTime() - minutes * 60_000).toISOString(), ok });
-const report = (latest: Parameters<typeof evaluateHealth>[0]) => evaluateHealth(latest, NOW);
+const report = (latest: Parameters<typeof evaluateHealth>[0], queueAge: number | null = null) => evaluateHealth(latest, NOW, queueAge);
 
 describe("liveness for the red strip (spec s8)", () => {
   it("is ok while both clocks are fresh", () => {
@@ -26,6 +26,10 @@ describe("liveness for the red strip (spec s8)", () => {
     });
   });
 
+  it("leaves a stuck queue to its own clause: no empty list of late clocks (Task 15 renders the queue)", () => {
+    expect(livenessFromReport(report({ "heartbeat:pump": ago(10), "heartbeat:daily": ago(600) }, 7 * 3600))).toEqual({ status: "ok" });
+  });
+
   it("reports the database as unreachable instead of throwing", async () => {
     const down = {
       from: () => {
@@ -42,7 +46,9 @@ describe("liveness for the red strip (spec s8)", () => {
       chain.maybeSingle = async () => ({ data: { ran_at: ago(10).ranAt, ok: true }, error: null });
       return chain;
     });
-    expect(await getLiveness({ from } as unknown as Db, NOW)).toEqual({ status: "ok" });
+    const rpc = vi.fn(async () => ({ data: null, error: null }));
+    expect(await getLiveness({ from, rpc } as unknown as Db, NOW)).toEqual({ status: "ok" });
     expect(from).toHaveBeenCalledWith("heartbeats");
+    expect(rpc).toHaveBeenCalledWith("queue_age");
   });
 });
