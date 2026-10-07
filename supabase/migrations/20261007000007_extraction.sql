@@ -90,6 +90,10 @@ begin
   if old.status = 'filed' then
     raise exception 'a filed proposal is final' using errcode = 'P0001';
   end if;
+  if new.revision_id is not null and new.item_id is distinct from
+     (select r.item_id from public.item_revisions r where r.id = new.revision_id) then
+    raise exception 'a proposal is filed only under a revision of its own item' using errcode = '23514';
+  end if;
   return new;
 end;
 $$;
@@ -137,7 +141,7 @@ returns table (ok boolean, reservation_id uuid, not_before timestamptz, reason t
 language plpgsql security definer set search_path = ''
 as $$
 declare
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz;
   v_block record;
   v_min_tokens bigint;
   v_day_tokens bigint;
@@ -150,9 +154,11 @@ begin
     raise exception 'a bucket and four positive caps are required' using errcode = '22023';
   end if;
   if p_tokens is null or p_tokens < 1 or p_tokens > least(p_tpm, p_tpd) then
-    raise exception 'one call must fit inside the minute cap' using errcode = '22023';
+    raise exception 'one call must fit inside the minute and day caps' using errcode = '22023';
   end if;
   perform pg_advisory_xact_lock(hashtext('provider_usage:' || p_bucket));
+  -- Read the clock only once the lock is held: a waiter must never write an earlier `at` than the holder.
+  v_now := clock_timestamp();
 
   select u.blocked_until, u.block_reason into v_block
     from public.provider_usage u
@@ -214,11 +220,12 @@ create policy proposals_admin_update on public.proposals for update to authentic
   using ((select private.is_admin())) with check ((select private.is_admin()) and status <> 'pending');
 create policy fact_provenance_admin_read on public.fact_provenance for select to authenticated using ((select private.is_admin()));
 -- R1: the new row's columns are qualified; unqualified, revision_id would bind to proposals.revision_id (null until
--- filed) and every insert would be refused.
+-- filed) and every insert would be refused. Only an accepted, edited or filed proposal has provenance (ADR-004 s4.7).
 create policy fact_provenance_admin_insert on public.fact_provenance for insert to authenticated
   with check ((select private.is_admin()) and exists (
     select 1 from public.proposals p join public.item_revisions r on r.item_id = p.item_id
-     where p.id = fact_provenance.proposal_id and r.id = fact_provenance.revision_id));
+     where p.id = fact_provenance.proposal_id and r.id = fact_provenance.revision_id
+       and p.status in ('accepted', 'edited', 'filed')));
 create policy provider_usage_admin_read on public.provider_usage for select to authenticated using ((select private.is_admin()));
 
 revoke all on public.extractions, public.proposals, public.fact_provenance, public.provider_usage

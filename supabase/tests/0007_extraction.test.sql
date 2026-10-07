@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(68);
+select plan(75);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -155,10 +155,19 @@ select throws_ok($$ insert into public.fact_provenance (revision_id, fact_id, pr
 select throws_ok($$ insert into public.fact_provenance (revision_id, fact_id, proposal_id, edited)
                     values ('e1000000-0000-4000-8000-000000000001', 'F2', 'b2000000-0000-4000-8000-000000000002', true) $$,
   '42501', null, 'provenance for a proposal not filed under the item is refused');
+select lives_ok($$ update public.proposals set status = 'rejected', item_id = 'a1000000-0000-4000-8000-000000000001', decided_at = now()
+                   where id = 'b2000000-0000-4000-8000-000000000002' $$,
+  'the admin rejects a proposal that carries an item_id');
+select throws_ok($$ insert into public.fact_provenance (revision_id, fact_id, proposal_id, edited)
+                    values ('e1000000-0000-4000-8000-000000000001', 'F3', 'b2000000-0000-4000-8000-000000000002', true) $$,
+  '42501', null, 'a rejected proposal has no provenance, even under the item (ADR-004 s4.7)');
 
 -- Filing is final.
 select throws_ok($$ update public.proposals set status = 'filed' where id = 'b1000000-0000-4000-8000-000000000001' $$,
   '23514', null, 'filed without a revision_id violates the check');
+select throws_ok($$ update public.proposals set status = 'filed', revision_id = 'e2000000-0000-4000-8000-000000000002'
+                    where id = 'b1000000-0000-4000-8000-000000000001' $$,
+  '23514', 'a proposal is filed only under a revision of its own item', 'a proposal cannot be filed under another item''s revision');
 select lives_ok($$ update public.proposals set status = 'filed', revision_id = 'e1000000-0000-4000-8000-000000000001'
                    where id = 'b1000000-0000-4000-8000-000000000001' $$,
   'the admin marks the proposal filed with its revision');
@@ -175,6 +184,11 @@ select throws_ok($$ update public.fact_provenance set edited = false $$, 'P0001'
   'fact_provenance is append-only: UPDATE is not allowed', 'fact_provenance UPDATE raises even for the owner');
 select throws_ok($$ delete from public.fact_provenance $$, 'P0001',
   'fact_provenance is append-only: DELETE is not allowed', 'fact_provenance DELETE raises even for the owner');
+select throws_ok($$ truncate public.fact_provenance $$, 'P0001',
+  'fact_provenance is append-only: TRUNCATE is not allowed', 'fact_provenance TRUNCATE raises');
+-- CASCADE also reaches proposals and fact_provenance, so assert the extractions-specific message.
+select throws_ok($$ truncate public.extractions cascade $$, 'P0001',
+  'extractions is append-only: TRUNCATE is not allowed', 'extractions TRUNCATE raises');
 
 -- A signed-in non-admin sees and writes nothing.
 set local role authenticated;
@@ -185,10 +199,15 @@ select is((select count(*) from public.extractions) + (select count(*) from publ
 select throws_ok($$ insert into public.fact_provenance (revision_id, fact_id, proposal_id, edited)
                     values ('e1000000-0000-4000-8000-000000000001', 'F9', 'b1000000-0000-4000-8000-000000000001', false) $$,
   '42501', null, 'a non-admin cannot record provenance');
+select lives_ok($$ update public.proposals set status = 'accepted', accepted_value = '{}'
+                   where id = 'b2000000-0000-4000-8000-000000000002' $$,
+  'a non-admin update of a proposal runs (RLS hides the row)');
 select throws_ok($$ select * from public.reserve_usage('m', 10, 6000, 150000, 22, 750) $$, '42501', null,
   'authenticated cannot call reserve_usage');
 reset role;
 select set_config('request.jwt.claims', '', true);
+select is((select status from public.proposals where id = 'b2000000-0000-4000-8000-000000000002'), 'rejected',
+  'and changes nothing');
 
 -- reserve_usage: minute, day and request caps, 429 blocks, released rows, argument checks.
 set local role service_role;
