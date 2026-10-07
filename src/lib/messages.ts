@@ -29,6 +29,12 @@ const ERRORS = {
   "choose-sector": "Choose a sector from the list.",
   "name-on-public-item": "A public item names this. Unpublish that item before changing what this name is.",
   "no-figure-date": "This file has no dated figure yet, so there is nothing to set Figures to.",
+  // Uploads (= DOCUMENT_ERROR_TEXT in modules/documents/errors.ts; a test keeps them equal).
+  "upload-duplicate": "You uploaded this PDF before. Open the earlier copy.",
+  "upload-too-large": "Over 50 MB. Upload the financial statements section, or compress the file.",
+  "upload-not-pdf": "Only PDF files can be uploaded.",
+  "upload-storage-full": "Storage is over 90% full. Mark finished documents as done to free space.",
+  "upload-missing": "The upload did not arrive complete. Upload the file again.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -50,6 +56,12 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   NAME_NOT_SCREENED: "name-not-screened",
   NAME_ON_PUBLIC_ITEM: "name-on-public-item",
   NO_FIGURE_DATE: "no-figure-date",
+  // DocumentError carries the message code itself.
+  "upload-duplicate": "upload-duplicate",
+  "upload-too-large": "upload-too-large",
+  "upload-not-pdf": "upload-not-pdf",
+  "upload-storage-full": "upload-storage-full",
+  "upload-missing": "upload-missing",
 };
 
 /**
