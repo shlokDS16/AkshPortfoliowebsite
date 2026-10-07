@@ -75,3 +75,9 @@ in `claude/`. End-of-session routine runs before any session finishes.
   launch wherever it was seeded (D20); visual baselines are local-only (D29); the receipt wording for a thesis
   without a company (D32).
 - Next: the 3-day usage trial, then the Phase 1 rubric review.
+
+## 2026-10-07 - Plan 1B closed and preview deployed
+- Task 16 built and reviewed (opus): WCAG AA scans, LCP/CLS budget (caught CLS 0.016 from NumberFlow's mask, fixed), reduced-motion e2e, local visual baselines (awaiting Shlok), trial checklist.
+- Final whole-branch review (opus, Plan 1B scope ee90262..28e0550): 0 Critical; I1 desk showed Live while the 30-day lag hid the file; I2 a public file cannot take newer figures without going offline (desk note now, ADR later: Q11). One fix wave (6cc4e40..93db8fd): I1, I2 copy, publishRevision moved to a server-only module, desk error boundary, per-company register de-dup, chip padding, test hardening. Scoped re-review: all 13 addressed.
+- Hosted Supabase dry run: up to date (0001-0005). Preview deployed from a git-archive of 93db8fd and aliased to aksh-research-desk-preview.vercel.app; CSS chunk 200 (Q6 does not reproduce).
+- Rulings collected in docs/plans/2026-10-07-phase-1b-rulings.md. Next: Shlok's four decisions, then the 3-day usage trial.
