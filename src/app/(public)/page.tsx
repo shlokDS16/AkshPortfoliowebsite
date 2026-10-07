@@ -24,11 +24,10 @@ export default async function Home() {
   const s = snapshot.data;
   const files = buildRegister(s);
   const stats = buildHomeStats(s);
-  const last = files.map((f) => f.fileNo).sort((a, b) => Number(a) - Number(b)).at(-1);
   return (
     <PublicFrame current="desk" chrome={buildSiteChrome(s)} strip={{ variant: "site" }}>
       <header className="pt-8 pb-6">
-        <p className="text-label uppercase text-ink-muted">{last ? `Case files 01 to ${last}` : "Case files"} · Indian listed companies</p>
+        <p className="text-label uppercase text-ink-muted">{files.length > 0 ? formatCount(files.length, "case file") : "Case files"} · Indian listed companies</p>
         <h1 className="mt-2 text-display text-ink desk:text-display-desk">Case files</h1>
         <p className="prose-read mt-3 text-read text-ink-body desk:text-read-desk">
           Each file says what Aksh expected, what would prove him wrong, and every revision since. For learning, not advice.

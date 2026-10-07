@@ -6,12 +6,11 @@ import {
   splitThesisBody,
 } from "@/modules/casefile";
 import { readingMinutes } from "./notes";
-import { files, ordinal, revisionsOf } from "./site";
+import { ordinal, revisionsOf, servedFiles } from "./site";
 import type { FileView, PublicSnapshot, ShareCardModel } from "./types";
 
 function fileFor(s: PublicSnapshot, companySlug: string) {
-  const matches = files(s).filter((f) => f.company.slug === companySlug);
-  return matches.find((f) => f.item.kind === "thesis") ?? matches[0] ?? null;
+  return servedFiles(s).find((f) => f.company.slug === companySlug) ?? null;
 }
 
 export function buildFileView(s: PublicSnapshot, companySlug: string): FileView | null {

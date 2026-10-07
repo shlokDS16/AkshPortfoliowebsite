@@ -7,6 +7,7 @@ import { expectTokenOnly, mockMatchMedia, renderWithMotion } from "@/test/ui";
 import { CaptureDock } from "./capture-dock";
 import { CaptureField } from "./capture-field";
 import { CaptureReceipt } from "./capture-receipt";
+import { CaptureText } from "./capture-text";
 import { deskQueue, resetDeskQueueForTests } from "./desk-queue";
 import { GrammarKeyRow } from "./grammar-key-row";
 
@@ -24,6 +25,17 @@ afterEach(() => {
   window.localStorage.clear();
   submitCapture.mockReset();
   refresh.mockReset();
+});
+
+describe("CaptureText (M7: read-only chips get inline padding; the typing mirror stays glyph-aligned)", () => {
+  it("pads the t:, $SYM and #theme chips, not plain text or links; the capture mirror has no padding", () => {
+    const raw = "t: $KAVPUMP #capex https://x.in";
+    const { container } = render(<CaptureText raw={raw} known={known} />);
+    const padded = [...container.querySelectorAll("[class~='px-0.5']")].map((s) => s.textContent);
+    expect(padded).toEqual(["t:", "$KAVPUMP", "#capex"]);
+    const field = render(<CaptureField id="f" value={raw} onChange={vi.fn()} onSubmit={vi.fn()} known={known} placeholder="x" />);
+    expect(field.container.querySelector("[aria-hidden='true'] [class~='px-0.5']")).toBeNull();
+  });
 });
 
 describe("CaptureField", () => {

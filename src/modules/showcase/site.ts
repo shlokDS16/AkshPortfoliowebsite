@@ -25,6 +25,16 @@ export function files(s: PublicSnapshot): FileRow[] {
     .sort((a, b) => a.item.fileNo - b.item.fileNo);
 }
 
+/**
+ * M4: what /companies/[slug] serves, one file per company: its thesis, else its lowest-numbered file. The register,
+ * the Files counts and the home stats read this, so a company with a thesis and a case study is one row, not two
+ * rows with the same href.
+ */
+export function servedFiles(s: PublicSnapshot): FileRow[] {
+  const all = files(s);
+  return all.filter((f) => f === (all.find((g) => g.company.id === f.company.id && g.item.kind === "thesis") ?? all.find((g) => g.company.id === f.company.id)));
+}
+
 export const revisionsOf = (s: PublicSnapshot, itemId: string) =>
   s.revisions.filter((r) => r.itemId === itemId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
@@ -48,11 +58,11 @@ export function buildStreak(s: PublicSnapshot): StreakData {
 
 export function buildSiteChrome(s: PublicSnapshot): SiteChrome {
   const count = (kind: string) => s.items.filter((i) => i.kind === kind).length;
-  return { counts: { files: files(s).length, notes: count("learning"), process: count("process"), mistakes: 0 }, streak: buildStreak(s) };
+  return { counts: { files: servedFiles(s).length, notes: count("learning"), process: count("process"), mistakes: 0 }, streak: buildStreak(s) };
 }
 
 export function buildRegister(s: PublicSnapshot): RegisterFile[] {
-  return files(s).map(({ item, company }) => ({
+  return servedFiles(s).map(({ item, company }) => ({
     fileNo: formatFileNo(item.fileNo), company: company.name, symbol: company.symbol, sector: company.sector,
     revNo: ordinal(s, item).revNo, revisedOn: istDate(item.revisedAt), tests: testCounts(item, s.today),
     dataAsOf: item.dataAsOf, href: `/companies/${company.slug}`,
@@ -98,7 +108,8 @@ export function buildWhatChanged(s: PublicSnapshot, limit = 5): WhatChangedEntry
 }
 
 export function buildHomeStats(s: PublicSnapshot): HomeStats {
-  const all = files(s);
+  const all = servedFiles(s);
+  const served = new Set(all.map((f) => f.item.id));
   const tests = all.map((f) => testCounts(f.item, s.today));
   const sum = (k: keyof TestCounts) => tests.reduce((t, c) => t + c[k], 0);
   const lastRevised = all.map((f) => istDate(f.item.revisedAt)).sort().at(-1) ?? null;
@@ -107,7 +118,8 @@ export function buildHomeStats(s: PublicSnapshot): HomeStats {
     sectors: new Set(all.map((f) => f.company.sector).filter(Boolean)).size,
     lastRevised,
     tests: { met: sum("met"), watching: sum("watching"), not_met: sum("not_met"), no_data: sum("no_data") },
-    revisions: s.revisions.length,
+    // M6: case-file revisions only, beside the file counts (note revisions are not counted).
+    revisions: s.revisions.filter((r) => served.has(r.itemId)).length,
     logged: buildStreak(s),
   };
 }

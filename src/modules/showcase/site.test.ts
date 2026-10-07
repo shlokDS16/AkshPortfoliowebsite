@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { badDates, countDates } from "@/test/iso-dates";
 import { buildFiguresAfterDataAsOfSnapshot, buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
+import { buildFileView } from "./file";
 import { buildHomeStats, buildRegister, buildSiteChrome, buildWhatChanged } from "./site";
 
 const s = buildSeedSnapshot();
@@ -40,8 +41,31 @@ describe("site view models", () => {
 
   it("home stats are desk-activity counts only (rule 2)", () => {
     expect(buildHomeStats(s)).toMatchObject({
-      files: 2, sectors: 2, lastRevised: "2026-08-20", tests: { met: 0, watching: 1, not_met: 3, no_data: 1 }, revisions: 6,
+      files: 2, sectors: 2, lastRevised: "2026-08-20", tests: { met: 0, watching: 1, not_met: 3, no_data: 1 }, revisions: 3,
     });
+  });
+
+  it("M6: the Revisions tile counts case-file revisions only (3 file revisions; the 3 note revisions are not counted)", () => {
+    expect(s.revisions).toHaveLength(6);
+    expect(buildHomeStats(s).revisions).toBe(3);
+  });
+
+  it("M4: a company with a public thesis and a public case study is one register row, the thesis its page serves", () => {
+    const thesis = s.items.find((i) => i.id === "i1")!;
+    const caseStudy = { ...thesis, id: "i3", kind: "case_study" as const, slug: "kavpump-case", revisionId: "r3a", fileNo: 3, revisedAt: "2026-09-01T05:00:00Z" };
+    const both = {
+      ...s,
+      items: [...s.items, caseStudy],
+      revisions: [...s.revisions, { ...s.revisions[0], id: "r3a", itemId: "i3", createdAt: "2026-09-01T05:00:00Z" }],
+    };
+    expect(buildRegister(both).map((f) => [f.fileNo, f.href])).toEqual([["01", "/companies/kavpump"], ["02", "/companies/sahcold"]]);
+    expect(buildSiteChrome(both).counts.files).toBe(2);
+    expect(buildHomeStats(both)).toMatchObject({ files: 2, lastRevised: "2026-08-20", revisions: 3 });
+    // The page keeps serving the thesis, and with the thesis gone the case study takes the company's one row.
+    expect(buildFileView(both, "kavpump")?.fileNo).toBe("01");
+    const caseOnly = { ...both, items: both.items.filter((i) => i.id !== "i1") };
+    expect(buildRegister(caseOnly).map((f) => f.fileNo)).toEqual(["02", "03"]);
+    expect(buildFileView(caseOnly, "kavpump")?.fileNo).toBe("03");
   });
 
   describe("carried rules", () => {

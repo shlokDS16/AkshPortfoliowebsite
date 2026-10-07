@@ -1,5 +1,5 @@
 import type { ISODate } from "@/lib/desk-types";
-import { addDays } from "@/lib/dates";
+import { addDays, isPastLag, PUBLICATION_LAG_DAYS } from "@/lib/dates";
 
 /** A real calendar date written YYYY-MM-DD ("2026-02-30" is not one). Views only ever receive these. */
 export function isIsoDate(value: unknown): value is ISODate {
@@ -18,12 +18,12 @@ function assertToday(today: string): void {
  */
 export function isLagged(date: ISODate, today: ISODate): boolean {
   assertToday(today);
-  return isIsoDate(date) && date <= addDays(today, -30);
+  return isIsoDate(date) && isPastLag(date, today);
 }
 
 /** Null when the figure may be shown; otherwise the date it becomes public. */
 export function withheldUntil(date: ISODate, today: ISODate): ISODate | null {
   assertToday(today);
   if (!isIsoDate(date)) throw new RangeError("the figure's date must be a YYYY-MM-DD date");
-  return isLagged(date, today) ? null : addDays(date, 30);
+  return isLagged(date, today) ? null : addDays(date, PUBLICATION_LAG_DAYS);
 }
