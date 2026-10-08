@@ -24,8 +24,13 @@ vi.mock("@/lib/supabase/server", () => ({
   },
 }));
 vi.mock("./repo", () => ({ createSupabaseResearchRepo: () => createRepo() }));
+const lookup = vi.hoisted(() => ({ file: null as { itemId: string; title: string } | null, name: "Kaveri Fixtures" as string | null }));
+vi.mock("./start-file", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  createFileLookup: () => ({ fileOf: async () => lookup.file, companyName: async () => lookup.name }),
+}));
 
-import { createItemAction, updateItemMetaAction } from "./actions";
+import { createItemAction, startFileAction, updateItemMetaAction } from "./actions";
 
 let repo: MemoryResearchRepo;
 const form = (values: Record<string, string>) => {
@@ -125,5 +130,38 @@ describe("updateItemMetaAction", () => {
     expect(errorOf(to)).toBe("save-failed");
     expect(decodeURIComponent(to)).not.toMatch(/private\.settings/);
     expect(console.error).toHaveBeenCalledWith("research action failed", { name: "DbError", op: "research.getItem", code: "XX000" });
+  });
+});
+
+describe("startFileAction", () => {
+  it("checks the admin first, then makes the company's thesis and returns it without redirecting", async () => {
+    lookup.file = null;
+    const company = randomUUID();
+    const result = await startFileAction(company);
+    expect(order.slice(0, 2)).toEqual(["requireAdmin", "client"]);
+    expect(result).toEqual({ ok: true, itemId: [...repo.items.keys()][0] });
+    expect([...repo.items.values()][0]).toMatchObject({ kind: "thesis", title: "Kaveri Fixtures", companyId: company, visibility: "private" });
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("reuses the file the company has", async () => {
+    lookup.file = { itemId: randomUUID(), title: "Kaveri file" };
+    expect(await startFileAction(randomUUID())).toEqual({ ok: true, itemId: lookup.file.itemId });
+    expect(repo.items.size).toBe(0);
+  });
+
+  it("says plainly when the id is not a company, and never leaks a database message", async () => {
+    expect(await startFileAction("nope")).toEqual({ ok: false, message: "Check the fields and try again." });
+    vi.spyOn(repo, "insertItem").mockRejectedValueOnce(new DbError("research.insertItem", "XX000", 'relation "private.settings" does not exist'));
+    lookup.file = null;
+    expect(await startFileAction(randomUUID())).toEqual({ ok: false, message: "Could not save. Try again." });
+  });
+
+  it("stops before touching the database when requireAdmin redirects", async () => {
+    requireAdmin.mockImplementationOnce(async () => {
+      throw new Error("NEXT_REDIRECT:/login");
+    });
+    await expect(startFileAction(randomUUID())).rejects.toThrow("NEXT_REDIRECT:/login");
+    expect(order).not.toContain("client");
   });
 });

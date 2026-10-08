@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
 import type { Database } from "@/lib/supabase/database.types";
@@ -179,4 +180,73 @@ test("the document pane beside the Kaveri editor: step to p. 4, use it as a sour
   await expect(pane.getByText("value printed there")).toBeVisible();
 
   await retire(await documentIdOf(title));
+});
+
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+async function expectNoViolations(page: Page) {
+  const { violations } = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
+}
+
+test("review: resolve the flagged figure by typing it, untick one, and file the rest under the Kaveri file", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const run = `${Date.now().toString(36)}${testInfo.project.name === "desk-mobile" ? "M" : "D"}R`.toUpperCase();
+  const title = `annual-report-${run}`;
+
+  await page.goto("/desk/inbox");
+  await hydrated(page);
+  await page.getByText("Company, filing date and link (optional)").click();
+  await page.getByLabel("Company, as $SYMBOL").fill(`$${KAVERI.symbol}`);
+  await page.getByLabel("Choose a PDF").setInputFiles({ name: `${title}.pdf`, mimeType: "application/pdf", buffer: makeFixturePdf(run) });
+  const card = page.locator("article", { hasText: title });
+  await expect(card.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 90_000 });
+  await expect(card.getByText("5 figures ready to check. 1 needs a look.")).toBeVisible();
+  const documentId = await documentIdOf(title);
+
+  try {
+    await card.getByRole("link", { name: "Review" }).click();
+    await expect(page).toHaveURL(new RegExp(`/desk/inbox/${documentId}/review$`));
+    await hydrated(page);
+
+    // Check 1 of 1: the misread Finance costs (41.70 against 41.20 printed on p. 4).
+    const check = page.getByRole("region", { name: "Check 1 of 1" });
+    await expect(check.getByRole("heading", { name: "Finance costs" })).toBeVisible();
+    await expect(check.locator("s", { hasText: "41.70" })).toBeVisible();
+    await expect(check.getByText("The figure 41.70 is not on p. 4.")).toBeVisible();
+    await expect(check.locator("mark", { hasText: "Finance costs" })).toBeVisible();
+    await expectNoViolations(page);
+    await check.getByRole("button", { name: "1 Type the value from the page" }).click();
+    await check.getByLabel("Value as printed on the page").fill("41.20");
+    await page.keyboard.press("Enter");
+
+    // The values list: untick Profit for the year, and the page says what will be recorded.
+    await expect(page.getByRole("heading", { name: /^All checked\. 5 figures to file$/ })).toBeVisible();
+    await expect(page.getByText("You typed 41.20; the desk read 41.70.")).toBeVisible();
+    await page.getByRole("checkbox", { name: /^Profit for the year/ }).uncheck();
+    await expect(page.getByText("3 accepted · 1 edited · 1 rejected")).toBeVisible();
+    await expectNoViolations(page);
+
+    // File under the Kaveri file: the source row needs its filed-on date.
+    const file = page.getByRole("button", { name: /^File these 4 figures under / });
+    await file.click();
+    await expect(page.getByRole("alert").filter({ hasText: "Add the date the document was filed." })).toBeVisible();
+    await page.getByLabel("Filed on").fill("2026-05-20");
+    await file.click();
+    await expect(page).toHaveURL(/\/desk\/items\/[0-9a-f-]{36}#facts$/, { timeout: 30_000 });
+
+    // The decisions are on the rows, the machine's reading untouched, and the document remembers where it came from.
+    const proposals = await db.from("proposals").select("status, item_id, machine_value").eq("document_id", documentId);
+    expect(proposals.error).toBeNull();
+    const rows = proposals.data ?? [];
+    expect(rows.filter((r) => r.status === "accepted")).toHaveLength(3);
+    expect(rows.filter((r) => r.status === "edited")).toHaveLength(1);
+    expect(rows.filter((r) => r.status === "rejected")).toHaveLength(1);
+    expect(rows.filter((r) => r.item_id !== null)).toHaveLength(4);
+    const doc = await db.from("documents").select("filed_on, title").eq("id", documentId).single();
+    expect(doc.data).toMatchObject({ filed_on: "2026-05-20", title });
+  } finally {
+    // Leave nothing staged on the shared Kaveri file for the other specs.
+    await db.from("proposals").update({ item_id: null }).eq("document_id", documentId);
+    await retire(documentId);
+  }
 });

@@ -8,3 +8,4 @@ export { createSupabaseDocumentsRepo, type DocumentPatch, type DocumentsRepo } f
 export { finishUpload, startUpload, startUploadInputSchema, titleFromFileName } from "./upload";
 export { closePdf, openPdf, pageText, PdfOpenError, type PdfDoc } from "./pages";
 export { classifyPages, selectPages, type PageVerdict } from "./selector";
+export { pageTexts } from "./read";

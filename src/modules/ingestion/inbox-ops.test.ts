@@ -58,9 +58,26 @@ describe("setPageSelected", () => {
     expect(inbox.pages.get(`${DOC}:7`)?.selected).toBe(false);
   });
 
-  it("ticking a page that is already ticked changes nothing, even at the budget", async () => {
+  it("ticking a page the rule already ticked queues its read, even at the budget, and leaves the tick as the rule's", async () => {
     pages([4, 5, 6]);
     await setPageSelected(ports, DOC, 5, true, true);
+    expect(extractSteps()).toEqual([[5, "queued"]]);
+    expect(inbox.pages.get(`${DOC}:5`)).toEqual({ selected: true, selectedBy: "rule" });
+  });
+
+  it("ticking an already ticked page again is harmless: one step, and a finished read stays finished", async () => {
+    pages([4, 5]);
+    await setPageSelected(ports, DOC, 4, true, true);
+    await setPageSelected(ports, DOC, 4, true, true);
+    expect(extractSteps()).toEqual([[4, "queued"]]);
+    inbox.steps.find((s) => s.pageNo === 4)!.status = "done";
+    await setPageSelected(ports, DOC, 4, true, true);
+    expect(extractSteps()).toEqual([[4, "done"]]);
+  });
+
+  it("with AI off, ticking an already ticked page makes no step", async () => {
+    pages([4, 5, 6]);
+    await setPageSelected(ports, DOC, 5, true, false);
     expect(extractSteps()).toEqual([]);
   });
 

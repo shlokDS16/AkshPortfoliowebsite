@@ -39,6 +39,16 @@ const ERRORS = {
   "page-budget-reached": "This document is at its page limit. Raise the limit to read more pages.",
   "budget-range": "Choose a page limit from 1 to 40.",
   "ai-off": "AI reading is off, so figures cannot be read yet. Pages are still read and searchable.",
+  // Review screen (= REVIEW_ERROR_TEXT in modules/ingestion/errors.ts; a test keeps them equal).
+  "type-value-first": "Type the value from the page first.",
+  "figure-incomplete": "Add the period, the as-of date and the unit.",
+  "figure-not-a-number": "Type the figure as printed on the page, for example 41.20.",
+  "figure-filed": "This figure is already filed. Change it in the file's Facts form.",
+  "filed-on-required": "Add the date the document was filed.",
+  "checks-left": "Check the flagged figures first.",
+  "not-this-file": "That is not this company's file. Reload and try again.",
+  "no-company": "This document is not linked to a company, so there is no file to put its figures in.",
+  "nothing-to-file": "Tick at least one figure to file.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -70,6 +80,16 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "page-budget-reached": "page-budget-reached",
   "budget-range": "budget-range",
   "ai-off": "ai-off",
+  // ReviewError likewise.
+  "type-value-first": "type-value-first",
+  "figure-incomplete": "figure-incomplete",
+  "figure-not-a-number": "figure-not-a-number",
+  "figure-filed": "figure-filed",
+  "filed-on-required": "filed-on-required",
+  "checks-left": "checks-left",
+  "not-this-file": "not-this-file",
+  "no-company": "no-company",
+  "nothing-to-file": "nothing-to-file",
 };
 
 /**

@@ -28,10 +28,13 @@ export async function setPageSelected(p: InboxPorts, documentId: string, pageNo:
   if (!Number.isInteger(pageNo) || pageNo < 1 || pageNo > MAX_PDF_PAGES) throw new InvalidInputError();
   const page = await p.inbox.page(doc.id, pageNo);
   if (!page) throw new InvalidInputError();
-  if (page.selected === selected) return;
-  if (selected && (await p.inbox.selectedPages(doc.id)).length >= doc.llmPageBudget) throw new InboxError("page-budget-reached");
-
-  await p.inbox.setPageSelected(doc.id, pageNo, selected);
+  if (!selected && !page.selected) return;
+  // A page the rule already ticked is within the budget and needs no write, but it still needs its extract step:
+  // select_pages does not queue pages that were ticked before it ran again (Task 6 carry).
+  if (!(selected && page.selected)) {
+    if (selected && (await p.inbox.selectedPages(doc.id)).length >= doc.llmPageBudget) throw new InboxError("page-budget-reached");
+    await p.inbox.setPageSelected(doc.id, pageNo, selected);
+  }
   const job = await p.inbox.liveJob(doc.id);
   if (!job) return;
   if (!selected) return p.inbox.skipQueuedStep(job, pageNo);

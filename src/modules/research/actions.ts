@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
-import { ItemNotFoundError } from "@/lib/errors";
+import { ItemNotFoundError, errorShape } from "@/lib/errors";
 import { doneTo, failTo } from "@/lib/redirects";
+import { errorCode, errorText, userWasTold } from "@/lib/messages";
 import { createSupabaseResearchRepo } from "./repo";
 import { createItemInput, isItemId, updateItemMetaInput } from "./schema";
 import { createItem, updateItemMeta } from "./service";
+import { createFileLookup, startFile } from "./start-file";
 
 function field(formData: FormData, key: string): string | null {
   const value = formData.get(key);
@@ -53,4 +55,21 @@ export async function updateItemMetaAction(itemId: string, formData: FormData): 
   }
   revalidatePath(back);
   doneTo(back, "details-saved");
+}
+
+/**
+ * Aksh's click on "Start a file for X" in the review screen: the company's file (the one it has, or a new private thesis
+ * titled with its name, empty body and facts). Returns the item for the screen to file under; never redirects.
+ */
+export async function startFileAction(companyId: string): Promise<{ ok: true; itemId: string } | { ok: false; message: string }> {
+  await requireAdmin();
+  try {
+    const db = await createSupabaseServerClient();
+    const { itemId } = await startFile(createSupabaseResearchRepo(db), createFileLookup(db), companyId);
+    revalidatePath("/desk/items");
+    return { ok: true, itemId };
+  } catch (error) {
+    if (!userWasTold(error)) console.error("research action failed", errorShape(error));
+    return { ok: false, message: errorText(errorCode(error)) ?? "" };
+  }
 }

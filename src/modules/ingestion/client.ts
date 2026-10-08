@@ -7,3 +7,8 @@ export type { DocState, Tray, TrayView } from "./trays";
 export { UPLOAD_NOT_FINISHED } from "./trays";
 export type { ActionFailure, ActionResult, FinishUploadResult, StartUploadResult } from "./upload-flow";
 export { FLAGS, machineFactSchema, proposedFactSchema, type Flag, type MachineFact, type ProposedFact } from "./proposed-fact";
+export type {
+  EditFields, FileUnderInput, FileUnderResult, ProposalStatus, ProposalView, ResolveInput, ResolveResult, ReviewCounts, ReviewData, SaveValuesResult, ValueDecision,
+} from "./review-types";
+export { whyFor } from "./review-types";
+export { groupValues, isListed } from "./review-values";

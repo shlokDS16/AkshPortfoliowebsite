@@ -20,3 +20,27 @@ export class InboxError extends DeskError {
     this.name = "InboxError";
   }
 }
+
+/** The review screen's refusals (spec s6.5). Text equals the entries in src/lib/messages.ts (a test keeps them equal). */
+export const REVIEW_ERROR_TEXT = {
+  "type-value-first": "Type the value from the page first.",
+  "figure-incomplete": "Add the period, the as-of date and the unit.",
+  "figure-not-a-number": "Type the figure as printed on the page, for example 41.20.",
+  "figure-filed": "This figure is already filed. Change it in the file's Facts form.",
+  "filed-on-required": "Add the date the document was filed.",
+  "checks-left": "Check the flagged figures first.",
+  "not-this-file": "That is not this company's file. Reload and try again.",
+  "no-company": "This document is not linked to a company, so there is no file to put its figures in.",
+  "nothing-to-file": "Tick at least one figure to file.",
+} as const;
+
+export type ReviewErrorCode = keyof typeof REVIEW_ERROR_TEXT;
+
+export class ReviewError extends DeskError {
+  readonly code: ReviewErrorCode;
+  constructor(code: ReviewErrorCode) {
+    super(REVIEW_ERROR_TEXT[code]);
+    this.code = code;
+    this.name = "ReviewError";
+  }
+}

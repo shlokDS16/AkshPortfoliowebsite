@@ -17,3 +17,4 @@ export { countInbox, listCompanyOptions, listInbox, type InboxDoc } from "./inbo
 export { readSelected, setPageSelected, type InboxPorts } from "./inbox-ops";
 export { runInbox } from "./inbox-run";
 export { trayFor, type DocState, type Tray, type TrayView } from "./trays";
+export { getReview } from "./review";
