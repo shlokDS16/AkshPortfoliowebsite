@@ -9,7 +9,7 @@ import type { ProposalRecord, ReviewRepo } from "./review-repo";
 import type { ProposalView, ReviewCounts } from "./review-types";
 import { filableReadingIds } from "./review-readings";
 import { filableIds } from "./review-values";
-import { currentFact, machineOf, toView } from "./review-view";
+import { currentFact, currentRecords, machineOf, toView } from "./review-view";
 
 // What Aksh's clicks on the review screen do (spec s6.5). Each takes the repos it needs, so tests run on fakes and
 // the actions run on the admin's cookie session. The machine's reading is never changed: only a status and Aksh's
@@ -45,7 +45,7 @@ async function rowsOf(ports: ReviewPorts, documentId: string): Promise<Map<strin
   // Done and skipped are Aksh's: pending figures stay hidden and cannot be decided or filed afterwards.
   if (doc.status === "done" || doc.status === "skipped") throw new ReviewError("document-closed");
   const rows = new Map<string, Row>();
-  for (const rec of await ports.review.list(documentId)) {
+  for (const rec of currentRecords(await ports.review.list(documentId))) {
     const machine = machineOf(rec);
     if (machine) rows.set(rec.id, { rec, machine });
   }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { InvalidInputError } from "@/lib/errors";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
-import { createMemoryReviewRepo, reading, record, type MemoryReviewRepo } from "@/test/fakes/review-repo";
+import { createMemoryReviewRepo, machine, reading, record, type MemoryReviewRepo } from "@/test/fakes/review-repo";
 import { ReviewError } from "./errors";
 import { buildReview, fileUnder, saveValues, unstage, type ReviewPorts } from "./review";
 import { currentReadings, filableReadingIds, readingViews } from "./review-readings";
@@ -152,6 +152,38 @@ describe("filing under the company's file", () => {
 
   it("files an accepted reading of any pass: only a row the re-read replaced is gone", () => {
     expect(filableReadingIds([reading("old", { status: "accepted", pass: 1 }), reading("new", { status: "accepted", pass: 2 })], "consolidated")).toEqual(["old", "new"]);
+  });
+});
+
+describe("filing ignores what the screen hides (a later pass's repeat of a line Aksh dropped himself)", () => {
+  const FIN = { label: "Finance costs" };
+  const P2 = "00000002-0000-4000-8000-000000000002";
+  const P3 = "00000003-0000-4000-8000-000000000003";
+
+  it("a hidden flagged pending row of pass 2 does not block filing with checks-left", async () => {
+    review.records.push(
+      record(P1, { status: "accepted" }),
+      record(P2, { fact: FIN, status: "rejected", flags: ["value_not_on_page"] }),
+      record(P3, { fact: FIN, pass: 2, flags: ["value_not_on_page"] }),
+    );
+    expect(await fileUnder(ports, DOC, input)).toEqual({ itemId: ITEM, count: 1 });
+    expect((await buildReview(ports, DOC))!.flags.map((f) => f.id)).toEqual([P2]); // the screen lists only his drop
+  });
+
+  it("a hidden accepted row of pass 2 is neither filed nor counted", async () => {
+    review.records.push(
+      record(P1, { status: "accepted" }),
+      record(P2, { fact: FIN, status: "rejected" }),
+      record(P3, { fact: FIN, pass: 2, status: "accepted", accepted: machine({ label: "Finance costs" }) }),
+    );
+    expect(await fileUnder(ports, DOC, input)).toEqual({ itemId: ITEM, count: 1 });
+    expect(review.records.map((r) => [r.id, r.itemId])).toEqual([[P1, ITEM], [P2, null], [P3, null]]);
+  });
+
+  it("a decision on a hidden row is refused, as for any id the screen never listed", async () => {
+    review.records.push(record(P2, { fact: FIN, status: "rejected" }), record(P3, { fact: FIN, pass: 2 }));
+    await expect(saveValues(ports, DOC, [{ id: P3, keep: true }])).rejects.toBeInstanceOf(InvalidInputError);
+    expect(review.recorded).toEqual([]);
   });
 });
 
