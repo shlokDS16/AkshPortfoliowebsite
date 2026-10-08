@@ -1,39 +1,22 @@
-import AxeBuilder from "@axe-core/playwright";
-import { createClient } from "@supabase/supabase-js";
-import { expect, test, type Page } from "@playwright/test";
-import type { Database } from "@/lib/supabase/database.types";
+import { expect, test } from "@playwright/test";
 import type { Db } from "@/lib/supabase/types";
 import { makeFixturePdf } from "../scripts/make-fixture-pdf.mjs";
-import { requireStack, tokenHashFor } from "./support/auth";
-import { E2E_ADMIN_EMAIL } from "./support/stack";
+import { adminDb, documentIdOf as documentIdIn, expectNoViolations, hydrated, openItem, retire as retireIn } from "./support/desk";
 import { KAVERI } from "../src/test/fixtures/casefile";
 import { makePdf } from "../src/test/fixtures/pdf";
 
 // The Inbox screen on the LOCAL stack, in desk-desktop and desk-mobile. `documents.sha256` is unique and the local
 // database is not reset, so every run (and each viewport) uploads its own copy of the fixture PDF (a `Run` line on
 // page 1) under its own private company; the duplicate check re-uploads those same bytes.
-const hydrated = (page: Page) => expect(page.getByRole("button", { name: "Capture", exact: true })).toHaveAttribute("data-shortcuts", "ready");
 
 // Reads back as the signed-in admin (RLS applies), to check what Skip did to the job.
 let db: Db;
 test.beforeAll(async () => {
-  const stack = requireStack();
-  db = createClient<Database>(stack.apiUrl, stack.publishableKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { error } = await db.auth.verifyOtp({ token_hash: await tokenHashFor(stack, E2E_ADMIN_EMAIL), type: "magiclink" });
-  if (error) throw error;
+  db = await adminDb();
 });
 
-const documentIdOf = async (title: string) => {
-  const { data, error } = await db.from("documents").select("id").eq("title", title).single();
-  if (error) throw error;
-  return data.id;
-};
-
-/** Leaves nothing behind in the shared local inbox: the job is cancelled and the document skipped (the admin's own RLS rights). */
-async function retire(documentId: string) {
-  await db.from("jobs").update({ cancelled_at: new Date().toISOString() }).eq("document_id", documentId).is("cancelled_at", null);
-  await db.from("documents").update({ status: "skipped" }).eq("id", documentId);
-}
+const documentIdOf = (title: string) => documentIdIn(db, title);
+const retire = (documentId: string) => retireIn(db, documentId);
 
 test("upload a PDF: it is read, its statement pages are ticked, its figures wait for a check, and the same file is refused", async ({ page }, testInfo) => {
   test.setTimeout(150_000);
@@ -71,6 +54,9 @@ test("upload a PDF: it is read, its statement pages are ticked, its figures wait
   await expect(card.getByText("5 figures ready to check. 1 needs a look.")).toBeVisible();
   await expect(page.getByText(/AI reading is off/)).toHaveCount(0);
   await card.getByText("Pages to read").click();
+  // The open chooser must not widen the page: a grid track that grows to the longest page line makes a phone zoom out,
+  // and the next tap lands on the wrong element (the pointer-intercept flake seen in Task 14).
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
   await expect(card.getByRole("checkbox", { name: /^p\. 4 P&L · consolidated$/ })).toBeChecked();
   await expect(card.getByRole("checkbox", { name: /^p\. 5 Balance sheet · consolidated$/ })).toBeChecked();
   await expect(card.getByRole("checkbox", { name: /^p\. 3 / })).toBeChecked();
@@ -133,9 +119,7 @@ test("the document pane beside the Kaveri editor: step to p. 4, use it as a sour
   await expect(card.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 90_000 });
 
   // The Kaveri file: Open a document -> the pane (a column on desktop, a full-height sheet on a phone).
-  await page.goto("/desk/items");
-  await page.getByRole("link", { name: KAVERI.title }).click();
-  await expect(page.getByRole("heading", { level: 1, name: KAVERI.title })).toBeVisible();
+  await openItem(page, db, KAVERI.title);
   await hydrated(page);
   const sources = page.getByRole("group", { name: /^Source S\d+$/ });
   const before = await sources.count();
@@ -181,12 +165,6 @@ test("the document pane beside the Kaveri editor: step to p. 4, use it as a sour
 
   await retire(await documentIdOf(title));
 });
-
-const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-async function expectNoViolations(page: Page) {
-  const { violations } = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
-}
 
 test("review: resolve the flagged figure by typing it, untick one, and file the rest under the Kaveri file", async ({ page }, testInfo) => {
   test.setTimeout(180_000);

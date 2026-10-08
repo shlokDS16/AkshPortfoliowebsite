@@ -1,4 +1,4 @@
-import { errorText } from "@/lib/messages";
+import { cn } from "@/lib/utils";
 import { DATABASE_BYTES, STORAGE_BYTES } from "@/modules/documents/client";
 import type { InboxDoc, Tray as TrayName } from "@/modules/ingestion/client";
 import { Tray } from "../tray";
@@ -22,12 +22,15 @@ type Props = {
   docs: InboxDoc[];
   usage: { storageBytes: number; databaseBytes: number };
   aiOn: boolean;
+  /** Pages of today's free AI allowance used, or null when the ledger could not be read. Never shown while AI is off. */
+  aiPages: { used: number; total: number } | null;
   companies: CompanyOption[];
   actions: InboxActions;
 };
 
 /** The inbox: drop bar, the two real quotas, then every document in the tray its state puts it in (segment 4 C). */
-export function InboxSection({ docs, usage, aiOn, companies, actions }: Props) {
+export function InboxSection({ docs, usage, aiOn, aiPages, companies, actions }: Props) {
+  const storageShare = usage.storageBytes / STORAGE_BYTES;
   const finished = docs.filter((d) => d.view.tray === "finished");
   // The tab keeps the reader going while a live document is being read, queued or waiting for the allowance.
   const active = docs.some((d) => d.status === "active" && ["reading", "waiting", "paused"].includes(d.view.tray));
@@ -39,9 +42,10 @@ export function InboxSection({ docs, usage, aiOn, companies, actions }: Props) {
           {AI_OFF_BANNER}
         </p>
       )}
-      <DropBar companies={companies} actions={actions} />
-      <section aria-label="Free plan room" className="grid gap-4 md:grid-cols-2">
-        <BudgetMeter label="Storage" used={usage.storageBytes} limit={STORAGE_BYTES} refuse={errorText("upload-storage-full") ?? undefined} />
+      <DropBar companies={companies} actions={actions} storageShare={storageShare} />
+      <section aria-label="Free plan room" className={cn("grid grid-cols-1 gap-4", aiOn && aiPages ? "md:grid-cols-3" : "md:grid-cols-2")}>
+        {aiOn && aiPages ? <BudgetMeter label="AI pages today:" used={aiPages.used} limit={aiPages.total} count /> : null}
+        <BudgetMeter label="Storage" used={usage.storageBytes} limit={STORAGE_BYTES} />
         <BudgetMeter label="Database" used={usage.databaseBytes} limit={DATABASE_BYTES} />
       </section>
       {TRAYS.map(({ tray, title, empty }) => {
@@ -50,7 +54,7 @@ export function InboxSection({ docs, usage, aiOn, companies, actions }: Props) {
         return (
           <Tray key={tray} title={title} count={inTray.length} empty={{ body: empty ?? "" }}>
             {inTray.length > 0 ? (
-              <div className="grid items-start gap-3 desk:grid-cols-2">
+              <div className="grid grid-cols-1 items-start gap-3 desk:grid-cols-2">
                 {inTray.map((doc) => (
                   <DocumentCard key={doc.id} doc={doc} aiOn={aiOn} actions={actions} />
                 ))}
@@ -62,7 +66,7 @@ export function InboxSection({ docs, usage, aiOn, companies, actions }: Props) {
       {finished.length > 0 ? (
         <details className="space-y-3">
           <summary className="inline-flex min-h-11 cursor-pointer items-center text-label uppercase text-ink-muted">Finished {finished.length}</summary>
-          <div className="grid items-start gap-3 desk:grid-cols-2">
+          <div className="grid grid-cols-1 items-start gap-3 desk:grid-cols-2">
             {finished.map((doc) => (
               <DocumentCard key={doc.id} doc={doc} aiOn={aiOn} actions={actions} />
             ))}

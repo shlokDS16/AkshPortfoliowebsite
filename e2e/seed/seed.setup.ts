@@ -1,5 +1,6 @@
 import { expect, test as setup, type Page } from "@playwright/test";
 import { requireStack } from "../support/auth";
+import { adminDb, itemIdOf } from "../support/desk";
 import { KAVERI, NOTES, PROCESS_NOTE, SAHYADRI, type SeedFile, type SeedNote } from "../../src/test/fixtures/casefile";
 
 // LOCAL stack only (e2e/support/stack.ts refuses any other API URL). Every write goes through the desk screens
@@ -50,14 +51,16 @@ async function recordSlug(page: Page, note: SeedNote) {
   noteSlugs.set(note.slug, (await slug.innerText()).trim());
 }
 
+// Existing items are found by title in the database, not on /desk/items: that page lists only the 100 most recent,
+// and every e2e run adds more, so on a database that has been used for a while the seeded files scroll off it.
 async function seedNote(page: Page, note: SeedNote) {
-  await page.goto("/desk/items");
-  const existing = page.getByRole("link", { name: note.title });
-  if (await existing.count()) {
-    await existing.first().click();
+  const existing = await itemIdOf(await adminDb(), note.title);
+  if (existing) {
+    await page.goto(`/desk/items/${existing}`);
     await recordSlug(page, note);
     return;
   }
+  await page.goto("/desk/items");
   await page.getByLabel("Kind").selectOption(note.kind);
   await page.getByLabel("Title").fill(note.title);
   await page.getByRole("button", { name: "Create item" }).click();
@@ -72,8 +75,7 @@ async function seedNote(page: Page, note: SeedNote) {
 }
 
 async function seedFile(page: Page, file: SeedFile) {
-  await page.goto("/desk/items");
-  if (await page.getByRole("link", { name: file.title }).count()) return;
+  if (await itemIdOf(await adminDb(), file.title)) return;
   await page.goto("/desk");
   const box = page.getByRole("textbox", { name: "Capture" });
   await expect(box).toBeFocused(); // the box takes focus once hydrated
@@ -113,8 +115,10 @@ setup("seed two fictional files and three notes through the desk UI", async ({ p
   setup.setTimeout(300_000);
   for (const note of [...NOTES, PROCESS_NOTE]) await seedNote(page, note);
   for (const file of [KAVERI, SAHYADRI]) await seedFile(page, file);
-  await page.goto("/desk/items");
+  const db = await adminDb();
   for (const title of [KAVERI.title, SAHYADRI.title, ...NOTES.map((n) => n.title), PROCESS_NOTE.title]) {
-    await expect(page.getByRole("listitem").filter({ hasText: title })).toContainText("public");
+    const { data, error } = await db.from("items").select("visibility").eq("title", title).order("created_at").limit(1).single();
+    expect(error).toBeNull();
+    expect(data?.visibility, title).toBe("public");
   }
 });

@@ -3,12 +3,17 @@ import { expect, test, type Page } from "@playwright/test";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
-for (const path of ["/desk", "/desk/inbox", "/desk/items", "/desk/names"]) {
-  test(`${path}: no WCAG 2.2 A/AA violations`, async ({ page }) => {
-    await page.goto(path);
-    const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-    expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
-  });
+// Run in desk-mobile (375) and desk-desktop (1280). The inbox's review page is scanned, in both themes, inside the
+// full-flow spec (desk-staging), where a document is waiting for review.
+for (const colorScheme of ["light", "dark"] as const) {
+  for (const path of ["/desk", "/desk/inbox", "/desk/items", "/desk/names"]) {
+    test(`${path} (${colorScheme}): no WCAG 2.2 A/AA violations`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme });
+      await page.goto(path);
+      const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+      expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
+    });
+  }
 }
 
 type Focused = { text: string; tag: string; href: string };

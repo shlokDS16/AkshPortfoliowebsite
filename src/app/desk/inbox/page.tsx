@@ -1,7 +1,8 @@
 import { InboxSection } from "@/components/desk/private/inbox/inbox-section";
+import { serverEnv } from "@/lib/env.server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
-import { listCompanyOptions, listInbox } from "@/modules/ingestion";
+import { aiPagesToday, createUsageRepo, listCompanyOptions, listInbox } from "@/modules/ingestion";
 import { aiReadingOn } from "@/modules/ops/jobs";
 import { readSelectedAction, setPageSelectedAction } from "./page-actions";
 import { kickReadingAction } from "./pump-actions";
@@ -11,11 +12,22 @@ export const maxDuration = 300;
 
 const actions = { setPageSelected: setPageSelectedAction, readSelected: readSelectedAction, kick: kickReadingAction };
 
+/** Pages of today's free AI allowance spent, from the usage ledger the admin may read. A meter is not worth a broken inbox: null on failure. */
+async function readAiPages(db: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
+  try {
+    return aiPagesToday((await createUsageRepo(db).totals(serverEnv().GROQ_MODEL_TEXT)).today);
+  } catch (error) {
+    console.error("inbox: could not read the AI allowance", error instanceof Error ? error.name : typeof error);
+    return null;
+  }
+}
+
 async function load() {
   const db = await createSupabaseServerClient();
   try {
-    const [inbox, companies] = await Promise.all([listInbox(db, new Date(), aiReadingOn()), listCompanyOptions(db)]);
-    return { ...inbox, companies };
+    const aiOn = aiReadingOn();
+    const [inbox, companies, aiPages] = await Promise.all([listInbox(db, new Date(), aiOn), listCompanyOptions(db), aiOn ? readAiPages(db) : null]);
+    return { ...inbox, companies, aiPages };
   } catch (error) {
     // Name only: a database message can carry row data. The rest of the desk keeps working.
     console.error("inbox: could not load", error instanceof Error ? error.name : typeof error);
@@ -36,5 +48,5 @@ export default async function InboxPage() {
       </div>
     );
   }
-  return <InboxSection docs={inbox.docs} usage={inbox.usage} aiOn={inbox.aiOn} companies={inbox.companies} actions={actions} />;
+  return <InboxSection docs={inbox.docs} usage={inbox.usage} aiOn={inbox.aiOn} aiPages={inbox.aiPages} companies={inbox.companies} actions={actions} />;
 }

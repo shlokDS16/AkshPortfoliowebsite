@@ -51,7 +51,7 @@ const toSteps = (rows: StepRow[]): DocState["steps"] =>
   }));
 
 /** "ready by 11:40" for the extract pages still to read; the day's allowance is treated as spent when a step waits on it. */
-function etaFor(steps: DocState["steps"], now: Date): string | null {
+export function etaFor(steps: DocState["steps"], now: Date): string | null {
   const left = steps.filter((s) => s.kind === "extract_page" && (s.status === "queued" || s.status === "running")).length;
   if (left === 0) return null;
   const dayWait = steps.some((s) => s.waitReason === "groq_day" && new Date(s.notBefore) > now);

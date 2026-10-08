@@ -26,8 +26,24 @@ describe("liveness for the red strip (spec s8)", () => {
     });
   });
 
-  it("leaves a stuck queue to its own clause: no empty list of late clocks (Task 15 renders the queue)", () => {
-    expect(livenessFromReport(report({ "heartbeat:pump": ago(10), "heartbeat:daily": ago(600) }, 7 * 3600))).toEqual({ status: "ok" });
+  it("gives a stuck queue its own clause, even when both clocks are fresh", () => {
+    expect(livenessFromReport(report({ "heartbeat:pump": ago(10), "heartbeat:daily": ago(600) }, 7 * 3600))).toEqual({
+      status: "late",
+      problems: [],
+      queue: "Documents have not moved for 7 h; your uploads are safe",
+    });
+  });
+
+  it("keeps the late clocks and the stuck queue as separate clauses", () => {
+    expect(livenessFromReport(report({ "heartbeat:pump": ago(300), "heartbeat:daily": ago(600) }, 7 * 3600))).toEqual({
+      status: "late",
+      problems: ["the 15-minute pump last ran 5 h ago"],
+      queue: "Documents have not moved for 7 h; your uploads are safe",
+    });
+  });
+
+  it("is ok while documents are moving", () => {
+    expect(livenessFromReport(report({ "heartbeat:pump": ago(10), "heartbeat:daily": ago(600) }, 5 * 3600))).toEqual({ status: "ok" });
   });
 
   it("reports the database as unreachable instead of throwing", async () => {

@@ -1,44 +1,23 @@
-import AxeBuilder from "@axe-core/playwright";
-import { createClient } from "@supabase/supabase-js";
-import { expect, test, type Page } from "@playwright/test";
-import type { Database } from "@/lib/supabase/database.types";
+import { expect, test } from "@playwright/test";
 import type { Db } from "@/lib/supabase/types";
 import { makeFixturePdf } from "../scripts/make-fixture-pdf.mjs";
-import { requireStack, tokenHashFor } from "./support/auth";
-import { E2E_ADMIN_EMAIL } from "./support/stack";
+import { adminDb, documentIdOf as documentIdIn, expectNoViolations, expectNoViolationsInBothThemes, hydrated, retire as retireIn } from "./support/desk";
 
-// Staged machine figures in the case-file editor, provenance on save, and Done with a document, on the LOCAL stack
-// (desk-desktop and desk-mobile). Each run uses its own private company, so its new file starts empty.
-const hydrated = (page: Page) => expect(page.getByRole("button", { name: "Capture", exact: true })).toHaveAttribute("data-shortcuts", "ready");
+// The whole Plan 2a flow on the LOCAL stack (desk-desktop and desk-mobile): upload -> read -> fixture extraction ->
+// the Ready card on the desk home -> review (one flag) -> File under -> staged rows -> save -> chips -> Done. Each run
+// uses its own private company and its own PDF (a `Run` line on page 1), so it can run twice on one database and its
+// counts are its own.
 
 // Reads back as the signed-in admin (RLS applies).
 let db: Db;
 test.beforeAll(async () => {
-  const stack = requireStack();
-  db = createClient<Database>(stack.apiUrl, stack.publishableKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { error } = await db.auth.verifyOtp({ token_hash: await tokenHashFor(stack, E2E_ADMIN_EMAIL), type: "magiclink" });
-  if (error) throw error;
+  db = await adminDb();
 });
 
-const documentIdOf = async (title: string) => {
-  const { data, error } = await db.from("documents").select("id").eq("title", title).single();
-  if (error) throw error;
-  return data.id;
-};
+const documentIdOf = (title: string) => documentIdIn(db, title);
+const retire = (documentId: string) => retireIn(db, documentId);
 
-/** Leaves nothing behind in the shared local inbox: the job is cancelled and the document skipped. */
-async function retire(documentId: string) {
-  await db.from("jobs").update({ cancelled_at: new Date().toISOString() }).eq("document_id", documentId).is("cancelled_at", null);
-  await db.from("documents").update({ status: "skipped" }).eq("id", documentId);
-}
-
-const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-async function expectNoViolations(page: Page) {
-  const { violations } = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
-  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
-}
-
-test("staged figures reach the editor, provenance is recorded on save, and Done removes the PDF", async ({ page }, testInfo) => {
+test("the whole flow: upload, read, Ready card, review, file under, staged rows, save, chips, Done", async ({ page }, testInfo) => {
   test.setTimeout(240_000);
   const run = `${Date.now().toString(36)}${testInfo.project.name === "desk-mobile" ? "M" : "D"}S`.toUpperCase();
   const symbol = `KVS${run}`;
@@ -63,11 +42,24 @@ test("staged figures reach the editor, provenance is recorded on save, and Done 
   let done = false;
 
   try {
+    // The inbox: the day's AI allowance is a meter, and the Ready card is there to be accessible in both themes.
+    await expect(page.getByText(/^AI pages today: \d+ of 44$/)).toBeVisible();
+    await expectNoViolationsInBothThemes(page);
+
+    // The desk home: a neutral "Ready to review" card for this document, linking to its review page.
+    await page.goto("/desk");
+    await hydrated(page);
+    const homeCard = page.getByRole("region", { name: /^Needs you/ }).locator("article", { hasText: title });
+    await expect(homeCard.getByText("Ready to review", { exact: true })).toBeVisible();
+    await expect(homeCard.getByText("5 figures ready to check. 1 needs a look.")).toBeVisible();
+    await expectNoViolationsInBothThemes(page);
+
     // Review: type the flagged value, drop Profit for the year, start the company's file with the other four.
-    await card.getByRole("link", { name: "Review" }).click();
+    await homeCard.getByRole("link", { name: "Review" }).click();
     await expect(page).toHaveURL(new RegExp(`/desk/inbox/${documentId}/review$`));
     await hydrated(page);
     const check = page.getByRole("region", { name: "Check 1 of 1" });
+    await expectNoViolationsInBothThemes(page);
     await check.getByRole("button", { name: "1 Type the value from the page" }).click();
     await check.getByLabel("Value as printed on the page").fill("41.20");
     await page.keyboard.press("Enter");
@@ -143,6 +135,11 @@ test("staged figures reach the editor, provenance is recorded on save, and Done 
     }).toPass({ timeout: 15_000 });
     // Done closes the document: its remaining figures can no longer be reviewed.
     await expect(page.getByText("You marked this document done or skipped, so its figures can no longer be reviewed or filed.")).toBeVisible();
+
+    // A finished document no longer waits on Aksh: its card leaves the desk home.
+    await page.goto("/desk");
+    await hydrated(page);
+    await expect(page.getByRole("region", { name: /^Needs you/ }).locator("article", { hasText: title })).toHaveCount(0);
 
     // The pane beside the file says so, and still reads the stored page text.
     await page.goto(itemPath);

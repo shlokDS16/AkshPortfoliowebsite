@@ -13,24 +13,33 @@ export function formatBytes(bytes: number): string {
   return `${formatNumber(Math.round(bytes / 1024), 0)} KB`;
 }
 
-type Props = { label: string; used: number; limit: number; /** What happens at the refuse line, said once the meter passes it. */ refuse?: string };
+type Props = {
+  label: string;
+  used: number;
+  limit: number;
+  /** What happens at the refuse line, said once the meter passes it. */
+  refuse?: string;
+  /** A count of things (AI pages) rather than bytes. A spent allowance is a pause, not a failure, so it never goes past warn. */
+  count?: boolean;
+};
 
 const TONE = { ok: "bg-ink", warn: "bg-warn", bad: "bg-bad" } as const;
 const WORD = { ok: "text-ink", warn: "text-warn", bad: "text-bad" } as const;
 
 /** A real quota against its real limit (spec s9), never a guess: warns at 70%, and past 90% says what is refused. */
-export function BudgetMeter({ label, used, limit, refuse }: Props) {
+export function BudgetMeter({ label, used, limit, refuse, count }: Props) {
   const share = limit > 0 ? Math.min(1, used / limit) : 0;
-  const tone = share >= STORAGE_REFUSE ? "bad" : share >= STORAGE_WARN ? "warn" : "ok";
+  const tone = share >= STORAGE_REFUSE && !count ? "bad" : share >= STORAGE_WARN ? "warn" : "ok";
+  const show = (n: number) => (count ? formatNumber(n, 0) : formatBytes(n));
   return (
     <div data-tone={tone} className="space-y-1.5">
       <p className="flex items-baseline justify-between gap-3 text-small text-ink-muted">
         <span className={cn(tone !== "ok" && "font-semibold", WORD[tone])}>
-          {label} <span className="tabular-nums">{formatBytes(used)}</span> of <span className="tabular-nums">{formatBytes(limit)}</span>
+          {label} <span className="tabular-nums">{show(used)}</span> of <span className="tabular-nums">{show(limit)}</span>
         </span>
         <span className="tabular-nums">{Math.round(share * 100)}%</span>
       </p>
-      <div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={limit} aria-valuenow={Math.min(used, limit)} className="h-1.5 rounded-xs bg-surface-2">
+      <div role="meter" aria-label={label.replace(/:$/, "")} aria-valuemin={0} aria-valuemax={limit} aria-valuenow={Math.min(used, limit)} className="h-1.5 rounded-xs bg-surface-2">
         <div
           style={{ "--fill": share } as CSSProperties}
           className={cn("h-full w-full origin-left scale-x-(--fill) rounded-xs transition-transform duration-(--motion-slow) ease-snap motion-reduce:transition-none", TONE[tone])}

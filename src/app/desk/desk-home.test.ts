@@ -7,7 +7,9 @@ const listCapturesSince = vi.fn();
 vi.mock("@/modules/identity", () => ({ requireAdmin: vi.fn(async () => ({ email: "admin@desk.test" })) }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn(async () => ({})) }));
 vi.mock("@/modules/compliance", () => ({ listBlockedItems: vi.fn(async () => []) }));
+const needsYouDocs = vi.fn(async (): Promise<unknown[]> => []);
 vi.mock("./desk-data", () => ({
+  needsYouDocs: () => needsYouDocs(),
   namesToReview: vi.fn(async () => 0),
   knownTokens: vi.fn(async () => ({ symbols: [], themes: [], ignoredSymbols: [], ignoredThemes: [] })),
 }));
@@ -48,5 +50,28 @@ describe("DeskHome", () => {
     expect(html).toContain("Logged research on 0 of the last 30 days.");
     expect(html).toContain("Nothing captured yet today.");
     expect(html).not.toContain("Could not load");
+  });
+
+  it("adds a neutral Ready to review card and a warn Pages could not be read card for the inbox's documents", async () => {
+    listCapturesSince.mockResolvedValueOnce([]);
+    needsYouDocs.mockResolvedValueOnce([
+      { id: "d1", title: "Kaveri AR", kind: "ready", message: "24 figures ready to check.", pagesUnread: false, href: "/desk/inbox/d1/review" },
+      { id: "d2", title: "Sahyadri AR", kind: "attention", message: "Pages 142-147 could not be read.", pagesUnread: true, href: "/desk/inbox#doc-d2" },
+    ]);
+    const html = await render();
+    expect(html).toContain("Ready to review");
+    expect(html).toContain("24 figures ready to check.");
+    expect(html).toContain('href="/desk/inbox/d1/review"');
+    expect(html).toContain("Pages could not be read");
+    expect(html).toContain("Pages 142-147 could not be read.");
+    expect(html).toContain('href="/desk/inbox#doc-d2"');
+    expect(html).not.toContain("Nothing needs you.");
+  });
+
+  it("says nothing needs you when no document waits", async () => {
+    listCapturesSince.mockResolvedValueOnce([]);
+    const html = await render();
+    expect(html).toContain("Nothing needs you.");
+    expect(html).not.toContain("Ready to review");
   });
 });

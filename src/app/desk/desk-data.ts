@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { countNamesToReview, listKnownTokens, type KnownTokenLists } from "@/modules/catalog";
-import { countInbox } from "@/modules/ingestion";
+import { countInbox, listNeedsYou, type NeedsYouDoc } from "@/modules/ingestion";
 
 /** Read once per request (layout badge and home tray). A failed read shows 0; the name only is logged. */
 export const namesToReview = cache(async (): Promise<number> => {
@@ -20,6 +20,16 @@ export const inboxToReview = cache(async (): Promise<number> => {
   } catch (error) {
     console.error("desk: could not count inbox documents", error instanceof Error ? error.name : typeof error);
     return 0;
+  }
+});
+
+/** The documents waiting on Aksh, for the home's Needs you tray, read once per request. A failed read shows none; the name only is logged. */
+export const needsYouDocs = cache(async (): Promise<NeedsYouDoc[]> => {
+  try {
+    return await listNeedsYou(await createSupabaseServerClient(), new Date());
+  } catch (error) {
+    console.error("desk: could not list documents that need you", error instanceof Error ? error.name : typeof error);
+    return [];
   }
 });
 

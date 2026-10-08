@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { formatDate } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
-import { hashFile, MAX_UPLOAD_BYTES } from "@/modules/documents/client";
+import { hashFile, MAX_UPLOAD_BYTES, STORAGE_REFUSE } from "@/modules/documents/client";
 import { finishUploadAction, startUploadAction } from "@/modules/ingestion/actions";
 import type { InboxActions } from "./types";
 import { uploadPdf, type UploadDeps, type UploadStage } from "./upload-file";
@@ -27,7 +27,9 @@ async function putToStorage(path: string, token: string, file: File) {
 type Notice = { tone: "ok" | "bad"; text: string; earlier?: { id: string; createdAt: string } };
 
 /** Choose or drop a PDF: it goes straight to Storage with a signed path, then the desk starts reading it (spec s6.2). */
-export function DropBar({ companies, actions }: { companies: CompanyOption[]; actions: Pick<InboxActions, "kick"> }) {
+export function DropBar({ companies, actions, storageShare = 0 }: { companies: CompanyOption[]; actions: Pick<InboxActions, "kick">; storageShare?: number }) {
+  // Past 90% of the free storage the server refuses every upload (spec s10), so the bar says so instead of letting a file wait for it.
+  const full = storageShare >= STORAGE_REFUSE;
   const [stage, setStage] = useState<UploadStage | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -46,7 +48,7 @@ export function DropBar({ companies, actions }: { companies: CompanyOption[]; ac
   }
 
   async function take(file: File | undefined) {
-    if (!file || stage) return;
+    if (!file || stage || full) return;
     const fields = extras();
     if (typeof fields === "string") return setNotice({ tone: "bad", text: fields });
     setNotice(null);
@@ -68,7 +70,7 @@ export function DropBar({ companies, actions }: { companies: CompanyOption[]; ac
     setDragging(false);
     void take(e.dataTransfer.files[0]);
   };
-  const busy = stage !== null;
+  const busy = stage !== null || full;
 
   return (
     <section aria-label="Upload a PDF" className="space-y-2">
@@ -115,8 +117,14 @@ export function DropBar({ companies, actions }: { companies: CompanyOption[]; ac
           </div>
         </details>
       </div>
-      <div role="status" className="min-h-5 text-small text-ink-muted">
-        {stage ? STAGE[stage] : notice?.tone === "ok" ? notice.text : null}
+      <div role="status" className={cn("min-h-5 text-small", full ? "text-bad" : "text-ink-muted")}>
+        {full
+          ? `Storage is ${Math.floor(storageShare * 100)}% full. Mark finished documents as done to free space.`
+          : stage
+            ? STAGE[stage]
+            : notice?.tone === "ok"
+              ? notice.text
+              : null}
       </div>
       {notice?.tone === "bad" ? (
         <p role="alert" className={cn("text-small", notice.earlier ? "text-ink" : "text-bad")}>

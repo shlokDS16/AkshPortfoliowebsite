@@ -1,16 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 import { KAVERI } from "../src/test/fixtures/casefile";
+import { adminDb, hydrated, openItem } from "./support/desk";
 
 // Runs signed in as the admin, after the seed. The local database is not reset between runs, so the fact carries a
 // run suffix, and the test removes it again at the end (Kaveri's fact count stays put however often it runs).
 const RUN = Date.now().toString(36);
-const hydrated = (page: Page) => expect(page.getByRole("button", { name: "Capture", exact: true })).toHaveAttribute("data-shortcuts", "ready");
 const saved = (page: Page) => expect(page.getByRole("status").filter({ hasText: /^Revision saved\.$|waiting for the publishing gate/ })).toBeVisible();
 
+// By id, not the recent-items list: many runs on one database push the seeded file off that list.
 async function openKaveri(page: Page) {
-  await page.goto("/desk/items");
-  await page.getByRole("link", { name: KAVERI.title }).click();
-  await expect(page.getByRole("heading", { level: 1, name: KAVERI.title })).toBeVisible();
+  await openItem(page, await adminDb(), KAVERI.title);
   await hydrated(page);
 }
 

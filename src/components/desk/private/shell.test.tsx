@@ -70,6 +70,23 @@ describe("LivenessStrip", () => {
     expect(alert).toHaveClass("bg-bad-wash", "border-bad");
   });
 
+  it("a queue that has not moved gets its own clause: uploads are safe, said once, and the monitor has emailed", () => {
+    render(<LivenessStrip state={{ status: "late", problems: [], queue: "Documents have not moved for 7 h; your uploads are safe" }} />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Documents have not moved for 7 h; your uploads are safe. The uptime monitor has emailed Shlok and Aksh.");
+    expect(alert.textContent).not.toMatch(/Background jobs are late/);
+    expect(alert.textContent?.match(/safe/g)).toHaveLength(1);
+  });
+
+  it("late clocks and a stuck queue together still say safe once", () => {
+    render(<LivenessStrip state={{ status: "late", problems: ["the 15-minute pump last ran 5 h ago"], queue: "Documents have not moved for 7 h; your uploads are safe" }} />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Background jobs are late: the 15-minute pump last ran 5 h ago. Documents have not moved for 7 h; your uploads are safe. The uptime monitor has emailed Shlok and Aksh.",
+    );
+    expect(alert.textContent?.match(/safe/g)).toHaveLength(1);
+  });
+
   it("says plainly when the database cannot be reached, with a fixed text", () => {
     render(<LivenessStrip state={{ status: "unreachable" }} />);
     const alert = screen.getByRole("alert");

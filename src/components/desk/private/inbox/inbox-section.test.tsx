@@ -2,6 +2,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DATABASE_BYTES, STORAGE_BYTES } from "@/modules/documents/client";
 import { actionsMock, doc, MB, OK, page, view } from "@/test/inbox-fixtures";
 import { expectTokenOnly } from "@/test/ui";
 import { InboxSection } from "./inbox-section";
@@ -20,7 +21,7 @@ vi.mock("@/modules/ingestion/actions", () => ({
 }));
 
 const section = (docs: Parameters<typeof InboxSection>[0]["docs"], over: Partial<Parameters<typeof InboxSection>[0]> = {}) => (
-  <InboxSection docs={docs} usage={{ storageBytes: 412 * MB, databaseBytes: 12 * MB }} aiOn companies={[]} actions={actionsMock()} {...over} />
+  <InboxSection docs={docs} usage={{ storageBytes: 412 * MB, databaseBytes: 12 * MB }} aiOn aiPages={null} companies={[]} actions={actionsMock()} {...over} />
 );
 
 beforeEach(() => {
@@ -97,5 +98,33 @@ describe("InboxSection", () => {
     rerender(section([ticked], { aiOn: true }));
     expect(screen.queryByText(/AI reading is off/)).toBeNull();
     expect(screen.getByRole("button", { name: "Read the ticked pages" })).toBeInTheDocument();
+  });
+
+  describe("free-plan room (spec s10)", () => {
+    const tone = (name: string) => screen.getByRole("meter", { name }).closest("[data-tone]");
+
+    it("shows the AI pages used today when AI is on, and no AI meter when it is off", () => {
+      const { rerender } = render(section([], { aiPages: { used: 41, total: 44 } }));
+      expect(screen.getByText(/^AI pages today:/)).toHaveTextContent("AI pages today: 41 of 44");
+      rerender(section([], { aiOn: false, aiPages: { used: 41, total: 44 } }));
+      expect(screen.queryByRole("meter", { name: "AI pages today" })).toBeNull();
+      expect(screen.getByText(/AI reading is off/)).toBeInTheDocument();
+    });
+
+    it("warns at 72% storage but still takes uploads; at 91% the drop bar is disabled and says why", () => {
+      const { rerender } = render(section([], { usage: { storageBytes: Math.round(0.72 * STORAGE_BYTES), databaseBytes: 12 * MB } }));
+      expect(tone("Storage")).toHaveAttribute("data-tone", "warn");
+      expect(screen.getByLabelText("Choose a PDF")).toBeEnabled();
+      rerender(section([], { usage: { storageBytes: Math.round(0.91 * STORAGE_BYTES), databaseBytes: 12 * MB } }));
+      expect(tone("Storage")).toHaveAttribute("data-tone", "bad");
+      expect(screen.getByLabelText("Choose a PDF")).toBeDisabled();
+      expect(screen.getAllByText("Storage is 91% full. Mark finished documents as done to free space.")).toHaveLength(1);
+    });
+
+    it("warns on the database line at 72% of the 500 MB plan", () => {
+      render(section([], { usage: { storageBytes: 100 * MB, databaseBytes: Math.round(0.72 * DATABASE_BYTES) } }));
+      expect(tone("Database")).toHaveAttribute("data-tone", "warn");
+      expect(screen.getByText(/^Database/)).toHaveTextContent("Database 360 MB of 500 MB");
+    });
   });
 });

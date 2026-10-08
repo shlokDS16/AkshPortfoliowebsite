@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { CaptureBar } from "@/components/desk/private/capture-bar";
 import { NeedsYouCard } from "@/components/desk/private/needs-you-card";
 import { QueuedCard } from "@/components/desk/private/queued-card";
@@ -20,7 +21,7 @@ import {
 import { refileCaptureAction } from "@/modules/capture/actions";
 import { listBlockedItems, type BlockedItem } from "@/modules/compliance";
 import { requireAdmin } from "@/modules/identity";
-import { knownTokens, namesToReview } from "./desk-data";
+import { knownTokens, namesToReview, needsYouDocs } from "./desk-data";
 
 /** Name only in the log: a database message can carry row data. */
 async function read<T>(label: string, load: () => Promise<T>, fallback: T): Promise<T> {
@@ -40,11 +41,12 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
   const db = await createSupabaseServerClient();
   const now = new Date();
   const today = istDate(now);
-  const [entries, blocked, names, known] = await Promise.all([
+  const [entries, blocked, names, known, documents] = await Promise.all([
     read<CaptureListEntry[] | null>("captures", () => listCapturesSince(db, istDayStartUtc(addDays(today, -29))), null),
     read<BlockedItem[]>("blocked items", () => listBlockedItems(db), []),
     namesToReview(),
     knownTokens(),
+    needsYouDocs(),
   ]);
   const unfiled = (entries ?? []).filter((e) => needsRefile(e, now) || e.parseError === "thesis-full");
   const groups = entries === null ? [] : groupTodayByCompany(entries, today);
@@ -70,7 +72,7 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
       <div className="grid gap-(--block-gap) desk:grid-cols-2">
         <Tray
           title="Needs you"
-          count={blocked.length + unfiled.length + (names > 0 ? 1 : 0)}
+          count={blocked.length + unfiled.length + documents.length + (names > 0 ? 1 : 0)}
           empty={{ body: "Nothing needs you. New gate failures and new names appear here." }}
         >
           {blocked.map((b) => (
@@ -93,6 +95,20 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
               form={e.parseError === "thesis-full" ? undefined : { label: "File it now", action: refileCaptureAction.bind(null, e.id) }}
             />
           ))}
+          {documents.map((d) =>
+            d.kind === "ready" ? (
+              <NeedsYouCard key={d.id} tone="neutral" icon={Check} stateWord="Ready to review" title={d.title} body={d.message} action={{ label: "Review", href: d.href }} />
+            ) : (
+              <NeedsYouCard
+                key={d.id}
+                tone="warn"
+                stateWord={d.pagesUnread ? "Pages could not be read" : "Could not be read"}
+                title={d.title}
+                body={d.message}
+                action={{ label: "Open the inbox", href: d.href }}
+              />
+            ),
+          )}
           {names > 0 ? (
             <NeedsYouCard
               tone="warn"
