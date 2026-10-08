@@ -190,8 +190,8 @@ select throws_ok($$ insert into public.job_steps (job_id, kind) values ('f200000
   '23505', null, 'a second select_pages for the same job is refused');
 select lives_ok($$ insert into public.job_steps (job_id, kind, page_no) values
     ('f2000000-0000-4000-8000-000000000002', 'extract_page', 3), ('f2000000-0000-4000-8000-000000000002', 'select_pages', null)
-    on conflict (job_id, kind, page_no) do nothing $$,
-  'on conflict (job_id, kind, page_no) do nothing absorbs a duplicate enqueue');
+    on conflict (job_id, kind, page_no, pass) do nothing $$,
+  'on conflict (job_id, kind, page_no, pass) do nothing absorbs a duplicate enqueue (pass: 0008, R2)');
 select is((select count(*) from public.job_steps where job_id = 'f2000000-0000-4000-8000-000000000002'), 3::bigint,
   'and adds no row');
 
@@ -308,9 +308,9 @@ select throws_ok($$ insert into storage.objects (bucket_id, name) values ('docum
 select is((select count(*) from storage.objects where bucket_id = 'documents'), 0::bigint,
   'anon cannot list the documents bucket');
 reset role;
-select ok((select not b.public and b.file_size_limit = 52428800 and b.allowed_mime_types = array['application/pdf']
+select ok((select not b.public and b.file_size_limit = 52428800 and 'application/pdf' = any (b.allowed_mime_types)
              from storage.buckets b where b.id = 'documents'),
-  'bucket documents is private, 50 MB, PDF only');
+  'bucket documents is private, 50 MB, and takes PDF (the full list since 0008: see 0008_ingestion_more)');
 select ok(has_function_privilege('authenticated', 'public.storage_usage()', 'execute')
       and not has_function_privilege('anon', 'public.storage_usage()', 'execute')
       and not has_function_privilege('service_role', 'public.storage_usage()', 'execute'),

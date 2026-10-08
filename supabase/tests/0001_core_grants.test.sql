@@ -34,14 +34,15 @@ select is_empty($$
   select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'
      and c.relname not in ('heartbeats', 'documents', 'document_pages', 'jobs', 'job_steps',
-                           'extractions', 'proposals', 'provider_usage')
+                           'extractions', 'proposals', 'provider_usage', 'document_digests', 'reading_proposals')
      and has_table_privilege('service_role', c.oid, 'select,insert,update,delete')
-$$, 'service_role has no privilege on any other public table (job tables: 0006, extraction tables: 0007)');
+$$, 'service_role has no privilege on any other public table (job tables: 0006, extraction tables: 0007, digests and readings: 0008)');
 select is_empty($$
   select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'
      and c.relname not in ('heartbeats', 'documents', 'document_pages', 'jobs', 'job_steps',
-                           'extractions', 'proposals', 'provider_usage', 'items', 'item_revisions')
+                           'extractions', 'proposals', 'provider_usage', 'document_digests', 'reading_proposals',
+                           'items', 'item_revisions')
      and has_any_column_privilege('service_role', c.oid, 'select,insert,update,references')
 $$, 'service_role holds no column privilege elsewhere (items and item_revisions: column SELECT only, exact set in 0007)');
 select ok(not has_any_column_privilege('service_role', 'public.items', 'insert,update,references')

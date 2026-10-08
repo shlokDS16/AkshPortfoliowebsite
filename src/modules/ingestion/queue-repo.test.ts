@@ -75,17 +75,22 @@ describe("createQueueRepo", () => {
     expect(await repo.finish(STEP, "o1", { status: "done", result: null, lastError: null })).toBe(false);
   });
 
-  it("enqueues idempotently on the job_steps_once key", async () => {
+  it("enqueues idempotently on the job_steps_once key, with pass defaulting to 1", async () => {
     const { db, calls } = fakeDb([{ data: null, error: null }]);
-    await createQueueRepo(db).enqueue("j1", [{ kind: "select_pages", pageNo: null }, { kind: "pdf_text", pageNo: 26, args: { from: 26 } }]);
+    await createQueueRepo(db).enqueue("j1", [
+      { kind: "select_pages", pageNo: null },
+      { kind: "pdf_text", pageNo: 26, args: { from: 26 } },
+      { kind: "extract_page", pageNo: 4, pass: 2, args: { reread: true } },
+    ]);
     expect(calls[0].ops).toEqual([
       [
         "upsert",
         [
-          { job_id: "j1", kind: "select_pages", page_no: null, args: {} },
-          { job_id: "j1", kind: "pdf_text", page_no: 26, args: { from: 26 } },
+          { job_id: "j1", kind: "select_pages", page_no: null, pass: 1, args: {} },
+          { job_id: "j1", kind: "pdf_text", page_no: 26, pass: 1, args: { from: 26 } },
+          { job_id: "j1", kind: "extract_page", page_no: 4, pass: 2, args: { reread: true } },
         ],
-        { onConflict: "job_id,kind,page_no", ignoreDuplicates: true },
+        { onConflict: "job_id,kind,page_no,pass", ignoreDuplicates: true },
       ],
     ]);
   });

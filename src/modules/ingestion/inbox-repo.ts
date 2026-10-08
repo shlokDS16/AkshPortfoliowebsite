@@ -30,6 +30,21 @@ export interface InboxRepo {
 const now = () => new Date().toISOString();
 
 export function createSupabaseInboxRepo(db: Db): InboxRepo {
+  /** The page's extract step in its highest pass: the one a tick or an untick means (migration 0008, R2). */
+  async function latestExtractStep(jobId: string, pageNo: number, where: string): Promise<string | null> {
+    const { data, error } = await db
+      .from("job_steps")
+      .select("id")
+      .eq("job_id", jobId)
+      .eq("kind", "extract_page")
+      .eq("page_no", pageNo)
+      .order("pass", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw dbError(where, error);
+    return data?.id ?? null;
+  }
+
   return {
     async page(documentId, pageNo) {
       const { data, error } = await db.from("document_pages").select("selected").eq("document_id", documentId).eq("page_no", pageNo).maybeSingle();
@@ -63,26 +78,23 @@ export function createSupabaseInboxRepo(db: Db): InboxRepo {
     async extractPages(jobId) {
       const { data, error } = await db.from("job_steps").select("page_no").eq("job_id", jobId).eq("kind", "extract_page");
       if (error) throw dbError("inbox.extractPages", error);
-      return data.flatMap((r) => (r.page_no === null ? [] : [r.page_no]));
+      // A page re-read in a later pass has several rows: it is still one page.
+      return [...new Set(data.flatMap((r) => (r.page_no === null ? [] : [r.page_no])))];
     },
     async reviveStep(jobId, pageNo) {
+      const id = await latestExtractStep(jobId, pageNo, "inbox.reviveStep");
+      if (!id) return;
       const { error } = await db
         .from("job_steps")
         .update({ status: "queued", not_before: now(), wait_reason: null, last_error: null })
-        .eq("job_id", jobId)
-        .eq("kind", "extract_page")
-        .eq("page_no", pageNo)
+        .eq("id", id)
         .eq("status", "skipped");
       if (error) throw dbError("inbox.reviveStep", error);
     },
     async skipQueuedStep(jobId, pageNo) {
-      const { error } = await db
-        .from("job_steps")
-        .update({ status: "skipped" })
-        .eq("job_id", jobId)
-        .eq("kind", "extract_page")
-        .eq("page_no", pageNo)
-        .eq("status", "queued");
+      const id = await latestExtractStep(jobId, pageNo, "inbox.skipQueuedStep");
+      if (!id) return;
+      const { error } = await db.from("job_steps").update({ status: "skipped" }).eq("id", id).eq("status", "queued");
       if (error) throw dbError("inbox.skipQueuedStep", error);
     },
     async retryAttention(jobId) {

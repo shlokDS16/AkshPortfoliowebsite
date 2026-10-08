@@ -21,7 +21,8 @@ export type Step = {
   lastError: string | null;
 };
 
-export type NewStep = { kind: StepKind; pageNo: number | null; args?: Record<string, unknown> };
+/** `pass` is 1 for a first run; a re-run of the same step (a re-read page) is a later pass, a new row (migration 0008, R2). */
+export type NewStep = { kind: StepKind; pageNo: number | null; pass?: number; args?: Record<string, unknown> };
 
 export type StepOutcome =
   | { kind: "done"; result?: Record<string, unknown>; enqueue?: NewStep[] }

@@ -191,6 +191,60 @@ export type Database = {
           },
         ]
       }
+      document_digests: {
+        Row: {
+          claim: string
+          created_at: string
+          document_id: string
+          extraction_id: string
+          id: string
+          line: string
+          on_page: boolean
+          ord: number
+          page_no: number
+          section: string
+        }
+        Insert: {
+          claim: string
+          created_at?: string
+          document_id: string
+          extraction_id: string
+          id?: string
+          line: string
+          on_page: boolean
+          ord: number
+          page_no: number
+          section: string
+        }
+        Update: {
+          claim?: string
+          created_at?: string
+          document_id?: string
+          extraction_id?: string
+          id?: string
+          line?: string
+          on_page?: boolean
+          ord?: number
+          page_no?: number
+          section?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_digests_document_id_page_no_fkey"
+            columns: ["document_id", "page_no"]
+            isOneToOne: false
+            referencedRelation: "document_pages"
+            referencedColumns: ["document_id", "page_no"]
+          },
+          {
+            foreignKeyName: "document_digests_extraction_id_fkey"
+            columns: ["extraction_id"]
+            isOneToOne: false
+            referencedRelation: "extractions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_pages: {
         Row: {
           basis: string | null
@@ -200,6 +254,7 @@ export type Database = {
           first_line: string | null
           is_scan: boolean | null
           kind: string | null
+          ocr: boolean
           page_no: number
           score: number
           search: unknown
@@ -215,6 +270,7 @@ export type Database = {
           first_line?: never
           is_scan?: never
           kind?: string | null
+          ocr?: boolean
           page_no: number
           score?: number
           search?: never
@@ -230,6 +286,7 @@ export type Database = {
           first_line?: never
           is_scan?: never
           kind?: string | null
+          ocr?: boolean
           page_no?: number
           score?: number
           search?: never
@@ -253,6 +310,7 @@ export type Database = {
           bytes: number
           company_id: string | null
           created_at: string
+          fetched_from: string | null
           filed_on: string | null
           id: string
           kind: string
@@ -265,6 +323,7 @@ export type Database = {
           status: string
           storage_path: string | null
           title: string
+          transcript_status: string | null
           updated_at: string
         }
         Insert: {
@@ -272,6 +331,7 @@ export type Database = {
           bytes: number
           company_id?: string | null
           created_at?: string
+          fetched_from?: string | null
           filed_on?: string | null
           id?: string
           kind?: string
@@ -284,6 +344,7 @@ export type Database = {
           status?: string
           storage_path?: string | null
           title: string
+          transcript_status?: string | null
           updated_at?: string
         }
         Update: {
@@ -291,6 +352,7 @@ export type Database = {
           bytes?: number
           company_id?: string | null
           created_at?: string
+          fetched_from?: string | null
           filed_on?: string | null
           id?: string
           kind?: string
@@ -303,6 +365,7 @@ export type Database = {
           status?: string
           storage_path?: string | null
           title?: string
+          transcript_status?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -710,6 +773,7 @@ export type Database = {
           locked_until: string | null
           not_before: string
           page_no: number | null
+          pass: number
           provider_failures: number
           result: Json | null
           schema_failures: number
@@ -729,6 +793,7 @@ export type Database = {
           locked_until?: string | null
           not_before?: string
           page_no?: number | null
+          pass?: number
           provider_failures?: number
           result?: Json | null
           schema_failures?: number
@@ -748,6 +813,7 @@ export type Database = {
           locked_until?: string | null
           not_before?: string
           page_no?: number | null
+          pass?: number
           provider_failures?: number
           result?: Json | null
           schema_failures?: number
@@ -1009,6 +1075,118 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_proposals: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          document_id: string
+          extraction_id: string
+          id: string
+          item_id: string | null
+          item_id_hint: string | null
+          machine_value: NonNullable<Json>
+          page_no: number
+          revision_id: string | null
+          status: string
+          test_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          document_id: string
+          extraction_id: string
+          id?: string
+          item_id?: string | null
+          item_id_hint?: string | null
+          machine_value: NonNullable<Json>
+          page_no: number
+          revision_id?: string | null
+          status?: string
+          test_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          document_id?: string
+          extraction_id?: string
+          id?: string
+          item_id?: string | null
+          item_id_hint?: string | null
+          machine_value?: NonNullable<Json>
+          page_no?: number
+          revision_id?: string | null
+          status?: string
+          test_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_proposals_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_extraction_id_fkey"
+            columns: ["extraction_id"]
+            isOneToOne: false
+            referencedRelation: "extractions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_hint_fkey"
+            columns: ["item_id_hint"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_hint_fkey"
+            columns: ["item_id_hint"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["revision_id"]
+          },
+        ]
+      }
       themes: {
         Row: {
           archived_at: string | null
@@ -1201,6 +1379,7 @@ export type Database = {
           locked_until: string | null
           not_before: string
           page_no: number | null
+          pass: number
           provider_failures: number
           result: Json | null
           schema_failures: number
@@ -1256,6 +1435,23 @@ export type Database = {
       remove_lint_allowance: {
         Args: { p_actor: string; p_item_id: string; p_sentence_hash: string }
         Returns: boolean
+      }
+      reserve_units: {
+        Args: {
+          p_bucket: string
+          p_day_cap: number
+          p_hour_cap: number
+          p_minute_cap: number
+          p_rpd: number
+          p_rpm: number
+          p_units: number
+        }
+        Returns: {
+          not_before: string
+          ok: boolean
+          reason: string
+          reservation_id: string
+        }[]
       }
       reserve_usage: {
         Args: {

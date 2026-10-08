@@ -18,7 +18,7 @@ export interface QueueRepo {
   claim(owner: string): Promise<(Step & { documentId: string }) | null>;
   /** False when the lease was lost (another drain reclaimed the step): the result is then dropped. */
   finish(step: Step, owner: string, patch: FinishPatch): Promise<boolean>;
-  /** Idempotent: insert ... on conflict (job_id, kind, page_no) do nothing. */
+  /** Idempotent: insert ... on conflict (job_id, kind, page_no, pass) do nothing (pass defaults to 1, R2). */
   enqueue(jobId: string, steps: NewStep[]): Promise<void>;
   /** Creates the document's job (or reuses its live one) and enqueues the first step. */
   createJob(documentId: string, first: NewStep): Promise<string>;
@@ -66,8 +66,14 @@ function toUpdate(patch: FinishPatch): StepUpdate {
 export function createQueueRepo(db: Db): QueueRepo {
   async function enqueue(jobId: string, steps: NewStep[]): Promise<void> {
     if (steps.length === 0) return;
-    const rows = steps.map((s) => ({ job_id: jobId, kind: s.kind, page_no: s.pageNo, args: (s.args ?? {}) as NonNullable<Json> }));
-    const { error } = await db.from("job_steps").upsert(rows, { onConflict: "job_id,kind,page_no", ignoreDuplicates: true });
+    const rows = steps.map((s) => ({
+      job_id: jobId,
+      kind: s.kind,
+      page_no: s.pageNo,
+      pass: s.pass ?? 1,
+      args: (s.args ?? {}) as NonNullable<Json>,
+    }));
+    const { error } = await db.from("job_steps").upsert(rows, { onConflict: "job_id,kind,page_no,pass", ignoreDuplicates: true });
     if (error) throw jobDbError("ingestion.enqueue", error);
   }
 
