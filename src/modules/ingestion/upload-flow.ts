@@ -1,6 +1,6 @@
 import { errorShape } from "@/lib/errors";
 import { errorCode, errorText, userWasTold } from "@/lib/messages";
-import { DocumentError, finishUpload, startUpload, type DocumentKind, type DocumentsRepo, type StartUploadInput } from "@/modules/documents";
+import { DocumentError, finishUpload, startUpload, type DocumentKind, type DocumentsRepo, type StartUploadInput, type StartUploadOptions } from "@/modules/documents";
 import type { QueueRepo } from "./queue-repo";
 import type { JobKind, NewStep } from "./types";
 
@@ -12,12 +12,18 @@ export type ActionResult = { ok: true } | ActionFailure;
 
 /**
  * The job and first step of each kind (ruling R12): a PDF's text layer from page 1 (spec s5); a photo goes to the scan
- * reader first, as its one page. Audio, links and pasted text join with their own tasks.
+ * reader first, as its one page; a voice note is typed out from its page 1. Links and pasted text join with their own tasks.
  */
 export const FIRST_STEP: Partial<Record<DocumentKind, { job: JobKind; step: NewStep }>> = {
   pdf: { job: "ingest_pdf", step: { kind: "pdf_text", pageNo: 1 } },
   image: { job: "ingest_image", step: { kind: "ocr_page", pageNo: 1 } },
+  audio: { job: "ingest_audio", step: { kind: "transcribe", pageNo: 1 } },
 };
+
+/** A recording's length as the browser measured it, kept on its first step to size the reservation. A claim, so only a plain positive number passes. */
+function withSeconds(step: NewStep, seconds: unknown): NewStep {
+  return typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 && seconds <= 1_000_000 ? { ...step, args: { seconds: Math.ceil(seconds) } } : step;
+}
 
 /** A fixed code and its fixed text (src/lib/messages.ts); never a database message. Unexpected failures are logged by shape. */
 export function actionFailure(error: unknown): ActionFailure {
@@ -28,21 +34,21 @@ export function actionFailure(error: unknown): ActionFailure {
   return out;
 }
 
-export async function runStartUpload(docs: DocumentsRepo, input: StartUploadInput, newId: () => string): Promise<StartUploadResult> {
+export async function runStartUpload(docs: DocumentsRepo, input: StartUploadInput, newId: () => string, options: StartUploadOptions = {}): Promise<StartUploadResult> {
   try {
-    return { ok: true, ...(await startUpload(docs, input, newId)) };
+    return { ok: true, ...(await startUpload(docs, input, newId, options)) };
   } catch (error) {
     return actionFailure(error);
   }
 }
 
 /** Activates the document, then creates its job and first step (idempotent: a second call reuses the live job). */
-export async function runFinishUpload(docs: DocumentsRepo, queue: QueueRepo, documentId: string): Promise<FinishUploadResult> {
+export async function runFinishUpload(docs: DocumentsRepo, queue: QueueRepo, documentId: string, seconds?: number | null): Promise<FinishUploadResult> {
   try {
     const doc = await finishUpload(docs, documentId);
     // Only an active document gets a job: done and skipped are Aksh's and stay still.
     const first = FIRST_STEP[doc.kind];
-    if (doc.status === "active" && first) await queue.createJob(doc.id, first.job, first.step);
+    if (doc.status === "active" && first) await queue.createJob(doc.id, first.job, doc.kind === "audio" ? withSeconds(first.step, seconds) : first.step);
     return { ok: true };
   } catch (error) {
     return actionFailure(error);

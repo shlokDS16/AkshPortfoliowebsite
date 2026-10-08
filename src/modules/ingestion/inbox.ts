@@ -1,9 +1,10 @@
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
-import { createSupabaseDocumentsRepo, type Basis, type DocumentStatus, type PageKind } from "@/modules/documents";
+import { createSupabaseDocumentsRepo, type Basis, type DocumentKind, type DocumentStatus, type PageKind } from "@/modules/documents";
 import { GROQ_CAPS, TOKENS_PER_PAGE_DEFAULT } from "./caps";
 import { estimateReadyBy, formatReadyBy } from "./eta";
 import { listedPages, readInboxPages, type InboxPageRow } from "./inbox-pages";
+import { readTranscripts } from "./inbox-transcripts";
 import { PAGE_STEP_KINDS } from "./page-steps";
 import { tallyPending } from "./proposal-counts";
 import { trayFor, type DocState, type TrayView } from "./trays";
@@ -18,6 +19,7 @@ export type InboxDoc = {
   company: string | null;
   createdAt: string;
   status: DocumentStatus;
+  kind: DocumentKind;
   pageCount: number | null;
   budget: number;
   /** Figures waiting for Aksh's check, and the flagged ones among them. */
@@ -25,6 +27,11 @@ export type InboxDoc = {
   flagged: number;
   /** Figures Aksh has already accepted, edited, dropped or filed. */
   decided: number;
+  /**
+   * A voice note's transcript while it waits for Aksh (his own words, typed out, to edit and save as a capture); null for
+   * every other document and once he has decided. The one place a page's text reaches this list.
+   */
+  transcript: string | null;
   view: TrayView;
   /**
    * Statement pages and ticked pages, plus every scan page (so Aksh can tick them), never page text: `firstLine` is the first
@@ -34,9 +41,12 @@ export type InboxDoc = {
 };
 
 const FINISHED_SHOWN = 10;
-const COLUMNS = "id, title, company_id, created_at, status, page_count, llm_page_budget, basis, kind";
+const COLUMNS = "id, title, company_id, created_at, status, page_count, llm_page_budget, basis, kind, transcript_status";
 
-type DocRow = { id: string; title: string; company_id: string | null; created_at: string; status: string; page_count: number | null; llm_page_budget: number; basis: string; kind: string };
+type DocRow = {
+  id: string; title: string; company_id: string | null; created_at: string; status: string; page_count: number | null; llm_page_budget: number; basis: string; kind: string;
+  transcript_status: string | null;
+};
 type StepRow = {
   kind: string; status: string; not_before: string; wait_reason: string | null; page_no: number | null; last_error: string | null; lease_owner: string | null;
 };
@@ -88,7 +98,9 @@ export async function listInbox(
   const activeIds = open.data.filter((d) => d.status === "active").map((d) => d.id);
   const companyIds = [...new Set(rows.flatMap((d) => (d.company_id ? [d.company_id] : [])))];
 
-  const [jobs, pages, companies, proposals] = await Promise.all([
+  // Voice notes that wait for Aksh to check what was typed out (the document is open and he has not decided).
+  const voiceIds = open.data.filter((d) => d.kind === "audio" && d.status === "active" && d.transcript_status === "pending").map((d) => d.id);
+  const [jobs, pages, companies, proposals, transcripts] = await Promise.all([
     activeIds.length === 0
       ? { data: [], error: null }
       : db
@@ -106,6 +118,7 @@ export async function listInbox(
           .from("proposals")
           .select("id, document_id, flags, status, machine_value, accepted_value")
           .in("document_id", activeIds),
+    readTranscripts(db, voiceIds),
   ]);
   if (jobs.error) throw dbError("inbox.listSteps", jobs.error);
   if (companies.error) throw dbError("inbox.listCompanies", companies.error);
@@ -142,6 +155,7 @@ export async function listInbox(
       scanPages: scans,
       aiOn,
       photo: d.kind === "image",
+      transcript: transcripts.has(d.id),
       pending: waiting.get(d.id)?.pending ?? 0,
       flagged: waiting.get(d.id)?.flagged ?? 0,
       decided: waiting.get(d.id)?.decided ?? 0,
@@ -153,11 +167,13 @@ export async function listInbox(
       company: d.company_id ? (symbolOf.get(d.company_id) ?? null) : null,
       createdAt: d.created_at,
       status: state.status,
+      kind: d.kind as DocumentKind,
       pageCount: d.page_count,
       budget: d.llm_page_budget,
       pending: state.pending,
       flagged: state.flagged,
       decided: state.decided,
+      transcript: transcripts.get(d.id) ?? null,
       view: trayFor(state, now, etaFor(steps, now)),
       // A photo is one page: nothing to tick. Every other document lists its scans, so a mixed one can have them read too.
       pages: listedPages(d.kind, pagesOf.get(d.id) ?? []),

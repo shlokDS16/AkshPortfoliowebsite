@@ -3,6 +3,8 @@ import type { SourceType } from "@/lib/desk-types";
 import type { DocumentKind, UploadKind } from "./kinds";
 
 export type DocumentStatus = "uploading" | "active" | "done" | "skipped";
+/** A voice note's transcript: waiting for Aksh, saved by him as a capture, or thrown away (migration 0008). Null for every other kind. */
+export type TranscriptStatus = "pending" | "saved" | "discarded";
 export type Basis = "consolidated" | "standalone";
 /** A document's source type: the casefile's, less "Notes" (documents.source_type check, migration 0006). */
 export type DocSourceType = Exclude<SourceType, "Notes">;
@@ -23,6 +25,7 @@ export type DocumentRow = {
   filedOn: string | null;
   sourceUrl: string | null;
   originalDeletedAt: string | null;
+  transcriptStatus: TranscriptStatus | null;
   createdAt: string;
 };
 
@@ -64,7 +67,7 @@ export type PageForExtraction = PageForReading & {
 
 /** What the browser claims about a file before it uploads it. Every field is checked on the server. */
 export type StartUploadInput = {
-  /** What the file is: a PDF, or a photo the browser has already shrunk. */
+  /** What the file is: a PDF, a photo the browser has already shrunk, or a voice note. */
   kind: UploadKind;
   fileName: string;
   bytes: number;
@@ -73,4 +76,6 @@ export type StartUploadInput = {
   companyId: string | null;
   filedOn: string | null;
   sourceUrl: string | null;
+  /** A voice note's length as the browser measured it (null when it could not). A claim: it only ever refuses a recording that is too long. */
+  seconds?: number | null;
 };

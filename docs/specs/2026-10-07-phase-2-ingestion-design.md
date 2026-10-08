@@ -282,3 +282,36 @@ Task 3 fix round 1 (2026-10-08, append-only): a photo uploaded while AI reading 
 | Drop bar, section label (screen readers) | Upload a file | pending Shlok approval (was "Upload a PDF") |
 | Upload refused, the browser cannot open the picture | This photo could not be opened. Try another one. | pending Shlok approval |
 | Needs attention, a photo (replaces "Page 1 could not be read.") | This photo could not be read. | pending Shlok approval |
+
+### 16.9 Plan 2b Task 4: voice notes into captures Aksh confirms (2026-10-08, append-only)
+Step 0, https://console.groq.com/docs/speech-to-text and the API reference read 2026-10-08: `POST https://api.groq.com/openai/v1/audio/transcriptions` (OpenAI-compatible), multipart `file`, `model`, `language`, `response_format` (`json`, `verbose_json` or `text`), `temperature`; free-tier files up to 25 MB; at least 10 audio seconds are billed a request; models `whisper-large-v3-turbo` (the default, `GROQ_MODEL_WHISPER`) and `whisper-large-v3`; the service downsamples to 16 kHz mono. The plain `json` answer carries `text` only, so the adapter asks for `verbose_json` and reads the audio's `duration` (documented by the OpenAI-compatible format and shown in third-party Groq examples, not spelled out on the Groq page; if it is absent the adapter falls back to the end of the last segment, then to none, and the reservation stands). The file limit is read as 25,000,000 bytes (`VOICE_MAX_BYTES`), the smaller reading, so the provider never refuses a file the desk accepted. No new runtime dependency (`fetch`, `FormData` and `Blob` are built in).
+
+The switch: `VOICE_NOTES` in `env.server.ts` is `on` or unset; unset is off and is the default everywhere. Off means the drop bar neither offers nor takes voice notes, `startUpload` refuses `kind: audio` with `voice-off`, no transcriber is built (`createTranscriberPort` returns null), and nothing is sent to Groq. Aksh's consent to send his recordings to Groq (ADR-004 s8) is not recorded; it is recorded in the timeline when the switch is first turned on. The fixture transcriber follows the same rule and, like the other fixtures, is refused on Vercel.
+
+Behaviour:
+- The drop bar (voice on) takes `.mp3`, `.m4a` and `.webm` up to 25 MB, claims the bare type (`audio/mpeg`, `audio/mp4`, `audio/x-m4a`, `audio/webm`; never `;codecs=`), measures the length with an `<audio>` element (a webm that reports Infinity is seeked past its end; no answer in 4 seconds is none) and refuses a recording longer than 90 minutes (`VOICE_MAX_SECONDS`, the hour allowance) before anything is sent. The server checks the same limits again. The document is `kind = 'audio'` with `transcript_status = 'pending'` from the moment it is created (Aksh's session; job code cannot write that column). The job is `ingest_audio`; its first step is `transcribe` on page 1 with the measured length in `args.seconds`.
+- `transcribe` reserves audio seconds in the `groq-whisper` bucket (the name contains "whisper", which `reserve_units` requires) against 75% of Groq's limits: `WHISPER_CAPS = { rpm: 15, rpd: 1,500, secondsHour: 5,400, secondsDay: 21,600 }`. The reservation is the larger of the browser's length and a floor of file size over 40,000 bytes a second, at least the 10 seconds Groq bills a request, and at most the hour allowance; it settles at the length the provider reports (at least 10). A full ledger defers on `voice_hour` or `voice_day`; a provider 429 releases the seconds, blocks the bucket and defers; a provider error is a retry (three, then Needs attention). A rerun after a lost lease makes no second request.
+- The transcript is stored as the text of page 1 of the document (`ocr = false`, no page kind). It is shown on the card as Aksh's own words in a box he can edit. The machine never saves it and never calls the capture module: the card's Save calls the existing `submitCapture` with his edited text, `source` web or mobile, and `clientId = the document's id` (a second press is a no-op), and only then calls `markTranscriptSavedAction`, which records `transcript_status = 'saved'` and finishes the document the way Done does (job stopped, recording deleted, document in Finished). Discard (asked once) records `discarded` and does the same, with no capture. Over 20,000 characters the card asks him to shorten it before saving. The stored page text stays in the private database after either decision, like the page text of any finished document.
+- Trays: a voice note being typed out is Being read; once typed out, with the transcript waiting, it is Ready for you with the sentence below, it is not counted as figures, and it has a Needs you card that opens the inbox on it.
+
+Copy (plain second person). "Pending Shlok approval" means the build chose the wording and Shlok has not yet read it.
+| Where | Text | Status |
+|---|---|---|
+| Upload refused, voice off (`voice-off`) | Voice notes are not switched on yet. | from ruling R8 |
+| Upload refused, over 25 MB (`voice-too-large`) | This voice note is over 25 MB. Record a shorter one. | pending Shlok approval |
+| Upload refused, over 90 minutes (`voice-too-long`) | This voice note is longer than 90 minutes. Record a shorter one. | pending Shlok approval |
+| Drop bar hint, voice on (appended to the hint) | , or a voice note (MP3, M4A or WebM, up to 25 MB). | pending Shlok approval |
+| Being read, a voice note | Typing out your voice note. | pending Shlok approval |
+| Ready for you, a voice note typed out (card sentence and Needs you card) | Your voice note is typed out. Check it, then save it as a capture. | from ruling R13 |
+| Transcript card, box label | Your voice note, typed out | from the plan, pending Shlok approval |
+| Transcript card, hint under the box | Change anything the typing got wrong. What you save is exactly what is here. | pending Shlok approval |
+| Transcript card, too long | This is over 20,000 characters. Shorten it before you save. | pending Shlok approval |
+| Transcript card, buttons | Save as a capture / Discard / Yes, discard it / Keep it | pending Shlok approval |
+| Transcript card, save failed | Could not save. Try again. | existing `save-failed` text |
+| Needs attention, voice off | Voice notes are not switched on yet. | from ruling R8 |
+| Needs attention, recording no longer stored | This voice note is no longer stored, so it cannot be typed out. Choose Skip, or Try again. | pending Shlok approval |
+| Needs attention, nothing heard | Nothing could be heard in this recording. Skip it, or try another one. | pending Shlok approval |
+| Needs attention, over 25 MB when read | This voice note is over 25 MB, more than the free voice reading takes. Skip it, or record a shorter one. | pending Shlok approval |
+| Needs attention, nothing stored for it | This voice note could not be typed out. | pending Shlok approval |
+| Needs attention, three tries | This voice note could not be typed out after three tries. Try again, or skip it. | pending Shlok approval |
+| Paused, `voice_day` / `voice_hour` | (already in s16.7) | pending Shlok approval |

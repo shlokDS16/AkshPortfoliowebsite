@@ -40,7 +40,7 @@ function setup(pageText = PL_TEXT, opts: { isScan?: boolean; companyId?: string 
   documents.docs.set(DOC, {
     id: DOC, companyId: opts.companyId === undefined ? null : opts.companyId, title: "Kaveri annual report", kind: "pdf", storagePath: `${DOC}.pdf`,
     sha256: "a".repeat(64), bytes: 10, pageCount: 6, status: "active", llmPageBudget: 20, basis: "consolidated", sourceType: "Annual report",
-    filedOn: null, sourceUrl: null, originalDeletedAt: null, createdAt: new Date(T0).toISOString(),
+    filedOn: null, sourceUrl: null, originalDeletedAt: null, transcriptStatus: null, createdAt: new Date(T0).toISOString(),
   });
   documents.pages.set(`${DOC}:4`, {
     documentId: DOC, pageNo: 4, text: pageText, charCount: pageText.length, isScan: opts.isScan ?? false, kind: "pl", basis: "consolidated",
@@ -53,7 +53,8 @@ function ctx(s: Setup, llm: LlmPort | null, step: Partial<Step> = {}, opts: { cl
   const deps: StepDeps = {
     llm,
     ocr: opts.ocr ?? null,
-    models: { text: "test-model", vision: "test-vision" },
+    transcriber: null,
+    models: { text: "test-model", vision: "test-vision", whisper: "test-whisper" },
     repos: { documents: machineDocuments(s.documents), usage: opts.usage ?? s.usage, proposals: s.proposals, research: opts.research ?? createMemoryResearch() },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),
@@ -169,7 +170,7 @@ describe("extract_page: reading the page", () => {
     await extractPage(ctx(s, createFixtureLlm()));
     const other = spied(createFixtureLlm());
     const c = ctx(s, other.llm);
-    await extractPage({ ...c, deps: { ...c.deps, models: { text: "other-model", vision: "test-vision" } } });
+    await extractPage({ ...c, deps: { ...c.deps, models: { text: "other-model", vision: "test-vision", whisper: "test-whisper" } } });
     expect(other.complete).toHaveBeenCalledTimes(1);
     s.proposals.extractions.forEach((e) => void (e.output = { not: "an extraction" }));
     const again = spied(createFixtureLlm());

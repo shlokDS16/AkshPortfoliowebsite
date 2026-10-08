@@ -2,6 +2,7 @@ import type { DocumentStatus } from "@/modules/documents/client";
 import { OCR_ATTENTION_TEXT, scansNotice } from "./ocr-copy";
 import { isScanHeavy, PAGE_STEP_KINDS } from "./page-steps";
 import type { StepKind, StepStatus, WaitReason } from "./types";
+import { TRANSCRIPT_READY, TYPING_OUT } from "./voice-copy";
 
 // Which tray a document sits in, and what its card says (spec s7). Derived, never stored. Pure: no clock, no I/O.
 
@@ -16,6 +17,8 @@ export type DocState = {
   aiOn: boolean;
   /** The document is one photo: its sentences say "photo", not "page 1". */
   photo?: boolean;
+  /** A voice note whose transcript is typed out and waits for Aksh (transcript_status pending, page 1 has text). */
+  transcript?: boolean;
   /** Proposals waiting for Aksh's check, and how many of them are flagged. */
   pending: number;
   flagged: number;
@@ -47,6 +50,8 @@ const PHOTO_COULD_NOT_BE_READ = "This photo could not be read.";
 const NO_FIGURES = "Read. No figures matched; open it beside your file.";
 const NO_FIGURES_AI_OFF = "Read. AI reading is off; open it beside your file to enter figures.";
 const CHOOSING = "Choosing the pages to read.";
+/** Pending Shlok approval, spec s16.9. */
+const VOICE_COULD_NOT_BE_TYPED = "This voice note could not be typed out.";
 
 const PAUSE_ORDER: WaitReason[] = ["groq_day", "ocr_day", "voice_day", "voice_hour", "groq_minute", "ocr_off", "ai_off"];
 const isPageStep = (s: { kind: StepKind }) => PAGE_STEP_KINDS.includes(s.kind);
@@ -96,7 +101,9 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
     // The job step stored a plain sentence for itself (lost original, stopped twice); a page range is built here.
     const whole = stuck.find((s) => !isPageStep(s));
     let message: string;
-    if (whole) message = whole.lastError ?? (whole.kind === "pdf_text" ? PDF_NOT_OPENED_TEXT : "The desk could not choose the pages to read.");
+    if (whole) {
+      message = whole.lastError ?? (whole.kind === "pdf_text" ? PDF_NOT_OPENED_TEXT : whole.kind === "transcribe" ? VOICE_COULD_NOT_BE_TYPED : "The desk could not choose the pages to read.");
+    }
     else {
       message = d.photo ? PHOTO_COULD_NOT_BE_READ : `${pages.length === 1 ? "Page" : "Pages"} ${pageList(pages)} could not be read.`;
       // Scan pages stored why (too big for the free reader, key refused...): when every stuck page says the same, say it once.
@@ -130,7 +137,11 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
   if (unfinished.some((s) => s.kind === "extract_page" || s.kind === "vision_page")) {
     return view("reading", `Reading figures: ${counts.extractDone} of ${counts.extractTotal} pages${eta ? `, ${eta}` : ""}`);
   }
+  if (unfinished.some((s) => s.kind === "transcribe")) return view("reading", TYPING_OUT);
   if (unfinished.length > 0) return view("reading", CHOOSING);
+
+  // A typed-out voice note is Aksh's own words waiting for his check; it is never counted as figures (ruling R13).
+  if (d.transcript) return view("ready", TRANSCRIPT_READY);
 
   if (d.pending > 0) return view("ready", `${figures(d.pending)} ready to check.${d.flagged > 0 ? ` ${d.flagged} ${d.flagged === 1 ? "needs" : "need"} a look.` : ""}`);
   if (d.decided > 0) return view("ready", ALL_CHECKED);

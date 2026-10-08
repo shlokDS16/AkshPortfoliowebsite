@@ -39,7 +39,7 @@ function setup(over: Over = {}): MemoryDocumentsRepo {
   repo.docs.set(DOC, {
     id: DOC, companyId: null, title: "Scanned report", kind: "pdf", storagePath: over.stored === false ? null : `${DOC}.pdf`, sha256: "a".repeat(64),
     bytes: PDF.byteLength, pageCount: 4, status: "active", llmPageBudget: over.budget ?? 20, basis: "consolidated", sourceType: "Annual report",
-    filedOn: null, sourceUrl: null, originalDeletedAt: null, createdAt: new Date(T0).toISOString(),
+    filedOn: null, sourceUrl: null, originalDeletedAt: null, transcriptStatus: null, createdAt: new Date(T0).toISOString(),
   });
   repo.files.set(`${DOC}.pdf`, PDF);
   const text = [["Cover page of the annual report, with no figures on it."], [""], [""], ["Back page of the annual report, with no figures."]];
@@ -58,7 +58,8 @@ function ctx(repo: MemoryDocumentsRepo, ocr: OcrPort | null, opts: { llm?: LlmPo
   const deps: StepDeps = {
     llm: opts.llm === undefined ? fakeLlm : opts.llm,
     ocr,
-    models: { text: "test-model", vision: "test-vision" },
+    transcriber: null,
+    models: { text: "test-model", vision: "test-vision", whisper: "test-whisper" },
     repos: { documents: machineDocuments(repo), usage: opts.usage ?? createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),

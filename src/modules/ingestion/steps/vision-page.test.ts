@@ -44,7 +44,7 @@ function setup(over: { text?: string; path?: string | null; deleted?: boolean; k
   documents.docs.set(DOC, {
     id: DOC, companyId: null, title: "Q2 table", kind: over.kind ?? "image", storagePath: path, sha256: "d".repeat(64), bytes: IMAGE.byteLength, pageCount: 1,
     status: "active", llmPageBudget: 20, basis: "consolidated", sourceType: "Annual report", filedOn: null, sourceUrl: null,
-    originalDeletedAt: over.deleted ? new Date(T0).toISOString() : null, createdAt: new Date(T0).toISOString(),
+    originalDeletedAt: over.deleted ? new Date(T0).toISOString() : null, transcriptStatus: null, createdAt: new Date(T0).toISOString(),
   });
   const text = over.text ?? OCR_TEXT;
   documents.pages.set(`${DOC}:1`, {
@@ -58,7 +58,8 @@ function ctx(s: Setup, llm: LlmPort | null, step: Partial<Step> = {}): StepConte
   const deps: StepDeps = {
     llm,
     ocr: null,
-    models: { text: "test-text", vision: "test-vision" },
+    transcriber: null,
+    models: { text: "test-text", vision: "test-vision", whisper: "test-whisper" },
     repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: s.proposals, research: createMemoryResearch() },
     now: () => new Date(T0),
     clock: () => T0,

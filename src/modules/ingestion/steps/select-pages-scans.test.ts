@@ -20,7 +20,7 @@ function repoOf(pages: string[], budget: number): MemoryDocumentsRepo {
   const repo = createMemoryDocumentsRepo();
   repo.docs.set(DOC, {
     id: DOC, companyId: null, title: "Scanned report", kind: "pdf", storagePath: `${DOC}.pdf`, sha256: "a".repeat(64), bytes: 10, pageCount: pages.length,
-    status: "active", llmPageBudget: budget, basis: "consolidated", sourceType: "Annual report", filedOn: null, sourceUrl: null, originalDeletedAt: null,
+    status: "active", llmPageBudget: budget, basis: "consolidated", sourceType: "Annual report", filedOn: null, sourceUrl: null, originalDeletedAt: null, transcriptStatus: null,
     createdAt: new Date(T0).toISOString(),
   });
   pages.forEach((text, i) => {
@@ -31,7 +31,7 @@ function repoOf(pages: string[], budget: number): MemoryDocumentsRepo {
 
 function run(repo: MemoryDocumentsRepo, llm: LlmPort | null = fakeLlm) {
   const deps: StepDeps = {
-    llm, ocr: null, models: { text: "m", vision: "v" },
+    llm, ocr: null, models: { text: "m", vision: "v", whisper: "w" }, transcriber: null,
     repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
     now: () => new Date(T0), clock: () => T0,
   };

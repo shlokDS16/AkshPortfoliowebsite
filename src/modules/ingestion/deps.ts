@@ -1,5 +1,6 @@
 import type { LlmPort } from "@/lib/providers/llm";
 import type { OcrPort } from "@/lib/providers/ocr";
+import type { TranscriberPort } from "@/lib/providers/transcriber";
 import type { Db } from "@/lib/supabase/types";
 import type { DocumentsRepo } from "@/modules/documents";
 import type { ProposalsRepo } from "./proposals-repo";
@@ -29,8 +30,10 @@ export type DrainDeps = {
   llm: LlmPort | null;
   /** The scan reader, or null when scan reading is off (no OCRSPACE_API_KEY): ocr_page steps then wait. */
   ocr: OcrPort | null;
-  /** Groq model ids: the text model reads digital pages, the vision model reads one photo per call. */
-  models: { text: string; vision: string };
+  /** The voice transcriber, or null while voice notes are off (VOICE_NOTES unset): transcribe steps then stop with a sentence. */
+  transcriber: TranscriberPort | null;
+  /** Groq model ids: the text model reads digital pages, the vision model reads one photo per call, whisper types out a voice note. */
+  models: { text: string; vision: string; whisper: string };
   repos: MachineRepos;
   now: () => Date;
   clock: () => number;

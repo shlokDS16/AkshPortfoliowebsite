@@ -11,9 +11,11 @@ const mocks = vi.hoisted(() => ({
   hash: vi.fn(async () => "a".repeat(64)),
   put: vi.fn(async () => ({ error: null })),
   shrink: vi.fn(),
+  measure: vi.fn(async () => 95),
 }));
 vi.mock("@/lib/supabase/browser", () => ({ createSupabaseBrowserClient: () => ({ storage: { from: () => ({ uploadToSignedUrl: mocks.put }) } }) }));
 vi.mock("./downscale", () => ({ downscaleImage: mocks.shrink }));
+vi.mock("./audio-duration", () => ({ measureAudioSeconds: mocks.measure }));
 vi.mock("@/modules/ingestion/actions", () => ({ startUploadAction: mocks.start, finishUploadAction: mocks.finish }));
 vi.mock("@/modules/documents/client", async (importOriginal) => ({ ...(await importOriginal<object>()), hashFile: mocks.hash }));
 
@@ -23,6 +25,7 @@ beforeEach(() => {
   mocks.hash.mockClear();
   mocks.put.mockClear();
   mocks.shrink.mockReset();
+  mocks.measure.mockClear();
 });
 
 describe("DropBar", () => {
@@ -98,6 +101,43 @@ describe("DropBar", () => {
     fireEvent.drop(screen.getByText(/or drop one here/).closest("div")!.parentElement!, { dataTransfer: { files: [file("ar.pdf", 3 * MB)] } });
     expect(mocks.hash).not.toHaveBeenCalled();
     expect(mocks.start).not.toHaveBeenCalled();
+  });
+
+  describe("voice notes", () => {
+    it("are neither offered nor taken while the switch is off: the picker hides them and a dropped one is refused before any upload", async () => {
+      render(<DropBar companies={[]} actions={actionsMock()} />);
+      expect(input().getAttribute("accept")).not.toContain("audio");
+      expect(screen.getByText(/or drop one here/)).not.toHaveTextContent(/voice/i);
+      fireEvent.change(input(), { target: { files: [file("call.m4a", 3 * MB, "audio/x-m4a")] } });
+      expect(await screen.findByRole("alert")).toHaveTextContent("Voice notes are not switched on yet.");
+      expect(mocks.hash).not.toHaveBeenCalled();
+      expect(mocks.start).not.toHaveBeenCalled();
+      expect(mocks.put).not.toHaveBeenCalled();
+    });
+
+    it("are offered once the switch is on, and say what they take", () => {
+      render(<DropBar companies={[]} actions={actionsMock()} voiceOn />);
+      expect(input().getAttribute("accept")).toContain("audio/x-m4a");
+      expect(screen.getByText(/or drop one here/)).toHaveTextContent("or a voice note (MP3, M4A or WebM, up to 25 MB).");
+    });
+
+    it("go up with the measured length, a bare type and the length passed to finish", async () => {
+      mocks.start.mockResolvedValue({ ok: true, documentId: "d9", path: "d9.m4a", token: "t" });
+      mocks.finish.mockResolvedValue({ ok: true });
+      render(<DropBar companies={[]} actions={actionsMock()} voiceOn />);
+      await userEvent.upload(input(), file("call.m4a", 3 * MB, "audio/x-m4a;codecs=mp4a.40.2"));
+      expect(await screen.findByText(/Uploaded call.m4a/)).toBeInTheDocument();
+      expect(mocks.start).toHaveBeenCalledWith(expect.objectContaining({ kind: "audio", mime: "audio/x-m4a", bytes: 3 * MB, seconds: 95 }));
+      expect(mocks.put).toHaveBeenCalledWith("d9.m4a", "t", expect.anything(), { contentType: "audio/x-m4a" });
+      expect(mocks.finish).toHaveBeenCalledWith("d9", 95);
+    });
+
+    it("refuses a file over 25 MB before any upload", async () => {
+      render(<DropBar companies={[]} actions={actionsMock()} voiceOn />);
+      fireEvent.change(input(), { target: { files: [file("long.mp3", 26 * MB, "audio/mpeg")] } });
+      expect(await screen.findByRole("alert")).toHaveTextContent("This voice note is over 25 MB. Record a shorter one.");
+      expect(mocks.start).not.toHaveBeenCalled();
+    });
   });
 
   it("takes uploads at 72%", () => {

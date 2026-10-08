@@ -74,6 +74,18 @@ describe("parseServerEnv: the LLM settings (optional; unset means AI reading is 
     expect(parseServerEnv({ ...valid, GROQ_MODEL_TEXT: "openai/gpt-oss-20b" }).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-20b");
   });
 
+  it("defaults GROQ_MODEL_WHISPER to Whisper large v3 turbo, also when the template leaves it empty", () => {
+    expect(parseServerEnv(valid).GROQ_MODEL_WHISPER).toBe("whisper-large-v3-turbo");
+    expect(parseServerEnv({ ...valid, GROQ_MODEL_WHISPER: "" }).GROQ_MODEL_WHISPER).toBe("whisper-large-v3-turbo");
+  });
+
+  it("keeps voice notes off unless VOICE_NOTES is exactly on (blank and unset are off; anything else is an error)", () => {
+    expect(parseServerEnv(valid).VOICE_NOTES).toBeUndefined();
+    expect(parseServerEnv({ ...valid, VOICE_NOTES: "" }).VOICE_NOTES).toBeUndefined();
+    expect(parseServerEnv({ ...valid, VOICE_NOTES: "on" }).VOICE_NOTES).toBe("on");
+    for (const bad of ["off", "true", "1", "ON"]) expect(() => parseServerEnv({ ...valid, VOICE_NOTES: bad })).toThrow(/VOICE_NOTES/);
+  });
+
   it("treats OCRSPACE_API_KEY as optional (unset means scan reading is off), blank included, and never echoes a bad key", () => {
     expect(parseServerEnv(valid).OCRSPACE_API_KEY).toBeUndefined();
     expect(parseServerEnv({ ...valid, OCRSPACE_API_KEY: "" }).OCRSPACE_API_KEY).toBeUndefined();

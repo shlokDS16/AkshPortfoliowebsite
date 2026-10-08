@@ -13,7 +13,7 @@ import type { QueueRepo } from "./queue-repo";
 export type InboxPorts = { docs: DocumentsRepo; inbox: InboxRepo; queue: QueueRepo };
 
 /** A well-formed id of a document that exists; anything else is "no such row" (a crafted POST). */
-async function documentOf(p: InboxPorts, documentId: string, statuses: DocumentRow["status"][]): Promise<DocumentRow> {
+export async function documentOf(p: InboxPorts, documentId: string, statuses: DocumentRow["status"][]): Promise<DocumentRow> {
   if (!isUuid(documentId)) throw new InvalidInputError();
   const doc = await p.docs.get(documentId);
   if (!doc || !statuses.includes(doc.status)) throw new InvalidInputError();

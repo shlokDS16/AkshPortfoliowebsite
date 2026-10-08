@@ -16,11 +16,13 @@ const ERROR_MAX = 500;
 const text = (e: unknown) => safeErrorText(e).slice(0, ERROR_MAX);
 /** "documents.download (no code)" reads as "(documents.download, no code)" beside the plain sentence. */
 const note = (error: string) => error.replace(/^(\S+) \(([^()]*)\)$/, "$1, $2");
-const gaveUp = (failure: "schema" | "provider", error: string) =>
-  `${failure === "schema" ? SCHEMA_GAVE_UP : PROVIDER_GAVE_UP} (${note(error)})`.slice(0, ERROR_MAX);
+/** Pending Shlok approval, spec s16.9: a voice note has no figures to enter by hand. */
+export const VOICE_GAVE_UP = "This voice note could not be typed out after three tries. Try again, or skip it.";
+const gaveUp = (failure: "schema" | "provider", error: string, kind: StepKind) =>
+  `${failure === "schema" ? SCHEMA_GAVE_UP : kind === "transcribe" ? VOICE_GAVE_UP : PROVIDER_GAVE_UP} (${note(error)})`.slice(0, ERROR_MAX);
 
 /** What a handler gets: everything but the client (ruling R7), so a step cannot reach the database except through repos. */
-const stepDeps = (deps: DrainDeps): StepDeps => ({ llm: deps.llm, ocr: deps.ocr, models: deps.models, repos: deps.repos, now: deps.now, clock: deps.clock });
+const stepDeps = (deps: DrainDeps): StepDeps => ({ llm: deps.llm, ocr: deps.ocr, transcriber: deps.transcriber, models: deps.models, repos: deps.repos, now: deps.now, clock: deps.clock });
 
 /**
  * Claims and runs steps until the budget is spent or nothing is runnable (ADR-004 s4.4). Never throws for a
@@ -70,7 +72,7 @@ export async function drain(deps: DrainDeps, repo: QueueRepo, handlers: Record<S
         providerFailures: provider,
         notBefore: new Date(now.getTime() + backoffMs),
         // A retry keeps the raw issues (a schema retry sends them back to the model); a stop shows Aksh a sentence.
-        lastError: stop ? gaveUp(outcome.failure, outcome.error) : outcome.error.slice(0, ERROR_MAX),
+        lastError: stop ? gaveUp(outcome.failure, outcome.error, step.kind) : outcome.error.slice(0, ERROR_MAX),
       });
       summary.attention += Number(ok && stop);
     }

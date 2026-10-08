@@ -3,6 +3,7 @@ import { extractPage } from "./extract-page";
 import { ocrPage } from "./ocr-page";
 import { pdfText } from "./pdf-text";
 import { selectPagesStep } from "./select-pages";
+import { transcribe } from "./transcribe";
 import { visionPage } from "./vision-page";
 
 // Step handlers take every repo through ctx.deps.repos (ruling R7) and never import a Supabase client or touch the
@@ -14,4 +15,5 @@ export const HANDLERS: Record<StepKind, StepHandler> = {
   extract_page: extractPage,
   ocr_page: ocrPage,
   vision_page: visionPage,
+  transcribe,
 };

@@ -62,6 +62,10 @@ describe("listedPages", () => {
   it("a photo is one page with nothing to tick", () => {
     expect(listedPages("image", [row("d1", 1)])).toEqual([]);
   });
+
+  it("a voice note is one page of typed-out words with nothing to tick, even when it is short", () => {
+    expect(listedPages("audio", [row("d1", 1, { is_scan: true })])).toEqual([]);
+  });
 });
 
 describe("the photo size limit", () => {

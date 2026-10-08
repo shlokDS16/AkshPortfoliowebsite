@@ -24,6 +24,10 @@ export function needsYouFrom(docs: InboxDoc[]): NeedsYouDoc[] {
     if (d.view.tray === "ready" && d.pending > 0) {
       return [{ id: d.id, title: d.title, kind: "ready", message: d.view.message, pagesUnread: false, href: `/desk/inbox/${d.id}/review` }];
     }
+    // A typed-out voice note has no review screen: its card is in the inbox (ruling R13).
+    if (d.view.tray === "ready" && d.transcript !== null) {
+      return [{ id: d.id, title: d.title, kind: "ready", message: d.view.message, pagesUnread: false, href: `/desk/inbox#doc-${d.id}` }];
+    }
     if (d.view.tray === "attention") {
       return [{ id: d.id, title: d.title, kind: "attention", message: d.view.message, pagesUnread: d.view.attentionPages.length > 0, href: `/desk/inbox#doc-${d.id}` }];
     }

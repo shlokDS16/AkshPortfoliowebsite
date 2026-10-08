@@ -7,7 +7,7 @@ import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { MIN_STEP_MS } from "./caps";
 import { machineDocuments, type DrainDeps } from "./deps";
 import type { QueueRepo } from "./queue-repo";
-import { drain, PROVIDER_GAVE_UP, SCHEMA_GAVE_UP } from "./runner";
+import { drain, PROVIDER_GAVE_UP, SCHEMA_GAVE_UP, VOICE_GAVE_UP } from "./runner";
 import type { NewStep, Step, StepContext, StepHandler, StepKind, StepOutcome } from "./types";
 
 const T0 = Date.parse("2026-10-07T10:00:00Z");
@@ -23,7 +23,8 @@ function deps(time = fakeTime()): DrainDeps {
     db: {} as Db,
     llm: null,
     ocr: null,
-    models: { text: "test-model", vision: "test-vision" },
+    transcriber: null,
+    models: { text: "test-model", vision: "test-vision", whisper: "test-whisper" },
     repos: {
       documents: machineDocuments(createMemoryDocumentsRepo()),
       usage: createMemoryUsageRepo(),
@@ -93,6 +94,7 @@ const handlers = (h: Partial<Record<StepKind, StepHandler>>): Record<StepKind, S
   extract_page: h.extract_page ?? always({ kind: "done" }),
   ocr_page: h.ocr_page ?? always({ kind: "done" }),
   vision_page: h.vision_page ?? always({ kind: "done" }),
+  transcribe: h.transcribe ?? always({ kind: "done" }),
 });
 
 describe("drain", () => {
@@ -162,6 +164,13 @@ describe("drain", () => {
     expect(await run(2)).toMatchObject({ status: "needs_attention", providerFailures: 3, lastError: `${PROVIDER_GAVE_UP} (503)` });
   });
 
+  it("a voice note that fails three times says so in its own words, not the figures sentence", async () => {
+    const m = memoryRepo([step("transcribe", 1, { providerFailures: 2 })]);
+    await drain(deps(), m.repo, handlers({ transcribe: always({ kind: "retry", failure: "provider", error: "HTTP 503" }) }), 240_000);
+    expect(m.steps[0]).toMatchObject({ status: "needs_attention", lastError: `${VOICE_GAVE_UP} (HTTP 503)` });
+    expect(VOICE_GAVE_UP).not.toMatch(/figures/);
+  });
+
   it("after three database failures Aksh reads a plain sentence with the operation and code beside it", async () => {
     const down: StepHandler = async () => {
       throw new DbError("documents.download", undefined, "Object not found: secret/path.pdf");
@@ -184,7 +193,7 @@ describe("drain", () => {
     };
     await drain(deps(), memoryRepo([step("pdf_text", 1)]).repo, handlers({ pdf_text: look }), 240_000);
     expect(seen).not.toBeNull();
-    expect(Object.keys(seen!).sort()).toEqual(["clock", "llm", "models", "now", "ocr", "repos"]);
+    expect(Object.keys(seen!).sort()).toEqual(["clock", "llm", "models", "now", "ocr", "repos", "transcriber"]);
   });
 
   it("a step whose lease expired twice goes to needs_attention without running its handler", async () => {

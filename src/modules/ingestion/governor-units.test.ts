@@ -18,7 +18,7 @@ function fakeUsage(refusal?: Block) {
     refusalsSinceUse: vi.fn(),
   } satisfies UsageRepo;
 }
-const run = <R>(repo: UsageRepo, call: () => Promise<{ result: R; spent: boolean }>) =>
+const run = <R>(repo: UsageRepo, call: () => Promise<{ result: R; spent: boolean | number }>) =>
   callWithinUnits({ usage: repo, now: () => NOW }, OCR_BUCKET, 1, CAPS, call);
 
 describe("the OCR caps (ruling R9: no month counter)", () => {
@@ -46,6 +46,15 @@ describe("callWithinUnits", () => {
     const repo = fakeUsage();
     expect(await run(repo, async () => ({ result: "text", spent: true }))).toEqual({ kind: "called", result: "text" });
     expect(repo.settle).toHaveBeenCalledWith("res-1", 1, "used");
+  });
+
+  it("settles a number of units as used: a voice note reconciled to the length the provider reported", async () => {
+    const repo = fakeUsage();
+    await run(repo, async () => ({ result: "text", spent: 37 }));
+    expect(repo.settle).toHaveBeenCalledWith("res-1", 37, "used");
+    const zero = fakeUsage();
+    await run(zero, async () => ({ result: "text", spent: 0 }));
+    expect(zero.settle).toHaveBeenCalledWith("res-1", 0, "released");
   });
 
   it("releases the units when the call was refused or did not reach the provider", async () => {

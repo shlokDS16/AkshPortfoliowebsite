@@ -5,30 +5,32 @@ import type { Db } from "@/lib/supabase/types";
 import type { DocumentKind } from "./kinds";
 import { POSTGREST_ROWS } from "./limits";
 import type { PageVerdict } from "./selector";
-import type { Basis, DocSourceType, DocumentListItem, DocumentRow, DocumentStatus, PageForExtraction, PageForReading, PageKind, PageText } from "./types";
+import type { Basis, DocSourceType, DocumentListItem, DocumentRow, DocumentStatus, PageForExtraction, PageForReading, PageKind, PageText, TranscriptStatus } from "./types";
 
 const BUCKET = "documents";
 const DOCUMENT_COLUMNS =
-  "id, company_id, title, kind, storage_path, sha256, bytes, page_count, status, llm_page_budget, basis, source_type, filed_on, source_url, original_deleted_at, created_at";
+  "id, company_id, title, kind, storage_path, sha256, bytes, page_count, status, llm_page_budget, basis, source_type, filed_on, source_url, original_deleted_at, transcript_status, created_at";
 const LIST_COLUMNS = "id, title, page_count, filed_on, source_url, source_type, original_deleted_at";
 const PAGE_RANGE = POSTGREST_ROWS;
 
 type Row = {
   id: string; company_id: string | null; title: string; kind: string; storage_path: string | null; sha256: string;
   bytes: number; page_count: number | null; status: string; llm_page_budget: number; basis: string; source_type: string;
-  filed_on: string | null; source_url: string | null; original_deleted_at: string | null; created_at: string;
+  filed_on: string | null; source_url: string | null; original_deleted_at: string | null; transcript_status: string | null; created_at: string;
 };
 
 export type DocumentPatch = Partial<
-  Pick<DocumentRow, "title" | "companyId" | "llmPageBudget" | "basis" | "sourceType" | "filedOn" | "sourceUrl" | "status" | "originalDeletedAt">
+  Pick<DocumentRow, "title" | "companyId" | "llmPageBudget" | "basis" | "sourceType" | "filedOn" | "sourceUrl" | "status" | "originalDeletedAt" | "transcriptStatus">
 >;
 
 export interface DocumentsRepo {
   /** `status` lets an upload that never finished be resumed instead of refused as a duplicate. */
   findBySha(sha256: string): Promise<{ id: string; createdAt: string; status: DocumentStatus } | null>;
   insertUploading(row: {
-    id: string; title: string; kind: "pdf" | "image"; storagePath: string; sha256: string; bytes: number;
+    id: string; title: string; kind: "pdf" | "image" | "audio"; storagePath: string; sha256: string; bytes: number;
     companyId: string | null; filedOn: string | null; sourceUrl: string | null;
+    /** 'pending' for a voice note (its transcript waits for Aksh), else null. */
+    transcriptStatus?: TranscriptStatus | null;
   }): Promise<void>;
   get(id: string): Promise<DocumentRow | null>;
   update(id: string, patch: DocumentPatch): Promise<void>;
@@ -79,13 +81,14 @@ const toDocument = (r: Row): DocumentRow => ({
   filedOn: r.filed_on,
   sourceUrl: r.source_url,
   originalDeletedAt: r.original_deleted_at,
+  transcriptStatus: r.transcript_status as TranscriptStatus | null,
   createdAt: r.created_at,
 });
 
 // Only the columns the authenticated role may update (migration 0006 column grants).
 type UpdateColumns = Pick<
   Database["public"]["Tables"]["documents"]["Update"],
-  "title" | "company_id" | "llm_page_budget" | "basis" | "source_type" | "filed_on" | "source_url" | "status" | "original_deleted_at"
+  "title" | "company_id" | "llm_page_budget" | "basis" | "source_type" | "filed_on" | "source_url" | "status" | "original_deleted_at" | "transcript_status"
 >;
 
 function toColumns(patch: DocumentPatch): UpdateColumns {
@@ -99,6 +102,7 @@ function toColumns(patch: DocumentPatch): UpdateColumns {
   if (patch.sourceUrl !== undefined) out.source_url = patch.sourceUrl;
   if (patch.status !== undefined) out.status = patch.status;
   if (patch.originalDeletedAt !== undefined) out.original_deleted_at = patch.originalDeletedAt;
+  if (patch.transcriptStatus !== undefined) out.transcript_status = patch.transcriptStatus;
   return out;
 }
 
@@ -121,6 +125,7 @@ export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
         company_id: row.companyId,
         filed_on: row.filedOn,
         source_url: row.sourceUrl,
+        transcript_status: row.transcriptStatus ?? null,
         status: "uploading",
       });
       if (error) throw dbError("documents.insertUploading", error);

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { retryStepAction, skipDocumentAction, skipStepAction } from "@/modules/ingestion/actions";
 import type { InboxDoc, Tray } from "@/modules/ingestion/client";
 import { PageChooser } from "./page-chooser";
+import { TranscriptCard } from "./transcript-card";
 import type { InboxActions } from "./types";
 import { useInboxAction } from "./use-inbox-action";
 
@@ -43,7 +44,8 @@ export function DocumentCard({ doc, aiOn, actions }: Props) {
   const ticked = doc.pages.filter((p) => p.selected).length;
   // A page ticked while AI was off has no step yet: with AI on, one button queues them all.
   const unqueued = view.tray === "ready" && aiOn && ticked > view.extractTotal;
-  const skippable = doc.status === "active" && (view.tray === "waiting" || view.tray === "paused" || (view.tray === "ready" && doc.pending === 0));
+  // A typed-out voice note is closed by its own Save or Discard (which also delete the recording), not by Skip.
+  const skippable = doc.status === "active" && (view.tray === "waiting" || view.tray === "paused" || (view.tray === "ready" && doc.pending === 0 && doc.transcript === null));
   // Review is also the way to Done, so it stays while any figure exists, decided or not, in the ready and attention trays.
   const reviewable = (view.tray === "ready" || view.tray === "attention") && (doc.pending > 0 || doc.decided > 0);
   const link = "inline-flex min-h-11 items-center rounded-sm px-3 text-body font-medium no-underline";
@@ -66,6 +68,7 @@ export function DocumentCard({ doc, aiOn, actions }: Props) {
       </div>
       <p className="text-body text-ink-body">{view.message}</p>
       {view.tray === "reading" && view.extractTotal > 0 ? <Progress done={view.extractDone} total={view.extractTotal} /> : null}
+      {doc.status === "active" && view.tray === "ready" && doc.transcript !== null ? <TranscriptCard documentId={doc.id} transcript={doc.transcript} /> : null}
 
       <div className="flex flex-wrap items-center gap-2">
         {reviewable ? (

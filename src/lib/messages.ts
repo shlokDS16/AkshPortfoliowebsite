@@ -36,6 +36,9 @@ const ERRORS = {
   "upload-image-too-large": "This photo is still over 1 MB after shrinking; crop it to the table.",
   "upload-storage-full": "Storage is over 90% full. Mark finished documents as done to free space.",
   "upload-missing": "The upload did not arrive complete. Upload the file again.",
+  "voice-off": "Voice notes are not switched on yet.",
+  "voice-too-large": "This voice note is over 25 MB. Record a shorter one.",
+  "voice-too-long": "This voice note is longer than 90 minutes. Record a shorter one.",
   // Inbox actions (= INBOX_ERROR_TEXT in modules/ingestion/errors.ts; a test keeps them equal).
   "page-budget-reached": "This document is at its page limit. Raise the limit to read more pages.",
   "budget-range": "Choose a page limit from 1 to 40.",
@@ -80,6 +83,9 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "upload-image-too-large": "upload-image-too-large",
   "upload-storage-full": "upload-storage-full",
   "upload-missing": "upload-missing",
+  "voice-off": "voice-off",
+  "voice-too-large": "voice-too-large",
+  "voice-too-long": "voice-too-long",
   // InboxError likewise.
   "page-budget-reached": "page-budget-reached",
   "budget-range": "budget-range",

@@ -17,6 +17,13 @@ const serverSchema = publicSchema.extend({
   GROQ_MODEL_TEXT: z.preprocess(blank, z.string().trim().min(1).default("openai/gpt-oss-120b")),
   /** Reads a photo or screenshot of a table, one image per call (spec s9; https://console.groq.com/docs/vision). */
   GROQ_MODEL_VISION: z.preprocess(blank, z.string().trim().min(1).default("qwen/qwen3.8-27b")),
+  /** Transcribes a voice note (spec s9; https://console.groq.com/docs/speech-to-text). Free tier: 25 MB a file. */
+  GROQ_MODEL_WHISPER: z.preprocess(blank, z.string().trim().min(1).default("whisper-large-v3-turbo")),
+  /**
+   * Voice notes send Aksh's recordings to Groq (ADR-004 s8). `on` or unset; unset is off, and nothing is uploaded or sent.
+   * Switch it on only after Aksh has agreed; his consent is not recorded yet.
+   */
+  VOICE_NOTES: optional(z.enum(["on"])),
   /** [DEV-ONLY] `fixture` for local e2e; createLlmPort refuses it on Vercel preview/production (ruling R27). */
   LLM_ADAPTER: optional(z.enum(["groq", "fixture"])),
   // Scanned pages (spec s9, Plan 2b Task 2). No key means "Scan reading is off"; the app still runs.

@@ -55,5 +55,7 @@ export function appEnv(stack: LocalStack): Record<string, string> {
     CRON_SECRET: E2E_CRON_SECRET,
     // The committed answers stand in for Groq (src/lib/providers/fixtures). Set here and never on Vercel, which refuses it.
     LLM_ADAPTER: "fixture",
+    // Voice notes are OFF everywhere except this throw-away test server (ADR-004 s8: Aksh has not agreed yet). Never in an env file or on Vercel.
+    VOICE_NOTES: "on",
   };
 }

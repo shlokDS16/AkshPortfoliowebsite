@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label";
 import { formatDate } from "@/lib/format";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
-import { hashFile, MAX_UPLOAD_BYTES, STORAGE_REFUSE } from "@/modules/documents/client";
+import { hashFile, MAX_UPLOAD_BYTES, STORAGE_REFUSE, VOICE_MAX_BYTES } from "@/modules/documents/client";
 import { finishUploadAction, startUploadAction } from "@/modules/ingestion/actions";
 import type { InboxActions } from "./types";
-import { ACCEPT } from "./file-kinds";
+import { acceptFor } from "./file-kinds";
 import { uploadFile, type UploadDeps, type UploadStage } from "./upload-file";
 
 export type CompanyOption = { id: string; symbol: string };
@@ -28,8 +28,12 @@ async function putToStorage(path: string, token: string, file: File, contentType
 
 type Notice = { tone: "ok" | "bad"; text: string; earlier?: { id: string; createdAt: string } };
 
-/** Choose or drop a PDF, or a photo or screenshot of a table (shrunk here first): it goes straight to Storage with a signed path, then the desk starts reading it (spec s6.2). */
-export function DropBar({ companies, actions, storageShare = 0 }: { companies: CompanyOption[]; actions: Pick<InboxActions, "kick">; storageShare?: number }) {
+/**
+ * Choose or drop a PDF, or a photo or screenshot of a table (shrunk here first), or, only while `voiceOn`, a voice note: it goes
+ * straight to Storage with a signed path, then the desk starts reading it (spec s6.2). With voice notes off the bar neither offers
+ * nor takes them, and the server refuses one anyway.
+ */
+export function DropBar({ companies, actions, storageShare = 0, voiceOn = false }: { companies: CompanyOption[]; actions: Pick<InboxActions, "kick">; storageShare?: number; voiceOn?: boolean }) {
   // Past 90% of the free storage the server refuses every upload (spec s10), so the bar says so instead of letting a file wait for it.
   const full = storageShare >= STORAGE_REFUSE;
   const [stage, setStage] = useState<UploadStage | null>(null);
@@ -54,7 +58,7 @@ export function DropBar({ companies, actions, storageShare = 0 }: { companies: C
     const fields = extras();
     if (typeof fields === "string") return setNotice({ tone: "bad", text: fields });
     setNotice(null);
-    const deps: UploadDeps = { hash: hashFile, start: startUploadAction, put: putToStorage, finish: finishUploadAction, kick: actions.kick };
+    const deps: UploadDeps = { hash: hashFile, start: startUploadAction, put: putToStorage, finish: finishUploadAction, kick: actions.kick, voiceOn };
     const outcome = await uploadFile(file, fields, deps, setStage).catch(() => null);
     setStage(null);
     if (!outcome) return setNotice({ tone: "bad", text: "The upload did not finish. Choose the file again to resume." });
@@ -90,10 +94,11 @@ export function DropBar({ companies, actions, storageShare = 0 }: { companies: C
             )}
           >
             Choose a file
-            <input type="file" accept={ACCEPT} className="sr-only" disabled={busy} onChange={onPick} />
+            <input type="file" accept={acceptFor(voiceOn)} className="sr-only" disabled={busy} onChange={onPick} />
           </label>
           <p className="text-small text-ink-muted">
-            or drop one here. PDFs of annual reports, presentations and filings, up to {MAX_UPLOAD_BYTES / 1_048_576} MB, and photos or screenshots of a table.
+            or drop one here. PDFs of annual reports, presentations and filings, up to {MAX_UPLOAD_BYTES / 1_048_576} MB, and photos or screenshots of a table
+            {voiceOn ? `, or a voice note (MP3, M4A or WebM, up to ${VOICE_MAX_BYTES / 1_000_000} MB).` : "."}
           </p>
         </div>
         <details>

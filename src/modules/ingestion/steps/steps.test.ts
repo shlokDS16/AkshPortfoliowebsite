@@ -24,7 +24,7 @@ function repoWith(bytes: Uint8Array, opts: { sha256?: string; pageCount?: number
   repo.docs.set(DOC, {
     id: DOC, companyId: null, title: "Kaveri annual report", kind: "pdf", storagePath: PATH, sha256: opts.sha256 ?? sha(bytes),
     bytes: bytes.byteLength, pageCount: opts.pageCount ?? null, status: "active", llmPageBudget: opts.budget ?? 20,
-    basis: "consolidated", sourceType: "Annual report", filedOn: null, sourceUrl: null, originalDeletedAt: null,
+    basis: "consolidated", sourceType: "Annual report", filedOn: null, sourceUrl: null, originalDeletedAt: null, transcriptStatus: null,
     createdAt: new Date(T0).toISOString(),
   });
   repo.files.set(PATH, bytes);
@@ -35,7 +35,8 @@ function ctx(repo: MemoryDocumentsRepo, step: Partial<Step>, opts: { clock?: () 
   const deps: StepDeps = {
     llm: opts.llm === undefined ? null : opts.llm,
     ocr: null,
-    models: { text: "test-model", vision: "test-vision" },
+    transcriber: null,
+    models: { text: "test-model", vision: "test-vision", whisper: "test-whisper" },
     repos: {
       documents: machineDocuments(repo),
       usage: createMemoryUsageRepo(),

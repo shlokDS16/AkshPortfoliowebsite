@@ -48,5 +48,7 @@ export default async function InboxPage() {
       </div>
     );
   }
-  return <InboxSection docs={inbox.docs} usage={inbox.usage} aiOn={inbox.aiOn} aiPages={inbox.aiPages} companies={inbox.companies} actions={actions} />;
+  // Voice notes send Aksh's recordings to Groq: off unless VOICE_NOTES is "on" (ADR-004 s8).
+  const voiceOn = serverEnv().VOICE_NOTES === "on";
+  return <InboxSection docs={inbox.docs} usage={inbox.usage} aiOn={inbox.aiOn} aiPages={inbox.aiPages} companies={inbox.companies} actions={actions} voiceOn={voiceOn} />;
 }

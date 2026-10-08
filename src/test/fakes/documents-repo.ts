@@ -50,7 +50,7 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
       if ([...docs.values()].some((d) => d.sha256 === row.sha256)) {
         throw new DbError("documents.insertUploading", "23505", "duplicate key value violates unique constraint");
       }
-      docs.set(row.id, { ...blank(row.id, row.sha256, stamp()), ...row, status: "uploading" });
+      docs.set(row.id, { ...blank(row.id, row.sha256, stamp()), ...row, transcriptStatus: row.transcriptStatus ?? null, status: "uploading" });
     },
     async get(id) {
       return docs.get(id) ?? null;
@@ -139,6 +139,6 @@ function blank(id: string, sha256: string, createdAt: string): DocumentRow {
   return {
     id, companyId: null, title: "x", kind: "pdf", storagePath: null, sha256, bytes: 1, pageCount: null, status: "uploading",
     llmPageBudget: 20, basis: "consolidated", sourceType: "Annual report", filedOn: null, sourceUrl: null,
-    originalDeletedAt: null, createdAt,
+    originalDeletedAt: null, transcriptStatus: null, createdAt,
   };
 }

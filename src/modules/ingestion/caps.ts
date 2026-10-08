@@ -64,3 +64,23 @@ export const READABLE_CHARS = 50;
 
 /** Input tokens one image costs on Groq vision (spec s9, https://console.groq.com/docs/vision, read 2026-10-08). */
 export const IMAGE_TOKENS = 2_048;
+
+/** The Whisper bucket in provider_usage. reserve_units derives the day wait (voice_day) from the name containing 'whisper'. */
+export const WHISPER_BUCKET = "groq-whisper";
+/**
+ * Whisper turbo free tier at 75% of 20 RPM, 2K RPD, 7.2K audio seconds an hour and 28.8K a day (spec s9, rate-limits page,
+ * verified 2026-10-07). One unit is one second of audio.
+ */
+export const WHISPER_CAPS = { rpm: 15, rpd: 1_500, secondsHour: 5_400, secondsDay: 21_600 } as const;
+/** Groq bills at least this many audio seconds a request (spec s16.6, https://console.groq.com/docs/speech-to-text). */
+export const WHISPER_MIN_BILLED_SECONDS = 10;
+/**
+ * The densest audio the desk accepts, in bytes a second (a 320 kbps MP3 is 40,000). A file cannot hold more seconds than
+ * its size at the thinnest sound divided by this, so bytes / this is a floor on the seconds to reserve when the browser could
+ * not measure the length (a webm from MediaRecorder reports Infinity).
+ */
+export const WHISPER_BYTES_PER_SECOND = 40_000;
+/** One Whisper call waits at most this long (a 25 MB file on the free tier can take a while). */
+export const WHISPER_TIMEOUT_MS = 90_000;
+/** A transcript the card can save as one capture: captures.raw_text allows 20,000 characters (capture/service.ts). */
+export const TRANSCRIPT_SAVE_MAX_CHARS = 20_000;

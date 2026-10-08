@@ -1,6 +1,6 @@
 import "server-only";
 import { serverEnv } from "@/lib/env.server";
-import { createLlmPort, createOcrPort, type LlmPort, type OcrPort } from "@/lib/providers";
+import { createLlmPort, createOcrPort, createTranscriberPort, type LlmPort, type OcrPort, type TranscriberPort } from "@/lib/providers";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { createProposalsRepo, createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, OCR_MAX_BYTES, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
@@ -20,6 +20,11 @@ function buildOcr(): OcrPort | null {
   return createOcrPort(serverEnv(), { maxBytes: OCR_MAX_BYTES });
 }
 
+/** The voice transcriber, or null while voice notes are off (VOICE_NOTES is not "on"; the fixture is refused on Vercel). */
+function buildTranscriber(): TranscriberPort | null {
+  return createTranscriberPort(serverEnv(), { model: serverEnv().GROQ_MODEL_WHISPER });
+}
+
 /** True when steps that need the LLM can run; the inbox says "AI reading is off" otherwise. */
 export function aiReadingOn(): boolean {
   return buildLlm() !== null;
@@ -31,7 +36,8 @@ function buildDeps(): DrainDeps {
     db,
     llm: buildLlm(),
     ocr: buildOcr(),
-    models: { text: serverEnv().GROQ_MODEL_TEXT, vision: serverEnv().GROQ_MODEL_VISION },
+    transcriber: buildTranscriber(),
+    models: { text: serverEnv().GROQ_MODEL_TEXT, vision: serverEnv().GROQ_MODEL_VISION, whisper: serverEnv().GROQ_MODEL_WHISPER },
     // Built once per drain; handlers use only these (ruling R7). The documents surface has no update.
     repos: {
       documents: machineDocuments(createSupabaseDocumentsRepo(db)),

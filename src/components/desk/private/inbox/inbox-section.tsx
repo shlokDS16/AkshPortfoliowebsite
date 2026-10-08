@@ -26,10 +26,12 @@ type Props = {
   aiPages: { used: number; total: number } | null;
   companies: CompanyOption[];
   actions: InboxActions;
+  /** VOICE_NOTES is on: the drop bar takes voice notes. Off (the default) hides them. */
+  voiceOn?: boolean;
 };
 
 /** The inbox: drop bar, the two real quotas, then every document in the tray its state puts it in (segment 4 C). */
-export function InboxSection({ docs, usage, aiOn, aiPages, companies, actions }: Props) {
+export function InboxSection({ docs, usage, aiOn, aiPages, companies, actions, voiceOn = false }: Props) {
   const storageShare = usage.storageBytes / STORAGE_BYTES;
   const finished = docs.filter((d) => d.view.tray === "finished");
   // The tab keeps the reader going while a live document is being read, queued or waiting for the allowance.
@@ -42,7 +44,7 @@ export function InboxSection({ docs, usage, aiOn, aiPages, companies, actions }:
           {AI_OFF_BANNER}
         </p>
       )}
-      <DropBar companies={companies} actions={actions} storageShare={storageShare} />
+      <DropBar companies={companies} actions={actions} storageShare={storageShare} voiceOn={voiceOn} />
       <section aria-label="Free plan room" className={cn("grid grid-cols-1 gap-4", aiOn && aiPages ? "md:grid-cols-3" : "md:grid-cols-2")}>
         {aiOn && aiPages ? <BudgetMeter label="AI pages today:" used={aiPages.used} limit={aiPages.total} count /> : null}
         <BudgetMeter label="Storage" used={usage.storageBytes} limit={STORAGE_BYTES} />

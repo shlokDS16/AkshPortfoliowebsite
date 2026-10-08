@@ -151,7 +151,7 @@ describe("startUpload", () => {
   it("validates the claim at the boundary: hex hash, uuid company, ISO date, http(s) URL, integer bytes, no extra keys", async () => {
     const repo = createMemoryDocumentsRepo();
     const bad: Partial<StartUploadInput>[] = [
-      { kind: "audio" as never }, { kind: undefined as never },
+      { kind: "video" as never }, { kind: undefined as never }, { seconds: -1 }, { seconds: Number.NaN },
       { sha256: "A".repeat(64) }, { sha256: "z".repeat(64) }, { sha256: "a".repeat(63) },
       { companyId: "not-a-uuid" }, { filedOn: "30/06/2026" }, { sourceUrl: "javascript:alert(1)" },
       { bytes: 1.5 }, { bytes: 0 }, { fileName: "" },

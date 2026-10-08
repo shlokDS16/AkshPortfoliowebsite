@@ -30,7 +30,7 @@ function setup(over: { path?: string | null; deleted?: boolean; bytes?: number }
   repo.docs.set(DOC, {
     id: DOC, companyId: null, title: "Q2 table", kind: "image", storagePath: path, sha256: "e".repeat(64), bytes: 10, pageCount: null,
     status: "active", llmPageBudget: 20, basis: "consolidated", sourceType: "Annual report", filedOn: null, sourceUrl: null,
-    originalDeletedAt: over.deleted ? new Date(T0).toISOString() : null, createdAt: new Date(T0).toISOString(),
+    originalDeletedAt: over.deleted ? new Date(T0).toISOString() : null, transcriptStatus: null, createdAt: new Date(T0).toISOString(),
   });
   if (path) repo.files.set(path, new Uint8Array(over.bytes ?? 64).fill(7));
   return repo;
@@ -40,7 +40,8 @@ function ctx(repo: MemoryDocumentsRepo, ocr: OcrPort | null, opts: { llm?: LlmPo
   const deps: StepDeps = {
     llm: opts.llm === undefined ? fakeLlm : opts.llm,
     ocr,
-    models: { text: "test-model", vision: "test-vision" },
+    transcriber: null,
+    models: { text: "test-model", vision: "test-vision", whisper: "test-whisper" },
     repos: { documents: machineDocuments(repo), usage: opts.usage ?? createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
     now: () => new Date(T0),
     clock: () => T0,

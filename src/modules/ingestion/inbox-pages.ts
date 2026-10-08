@@ -42,11 +42,11 @@ const firstLineOf = (text: string | null) => (text ?? "").split("\n")[0].trim();
 export type ListedPage = { pageNo: number; kind: PageKind | null; basis: Basis | null; firstLine: string; selected: boolean; by: "rule" | "aksh" | null; scan: boolean };
 
 /**
- * What the card's page list shows of one document. A photo is one page, so there is nothing to tick; every other document
+ * What the card's page list shows of one document. A photo or a voice note is one page, so there is nothing to tick; every other document
  * lists the pages the read returned, scans included, so a document that is only partly scanned can have its scans read too.
  */
 export function listedPages(documentKind: string, rows: InboxPageRow[]): ListedPage[] {
-  if (documentKind === "image") return [];
+  if (documentKind === "image" || documentKind === "audio") return [];
   return rows.map((p) => ({
     pageNo: p.page_no,
     kind: p.kind as PageKind | null,
