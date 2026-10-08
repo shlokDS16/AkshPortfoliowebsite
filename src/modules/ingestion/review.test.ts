@@ -24,7 +24,7 @@ beforeEach(async () => {
   docs = createMemoryDocumentsRepo();
   review = createMemoryReviewRepo();
   ports = { docs, review };
-  await docs.insertUploading({ id: DOC, title: "AR 2025-26", storagePath: `${DOC}.pdf`, sha256: SHA, bytes: 10, companyId: COMPANY, filedOn: null, sourceUrl: null });
+  await docs.insertUploading({ id: DOC, title: "AR 2025-26", kind: "pdf", storagePath: `${DOC}.pdf`, sha256: SHA, bytes: 10, companyId: COMPANY, filedOn: null, sourceUrl: null });
   await docs.update(DOC, { status: "active" });
   review.file = { itemId: ITEM, title: "Kaveri file" };
   review.name = "Kaveri Fixtures";

@@ -35,6 +35,18 @@ function classify(message: string): OcrResult {
   return { kind: "provider_error", message: text };
 }
 
+/**
+ * A provider message can echo the request (the key, a file name, an address) and it reaches last_error and the desk
+ * (Task 2 review). The key goes, and so does anything shaped like one: twelve or more letters, digits, dashes or
+ * underscores with at least one digit. Ordinary words, numbers and the quota sentence stay.
+ */
+export function redact(message: string, apiKey: string): string {
+  const withoutKey = apiKey.length > 0 ? message.split(apiKey).join("[removed]") : message;
+  return withoutKey
+    .replace(/\bapi\s*-?\s*key\s*[:=]\s*\S+/gi, "apikey [removed]")
+    .replace(/\b(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{12,}\b/g, "[removed]");
+}
+
 const clean = (text: string) => text.replace(/\u0000/g, "").replace(/\r\n?/g, "\n");
 
 type Answer = { IsErroredOnProcessing?: unknown; ErrorMessage?: unknown; ParsedResults?: unknown };
@@ -52,9 +64,11 @@ function parsedText(result: unknown): string {
 
 export function createOcrSpace(opts: OcrSpaceOptions): OcrPort {
   const doFetch = opts.fetch ?? fetch;
-  return {
-    name: "ocrspace",
-    async read(file, { table, timeoutMs }) {
+  /** Every message that leaves the adapter passes through here. */
+  const safe = (r: OcrResult): OcrResult => (r.kind === "ok" ? r : { ...r, message: redact(r.message, opts.apiKey) });
+  const port = {
+    name: "ocrspace" as const,
+    async read(file: Parameters<OcrPort["read"]>[0], { table, timeoutMs }: Parameters<OcrPort["read"]>[1]): Promise<OcrResult> {
       if (file.bytes.byteLength > opts.maxBytes) {
         return { kind: "refused", reason: "size", message: "The file is over the scan reader's size limit." };
       }
@@ -71,6 +85,8 @@ export function createOcrSpace(opts: OcrSpaceOptions): OcrPort {
           method: "POST",
           headers: { apikey: opts.apiKey },
           body: form,
+          // The key rides in a header: a redirect would carry it to another origin, so none is followed (Task 2 review).
+          redirect: "error",
           signal: AbortSignal.timeout(timeoutMs ?? opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
         });
       } catch (error) {
@@ -104,4 +120,5 @@ export function createOcrSpace(opts: OcrSpaceOptions): OcrPort {
       return { kind: "ok", text: results.map(parsedText).join("\n").trim() };
     },
   };
+  return { name: port.name, read: async (file, opts2) => safe(await port.read(file, opts2)) };
 }

@@ -53,7 +53,7 @@ function ctx(s: Setup, llm: LlmPort | null, step: Partial<Step> = {}, opts: { cl
   const deps: StepDeps = {
     llm,
     ocr: opts.ocr ?? null,
-    models: { text: "test-model" },
+    models: { text: "test-model", vision: "test-vision" },
     repos: { documents: machineDocuments(s.documents), usage: opts.usage ?? s.usage, proposals: s.proposals, research: opts.research ?? createMemoryResearch() },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),
@@ -169,7 +169,7 @@ describe("extract_page: reading the page", () => {
     await extractPage(ctx(s, createFixtureLlm()));
     const other = spied(createFixtureLlm());
     const c = ctx(s, other.llm);
-    await extractPage({ ...c, deps: { ...c.deps, models: { text: "other-model" } } });
+    await extractPage({ ...c, deps: { ...c.deps, models: { text: "other-model", vision: "test-vision" } } });
     expect(other.complete).toHaveBeenCalledTimes(1);
     s.proposals.extractions.forEach((e) => void (e.output = { not: "an extraction" }));
     const again = spied(createFixtureLlm());

@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils";
 import { hashFile, MAX_UPLOAD_BYTES, STORAGE_REFUSE } from "@/modules/documents/client";
 import { finishUploadAction, startUploadAction } from "@/modules/ingestion/actions";
 import type { InboxActions } from "./types";
-import { uploadPdf, type UploadDeps, type UploadStage } from "./upload-file";
+import { ACCEPT } from "./file-kinds";
+import { uploadFile, type UploadDeps, type UploadStage } from "./upload-file";
 
 export type CompanyOption = { id: string; symbol: string };
 
@@ -19,14 +20,15 @@ const NO_COMPANY = "No company has that symbol yet. Capture it first as $SYMBOL 
 const NO_LINK = "Use a link that starts with http:// or https://, or leave this blank.";
 const NO_DATE = "Use a valid date, or leave this blank.";
 
-async function putToStorage(path: string, token: string, file: File) {
-  const { error } = await createSupabaseBrowserClient().storage.from("documents").uploadToSignedUrl(path, token, file, { contentType: "application/pdf" });
+/** The bucket checks the stored type, so the bare type goes with the bytes (no ;charset= or ;codecs=). */
+async function putToStorage(path: string, token: string, file: File, contentType: string) {
+  const { error } = await createSupabaseBrowserClient().storage.from("documents").uploadToSignedUrl(path, token, file, { contentType });
   return { error };
 }
 
 type Notice = { tone: "ok" | "bad"; text: string; earlier?: { id: string; createdAt: string } };
 
-/** Choose or drop a PDF: it goes straight to Storage with a signed path, then the desk starts reading it (spec s6.2). */
+/** Choose or drop a PDF, or a photo or screenshot of a table (shrunk here first): it goes straight to Storage with a signed path, then the desk starts reading it (spec s6.2). */
 export function DropBar({ companies, actions, storageShare = 0 }: { companies: CompanyOption[]; actions: Pick<InboxActions, "kick">; storageShare?: number }) {
   // Past 90% of the free storage the server refuses every upload (spec s10), so the bar says so instead of letting a file wait for it.
   const full = storageShare >= STORAGE_REFUSE;
@@ -53,7 +55,7 @@ export function DropBar({ companies, actions, storageShare = 0 }: { companies: C
     if (typeof fields === "string") return setNotice({ tone: "bad", text: fields });
     setNotice(null);
     const deps: UploadDeps = { hash: hashFile, start: startUploadAction, put: putToStorage, finish: finishUploadAction, kick: actions.kick };
-    const outcome = await uploadPdf(file, fields, deps, setStage).catch(() => null);
+    const outcome = await uploadFile(file, fields, deps, setStage).catch(() => null);
     setStage(null);
     if (!outcome) return setNotice({ tone: "bad", text: "The upload did not finish. Choose the file again to resume." });
     if (outcome.ok) return setNotice({ tone: "ok", text: `Uploaded ${file.name}. The desk starts reading it now.` });
@@ -73,7 +75,7 @@ export function DropBar({ companies, actions, storageShare = 0 }: { companies: C
   const busy = stage !== null || full;
 
   return (
-    <section aria-label="Upload a PDF" className="space-y-2">
+    <section aria-label="Upload a file" className="space-y-2">
       <div
         onDragOver={(e) => (e.preventDefault(), setDragging(true))}
         onDragLeave={() => setDragging(false)}
@@ -87,11 +89,11 @@ export function DropBar({ companies, actions, storageShare = 0 }: { companies: C
               busy && "pointer-events-none opacity-45",
             )}
           >
-            Choose a PDF
-            <input type="file" accept="application/pdf,.pdf" className="sr-only" disabled={busy} onChange={onPick} />
+            Choose a file
+            <input type="file" accept={ACCEPT} className="sr-only" disabled={busy} onChange={onPick} />
           </label>
           <p className="text-small text-ink-muted">
-            or drop one here. Annual reports, presentations and filings, up to {MAX_UPLOAD_BYTES / 1_048_576} MB.
+            or drop one here. PDFs of annual reports, presentations and filings, up to {MAX_UPLOAD_BYTES / 1_048_576} MB, and photos or screenshots of a table.
           </p>
         </div>
         <details>

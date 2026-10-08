@@ -1,48 +1,21 @@
-import { createHash } from "node:crypto";
-import { readCaseFile } from "@/modules/casefile/client";
-import { EXTRACT_MAX_COMPLETION, MAX_PROPOSALS_PER_DOCUMENT, PAGE_CHAR_LIMIT } from "../caps";
+import { EXTRACT_MAX_COMPLETION, MAX_PROPOSALS_PER_DOCUMENT, OCR_OFF_RETRY_MS, PAGE_CHAR_LIMIT, SHORT_WAIT_MS } from "../caps";
 import { llmTimeoutMs } from "../deadline";
 import { callWithinBudget, estimateTokens } from "../governor";
 import { extractionSchema, PROMPT_VERSION, retryPrompt, SYSTEM_PROMPT, userPrompt, type Extraction } from "../prompts";
-import { buildProposals } from "../proposals";
 import { OCR_NOTHING_READ, SCAN_READING_OFF } from "../ocr-copy";
 import { stepsForPage } from "../page-steps";
-import { normaliseLabel } from "../relevance";
-import type { StepContext, StepHandler, StepOutcome } from "../types";
+import type { StepHandler, StepOutcome } from "../types";
+import { ISSUES_MAX, PAGE_NOT_STORED, PAGE_TOO_BIG, rejection, saveExtraction, sha256 } from "./extraction-shared";
 
 // extract_page (spec s6.4, ADR-004 s4.4): one statement page, one call. The machine writes an extraction and pending
 // proposals and nothing else; period and unit come from the printed headings in code (E3); every value and quote is
-// checked against the stored page text (buildProposals). Every write is idempotent, so a duplicate step is harmless.
+// checked against the stored page text (saveExtraction). Every write is idempotent, so a duplicate step is harmless.
 
+export { KEY_REFUSED, PAGE_NOT_STORED, PAGE_TOO_BIG, REQUEST_REFUSED } from "./extraction-shared";
 /** A scan with no scan reader to send it to (ruling R6: no OCRSPACE_API_KEY). With a reader the page is routed to ocr_page instead. */
 export const SCAN_PAGE = SCAN_READING_OFF;
-export const PAGE_TOO_BIG = "This page is too big for the free AI allowance. Enter the figures yourself.";
-export const PAGE_NOT_STORED = "This page is no longer stored, so it cannot be read. Choose Skip, or Try again.";
-export const KEY_REFUSED = "The AI service did not accept the desk's key. Check the Groq key in the settings, then try again.";
-export const REQUEST_REFUSED = "The AI service refused to read this page. Enter the figures yourself.";
 /** How long a step waits when AI reading is off; turning it on (a key, then a redeploy) does not need the step to be touched. */
-const AI_OFF_RETRY_MS = 6 * 60 * 60 * 1000;
-/** A step that finds under 20 s left tries again almost at once, in the next drain (no failure is counted).
- * WaitReason has no neutral value; groq_minute reads as a short wait, which is what it is. */
-const SHORT_WAIT_MS = 5_000;
-const ISSUES_MAX = 400;
-
-/** When the document cap leaves room for only some of a page, core lines go first, then tracked labels, then movers. */
-const RANK = { core: 0, label_match: 1, moved: 2 } as const;
-const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
-
-/** The labels of the company's newest file, as the relevance filter compares them (empty when there is no file). */
-async function fileLabelsFor(companyId: string | null, ctx: StepContext): Promise<Set<string>> {
-  if (!companyId) return new Set();
-  const file = await ctx.deps.repos.research.latestFileForCompany(companyId);
-  return file ? new Set(readCaseFile(file.structured).facts.map((f) => normaliseLabel(f.label))) : new Set();
-}
-
-function rejection(status: number, message: string): string {
-  if (status === 401 || status === 403) return KEY_REFUSED;
-  if (status === 413 || /context|too_large|too large/i.test(message)) return PAGE_TOO_BIG;
-  return REQUEST_REFUSED;
-}
+const AI_OFF_RETRY_MS = OCR_OFF_RETRY_MS;
 
 export const extractPage: StepHandler = async (ctx) => {
   const { step, documentId, deadline, deps } = ctx;
@@ -69,7 +42,6 @@ export const extractPage: StepHandler = async (ctx) => {
   const truncated = page.text.length > PAGE_CHAR_LIMIT;
   const inputHash = sha256(text);
   const model = deps.models.text;
-  const fileLabels = await fileLabelsFor(doc.companyId, ctx);
 
   let extraction: Extraction;
   let tokens = 0;
@@ -104,17 +76,9 @@ export const extractPage: StepHandler = async (ctx) => {
     tokens = result.usage.totalTokens;
   }
 
-  const extractionId = await proposals.insertExtraction({ documentId, pageNo, model, promptVersion: PROMPT_VERSION, inputHash, output: extraction, tokensUsed: tokens });
-  const built = buildProposals({
-    extraction, pageNo, pageText: text, pageKind: page.kind ?? extraction.page_kind, pageBasis: page.basis, docBasis: doc.basis, fileLabels,
-  })
-    .sort((a, b) => RANK[a.reason] - RANK[b.reason])
-    .slice(0, MAX_PROPOSALS_PER_DOCUMENT - have);
-  await proposals.insertProposals(
-    built.map((p) => ({ documentId, pageNo, extractionId, dedupeKey: p.dedupeKey, machineValue: p.machineValue, flags: p.flags, reason: p.reason })),
-  );
+  const saved = await saveExtraction(ctx, doc, page, { extraction, pageNo, pageText: text, model, promptVersion: PROMPT_VERSION, inputHash, tokens, have });
   return {
     kind: "done",
-    result: { proposals: built.length, flagged: built.filter((p) => p.flags.length > 0).length, tokens, ...(cached ? { cached } : {}), ...(truncated ? { truncated } : {}) },
+    result: { proposals: saved.built, flagged: saved.flagged, tokens, ...(cached ? { cached } : {}), ...(truncated ? { truncated } : {}) },
   };
 };

@@ -58,7 +58,7 @@ function ctx(repo: MemoryDocumentsRepo, ocr: OcrPort | null, opts: { llm?: LlmPo
   const deps: StepDeps = {
     llm: opts.llm === undefined ? fakeLlm : opts.llm,
     ocr,
-    models: { text: "test-model" },
+    models: { text: "test-model", vision: "test-vision" },
     repos: { documents: machineDocuments(repo), usage: opts.usage ?? createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),

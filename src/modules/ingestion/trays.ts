@@ -123,7 +123,7 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
     const read = scans.filter((s) => s.status === "done").length;
     return view("reading", `Reading scanned pages: ${read} of ${scans.length}${eta ? `, ${eta}` : ""}`);
   }
-  if (unfinished.some((s) => s.kind === "extract_page")) {
+  if (unfinished.some((s) => s.kind === "extract_page" || s.kind === "vision_page")) {
     return view("reading", `Reading figures: ${counts.extractDone} of ${counts.extractTotal} pages${eta ? `, ${eta}` : ""}`);
   }
   if (unfinished.length > 0) return view("reading", CHOOSING);

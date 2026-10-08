@@ -29,7 +29,8 @@ export type DrainDeps = {
   llm: LlmPort | null;
   /** The scan reader, or null when scan reading is off (no OCRSPACE_API_KEY): ocr_page steps then wait. */
   ocr: OcrPort | null;
-  models: { text: string };
+  /** Groq model ids: the text model reads digital pages, the vision model reads one photo per call. */
+  models: { text: string; vision: string };
   repos: MachineRepos;
   now: () => Date;
   clock: () => number;

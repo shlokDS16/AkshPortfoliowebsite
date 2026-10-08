@@ -32,7 +32,8 @@ const ERRORS = {
   // Uploads (= DOCUMENT_ERROR_TEXT in modules/documents/errors.ts; a test keeps them equal).
   "upload-duplicate": "You uploaded this PDF before. Open the earlier copy.",
   "upload-too-large": "Over 50 MB. Upload the financial statements section, or compress the file.",
-  "upload-not-pdf": "Only PDF files can be uploaded.",
+  "upload-unsupported": "Drop a PDF, a photo or a voice note.",
+  "upload-image-too-large": "This photo is still over 1 MB after shrinking; crop it to the table.",
   "upload-storage-full": "Storage is over 90% full. Mark finished documents as done to free space.",
   "upload-missing": "The upload did not arrive complete. Upload the file again.",
   // Inbox actions (= INBOX_ERROR_TEXT in modules/ingestion/errors.ts; a test keeps them equal).
@@ -75,7 +76,8 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   // DocumentError carries the message code itself.
   "upload-duplicate": "upload-duplicate",
   "upload-too-large": "upload-too-large",
-  "upload-not-pdf": "upload-not-pdf",
+  "upload-unsupported": "upload-unsupported",
+  "upload-image-too-large": "upload-image-too-large",
   "upload-storage-full": "upload-storage-full",
   "upload-missing": "upload-missing",
   // InboxError likewise.

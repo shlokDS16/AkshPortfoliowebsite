@@ -1,8 +1,8 @@
 import { errorShape } from "@/lib/errors";
 import { errorCode, errorText, userWasTold } from "@/lib/messages";
-import { DocumentError, finishUpload, startUpload, type DocumentsRepo, type StartUploadInput } from "@/modules/documents";
+import { DocumentError, finishUpload, startUpload, type DocumentKind, type DocumentsRepo, type StartUploadInput } from "@/modules/documents";
 import type { QueueRepo } from "./queue-repo";
-import type { NewStep } from "./types";
+import type { JobKind, NewStep } from "./types";
 
 export type ActionFailure = { ok: false; code: string; message: string; earlier?: { id: string; createdAt: string } };
 export type StartUploadResult = { ok: true; documentId: string; path: string; token: string } | ActionFailure;
@@ -10,8 +10,14 @@ export type FinishUploadResult = { ok: true } | ActionFailure;
 /** What every inbox action returns: it worked, or a fixed code with its fixed text. */
 export type ActionResult = { ok: true } | ActionFailure;
 
-/** The first step of every PDF job: read the text layer from page 1 (spec s5). */
-export const FIRST_STEP: NewStep = { kind: "pdf_text", pageNo: 1 };
+/**
+ * The job and first step of each kind (ruling R12): a PDF's text layer from page 1 (spec s5); a photo goes to the scan
+ * reader first, as its one page. Audio, links and pasted text join with their own tasks.
+ */
+export const FIRST_STEP: Partial<Record<DocumentKind, { job: JobKind; step: NewStep }>> = {
+  pdf: { job: "ingest_pdf", step: { kind: "pdf_text", pageNo: 1 } },
+  image: { job: "ingest_image", step: { kind: "ocr_page", pageNo: 1 } },
+};
 
 /** A fixed code and its fixed text (src/lib/messages.ts); never a database message. Unexpected failures are logged by shape. */
 export function actionFailure(error: unknown): ActionFailure {
@@ -35,7 +41,8 @@ export async function runFinishUpload(docs: DocumentsRepo, queue: QueueRepo, doc
   try {
     const doc = await finishUpload(docs, documentId);
     // Only an active document gets a job: done and skipped are Aksh's and stay still.
-    if (doc.status === "active") await queue.createJob(doc.id, FIRST_STEP);
+    const first = FIRST_STEP[doc.kind];
+    if (doc.status === "active" && first) await queue.createJob(doc.id, first.job, first.step);
     return { ok: true };
   } catch (error) {
     return actionFailure(error);

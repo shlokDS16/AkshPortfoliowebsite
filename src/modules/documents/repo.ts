@@ -2,6 +2,8 @@ import { AccessDeniedError } from "@/lib/errors";
 import { dbError, jobDbError } from "@/lib/supabase/errors";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
+import type { DocumentKind } from "./kinds";
+import { POSTGREST_ROWS } from "./limits";
 import type { PageVerdict } from "./selector";
 import type { Basis, DocSourceType, DocumentListItem, DocumentRow, DocumentStatus, PageForExtraction, PageForReading, PageKind, PageText } from "./types";
 
@@ -9,8 +11,7 @@ const BUCKET = "documents";
 const DOCUMENT_COLUMNS =
   "id, company_id, title, kind, storage_path, sha256, bytes, page_count, status, llm_page_budget, basis, source_type, filed_on, source_url, original_deleted_at, created_at";
 const LIST_COLUMNS = "id, title, page_count, filed_on, source_url, source_type, original_deleted_at";
-/** PostgREST returns at most 1,000 rows a request (Supabase default max_rows): longer reads go in ranges. */
-const PAGE_RANGE = 1_000;
+const PAGE_RANGE = POSTGREST_ROWS;
 
 type Row = {
   id: string; company_id: string | null; title: string; kind: string; storage_path: string | null; sha256: string;
@@ -26,7 +27,7 @@ export interface DocumentsRepo {
   /** `status` lets an upload that never finished be resumed instead of refused as a duplicate. */
   findBySha(sha256: string): Promise<{ id: string; createdAt: string; status: DocumentStatus } | null>;
   insertUploading(row: {
-    id: string; title: string; storagePath: string; sha256: string; bytes: number;
+    id: string; title: string; kind: "pdf" | "image"; storagePath: string; sha256: string; bytes: number;
     companyId: string | null; filedOn: string | null; sourceUrl: string | null;
   }): Promise<void>;
   get(id: string): Promise<DocumentRow | null>;
@@ -66,7 +67,7 @@ const toDocument = (r: Row): DocumentRow => ({
   id: r.id,
   companyId: r.company_id,
   title: r.title,
-  kind: "pdf",
+  kind: r.kind as DocumentKind,
   storagePath: r.storage_path,
   sha256: r.sha256,
   bytes: r.bytes,
@@ -113,6 +114,7 @@ export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
       const { error } = await db.from("documents").insert({
         id: row.id,
         title: row.title,
+        kind: row.kind,
         storage_path: row.storagePath,
         sha256: row.sha256,
         bytes: row.bytes,

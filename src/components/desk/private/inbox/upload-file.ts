@@ -1,16 +1,21 @@
 import { errorText } from "@/lib/messages";
 import { MAX_UPLOAD_BYTES, type StartUploadInput } from "@/modules/documents/client";
 import { UPLOAD_NOT_FINISHED, type FinishUploadResult, type StartUploadResult } from "@/modules/ingestion/client";
+import { downscaleImage, type DownscaleResult } from "./downscale";
+import { claimedMime, kindOfFile } from "./file-kinds";
 
-// The browser's half of an upload (spec s6.2): check, hash, ask for a signed path, send the bytes straight to
-// Storage, tell the server it arrived, nudge the reader. Pure of React: every call is injected, so a test can follow it.
+// The browser's half of an upload (spec s6.2): check, shrink a photo, hash, ask for a signed path, send the bytes straight
+// to Storage, tell the server it arrived, nudge the reader. Pure of React: every call is injected, so a test can follow it.
 
 export type UploadDeps = {
   hash: (file: Blob) => Promise<string>;
   start: (input: StartUploadInput) => Promise<StartUploadResult>;
-  put: (path: string, token: string, file: File) => Promise<{ error: { message: string } | null }>;
+  /** `contentType` is the bare type (no ;charset= or ;codecs=). */
+  put: (path: string, token: string, file: File, contentType: string) => Promise<{ error: { message: string } | null }>;
   finish: (documentId: string) => Promise<FinishUploadResult>;
   kick: () => Promise<void>;
+  /** Shrinks a photo to at most 1,600 px and 1 MB; the default draws on a canvas. */
+  shrink?: (file: File) => Promise<DownscaleResult>;
 };
 
 export type UploadStage = "checking" | "uploading" | "saving";
@@ -20,28 +25,36 @@ export type UploadOutcome =
 
 export type UploadExtras = Pick<StartUploadInput, "companyId" | "filedOn" | "sourceUrl">;
 
-const PDF_MIME = "application/pdf";
-const refuse = (code: "upload-not-pdf" | "upload-too-large"): UploadOutcome => ({ ok: false, message: errorText(code) ?? "" });
+const refuse = (code: "upload-unsupported" | "upload-too-large"): UploadOutcome => ({ ok: false, message: errorText(code) ?? "" });
 
-/** The check that needs no network: type and size, so a wrong file never starts an upload. */
+/** The check that needs no network: kind and size, so a wrong file never starts an upload. A photo's size is checked after it is shrunk. */
 export function checkFile(file: Pick<File, "name" | "size" | "type">): UploadOutcome | null {
-  // Some systems hand over a PDF with no type at all; the server and the bucket check the stored object again.
-  if (!/\.pdf$/i.test(file.name) || (file.type !== PDF_MIME && file.type !== "")) return refuse("upload-not-pdf");
-  if (file.size > MAX_UPLOAD_BYTES) return refuse("upload-too-large");
+  const kind = kindOfFile(file);
+  if (!kind) return refuse("upload-unsupported");
+  if (kind === "pdf" && file.size > MAX_UPLOAD_BYTES) return refuse("upload-too-large");
   return null;
 }
 
-export async function uploadPdf(file: File, extras: UploadExtras, deps: UploadDeps, onStage: (stage: UploadStage) => void): Promise<UploadOutcome> {
+export async function uploadFile(file: File, extras: UploadExtras, deps: UploadDeps, onStage: (stage: UploadStage) => void): Promise<UploadOutcome> {
   const refused = checkFile(file);
   if (refused) return refused;
+  const kind = kindOfFile(file);
+  if (!kind) return refuse("upload-unsupported");
 
   onStage("checking");
-  const sha256 = await deps.hash(file);
-  const started = await deps.start({ fileName: file.name, bytes: file.size, mime: PDF_MIME, sha256, ...extras });
+  let toSend = file;
+  if (kind === "image") {
+    const shrunk = await (deps.shrink ?? downscaleImage)(file);
+    if (!shrunk.ok) return { ok: false, message: shrunk.message };
+    toSend = shrunk.file;
+  }
+  const mime = claimedMime(kind, toSend);
+  const sha256 = await deps.hash(toSend);
+  const started = await deps.start({ kind, fileName: toSend.name, bytes: toSend.size, mime, sha256, ...extras });
   if (!started.ok) return { ok: false, message: started.message, earlier: started.earlier };
 
   onStage("uploading");
-  const put = await deps.put(started.path, started.token, file).catch(() => ({ error: { message: "network" } }));
+  const put = await deps.put(started.path, started.token, toSend, mime).catch(() => ({ error: { message: "network" } }));
   if (put.error) return { ok: false, message: UPLOAD_NOT_FINISHED };
 
   onStage("saving");

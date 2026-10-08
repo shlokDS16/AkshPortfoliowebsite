@@ -8,15 +8,15 @@ import { FIRST_STEP, runFinishUpload, runStartUpload } from "./upload-flow";
 const ID = "0b9f3c1e-7a42-4c55-9e1d-2f6a8b3c4d5e";
 const SHA = "b".repeat(64);
 const BYTES = 2_000_000;
-const input = { fileName: "Results Q1.pdf", bytes: BYTES, mime: "application/pdf", sha256: SHA, companyId: null, filedOn: null, sourceUrl: null };
+const input = { kind: "pdf" as const, fileName: "Results Q1.pdf", bytes: BYTES, mime: "application/pdf", sha256: SHA, companyId: null, filedOn: null, sourceUrl: null };
 
 function fakeQueue() {
-  const jobs: { documentId: string; first: unknown }[] = [];
+  const jobs: { documentId: string; kind: string; first: unknown }[] = [];
   const queue: QueueRepo = {
     claim: async () => null,
     finish: async () => true,
     enqueue: async () => undefined,
-    createJob: async (documentId, first) => (jobs.push({ documentId, first }), "job-1"),
+    createJob: async (documentId, kind, first) => (jobs.push({ documentId, kind, first }), "job-1"),
   };
   return { queue, jobs };
 }
@@ -36,7 +36,7 @@ describe("runStartUpload", () => {
       ok: false, code: "upload-duplicate", message: DOCUMENT_ERROR_TEXT["upload-duplicate"],
       earlier: { id: ID, createdAt: docs.docs.get(ID)!.createdAt },
     });
-    expect(await runStartUpload(docs, { ...input, mime: "text/plain" }, () => "x")).toMatchObject({ ok: false, code: "upload-not-pdf" });
+    expect(await runStartUpload(docs, { ...input, mime: "text/plain" }, () => "x")).toMatchObject({ ok: false, code: "upload-unsupported" });
   });
 
   it("never returns or logs a database message", async () => {
@@ -65,8 +65,18 @@ describe("runFinishUpload", () => {
     const { queue, jobs } = fakeQueue();
     expect(await runFinishUpload(docs, queue, ID)).toEqual({ ok: true });
     expect(docs.docs.get(ID)?.status).toBe("active");
-    expect(jobs).toEqual([{ documentId: ID, first: { kind: "pdf_text", pageNo: 1 } }]);
-    expect(FIRST_STEP).toEqual({ kind: "pdf_text", pageNo: 1 });
+    expect(jobs).toEqual([{ documentId: ID, kind: "ingest_pdf", first: { kind: "pdf_text", pageNo: 1 } }]);
+  });
+
+  it("a photo's job is an image job whose first step is the scan reader on its one page", async () => {
+    const docs = createMemoryDocumentsRepo();
+    const photo = { ...input, kind: "image" as const, fileName: "table.jpg", mime: "image/jpeg", bytes: 900_000, sha256: "c".repeat(64) };
+    expect(await runStartUpload(docs, photo, () => ID)).toMatchObject({ ok: true, path: `${ID}.jpg` });
+    docs.objects.set(`${ID}.jpg`, { size: 900_000, mimetype: "image/jpeg" });
+    const { queue, jobs } = fakeQueue();
+    expect(await runFinishUpload(docs, queue, ID)).toEqual({ ok: true });
+    expect(jobs).toEqual([{ documentId: ID, kind: "ingest_image", first: { kind: "ocr_page", pageNo: 1 } }]);
+    expect(FIRST_STEP.image?.step).toEqual({ kind: "ocr_page", pageNo: 1 });
   });
 
   it("creates no job when the upload did not arrive", async () => {

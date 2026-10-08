@@ -7,6 +7,7 @@ import { strictJsonSchema } from "./strict-schema";
 //   https://console.groq.com/docs/structured-outputs (response_format json_schema, strict: true on gpt-oss-120b)
 //   https://console.groq.com/docs/reasoning        (gpt-oss: reasoning_effort low|medium|high, include_reasoning)
 //   https://console.groq.com/docs/rate-limits      (x-ratelimit-* headers; retry-after in seconds, on 429 only)
+//   https://console.groq.com/docs/vision           (image_url with a data:<mime>;base64 URI, 2,048 tokens an image; read 2026-10-08)
 // Never logs: the key, the request body and the answer stay out of every log line and every returned message.
 
 const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
@@ -37,11 +38,22 @@ type Body = {
   choices?: { finish_reason?: string; message?: { content?: unknown } }[];
 };
 
+/** The user turn: plain text, or the text and exactly one image as a data URI (a base64 image in the request body). */
+function userContent(req: { user: string; image?: { mime: string; base64: string } }) {
+  if (!req.image) return req.user;
+  return [
+    { type: "text", text: req.user },
+    { type: "image_url", image_url: { url: `data:${req.image.mime};base64,${req.image.base64}` } },
+  ];
+}
+
 export function createGroqLlm(opts: { apiKey: string; fetch?: typeof fetch; timeoutMs?: number }): LlmPort {
   const doFetch = opts.fetch ?? fetch;
   return {
     name: "groq",
     async complete<T>(req: LlmRequest<T>): Promise<LlmResult<T>> {
+      // One image per call (spec s9). The type says so; a caller that got round it is refused before any request is made.
+      if (Array.isArray(req.image)) return { kind: "rejected", status: 400, message: "one_image_per_call", rate: NO_RATE };
       const body = {
         model: req.model,
         temperature: 0,
@@ -50,7 +62,7 @@ export function createGroqLlm(opts: { apiKey: string; fetch?: typeof fetch; time
         response_format: { type: "json_schema", json_schema: { name: req.schemaName, schema: strictJsonSchema(req.schema), strict: true } },
         messages: [
           { role: "system", content: req.system },
-          { role: "user", content: req.user },
+          { role: "user", content: userContent(req) },
         ],
       };
       let res: Response;

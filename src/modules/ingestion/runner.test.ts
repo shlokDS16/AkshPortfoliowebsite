@@ -23,7 +23,7 @@ function deps(time = fakeTime()): DrainDeps {
     db: {} as Db,
     llm: null,
     ocr: null,
-    models: { text: "test-model" },
+    models: { text: "test-model", vision: "test-vision" },
     repos: {
       documents: machineDocuments(createMemoryDocumentsRepo()),
       usage: createMemoryUsageRepo(),
@@ -92,6 +92,7 @@ const handlers = (h: Partial<Record<StepKind, StepHandler>>): Record<StepKind, S
   select_pages: h.select_pages ?? always({ kind: "done" }),
   extract_page: h.extract_page ?? always({ kind: "done" }),
   ocr_page: h.ocr_page ?? always({ kind: "done" }),
+  vision_page: h.vision_page ?? always({ kind: "done" }),
 });
 
 describe("drain", () => {

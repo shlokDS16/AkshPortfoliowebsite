@@ -35,7 +35,7 @@ function ctx(repo: MemoryDocumentsRepo, step: Partial<Step>, opts: { clock?: () 
   const deps: StepDeps = {
     llm: opts.llm === undefined ? null : opts.llm,
     ocr: null,
-    models: { text: "test-model" },
+    models: { text: "test-model", vision: "test-vision" },
     repos: {
       documents: machineDocuments(repo),
       usage: createMemoryUsageRepo(),

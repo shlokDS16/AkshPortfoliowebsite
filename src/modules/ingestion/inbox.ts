@@ -3,7 +3,8 @@ import type { Db } from "@/lib/supabase/types";
 import { createSupabaseDocumentsRepo, type Basis, type DocumentStatus, type PageKind } from "@/modules/documents";
 import { GROQ_CAPS, TOKENS_PER_PAGE_DEFAULT } from "./caps";
 import { estimateReadyBy, formatReadyBy } from "./eta";
-import { isScanHeavy, PAGE_STEP_KINDS } from "./page-steps";
+import { listedPages, readInboxPages, type InboxPageRow } from "./inbox-pages";
+import { PAGE_STEP_KINDS } from "./page-steps";
 import { tallyPending } from "./proposal-counts";
 import { trayFor, type DocState, type TrayView } from "./trays";
 import type { StepKind, StepStatus, WaitReason } from "./types";
@@ -26,25 +27,19 @@ export type InboxDoc = {
   decided: number;
   view: TrayView;
   /**
-   * Statement pages and ticked pages, plus the scan pages of a scanned document (so Aksh can tick them), never page text:
-   * `firstLine` is the first line of the page, at most 120 characters.
+   * Statement pages and ticked pages, plus every scan page (so Aksh can tick them), never page text: `firstLine` is the first
+   * line of the page, at most 120 characters. A photo is one page and has no list.
    */
   pages: { pageNo: number; kind: PageKind | null; basis: Basis | null; firstLine: string; selected: boolean; by: "rule" | "aksh" | null; scan: boolean }[];
 };
 
 const FINISHED_SHOWN = 10;
-const COLUMNS = "id, title, company_id, created_at, status, page_count, llm_page_budget, basis";
+const COLUMNS = "id, title, company_id, created_at, status, page_count, llm_page_budget, basis, kind";
 
-type DocRow = { id: string; title: string; company_id: string | null; created_at: string; status: string; page_count: number | null; llm_page_budget: number; basis: string };
+type DocRow = { id: string; title: string; company_id: string | null; created_at: string; status: string; page_count: number | null; llm_page_budget: number; basis: string; kind: string };
 type StepRow = {
   kind: string; status: string; not_before: string; wait_reason: string | null; page_no: number | null; last_error: string | null; lease_owner: string | null;
 };
-type PageRow = {
-  document_id: string; page_no: number; kind: string | null; basis: string | null; selected: boolean; selected_by: string | null; first_line: string | null;
-  is_scan: boolean | null;
-};
-
-const firstLineOf = (text: string | null) => (text ?? "").split("\n")[0].trim();
 
 const toSteps = (rows: StepRow[]): DocState["steps"] =>
   rows.map((r) => ({
@@ -101,15 +96,7 @@ export async function listInbox(
           .select("document_id, job_steps(kind, status, not_before, wait_reason, page_no, last_error, lease_owner)")
           .in("document_id", activeIds)
           .is("cancelled_at", null),
-    activeIds.length === 0
-      ? { data: [], error: null }
-      : db
-          .from("document_pages")
-          .select("document_id, page_no, kind, basis, selected, selected_by, first_line, is_scan")
-          .in("document_id", activeIds)
-          .or("kind.not.is.null,selected.eq.true,is_scan.eq.true")
-          .order("document_id")
-          .order("page_no"),
+    readInboxPages(db, activeIds),
     companyIds.length === 0 ? { data: [], error: null } : db.from("companies").select("id, nse_symbol").in("id", companyIds),
     // At most 60 per document (MAX_PROPOSALS_PER_DOCUMENT). The reading is needed to leave out the standalone repeats
     // of a consolidated line, as the review screen does; filed ones are read only to count as decided.
@@ -121,15 +108,14 @@ export async function listInbox(
           .in("document_id", activeIds),
   ]);
   if (jobs.error) throw dbError("inbox.listSteps", jobs.error);
-  if (pages.error) throw dbError("inbox.listPages", pages.error);
   if (companies.error) throw dbError("inbox.listCompanies", companies.error);
   if (proposals.error) throw dbError("inbox.listProposals", proposals.error);
   const waiting = tallyPending(proposals.data, new Map(rows.map((d) => [d.id, d.basis as Basis])));
 
   const stepsOf = new Map<string, StepRow[]>(jobs.data.map((j) => [j.document_id, j.job_steps]));
   const symbolOf = new Map(companies.data.map((c) => [c.id, c.nse_symbol]));
-  const pagesOf = new Map<string, PageRow[]>();
-  for (const p of pages.data as PageRow[]) pagesOf.set(p.document_id, [...(pagesOf.get(p.document_id) ?? []), p]);
+  const pagesOf = new Map<string, InboxPageRow[]>();
+  for (const p of pages) pagesOf.set(p.document_id, [...(pagesOf.get(p.document_id) ?? []), p]);
 
   // How far the PDF read has got: the pages stored so far, asked only of documents still being read.
   const reading = new Set(
@@ -149,7 +135,6 @@ export async function listInbox(
   const docs = rows.map((d): InboxDoc => {
     const steps = toSteps(stepsOf.get(d.id) ?? []);
     const scans = (pagesOf.get(d.id) ?? []).filter((p) => p.is_scan).length;
-    const listScans = isScanHeavy(scans, d.page_count);
     const state: DocState = {
       status: d.status as DocumentStatus,
       pageCount: d.page_count,
@@ -173,18 +158,8 @@ export async function listInbox(
       flagged: state.flagged,
       decided: state.decided,
       view: trayFor(state, now, etaFor(steps, now)),
-      // A cover page that happens to have little text is not offered: only a mostly scanned document lists its scans.
-      pages: (pagesOf.get(d.id) ?? [])
-        .filter((p) => !p.is_scan || listScans || p.selected || p.kind !== null)
-        .map((p) => ({
-          pageNo: p.page_no,
-          kind: p.kind as PageKind | null,
-          basis: p.basis as Basis | null,
-          firstLine: firstLineOf(p.first_line),
-          selected: p.selected,
-          by: p.selected_by as "rule" | "aksh" | null,
-          scan: p.is_scan ?? false,
-        })),
+      // A photo is one page: nothing to tick. Every other document lists its scans, so a mixed one can have them read too.
+      pages: listedPages(d.kind, pagesOf.get(d.id) ?? []),
     };
   });
   return { docs, usage, aiOn };

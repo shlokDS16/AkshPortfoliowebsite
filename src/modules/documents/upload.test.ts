@@ -5,7 +5,7 @@ import { errorCode, errorText } from "@/lib/messages";
 import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { hashFile } from "./client";
 import { DOCUMENT_ERROR_TEXT, DocumentError, type DocumentErrorCode } from "./errors";
-import { MAX_UPLOAD_BYTES, STORAGE_BYTES } from "./limits";
+import { IMAGE_MAX_BYTES, MAX_UPLOAD_BYTES, STORAGE_BYTES } from "./limits";
 import type { StartUploadInput } from "./types";
 import { finishUpload, startUpload } from "./upload";
 
@@ -16,6 +16,7 @@ const MB = 1_048_576;
 const newId = () => ID;
 
 const input = (over: Partial<StartUploadInput> = {}): StartUploadInput => ({
+  kind: "pdf",
   fileName: "Infosys Annual Report 2025.pdf",
   bytes: 3 * MB,
   mime: "application/pdf",
@@ -92,10 +93,37 @@ describe("startUpload", () => {
     await expect(startUpload(repo, input({ bytes: MAX_UPLOAD_BYTES }), newId)).resolves.toMatchObject({ documentId: ID });
   });
 
-  it("refuses image/png, and a PDF type on a file whose name does not end .pdf", async () => {
+  it("refuses a type that is not the kind's, and a name that does not end in the kind's extension", async () => {
     const repo = createMemoryDocumentsRepo();
-    expect((await refusal(startUpload(repo, input({ mime: "image/png" }), newId))).code).toBe("upload-not-pdf");
-    expect((await refusal(startUpload(repo, input({ fileName: "report.pdf.exe" }), newId))).code).toBe("upload-not-pdf");
+    expect((await refusal(startUpload(repo, input({ mime: "image/png" }), newId))).code).toBe("upload-unsupported");
+    expect((await refusal(startUpload(repo, input({ fileName: "report.pdf.exe" }), newId))).code).toBe("upload-unsupported");
+    expect((await refusal(startUpload(repo, input({ kind: "image", fileName: "a.png", mime: "application/pdf" }), newId))).code).toBe("upload-unsupported");
+    expect((await refusal(startUpload(repo, input({ kind: "image", fileName: "a.gif", mime: "image/png" }), newId))).code).toBe("upload-unsupported");
+    expect(repo.docs.size).toBe(0);
+  });
+
+  it("refuses a type that carries parameters: the browser sends the bare type", async () => {
+    const repo = createMemoryDocumentsRepo();
+    expect((await refusal(startUpload(repo, input({ mime: "application/pdf;charset=binary" }), newId))).code).toBe("upload-unsupported");
+    expect((await refusal(startUpload(repo, input({ kind: "image", fileName: "a.jpg", mime: "image/jpeg;codecs=x" }), newId))).code).toBe("upload-unsupported");
+  });
+
+  it("takes a photo: kind image, a path by type, the file name without its extension as the title", async () => {
+    const repo = createMemoryDocumentsRepo();
+    const result = await startUpload(repo, input({ kind: "image", fileName: "Q2 table.JPEG", mime: "image/jpeg", bytes: IMAGE_MAX_BYTES }), newId);
+    expect(result.path).toBe(`${ID}.jpg`);
+    expect(repo.docs.get(ID)).toMatchObject({ kind: "image", storagePath: `${ID}.jpg`, title: "Q2 table", status: "uploading" });
+    const png = createMemoryDocumentsRepo();
+    expect((await startUpload(png, input({ kind: "image", fileName: "shot.png", mime: "image/png", bytes: 5 }), newId)).path).toBe(`${ID}.png`);
+    const webp = createMemoryDocumentsRepo();
+    expect((await startUpload(webp, input({ kind: "image", fileName: "shot.webp", mime: "image/webp", bytes: 5 }), newId)).path).toBe(`${ID}.webp`);
+  });
+
+  it("refuses a photo over 1 MB with its own message, and a PDF still gets 50 MB", async () => {
+    const repo = createMemoryDocumentsRepo();
+    const error = await refusal(startUpload(repo, input({ kind: "image", fileName: "a.jpg", mime: "image/jpeg", bytes: IMAGE_MAX_BYTES + 1 }), newId));
+    expect(error.code).toBe("upload-image-too-large");
+    expect(error.message).toBe("This photo is still over 1 MB after shrinking; crop it to the table.");
     expect(repo.docs.size).toBe(0);
   });
 
@@ -123,6 +151,7 @@ describe("startUpload", () => {
   it("validates the claim at the boundary: hex hash, uuid company, ISO date, http(s) URL, integer bytes, no extra keys", async () => {
     const repo = createMemoryDocumentsRepo();
     const bad: Partial<StartUploadInput>[] = [
+      { kind: "audio" as never }, { kind: undefined as never },
       { sha256: "A".repeat(64) }, { sha256: "z".repeat(64) }, { sha256: "a".repeat(63) },
       { companyId: "not-a-uuid" }, { filedOn: "30/06/2026" }, { sourceUrl: "javascript:alert(1)" },
       { bytes: 1.5 }, { bytes: 0 }, { fileName: "" },
@@ -146,6 +175,15 @@ describe("finishUpload", () => {
     expect((await refusal(finishUpload(repo, ID))).code).toBe("upload-missing");
     expect(repo.removed).toEqual([]); // nothing there to clear
     expect(repo.docs.get(ID)!.status).toBe("uploading");
+  });
+
+  it("a photo is finished only when the stored type is the one its path names", async () => {
+    const repo = createMemoryDocumentsRepo();
+    await startUpload(repo, input({ kind: "image", fileName: "a.jpg", mime: "image/jpeg", bytes: 900 }), newId);
+    repo.objects.set(`${ID}.jpg`, { size: 900, mimetype: "image/png" });
+    expect((await refusal(finishUpload(repo, ID))).code).toBe("upload-missing");
+    repo.objects.set(`${ID}.jpg`, { size: 900, mimetype: "image/jpeg" });
+    expect((await finishUpload(repo, ID)).status).toBe("active");
   });
 
   it("refuses when the stored size differs from the claimed size, or the stored type is not PDF", async () => {
@@ -190,7 +228,7 @@ describe("the in-memory repo lists a company's documents like the real one", () 
     const ids = ["a", "b", "c", "d"].map((c) => c.repeat(8) + "-0000-4000-8000-000000000000");
     const sha = (n: number) => String(n).repeat(64);
     const add = async (n: number, filedOn: string | null, status: "uploading" | "active") => {
-      await repo.insertUploading({ id: ids[n], title: `doc ${n}`, storagePath: `${ids[n]}.pdf`, sha256: sha(n), bytes: 1, companyId: company, filedOn, sourceUrl: null });
+      await repo.insertUploading({ id: ids[n], title: `doc ${n}`, kind: "pdf", storagePath: `${ids[n]}.pdf`, sha256: sha(n), bytes: 1, companyId: company, filedOn, sourceUrl: null });
       await repo.update(ids[n], { status });
     };
     await add(0, null, "active");

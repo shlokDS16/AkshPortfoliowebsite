@@ -125,10 +125,10 @@ describe("InboxSection", () => {
     it("warns at 72% storage but still takes uploads; at 91% the drop bar is disabled and says why", () => {
       const { rerender } = render(section([], { usage: { storageBytes: Math.round(0.72 * STORAGE_BYTES), databaseBytes: 12 * MB } }));
       expect(tone("Storage")).toHaveAttribute("data-tone", "warn");
-      expect(screen.getByLabelText("Choose a PDF")).toBeEnabled();
+      expect(screen.getByLabelText("Choose a file")).toBeEnabled();
       rerender(section([], { usage: { storageBytes: Math.round(0.91 * STORAGE_BYTES), databaseBytes: 12 * MB } }));
       expect(tone("Storage")).toHaveAttribute("data-tone", "bad");
-      expect(screen.getByLabelText("Choose a PDF")).toBeDisabled();
+      expect(screen.getByLabelText("Choose a file")).toBeDisabled();
       expect(screen.getAllByText("Storage is 91% full. Mark finished documents as done to free space.")).toHaveLength(1);
     });
 

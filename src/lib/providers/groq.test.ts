@@ -54,6 +54,36 @@ describe("createGroqLlm: the request (API reference + structured outputs + reaso
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it("sends exactly one image: the user turn becomes a text part and one image_url data URI part", async () => {
+    const { fetch, llm } = setup(reply(200, answer('{"ok":true,"note":null}')));
+    await llm.complete({ ...req, reasoningEffort: undefined, image: { mime: "image/jpeg", base64: "QUJD" } });
+    const body = JSON.parse(String(fetch.mock.calls[0][1]?.body));
+    expect(body.messages[0]).toEqual({ role: "system", content: "Answer in JSON." });
+    expect(body.messages[1]).toEqual({
+      role: "user",
+      content: [
+        { type: "text", text: "Is this fine?" },
+        { type: "image_url", image_url: { url: "data:image/jpeg;base64,QUJD" } },
+      ],
+    });
+    expect(body.messages[1].content.filter((part: { type: string }) => part.type === "image_url")).toHaveLength(1);
+    expect(body).not.toHaveProperty("reasoning_effort"); // not verified for the vision model: never sent unless the caller asks
+  });
+
+  it("sends a plain string user turn when there is no image", async () => {
+    const { fetch, llm } = setup(reply(200, answer('{"ok":true,"note":null}')));
+    await llm.complete(req);
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body)).messages[1].content).toBe("Is this fine?");
+  });
+
+  it("a vision call never carries two images: the type refuses a list, and a list that gets through is refused before any request", async () => {
+    // @ts-expect-error `image` is one image, not an array
+    const two: LlmRequest<z.infer<typeof schema>> = { ...req, image: [{ mime: "image/png", base64: "QQ==" }, { mime: "image/png", base64: "Qg==" }] };
+    const { fetch, llm } = setup(reply(200, answer("{}")));
+    expect(await llm.complete(two)).toMatchObject({ kind: "rejected" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("sends no reasoning fields when the request sets no effort", async () => {
     const { fetch, llm } = setup(reply(200, answer('{"ok":true,"note":null}')));
     await llm.complete({ ...req, reasoningEffort: undefined });

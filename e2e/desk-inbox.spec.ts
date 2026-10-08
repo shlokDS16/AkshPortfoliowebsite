@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Db } from "@/lib/supabase/types";
 import { makeFixturePdf } from "../scripts/make-fixture-pdf.mjs";
+import { makeFixturePng } from "../scripts/make-fixture-png.mjs";
 import { adminDb, documentIdOf as documentIdIn, expectNoViolations, hydrated, openItem, retire as retireIn } from "./support/desk";
 import { KAVERI } from "../src/test/fixtures/casefile";
 import { makePdf } from "../src/test/fixtures/pdf";
@@ -39,7 +40,7 @@ test("upload a PDF: it is read, its statement pages are ticked, its figures wait
   await expect(page.getByRole("link", { name: /^Inbox/ }).first()).toHaveAttribute("aria-current", "page");
   await page.getByText("Company, filing date and link (optional)").click();
   await page.getByLabel("Company, as $SYMBOL").fill(`$${symbol}`);
-  await page.getByLabel("Choose a PDF").setInputFiles(pdf);
+  await page.getByLabel("Choose a file").setInputFiles(pdf);
 
   // The card appears at once. The upload's own kick may already be reading it, so any live tray is right.
   const card = page.locator("article", { hasText: title });
@@ -69,7 +70,7 @@ test("upload a PDF: it is read, its statement pages are ticked, its figures wait
   await expect(card.getByText("3 of 20 allowed")).toBeVisible();
 
   // The same bytes again: refused, naming the first upload, with a link to its card.
-  await page.getByLabel("Choose a PDF").setInputFiles(pdf);
+  await page.getByLabel("Choose a file").setInputFiles(pdf);
   const refusal = page.getByRole("alert").filter({ hasText: "You uploaded this on" });
   await expect(refusal).toBeVisible();
   const link = refusal.getByRole("link", { name: "Open it" });
@@ -85,7 +86,7 @@ test("upload a PDF: it is read, its statement pages are ticked, its figures wait
 
   // A document with nothing to review can be skipped (its one page has over 50 characters: under that a page is a scan and goes to the scan reader): the card moves to Finished and its job stops.
   const quietTitle = `notice-${run}`;
-  await page.getByLabel("Choose a PDF").setInputFiles({ name: `${quietTitle}.pdf`, mimeType: "application/pdf", buffer: Buffer.from(makePdf([[`Notice of the annual general meeting of the members, ${run}`]])) });
+  await page.getByLabel("Choose a file").setInputFiles({ name: `${quietTitle}.pdf`, mimeType: "application/pdf", buffer: Buffer.from(makePdf([[`Notice of the annual general meeting of the members, ${run}`]])) });
   const quiet = page.locator("article", { hasText: quietTitle });
   await expect(quiet.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 60_000 });
   await expect(quiet.getByText("Read. No figures matched; open it beside your file.")).toBeVisible();
@@ -114,7 +115,7 @@ test("the document pane beside the Kaveri editor: step to p. 4, use it as a sour
   await hydrated(page);
   await page.getByText("Company, filing date and link (optional)").click();
   await page.getByLabel("Company, as $SYMBOL").fill(`$${KAVERI.symbol}`);
-  await page.getByLabel("Choose a PDF").setInputFiles({ name: `${title}.pdf`, mimeType: "application/pdf", buffer: makeFixturePdf(run) });
+  await page.getByLabel("Choose a file").setInputFiles({ name: `${title}.pdf`, mimeType: "application/pdf", buffer: makeFixturePdf(run) });
   const card = page.locator("article", { hasText: title });
   await expect(card.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 90_000 });
 
@@ -175,7 +176,7 @@ test("review: resolve the flagged figure by typing it, untick one, and file the 
   await hydrated(page);
   await page.getByText("Company, filing date and link (optional)").click();
   await page.getByLabel("Company, as $SYMBOL").fill(`$${KAVERI.symbol}`);
-  await page.getByLabel("Choose a PDF").setInputFiles({ name: `${title}.pdf`, mimeType: "application/pdf", buffer: makeFixturePdf(run) });
+  await page.getByLabel("Choose a file").setInputFiles({ name: `${title}.pdf`, mimeType: "application/pdf", buffer: makeFixturePdf(run) });
   const card = page.locator("article", { hasText: title });
   await expect(card.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 90_000 });
   await expect(card.getByText("5 figures ready to check. 1 needs a look.")).toBeVisible();
@@ -225,6 +226,46 @@ test("review: resolve the flagged figure by typing it, untick one, and file the 
   } finally {
     // Leave nothing staged on the shared Kaveri file for the other specs.
     await db.from("proposals").update({ item_id: null }).eq("document_id", documentId);
+    await retire(documentId);
+  }
+});
+
+test("upload a photo of a table: the browser shrinks it, the scan reader and the AI read it, and its figures wait for a check", async ({ page }, testInfo) => {
+  test.setTimeout(150_000);
+  // Per-run pixels (a nonce block row): the browser's JPEG of a fixed picture is the same bytes every time, and the
+  // second run would be refused as a duplicate. The shrinking itself is unit-tested (downscale.test.ts).
+  const run = `${Date.now().toString(36)}${testInfo.project.name === "desk-mobile" ? "M" : "D"}I`.toUpperCase();
+  const title = `table-photo-${run}`;
+
+  await page.goto("/desk/inbox");
+  await hydrated(page);
+  await page.getByLabel("Choose a file").setInputFiles({ name: `${title}.png`, mimeType: "image/png", buffer: makeFixturePng(run) });
+  const card = page.locator("article", { hasText: title });
+  await expect(card).toBeVisible({ timeout: 30_000 });
+  await expect(card.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 90_000 });
+  // The fixture reader returns the P&L text and the fixture AI reads the same three lines from the picture: all found on the page.
+  await expect(card.getByText("3 figures ready to check.", { exact: true })).toBeVisible();
+  await expect(card.getByText("Pages to read")).toHaveCount(0); // a photo is one page: nothing to tick
+  const documentId = await documentIdOf(title);
+
+  try {
+    // What was stored: a JPEG the browser made, under 1 MB, named by the server, read as one page by the scan reader.
+    const doc = await db.from("documents").select("kind, storage_path, bytes, page_count, status").eq("id", documentId).single();
+    expect(doc.data).toMatchObject({ kind: "image", storage_path: `${documentId}.jpg`, page_count: 1, status: "active" });
+    expect(doc.data!.bytes).toBeGreaterThan(0);
+    expect(doc.data!.bytes).toBeLessThanOrEqual(1_048_576);
+    const pages = await db.from("document_pages").select("page_no, ocr, text").eq("document_id", documentId);
+    expect(pages.data).toHaveLength(1);
+    expect(pages.data![0]).toMatchObject({ page_no: 1, ocr: true });
+    expect(pages.data![0].text).toContain("Revenue from operations 1,284.00 1,102.00");
+    const jobs = await db.from("jobs").select("kind, job_steps(kind, page_no, status)").eq("document_id", documentId).single();
+    expect(jobs.data?.kind).toBe("ingest_image");
+    const steps = (jobs.data?.job_steps ?? []).map((st) => `${st.kind}:${st.page_no}:${st.status}`).sort();
+    expect(steps).toEqual(["ocr_page:1:done", "vision_page:1:done"]);
+    const proposals = await db.from("proposals").select("flags, status").eq("document_id", documentId);
+    expect(proposals.data).toHaveLength(3);
+    expect(proposals.data!.every((p) => p.status === "pending" && p.flags.length === 0)).toBe(true);
+  } finally {
     await retire(documentId);
   }
 });

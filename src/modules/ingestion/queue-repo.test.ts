@@ -97,7 +97,7 @@ describe("createQueueRepo", () => {
 
   it("creates the job and its first step, reusing the live job when one already exists", async () => {
     const created = fakeDb([{ data: { id: "j1" }, error: null }, { data: null, error: null }]);
-    expect(await createQueueRepo(created.db).createJob("d1", { kind: "pdf_text", pageNo: 1 })).toBe("j1");
+    expect(await createQueueRepo(created.db).createJob("d1", "ingest_pdf", { kind: "pdf_text", pageNo: 1 })).toBe("j1");
     expect(created.calls[0].ops[0]).toEqual(["insert", { kind: "ingest_pdf", document_id: "d1" }]);
     expect(created.calls[1].ops[0][0]).toBe("upsert");
 
@@ -106,7 +106,7 @@ describe("createQueueRepo", () => {
       { data: { id: "j0" }, error: null },
       { data: null, error: null },
     ]);
-    expect(await createQueueRepo(raced.db).createJob("d1", { kind: "pdf_text", pageNo: 1 })).toBe("j0");
+    expect(await createQueueRepo(raced.db).createJob("d1", "ingest_pdf", { kind: "pdf_text", pageNo: 1 })).toBe("j0");
     expect(raced.calls[1].ops).toEqual([["select", "id"], ["eq", "document_id", "d1"], ["is", "cancelled_at", null], ["single"]]);
   });
 

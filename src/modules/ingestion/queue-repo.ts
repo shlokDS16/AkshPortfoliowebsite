@@ -2,7 +2,7 @@ import { isUniqueViolation, jobDbError } from "@/lib/supabase/errors";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
 import { LEASE_SECONDS } from "./caps";
-import type { NewStep, Step, StepKind, StepStatus, WaitReason } from "./types";
+import type { JobKind, NewStep, Step, StepKind, StepStatus, WaitReason } from "./types";
 
 export type FinishPatch = {
   status: StepStatus;
@@ -20,8 +20,8 @@ export interface QueueRepo {
   finish(step: Step, owner: string, patch: FinishPatch): Promise<boolean>;
   /** Idempotent: insert ... on conflict (job_id, kind, page_no, pass) do nothing (pass defaults to 1, R2). */
   enqueue(jobId: string, steps: NewStep[]): Promise<void>;
-  /** Creates the document's job (or reuses its live one) and enqueues the first step. */
-  createJob(documentId: string, first: NewStep): Promise<string>;
+  /** Creates the document's job of this kind (or reuses its live one) and enqueues the first step. */
+  createJob(documentId: string, kind: JobKind, first: NewStep): Promise<string>;
 }
 
 type StepRow = Database["public"]["Functions"]["claim_job_step"]["Returns"][number];
@@ -102,9 +102,9 @@ export function createQueueRepo(db: Db): QueueRepo {
 
     enqueue,
 
-    async createJob(documentId, first) {
+    async createJob(documentId, kind, first) {
       let jobId: string;
-      const inserted = await db.from("jobs").insert({ kind: "ingest_pdf", document_id: documentId }).select("id").single();
+      const inserted = await db.from("jobs").insert({ kind, document_id: documentId }).select("id").single();
       if (!inserted.error) jobId = inserted.data.id;
       else {
         // jobs_one_live_per_document: a second finish (double click, retry) reuses the live job.

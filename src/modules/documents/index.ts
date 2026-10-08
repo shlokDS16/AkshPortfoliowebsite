@@ -3,6 +3,7 @@ import "server-only";
 
 export type { Basis, DocSourceType, DocumentListItem, DocumentRow, DocumentStatus, PageForExtraction, PageForReading, PageKind, PageRow, PageText, StartUploadInput } from "./types";
 export * from "./limits";
+export * from "./kinds";
 export { DOCUMENT_ERROR_TEXT, DocumentError, type DocumentErrorCode } from "./errors";
 export { createSupabaseDocumentsRepo, type DocumentPatch, type DocumentsRepo } from "./repo";
 export { finishUpload, startUpload, startUploadInputSchema, titleFromFileName } from "./upload";

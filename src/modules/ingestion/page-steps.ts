@@ -7,9 +7,9 @@ import type { NewStep, StepKind } from "./types";
 
 /**
  * The steps that belong to one page of a document: the trays, the ETA and the Needs-attention page list count these
- * (ruling R13). vision_page (Task 3) and digest_page (Task 7) join when they exist.
+ * (ruling R13). digest_page (Task 7) joins when it exists.
  */
-export const PAGE_STEP_KINDS: readonly StepKind[] = ["extract_page", "ocr_page"];
+export const PAGE_STEP_KINDS: readonly StepKind[] = ["extract_page", "ocr_page", "vision_page"];
 
 export type PageFacts = { pageNo: number; isScan: boolean; kind: PageKind | null };
 
@@ -19,7 +19,7 @@ export function stepsForPage(page: PageFacts): NewStep {
   return { kind: "extract_page", pageNo: page.pageNo };
 }
 
-/** A scanned document: at least this share of its pages are scans, so its scan pages are listed for ticking and the tray says so. */
+/** A scanned document: at least this share of its pages are scans, and the tray says how many (ticking is offered for any scan page). */
 export const isScanHeavy = (scans: number, total: number | null): boolean => scans > 0 && total !== null && total > 0 && scans / total >= OCR_WHOLE_SHARE;
 
 /**

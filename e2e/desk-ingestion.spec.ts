@@ -38,7 +38,7 @@ test.beforeAll(async () => {
 /** Starts and finishes an upload the way the desk does; `claimed` is the hash the browser says it has. */
 async function upload(bytes: Uint8Array, tag: string, claimed = sha256(bytes)): Promise<string> {
   const docs = createSupabaseDocumentsRepo(admin);
-  const input = { fileName: `e2e-${RUN}-${tag}.pdf`, bytes: bytes.byteLength, mime: "application/pdf", sha256: claimed, companyId: null, filedOn: null, sourceUrl: null };
+  const input = { kind: "pdf" as const, fileName: `e2e-${RUN}-${tag}.pdf`, bytes: bytes.byteLength, mime: "application/pdf", sha256: claimed, companyId: null, filedOn: null, sourceUrl: null };
   const started = await startUpload(docs, input, randomUUID);
   const put = await admin.storage.from("documents").uploadToSignedUrl(started.path, started.token, bytes, { contentType: "application/pdf" });
   if (put.error) throw put.error;
@@ -69,8 +69,8 @@ test("createJob, enqueue, claim and finish run on the real grants: admin session
   const documentId = await upload(uniquePdf("queue"), "queue");
   let jobId: string | null = null;
   try {
-    jobId = await createQueueRepo(admin).createJob(documentId, { kind: "pdf_text", pageNo: 1 });
-    expect(await createQueueRepo(admin).createJob(documentId, { kind: "pdf_text", pageNo: 1 })).toBe(jobId); // the live job is reused
+    jobId = await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
+    expect(await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 })).toBe(jobId); // the live job is reused
     // Put this job's step ahead of anything else runnable in the shared local queue.
     const early = await service.from("job_steps").update({ not_before: "2000-01-01T00:00:00Z" }).eq("job_id", jobId).select("id");
     expect(early.error).toBeNull();
@@ -136,7 +136,7 @@ test("the pump reads an uploaded PDF's pages, selects its statement pages and re
   const documentId = await upload(uniquePdf("pump"), "pump");
   let jobId: string | null = null;
   try {
-    jobId = await createQueueRepo(admin).createJob(documentId, { kind: "pdf_text", pageNo: 1 });
+    jobId = await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
     await pump(request);
 
     const steps = await stepsOf(jobId);
@@ -185,7 +185,7 @@ test("the pump reads a scanned page with the scan reader (fixture), then reads i
   const documentId = await upload(new Uint8Array(makeFixturePdf(`${RUN}-scan`, { scan: true })), "scan");
   let jobId: string | null = null;
   try {
-    jobId = await createQueueRepo(admin).createJob(documentId, { kind: "pdf_text", pageNo: 1 });
+    jobId = await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
     await pump(request);
 
     const steps = await stepsOf(jobId);
@@ -219,7 +219,7 @@ test("the pump never parses a stored file whose hash differs from the one claime
   const documentId = await upload(real, "tamper", sha256(claimed));
   let jobId: string | null = null;
   try {
-    jobId = await createQueueRepo(admin).createJob(documentId, { kind: "pdf_text", pageNo: 1 });
+    jobId = await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
     await pump(request);
     expect(await stepsOf(jobId)).toEqual([
       { kind: "pdf_text", page_no: 1, status: "needs_attention", result: null, last_error: "The stored file is not the PDF that was uploaded. Choose Try again, or Skip this document." },

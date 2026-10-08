@@ -22,9 +22,9 @@ beforeEach(async () => {
   docs = createMemoryDocumentsRepo();
   inbox = createMemoryInbox();
   ports = { docs, inbox, queue: inbox.queue };
-  await docs.insertUploading({ id: DOC, title: "AR", storagePath: `${DOC}.pdf`, sha256: SHA, bytes: 10, companyId: null, filedOn: null, sourceUrl: null });
+  await docs.insertUploading({ id: DOC, title: "AR", kind: "pdf", storagePath: `${DOC}.pdf`, sha256: SHA, bytes: 10, companyId: null, filedOn: null, sourceUrl: null });
   await docs.update(DOC, { status: "active", llmPageBudget: 3 });
-  job = await inbox.queue.createJob(DOC, { kind: "pdf_text", pageNo: 1 });
+  job = await inbox.queue.createJob(DOC, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
 });
 
 const code = async (promise: Promise<unknown>): Promise<string> => {

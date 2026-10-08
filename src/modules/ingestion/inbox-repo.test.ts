@@ -36,7 +36,7 @@ describe("inbox repo and the pass column (migration 0008, R2)", () => {
     expect(await createSupabaseInboxRepo(db).pageSteps("j1")).toEqual([
       { pageNo: 4, kind: "extract_page" }, { pageNo: 4, kind: "ocr_page" }, { pageNo: 9, kind: "extract_page" },
     ]);
-    expect(calls[0].ops).toEqual([["select", "page_no, kind"], ["eq", "job_id", "j1"], ["in", "kind", ["extract_page", "ocr_page"]]]);
+    expect(calls[0].ops).toEqual([["select", "page_no, kind"], ["eq", "job_id", "j1"], ["in", "kind", ["extract_page", "ocr_page", "vision_page"]]]);
   });
 
   it("skips the queued page steps of a page, whichever pass and kind, and nothing that has started", async () => {
@@ -46,7 +46,7 @@ describe("inbox repo and the pass column (migration 0008, R2)", () => {
       ["update", { status: "skipped" }],
       ["eq", "job_id", "j1"],
       ["eq", "page_no", 4],
-      ["in", "kind", ["extract_page", "ocr_page"]],
+      ["in", "kind", ["extract_page", "ocr_page", "vision_page"]],
       ["eq", "status", "queued"],
     ]);
   });

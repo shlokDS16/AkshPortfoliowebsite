@@ -5,8 +5,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { actionsMock, MB } from "@/test/inbox-fixtures";
 import { DropBar } from "./drop-bar";
 
-const mocks = vi.hoisted(() => ({ start: vi.fn(), finish: vi.fn(), hash: vi.fn(async () => "a".repeat(64)) }));
-vi.mock("@/lib/supabase/browser", () => ({ createSupabaseBrowserClient: () => ({}) }));
+const mocks = vi.hoisted(() => ({
+  start: vi.fn(),
+  finish: vi.fn(),
+  hash: vi.fn(async () => "a".repeat(64)),
+  put: vi.fn(async () => ({ error: null })),
+  shrink: vi.fn(),
+}));
+vi.mock("@/lib/supabase/browser", () => ({ createSupabaseBrowserClient: () => ({ storage: { from: () => ({ uploadToSignedUrl: mocks.put }) } }) }));
+vi.mock("./downscale", () => ({ downscaleImage: mocks.shrink }));
 vi.mock("@/modules/ingestion/actions", () => ({ startUploadAction: mocks.start, finishUploadAction: mocks.finish }));
 vi.mock("@/modules/documents/client", async (importOriginal) => ({ ...(await importOriginal<object>()), hashFile: mocks.hash }));
 
@@ -14,6 +21,8 @@ beforeEach(() => {
   mocks.start.mockReset();
   mocks.finish.mockReset();
   mocks.hash.mockClear();
+  mocks.put.mockClear();
+  mocks.shrink.mockReset();
 });
 
 describe("DropBar", () => {
@@ -22,7 +31,7 @@ describe("DropBar", () => {
     Object.defineProperty(f, "size", { value: size });
     return f;
   };
-  const input = () => screen.getByLabelText("Choose a PDF");
+  const input = () => screen.getByLabelText("Choose a file");
 
   it("refuses a 51 MB file before any upload, with the spec's sentence", async () => {
     render(<DropBar companies={[]} actions={actionsMock()} />);
@@ -32,10 +41,36 @@ describe("DropBar", () => {
     expect(mocks.start).not.toHaveBeenCalled();
   });
 
-  it("refuses a file that is not a PDF before any upload", async () => {
+  it("refuses a file that is neither a PDF nor a photo before any upload", async () => {
     render(<DropBar companies={[]} actions={actionsMock()} />);
-    fireEvent.change(input(), { target: { files: [file("notes.png", 1000, "image/png")] } });
-    expect(await screen.findByRole("alert")).toHaveTextContent("Only PDF files can be uploaded.");
+    fireEvent.change(input(), { target: { files: [file("notes.txt", 1000, "text/plain")] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Drop a PDF, a photo or a voice note.");
+    expect(mocks.start).not.toHaveBeenCalled();
+  });
+
+  it("offers PDFs and photos in the file picker", () => {
+    render(<DropBar companies={[]} actions={actionsMock()} />);
+    expect(input()).toHaveAttribute("accept", expect.stringContaining("image/jpeg"));
+    expect(input()).toHaveAttribute("accept", expect.stringContaining("application/pdf"));
+  });
+
+  it("shrinks a photo, claims it as an image with the shrunk file's bare type and sends that type to Storage", async () => {
+    const shrunk = new File(["small"], "table.jpg", { type: "image/jpeg" });
+    mocks.shrink.mockResolvedValue({ ok: true, file: shrunk });
+    mocks.start.mockResolvedValue({ ok: true, documentId: "d1", path: "d1.jpg", token: "t" });
+    mocks.finish.mockResolvedValue({ ok: true });
+    render(<DropBar companies={[]} actions={actionsMock()} />);
+    await userEvent.upload(input(), file("table.png", 4 * MB, "image/png"));
+    expect(await screen.findByText(/Uploaded table.png/)).toBeInTheDocument();
+    expect(mocks.start).toHaveBeenCalledWith(expect.objectContaining({ kind: "image", fileName: "table.jpg", mime: "image/jpeg", bytes: 5 }));
+    expect(mocks.put).toHaveBeenCalledWith("d1.jpg", "t", shrunk, { contentType: "image/jpeg" });
+  });
+
+  it("says to crop a photo that will not shrink under 1 MB, before any upload", async () => {
+    mocks.shrink.mockResolvedValue({ ok: false, message: "This photo is still over 1 MB after shrinking; crop it to the table." });
+    render(<DropBar companies={[]} actions={actionsMock()} />);
+    await userEvent.upload(input(), file("wide.png", 9 * MB, "image/png"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("crop it to the table");
     expect(mocks.start).not.toHaveBeenCalled();
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createOcrSpace, OCRSPACE_URL } from "./ocrspace";
+import { createOcrSpace, OCRSPACE_URL, redact } from "./ocrspace";
 
 const KEY = "K81234567888957";
 const MAX = 1_048_576;
@@ -104,5 +104,41 @@ describe("OCR.space adapter", () => {
     const fetchSpy = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () => answer("x"));
     await port(fetchSpy).read(PDF, { table: true, timeoutMs: 5_000 });
     expect(sent(fetchSpy)[1].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("never follows a redirect: the key rides in a header and must not reach another origin", async () => {
+    const fetchSpy = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () => answer("x"));
+    await port(fetchSpy).read(PDF, { table: true });
+    expect(sent(fetchSpy)[1].redirect).toBe("error");
+    // The platform then throws on a redirect, and that is a provider error with no URL in it.
+    const r = await port(async () => {
+      throw new TypeError("fetch failed: unexpected redirect to https://elsewhere.example/?apikey=" + KEY);
+    }).read(PDF, { table: true });
+    expect(r).toEqual({ kind: "provider_error", message: "TypeError" });
+  });
+
+  it("redacts the key and anything key-shaped from a provider message before it leaves the adapter", async () => {
+    const echoed = `Error for apikey: ${KEY} and token a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6 (file scan_2026.pdf)`;
+    const r = await port(async () => errored(echoed)).read(PDF, { table: true });
+    expect(r.kind).toBe("provider_error");
+    const message = (r as { message: string }).message;
+    expect(message).not.toContain(KEY);
+    expect(message).not.toContain("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6");
+    expect(message).not.toMatch(/apikey: /i);
+    expect(message).toContain("scan_2026.pdf"); // an ordinary file name is not a secret
+    // A quota answer that quotes the key is still told as a quota, and carries no key.
+    const quota = await port(async () => errored(`Key ${KEY}: You may only perform this action upto maximum 500 times in 86400 seconds.`)).read(PDF, { table: true });
+    expect(quota).toMatchObject({ kind: "refused", reason: "day" });
+    expect(JSON.stringify(quota)).not.toContain(KEY);
+  });
+});
+
+describe("redact", () => {
+  it("removes the exact key, apikey assignments and long mixed tokens, and leaves words and numbers", () => {
+    expect(redact(`bad ${KEY} here`, KEY)).toBe("bad [removed] here");
+    expect(redact("apikey=abc", "other")).toBe("apikey [removed]");
+    expect(redact("a-very-long-hyphenated-sentence-without-digits", "k")).toBe("a-very-long-hyphenated-sentence-without-digits");
+    expect(redact("Maximum 500 times in 86400 seconds; 1024 KB limit.", "k")).toBe("Maximum 500 times in 86400 seconds; 1024 KB limit.");
+    expect(redact("nothing here", "")).toBe("nothing here");
   });
 });

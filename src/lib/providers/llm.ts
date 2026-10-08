@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-// The LLM port (ADR-004 s3; plan Task 9). Types only until Task 9 adds the Groq and fixture adapters (ruling R9).
+// The LLM port (ADR-004 s3): text, and one image for the vision model. The adapters are groq.ts and fixture-llm.ts.
 
 export type LlmUsage = { promptTokens: number; completionTokens: number; totalTokens: number };
 export type RateHeaders = { remainingTokens: number | null; remainingRequests: number | null; retryAfterSeconds: number | null };
@@ -13,6 +13,11 @@ export type LlmRequest<T> = {
   schemaName: string;
   maxCompletionTokens: number;
   reasoningEffort?: "low" | "medium" | "high";
+  /**
+   * One image the model reads with the prompt (vision, Plan 2b Task 3). Exactly one, never a list: the free tier counts
+   * 2,048 tokens an image and the desk reads one photo per call (spec s9, ruling R14).
+   */
+  image?: { mime: "image/jpeg" | "image/png" | "image/webp"; base64: string };
   /** Abort the call after this long, so a step never outlives its function (ruling R3). */
   timeoutMs?: number;
 };

@@ -33,7 +33,7 @@ export function createMemoryInbox(): MemoryInbox {
     async enqueue(jobId, news) {
       for (const n of news) if (!find(jobId, n.kind, n.pageNo)) steps.push({ jobId, kind: n.kind, pageNo: n.pageNo, status: "queued", failures: 0, lastError: null });
     },
-    async createJob(documentId, first) {
+    async createJob(documentId, _kind, first) {
       const id = live(documentId) ?? `job-${jobs.size + 1}`;
       jobs.set(id, { documentId, cancelled: false });
       await queue.enqueue(id, [first]);

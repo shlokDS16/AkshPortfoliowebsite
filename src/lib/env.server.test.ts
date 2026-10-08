@@ -63,6 +63,11 @@ describe("parseServerEnv: the LLM settings (optional; unset means AI reading is 
     expect(parseServerEnv({ ...valid, GROQ_API_KEY: `gsk_${"k".repeat(40)}` }).GROQ_API_KEY).toBe(`gsk_${"k".repeat(40)}`);
   });
 
+  it("defaults GROQ_MODEL_VISION to the vision model, also when the template leaves it empty", () => {
+    expect(parseServerEnv(valid).GROQ_MODEL_VISION).toBe("qwen/qwen3.8-27b");
+    expect(parseServerEnv({ ...valid, GROQ_MODEL_VISION: "" }).GROQ_MODEL_VISION).toBe("qwen/qwen3.8-27b");
+  });
+
   it("defaults GROQ_MODEL_TEXT to openai/gpt-oss-120b, also when the template leaves it empty", () => {
     expect(parseServerEnv(valid).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-120b");
     expect(parseServerEnv({ ...valid, GROQ_MODEL_TEXT: "" }).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-120b");

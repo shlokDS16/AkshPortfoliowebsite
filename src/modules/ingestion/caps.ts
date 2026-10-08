@@ -55,3 +55,12 @@ export const OCR_BLOCK_FALLBACK_MS = 60 * 60 * 1000;
 export const OCR_KEY_REFUSALS = 3;
 /** A scanned document is read whole when at least this share of its pages are scans and they fit its page budget (ruling R6). */
 export const OCR_WHOLE_SHARE = 0.8;
+/** A scan step whose scan reader is off asks again after this long; a key and a redeploy need no touch of the step. */
+export const OCR_OFF_RETRY_MS = 6 * 60 * 60 * 1000;
+/** A step that finds under 20 s left tries again almost at once (no failure is counted); groq_minute reads as a short wait. */
+export const SHORT_WAIT_MS = 5_000;
+/** document_pages.is_scan: a page with under this many characters is a scan. */
+export const READABLE_CHARS = 50;
+
+/** Input tokens one image costs on Groq vision (spec s9, https://console.groq.com/docs/vision, read 2026-10-08). */
+export const IMAGE_TOKENS = 2_048;

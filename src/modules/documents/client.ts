@@ -1,5 +1,6 @@
 // Browser-safe entry point (the upload bar and the storage meter). No server-only imports here.
 export * from "./limits";
+export * from "./kinds";
 export type { Basis, DocSourceType, DocumentListItem, DocumentRow, DocumentStatus, PageKind, PageRow, StartUploadInput } from "./types";
 export { normaliseText, onPage, parsePrinted, queryWords } from "./verbatim";
 

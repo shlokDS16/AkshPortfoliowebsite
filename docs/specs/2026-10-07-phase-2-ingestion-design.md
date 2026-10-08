@@ -255,3 +255,22 @@ Copy (plain second person). "Pending Shlok approval" means the build chose the w
 | Being read | Reading scanned pages: 3 of 12, ready by 11:40 | pending Shlok approval |
 | Ready, a large scanned document with nothing ticked | N pages are scans. Tick the pages to read; each uses one of today's 375 scan reads. | pending Shlok approval (Shlok's threshold: the document's page budget) |
 | Page chooser, an unread scan | Scanned page, not read yet | pending Shlok approval |
+
+### 16.8 Plan 2b Task 3: photos and screenshots (2026-10-08, append-only)
+Step 0, https://console.groq.com/docs/vision read 2026-10-08: the vision model is `qwen/qwen3.8-27b`; a request takes up to 3 images and each image counts as 2,048 input tokens (`IMAGE_TOKENS`); the page states a 20 MB limit for a request that carries an image URL and does not state a separate limit for base64 images; JSON mode is supported. https://console.groq.com/docs/structured-outputs lists `qwen/qwen3.8-27b` for both strict and best-effort `json_schema`, so the extraction schema is sent strict as for the text model. `reasoning_effort` for this model is not documented, so it is not sent (R14). The desk sends exactly one image per call, always under 1 MB (about 1.4 MB as base64), far below either limit. No new runtime dependency: the browser's own `createImageBitmap` and canvas shrink the picture.
+
+Behaviour:
+- The drop bar takes a PDF, or a photo or screenshot (JPEG, PNG or WebP). The browser draws a photo on a canvas of at most 1,600 pixels on the long side with its proportions kept, white behind any transparency, and encodes it as a JPEG at quality 0.85, stepping down by 0.05 to 0.6 until it is under 1 MB (1,048,576 bytes, `IMAGE_MAX_BYTES`, equal to `OCR_MAX_BYTES`). A photo that never fits is refused before any upload. The file is hashed after shrinking, so the duplicate check is on the bytes that are stored. The upload sends the bare type (`image/jpeg`, never `;codecs=` or `;charset=`).
+- `startUploadInput` carries `kind` (`pdf` or `image`). The server checks the type and the file name per kind (the type must be exactly `image/jpeg`, `image/png` or `image/webp`), the size per kind (PDF 50 MB, photo 1 MB), chooses the path `<id>.jpg|png|webp`, records `documents.kind = 'image'`, and `finishUpload` compares the stored object's type with the one the path names. The job is `ingest_image` and its first step is `ocr_page` on page 1 (a PDF's is `pdf_text`).
+- `ocr_page` on a photo makes page 1 (empty text, `page_count` 1), sends the picture to the scan reader like a scanned PDF page (one request in the `ocrspace` bucket, the same waits and sentences), writes the text over the page and queues `vision_page` whether or not the reader found text.
+- `vision_page` sends the one image and the prompt `extract-image-v1` to the vision model (`GROQ_MODEL_VISION`, default `qwen/qwen3.8-27b`) and nothing of the reader's text (R14). The reservation is the text, `IMAGE_TOKENS` and the completion cap, below the 6,000 tokens a minute. The answer is the same extraction as a digital page; every value and quote is checked against the reader's text exactly as for a digital page, so a figure the reader missed is flagged "value not on the page". The cache key is the SHA-256 of the image bytes under the image prompt version. Nothing is ticked; a photo is one page and its card has no page list.
+- Inbox: `vision_page` is a page step (progress, attention pages, ready-by estimate). A document that is only partly scanned now lists its scan pages for ticking too (Task 2 review); the read of listed pages goes in ranges of 1,000 so a long scanned report loses none.
+
+Copy (plain second person). "Pending Shlok approval" means the build chose the wording and Shlok has not yet read it.
+| Where | Text | Status |
+|---|---|---|
+| Drop bar, button | Choose a file | pending Shlok approval (was "Choose a PDF") |
+| Drop bar, hint | or drop one here. PDFs of annual reports, presentations and filings, up to 50 MB, and photos or screenshots of a table. | pending Shlok approval |
+| Upload refused, any other file (`upload-unsupported`, replaces `upload-not-pdf`) | Drop a PDF, a photo or a voice note. | from ruling R12 (the voice note works from Task 4) |
+| Upload refused, photo too big after shrinking (`upload-image-too-large`) | This photo is still over 1 MB after shrinking; crop it to the table. | from the plan |
+| Needs attention, photo no longer stored | This photo is no longer stored, so it cannot be read. Choose Skip, or Try again. | pending Shlok approval |

@@ -1,5 +1,6 @@
 // Browser-safe types for documents (migration 0006). No runtime code here.
 import type { SourceType } from "@/lib/desk-types";
+import type { DocumentKind, UploadKind } from "./kinds";
 
 export type DocumentStatus = "uploading" | "active" | "done" | "skipped";
 export type Basis = "consolidated" | "standalone";
@@ -10,7 +11,7 @@ export type DocumentRow = {
   id: string;
   companyId: string | null;
   title: string;
-  kind: "pdf";
+  kind: DocumentKind;
   storagePath: string | null;
   sha256: string;
   bytes: number;
@@ -63,6 +64,8 @@ export type PageForExtraction = PageForReading & {
 
 /** What the browser claims about a file before it uploads it. Every field is checked on the server. */
 export type StartUploadInput = {
+  /** What the file is: a PDF, or a photo the browser has already shrunk. */
+  kind: UploadKind;
   fileName: string;
   bytes: number;
   mime: string;

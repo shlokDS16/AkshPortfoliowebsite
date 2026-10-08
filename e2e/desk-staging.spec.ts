@@ -35,7 +35,7 @@ test("the whole flow: upload, read, Ready card, review, file under, staged rows,
   await hydrated(page);
   await page.getByText("Company, filing date and link (optional)").click();
   await page.getByLabel("Company, as $SYMBOL").fill(`$${symbol}`);
-  await page.getByLabel("Choose a PDF").setInputFiles({ name: `${title}.pdf`, mimeType: "application/pdf", buffer: makeFixturePdf(run) });
+  await page.getByLabel("Choose a file").setInputFiles({ name: `${title}.pdf`, mimeType: "application/pdf", buffer: makeFixturePdf(run) });
   const card = page.locator("article", { hasText: title });
   await expect(card.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 90_000 });
   const documentId = await documentIdOf(title);
