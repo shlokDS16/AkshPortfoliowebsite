@@ -25,7 +25,7 @@ export async function buildReview(ports: Ports, documentId: string): Promise<Rev
   const doc = await ports.docs.get(documentId);
   if (!doc) return null;
   const all = currentRecords(await ports.review.list(documentId)).flatMap((rec) => toView(rec) ?? []);
-  const readings = readingViews(await ports.review.listReadings(documentId));
+  const readings = readingViews(await ports.review.listReadings(documentId), doc.basis);
   const rows = all.filter((v) => v.status !== "filed");
   const flags = rows.filter((v) => v.flags.length > 0);
   const { values, hiddenBasis } = groupValues(rows, doc.basis);

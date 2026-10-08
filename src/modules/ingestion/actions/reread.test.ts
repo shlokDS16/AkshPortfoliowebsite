@@ -5,7 +5,6 @@ const order: string[] = [];
 const ops = vi.hoisted(() => ({ previewReread: vi.fn(), rereadPage: vi.fn() }));
 const revalidatePath = vi.hoisted(() => vi.fn());
 const ai = vi.hoisted(() => ({ on: true }));
-const usage = vi.hoisted(() => ({ median: 0 as number | null, fail: false }));
 const requireAdmin = vi.fn(async () => {
   order.push("requireAdmin");
   return { userId: "u-1", email: "aksh@example.com" };
@@ -25,15 +24,6 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/modules/documents", async (importOriginal) => ({ ...(await importOriginal<object>()), createSupabaseDocumentsRepo: (db: unknown) => ({ db }) }));
 vi.mock("../inbox-repo", () => ({ createSupabaseInboxRepo: (db: unknown) => ({ db }) }));
 vi.mock("../queue-repo", () => ({ createQueueRepo: (db: unknown) => ({ db }) }));
-vi.mock("../usage-repo", () => ({
-  createUsageRepo: () => ({
-    totals: async (bucket: string) => {
-      order.push(`totals:${bucket}`);
-      if (usage.fail) throw new Error("boom");
-      return { lastMinute: 0, today: 0, medianPerCall: usage.median };
-    },
-  }),
-}));
 vi.mock("../reread", () => ({ previewReread: ops.previewReread, rereadPage: ops.rereadPage }));
 
 import { rereadPageAction } from "./reread";
@@ -44,8 +34,6 @@ const COST = { tokens: 3400, dayCap: 150000, text: "This uses about 3,400 of tod
 beforeEach(() => {
   order.length = 0;
   ai.on = true;
-  usage.median = 5_100;
-  usage.fail = false;
   requireAdmin.mockClear();
   revalidatePath.mockClear();
   ops.previewReread.mockReset().mockResolvedValue(COST);
@@ -61,10 +49,10 @@ describe("rereadPageAction", () => {
     expect(ops.rereadPage).not.toHaveBeenCalled();
   });
 
-  it("without confirmation only shows the cost, with the measured median and whether AI is on, and spends nothing", async () => {
+  it("without confirmation only shows the cost of this page and whether AI is on, and spends nothing", async () => {
     expect(await rereadPageAction(DOC, 4, false)).toEqual({ ok: true, cost: COST });
-    expect(order).toEqual(["requireAdmin", "client", "totals:text-model"]);
-    expect(ops.previewReread).toHaveBeenCalledWith(expect.objectContaining({ docs: { db: session } }), DOC, 4, true, 5_100);
+    expect(order).toEqual(["requireAdmin", "client"]);
+    expect(ops.previewReread).toHaveBeenCalledWith(expect.objectContaining({ docs: { db: session } }), DOC, 4, true);
     expect(ops.rereadPage).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();
   });
@@ -83,12 +71,6 @@ describe("rereadPageAction", () => {
     ai.on = false;
     await rereadPageAction(DOC, 4, true);
     expect(ops.rereadPage).toHaveBeenLastCalledWith(expect.anything(), DOC, 4, false);
-  });
-
-  it("still shows a price when the usage ledger cannot be read", async () => {
-    usage.fail = true;
-    await rereadPageAction(DOC, 4, false);
-    expect(ops.previewReread).toHaveBeenCalledWith(expect.anything(), DOC, 4, true, null);
   });
 
   it("returns a fixed code and text for a refusal, and refreshes nothing", async () => {

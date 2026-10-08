@@ -3,7 +3,9 @@ import { InvalidInputError } from "@/lib/errors";
 import { errorText } from "@/lib/messages";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryInbox, type MemoryInbox } from "@/test/fakes/inbox-repo";
-import { GROQ_CAPS, MAX_PASSES, TOKENS_PER_PAGE_DEFAULT } from "./caps";
+import { GROQ_CAPS, MAX_PASSES, PAGE_CHAR_LIMIT, REREAD_MAX_COMPLETION } from "./caps";
+import { estimateTokens } from "./governor";
+import { SYSTEM_PROMPT, userPrompt } from "./prompts";
 import { INBOX_ERROR_TEXT, InboxError } from "./errors";
 import type { InboxPorts } from "./inbox-ops";
 import { previewReread, rereadCost, rereadPage } from "./reread";
@@ -13,6 +15,7 @@ import { previewReread, rereadCost, rereadPage } from "./reread";
 // then a new pass of the page's step is queued with the re-read flag.
 
 const DOC = "0b9f3c1e-7a42-4c55-9e1d-2f6a8b3c4d5e";
+const PAGE_TEXT = "Consolidated Statement of Profit and Loss\nRevenue from operations 1,284.00 1,102.00";
 let docs: MemoryDocumentsRepo;
 let inbox: MemoryInbox;
 let ports: InboxPorts;
@@ -26,6 +29,7 @@ beforeEach(async () => {
   await docs.update(DOC, { status: "active", llmPageBudget: 5 });
   job = await inbox.queue.createJob(DOC, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
   inbox.steps.push({ jobId: job, kind: "extract_page", pageNo: 4, pass: 1, status: "done", failures: 0, lastError: null });
+  docs.pages.set(`${DOC}:4`, { documentId: DOC, pageNo: 4, text: PAGE_TEXT, charCount: PAGE_TEXT.length, isScan: false, kind: "pl", basis: "consolidated", score: 9, selected: true, selectedBy: "rule", ocr: false });
   inbox.log.length = 0;
 });
 
@@ -36,34 +40,44 @@ const code = async (promise: Promise<unknown>) => {
 };
 const extractSteps = () => inbox.steps.filter((s) => s.kind === "extract_page").map((s) => [s.pageNo, s.pass, s.status]);
 
-describe("rereadCost: the cost comes from the constants", () => {
-  it("is the default page cost out of the day's allowance, in words", () => {
-    expect(rereadCost(null)).toEqual({
-      tokens: TOKENS_PER_PAGE_DEFAULT,
-      dayCap: GROQ_CAPS.tpd,
-      text: `This uses about ${TOKENS_PER_PAGE_DEFAULT.toLocaleString("en-US")} of today's ${GROQ_CAPS.tpd.toLocaleString("en-US")} AI tokens. Figures from this page that you have not checked yet are replaced by the new reading.`,
-    });
-    expect(rereadCost(null).text).toContain("This uses about 3,400 of today's 150,000 AI tokens.");
+describe("rereadCost: the price is what the call will reserve", () => {
+  const PAGE = "Revenue from operations 1,284.00 1,102.00\n".repeat(20);
+
+  it("is the prompt, this page and the re-read's completion room, rounded up to the hundred, out of the day's allowance", () => {
+    const cost = rereadCost(4, PAGE);
+    const reserved = estimateTokens(SYSTEM_PROMPT, userPrompt(4, PAGE), REREAD_MAX_COMPLETION);
+    expect(cost.tokens).toBe(Math.ceil(reserved / 100) * 100);
+    expect(cost.tokens).toBeGreaterThanOrEqual(reserved);
+    expect(cost.tokens).toBeGreaterThan(REREAD_MAX_COMPLETION);
+    expect(cost.dayCap).toBe(GROQ_CAPS.tpd);
+    expect(cost.text).toBe(
+      `This uses about ${cost.tokens.toLocaleString("en-US")} of today's ${GROQ_CAPS.tpd.toLocaleString("en-US")} AI tokens. Figures from this page that you have not checked yet are replaced by the new reading.`,
+    );
   });
 
-  it("uses the measured median when it is higher, never a lower one, and rounds to the hundred", () => {
-    expect(rereadCost(5_130).tokens).toBe(5_100);
-    expect(rereadCost(1_000).tokens).toBe(TOKENS_PER_PAGE_DEFAULT);
-    expect(rereadCost(Number.NaN).tokens).toBe(TOKENS_PER_PAGE_DEFAULT);
+  it("is more than the low-effort page cost (a medium reading is not the usual one), and grows with the page up to the character cap", () => {
+    expect(rereadCost(4, PAGE).tokens).toBeGreaterThan(rereadCost(4, "x").tokens);
+    expect(rereadCost(4, "x".repeat(PAGE_CHAR_LIMIT)).tokens).toBe(rereadCost(4, "x".repeat(PAGE_CHAR_LIMIT * 3)).tokens);
+    expect(rereadCost(4, "x".repeat(PAGE_CHAR_LIMIT)).tokens).toBeLessThanOrEqual(GROQ_CAPS.tpm);
   });
 });
 
 describe("previewReread", () => {
-  it("shows the cost and changes nothing", async () => {
-    const cost = await previewReread(ports, DOC, 4, true, null);
-    expect(cost.tokens).toBe(TOKENS_PER_PAGE_DEFAULT);
+  it("shows the cost of this page's reading and changes nothing", async () => {
+    const cost = await previewReread(ports, DOC, 4, true);
+    expect(cost).toEqual(rereadCost(4, PAGE_TEXT));
     expect(inbox.log).toEqual([]);
     expect(extractSteps()).toEqual([[4, 1, "done"]]);
   });
 
   it("refuses for the same reasons as the click, so a button that would fail never offers a price", async () => {
-    expect(await code(previewReread(ports, DOC, 4, false, null))).toBe("ai-off");
-    expect(await code(previewReread(ports, DOC, 5, true, null))).toBe("reread-not-ready");
+    expect(await code(previewReread(ports, DOC, 4, false))).toBe("ai-off");
+    expect(await code(previewReread(ports, DOC, 5, true))).toBe("reread-not-ready");
+  });
+
+  it("refuses when the page is no longer stored", async () => {
+    docs.pages.clear();
+    expect(await code(previewReread(ports, DOC, 4, true))).toBe("reread-not-ready");
   });
 });
 

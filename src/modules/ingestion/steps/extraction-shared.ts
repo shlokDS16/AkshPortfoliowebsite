@@ -75,7 +75,7 @@ export async function saveExtraction(
   );
   // The test readings come from every figure the page printed, not only those the cap kept: they are a separate table with no cap.
   await proposals.insertReadings(
-    buildReadings(all, file.tests).map((r) => ({
+    buildReadings(all, file.tests, doc.basis).map((r) => ({
       documentId: doc.id, pageNo: s.pageNo, extractionId, itemIdHint: file.itemId, testId: r.testId, machineValue: r.machine, pass: s.pass ?? 1,
     })),
   );

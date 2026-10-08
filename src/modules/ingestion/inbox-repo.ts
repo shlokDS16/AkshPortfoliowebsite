@@ -27,7 +27,7 @@ export interface InboxRepo {
   latestExtract(jobId: string, pageNo: number): Promise<{ pass: number; status: StepStatus } | null>;
   /**
    * Aksh's click on a re-read: the page's figures and test readings that are still waiting for his check become rejected, as his
-   * decision, so the new pass's rows replace them. Accepted, edited and filed ones are never touched. Returns how many were rejected.
+   * decision, and marked superseded (told apart from the figures he drops himself), so the new pass's rows replace them. Accepted, edited and filed ones are never touched. Returns how many were rejected.
    */
   rejectPendingOn(documentId: string, pageNo: number): Promise<number>;
   /** A page ticked again after being unticked: its skipped step of that kind (its latest pass) runs. */
@@ -118,7 +118,7 @@ export function createSupabaseInboxRepo(db: Db): InboxRepo {
       return data ? { pass: data.pass, status: data.status as StepStatus } : null;
     },
     async rejectPendingOn(documentId, pageNo) {
-      const decided = { status: "rejected", decided_at: now() };
+      const decided = { status: "rejected", decided_at: now(), superseded: true };
       const figures = await db.from("proposals").update(decided).eq("document_id", documentId).eq("page_no", pageNo).eq("status", "pending").select("id");
       if (figures.error) throw dbError("inbox.rejectPending", figures.error);
       const readings = await db.from("reading_proposals").update(decided).eq("document_id", documentId).eq("page_no", pageNo).eq("status", "pending").select("id");

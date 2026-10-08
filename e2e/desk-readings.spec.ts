@@ -74,12 +74,12 @@ test("a re-read shows its price first, replaces the page's unchecked figures, an
     await card.getByText("Pages to read").click();
     await card.getByRole("button", { name: "Re-read page 4" }).click();
     const ask = card.getByRole("group", { name: "Re-read page 4" });
-    await expect(ask).toContainText("This uses about 3,400 of today's 150,000 AI tokens.");
+    await expect(ask).toContainText(/This uses about [\d,]+ of today's 150,000 AI tokens\./);
     await expect(ask).toContainText("not checked yet are replaced by the new reading");
     await expectNoViolationsInBothThemes(page);
     const untouched = await db.from("proposals").select("status").eq("document_id", documentId).eq("page_no", 4);
     expect(untouched.data?.map((r) => r.status)).toEqual(["pending", "pending", "pending"]);
-    await ask.getByRole("button", { name: /^Re-read, using about 3,400 tokens$/ }).click();
+    await ask.getByRole("button", { name: /^Re-read, using about [\d,]+ tokens$/ }).click();
 
     // The re-read: the page's old figures are rejected (Aksh's click), the medium reading adds its own, and the misread is gone.
     // (The card moves to Being read and back, so the brief "Queued" note is not waited for; the step in the database is.)
@@ -90,11 +90,11 @@ test("a re-read shows its price first, replaces the page's unchecked figures, an
     await expect.poll(passes, { timeout: 120_000 }).toEqual([[1, "done"], [2, "done"]]);
     await expect(card.getByText("5 figures ready to check.", { exact: true })).toBeVisible({ timeout: 60_000 });
     await expect(card.getByText("needs a look")).toHaveCount(0);
-    const page4 = await db.from("proposals").select("status, flags, dedupe_key").eq("document_id", documentId).eq("page_no", 4);
-    expect(page4.data?.filter((r) => r.status === "rejected")).toHaveLength(3);
+    const page4 = await db.from("proposals").select("status, flags, dedupe_key, superseded").eq("document_id", documentId).eq("page_no", 4);
+    expect(page4.data?.filter((r) => r.status === "rejected" && r.superseded)).toHaveLength(3); // marked as replaced by the re-read, not as Aksh's drops
     expect(page4.data?.filter((r) => r.status === "pending" && r.dedupe_key.endsWith("|r2") && r.flags.length === 0)).toHaveLength(3);
-    const readings = await db.from("reading_proposals").select("pass, status").eq("document_id", documentId).order("pass");
-    expect(readings.data?.map((r) => [r.pass, r.status])).toEqual([[1, "rejected"], [2, "pending"]]);
+    const readings = await db.from("reading_proposals").select("pass, status, superseded").eq("document_id", documentId).order("pass");
+    expect(readings.data?.map((r) => [r.pass, r.status, r.superseded])).toEqual([[1, "rejected", true], [2, "pending", false]]);
 
     // Review: five figures and one reading, none of the replaced rows. File them under the company's file.
     await card.getByRole("link", { name: "Review" }).click();

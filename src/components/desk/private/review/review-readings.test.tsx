@@ -17,7 +17,7 @@ vi.mock("@/modules/research/actions", () => ({ startFileAction: mocks.start }));
 
 const ITEM = "11111111-2222-4333-8444-555555555555";
 const reading = (id: string, over: Partial<ReadingView> = {}): ReadingView => ({
-  id, page: 7, testId: "T1", label: "Receivable days", valueText: "142", unit: "days", period: "FY26", asOf: "2026-03-31", prior: 131, quote: "Receivable days 142 131", status: "pending", ...over,
+  id, page: 7, testId: "T1", label: "Receivable days", valueText: "142", unit: "days", period: "FY26", asOf: "2026-03-31", prior: 131, quote: "Receivable days 142 131", status: "pending", basis: null, ...over,
 });
 const R1 = "00000011-0000-4000-8000-000000000011";
 const R2 = "00000012-0000-4000-8000-000000000012";
@@ -45,6 +45,11 @@ describe("Test readings", () => {
     expect(section).toHaveTextContent("A reading sets the test's reading, its date and its prior. Its status stays yours.");
     expect(within(section).getByRole("checkbox", { name: /^T1 Receivable days/ })).toBeChecked();
     expectTokenOnly(container);
+  });
+
+  it("says which basis a reading was printed on, beside the period", () => {
+    render(<ReviewOneAtATime data={listed([reading(R1, { basis: "consolidated" })])} />);
+    expect(screen.getByRole("region", { name: "Test readings" })).toHaveTextContent("FY26 · consolidated · as of 31 Mar 2026 · prior 131");
   });
 
   it("has no section when there are no readings", () => {

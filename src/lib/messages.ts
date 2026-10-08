@@ -173,6 +173,8 @@ const NOTICES = {
   "name-saved": "Saved. The name is screened.",
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
+  "revision-saved-readings-missing":
+    "Saved. The test readings could not be marked as filed; they stay staged, and are left out next time because the tests already have them.",
   "revision-pending-gate":
     "Revision saved. This item is public, so the new revision is waiting for the publishing gate; the public page still shows the previous one.",
 } as const;

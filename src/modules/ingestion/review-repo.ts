@@ -5,6 +5,7 @@ import type { Db } from "@/lib/supabase/types";
 import { pageTexts } from "@/modules/documents";
 import { latestFileForCompany } from "@/modules/research";
 import { FLAGS, type Flag, type ProposedFact } from "./proposed-fact";
+import { baseKeyOf, passOf } from "./supersede";
 
 // The review screen's reads and writes on the admin's own session (migration 0007: select on proposals, update on
 // accepted_value, status, item_id, revision_id and decided_at; RLS and the column grants apply). Explicit columns only.
@@ -14,6 +15,10 @@ export type ProposalRecord = {
   pageNo: number;
   /** The extract_page pass that proposed it: 1 for a first read, more for a re-read (the dedupe key's `|r<n>` suffix, Plan 2b Task 8). */
   pass: number;
+  /** The dedupe key without the re-read suffix: the same line on any pass. */
+  baseKey: string;
+  /** Rejected by Aksh's re-read click (not by his own drop): the row is replaced and no longer listed. */
+  superseded: boolean;
   machine: unknown;
   accepted: unknown;
   flags: Flag[];
@@ -23,7 +28,7 @@ export type ProposalRecord = {
 };
 
 /** A machine reading of a test (reading_proposals): no accepted value, because Aksh edits a reading in the Facts form, not here. */
-export type ReadingRecord = { id: string; pageNo: number; pass: number; testId: string; machine: unknown; status: string; itemId: string | null };
+export type ReadingRecord = { id: string; pageNo: number; pass: number; testId: string; machine: unknown; status: string; itemId: string | null; superseded: boolean };
 
 export interface ReviewRepo {
   /** Every proposal of the document, in page order. */
@@ -53,11 +58,10 @@ export interface ReviewRepo {
   dropStagedReadings(documentId: string, itemId: string): Promise<number>;
 }
 
-/** The pass a proposal was made in: a re-read files its rows under `<key>|r<n>`. */
-export const passOf = (dedupeKey: string): number => Number(/\|r(\d)$/.exec(dedupeKey)?.[1] ?? 1);
+export { passOf };
 
-const COLUMNS = "id, page_no, dedupe_key, machine_value, accepted_value, flags, reason, status, item_id";
-const READING_COLUMNS = "id, page_no, pass, test_id, machine_value, status, item_id";
+const COLUMNS = "id, page_no, dedupe_key, machine_value, accepted_value, flags, reason, status, item_id, superseded";
+const READING_COLUMNS = "id, page_no, pass, test_id, machine_value, status, item_id, superseded";
 
 export function createReviewRepo(db: Db): ReviewRepo {
   return {
@@ -65,7 +69,7 @@ export function createReviewRepo(db: Db): ReviewRepo {
       const { data, error } = await db.from("proposals").select(COLUMNS).eq("document_id", documentId).order("page_no").order("created_at").order("id");
       if (error) throw dbError("review.list", error);
       return data.map((r) => ({
-        id: r.id, pageNo: r.page_no, pass: passOf(r.dedupe_key), machine: r.machine_value, accepted: r.accepted_value, flags: r.flags.filter((f): f is Flag => (FLAGS as readonly string[]).includes(f)), reason: r.reason, status: r.status, itemId: r.item_id,
+        id: r.id, pageNo: r.page_no, pass: passOf(r.dedupe_key), baseKey: baseKeyOf(r.dedupe_key), superseded: r.superseded, machine: r.machine_value, accepted: r.accepted_value, flags: r.flags.filter((f): f is Flag => (FLAGS as readonly string[]).includes(f)), reason: r.reason, status: r.status, itemId: r.item_id,
       }));
     },
     pageTexts: (documentId, pages) => pageTexts(db, documentId, pages),
@@ -117,7 +121,7 @@ export function createReviewRepo(db: Db): ReviewRepo {
     async listReadings(documentId) {
       const { data, error } = await db.from("reading_proposals").select(READING_COLUMNS).eq("document_id", documentId).order("page_no").order("created_at").order("id");
       if (error) throw dbError("review.listReadings", error);
-      return data.map((r) => ({ id: r.id, pageNo: r.page_no, pass: r.pass, testId: r.test_id, machine: r.machine_value, status: r.status, itemId: r.item_id }));
+      return data.map((r) => ({ id: r.id, pageNo: r.page_no, pass: r.pass, testId: r.test_id, machine: r.machine_value, status: r.status, itemId: r.item_id, superseded: r.superseded }));
     },
     async recordReading(documentId, id, status) {
       const patch = { status, decided_at: new Date().toISOString(), ...(status === "rejected" ? { item_id: null } : {}) };

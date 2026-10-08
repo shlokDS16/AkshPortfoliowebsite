@@ -44,6 +44,8 @@ export type ReadingView = {
   prior: number | null;
   quote: string;
   status: "pending" | "accepted" | "rejected";
+  /** As the page printed it; shown beside the period so a standalone figure is never taken for the group's. */
+  basis: Basis | null;
 };
 
 export type ReviewCounts = { pending: number; accepted: number; edited: number; rejected: number; filed: number };

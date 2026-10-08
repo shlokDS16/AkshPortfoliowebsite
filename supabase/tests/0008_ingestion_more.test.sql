@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(125);
+select plan(129);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -367,6 +367,9 @@ select throws_ok($$ insert into public.reading_proposals (document_id, page_no, 
 select throws_ok($$ insert into public.reading_proposals (document_id, page_no, extraction_id, test_id, machine_value, item_id)
     values ('d1000000-0000-4000-8000-000000000001', 1, 'f1000000-0000-4000-8000-000000000001', 'T3', '{}', 'a1000000-0000-4000-8000-000000000001') $$,
   'P0001', 'the machine only proposes: a new reading is pending and undecided', 'nor file one under an item');
+select throws_ok($$ insert into public.reading_proposals (document_id, page_no, extraction_id, test_id, machine_value, superseded)
+    values ('d1000000-0000-4000-8000-000000000001', 1, 'f1000000-0000-4000-8000-000000000001', 'T7', '{}', true) $$,
+  '23514', null, 'the machine cannot insert a reading already replaced by a re-read');
 select throws_ok($$ update public.reading_proposals set status = 'accepted' $$, '42501', null, 'service_role holds no UPDATE on readings');
 reset role;
 
@@ -412,6 +415,14 @@ select throws_ok($$ update public.reading_proposals set status = 'rejected' wher
 select lives_ok($$ update public.reading_proposals set status = 'rejected', decided_at = now()
                    where id = 'b2000000-0000-4000-8000-000000000002' $$,
   'the admin rejects a reading');
+select lives_ok($$ update public.reading_proposals set superseded = true where id = 'b2000000-0000-4000-8000-000000000002' $$,
+  'the admin marks a rejected reading as replaced by a re-read');
+select throws_ok($$ update public.reading_proposals set superseded = true where status = 'pending' $$,
+  '42501', null, 'a pending reading cannot be marked replaced (the decision policy refuses it)');
+select ok(has_column_privilege('authenticated', 'public.proposals', 'superseded', 'update')
+      and not has_column_privilege('service_role', 'public.proposals', 'superseded', 'update')
+      and not has_column_privilege('service_role', 'public.reading_proposals', 'superseded', 'update'),
+  'Aksh may mark a row replaced; the machine may not');
 reset role;
 select set_config('request.jwt.claims', '', true);
 

@@ -1,6 +1,7 @@
 import type { Basis } from "@/modules/documents/client";
 import { machineFactSchema } from "./proposed-fact";
 import { basisRepeats, isListed } from "./review-values";
+import { baseKeyOf, currentRows, passOf } from "./supersede";
 
 // How many figures wait for Aksh on each document, how many of those carry a flag (the inbox card's "5 figures
 // ready to check. 1 needs a look."), and how many he has already decided or filed (so a fully checked document still
@@ -8,13 +9,20 @@ import { basisRepeats, isListed } from "./review-values";
 // A standalone repeat of a consolidated line is left out, exactly as the review screen leaves it out, so the card's
 // number is the review's number.
 
-export type ProposalCountRow = { id: string; document_id: string; flags: string[]; status: string; machine_value: unknown; accepted_value: unknown };
+export type ProposalCountRow = {
+  id: string; document_id: string; flags: string[]; status: string; machine_value: unknown; accepted_value: unknown;
+  /** What a re-read needs: the row's key (its pass is in the suffix) and whether the re-read click replaced it. Absent counts as a first read. */
+  dedupe_key?: string;
+  superseded?: boolean;
+};
 
 export type PendingTally = { pending: number; flagged: number; decided: number };
 
 export function tallyPending(rows: ProposalCountRow[], basisOf: Map<string, Basis>): Map<string, PendingTally> {
   const byDocument = new Map<string, ProposalCountRow[]>();
-  for (const r of rows) byDocument.set(r.document_id, [...(byDocument.get(r.document_id) ?? []), r]);
+  // The same rows the review lists: a figure the re-read replaced is nobody's decision, and one Aksh dropped himself stays dropped.
+  const current = currentRows(rows, (r) => ({ key: `${r.document_id}|${r.dedupe_key ? baseKeyOf(r.dedupe_key) : r.id}`, pass: passOf(r.dedupe_key ?? ""), status: r.status, superseded: r.superseded ?? false }));
+  for (const r of current) byDocument.set(r.document_id, [...(byDocument.get(r.document_id) ?? []), r]);
 
   const out = new Map<string, PendingTally>();
   for (const [documentId, mine] of byDocument) {

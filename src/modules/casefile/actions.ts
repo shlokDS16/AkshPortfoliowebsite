@@ -47,6 +47,7 @@ export async function saveCaseFileRevisionAction(itemId: string, formData: FormD
   // Where the staged figures came from is evidence about this save, never a condition of it (ADR-004 s4.7): the
   // revision is stored; if the record cannot be written the figures stay staged and are skipped as duplicates next time.
   let provenanceMissing = false;
+  let readingsMissing = false;
   const staging = parseStaging(formData.get("provenance"));
   if (caseFile && (staging.provenance.length > 0 || staging.staged.length > 0)) {
     try {
@@ -61,15 +62,17 @@ export async function saveCaseFileRevisionAction(itemId: string, formData: FormD
     try {
       await recordFiledReadings(db, { itemId, revisionId: saved.revision.id, structured: caseFile, pairs: staging.stagedReadings });
     } catch (error) {
-      provenanceMissing = true;
+      readingsMissing = true;
       console.error("casefile readings failed", errorShape(error));
     }
   }
   revalidatePath(back);
   const gate = saved.pendingGate;
-  // R25: on a public item the gate notice is never replaced; the provenance warning is a second line.
-  if (!provenanceMissing) doneTo(back, gate ? "revision-pending-gate" : "revision-saved");
-  doneTo(back, gate ? "revision-pending-gate" : "revision-saved-provenance-missing", "", gate ? "revision-saved-provenance-missing" : undefined);
+  // R25: on a public item the gate notice is never replaced; a failure to record is a second line. The figures' record and the
+  // readings' record each have their own sentence; when both failed the second shows as the second line (or the first, past the gate).
+  const failed = [...(provenanceMissing ? (["revision-saved-provenance-missing"] as const) : []), ...(readingsMissing ? (["revision-saved-readings-missing"] as const) : [])];
+  if (failed.length === 0) doneTo(back, gate ? "revision-pending-gate" : "revision-saved");
+  doneTo(back, gate ? "revision-pending-gate" : failed[0], "", gate ? failed[0] : failed[1]);
 }
 
 /**

@@ -18,54 +18,76 @@ const T1: ReadingTest = { id: "T1", metric: "Receivable days", unit: "days" };
 
 describe("buildReadings", () => {
   it("proposes the current value, its date and the prior for a test whose metric is the figure's label", () => {
-    const [r] = buildReadings([proposal()], [T1]);
+    const [r] = buildReadings([proposal()], [T1], "consolidated");
     expect(r).toMatchObject({ testId: "T1", machine: { current: 142, readingAsOf: "2026-03-31", prior: 131, unit: "days" } });
     expect(machineReadingSchema.safeParse(r!.machine).success).toBe(true);
   });
 
   it("carries what Aksh needs to check it against the page: the label, the period, the printed value and the printed line", () => {
-    const [r] = buildReadings([proposal()], [T1]);
+    const [r] = buildReadings([proposal()], [T1], "consolidated");
     expect(r!.machine).toMatchObject({ label: "Receivable days", period: "FY26", valueText: "142", quote: "Receivable days 142 131", page: 7 });
   });
 
   it("compares labels the way the relevance filter does: case, numbering and punctuation do not matter", () => {
     const test: ReadingTest = { id: "T2", metric: "Revenue from operations", unit: "₹ cr" };
-    expect(buildReadings([proposal({ label: "(a) REVENUE from operations", unit: "₹ cr" })], [test])).toHaveLength(1);
-    expect(buildReadings([proposal({ label: "Revenue from operations (net)", unit: "₹ cr" })], [test])).toHaveLength(0);
+    expect(buildReadings([proposal({ label: "(a) REVENUE from operations", unit: "₹ cr" })], [test], "consolidated")).toHaveLength(1);
+    expect(buildReadings([proposal({ label: "Revenue from operations (net)", unit: "₹ cr" })], [test], "consolidated")).toHaveLength(0);
   });
 
   it("proposes nothing when the unit differs, so a crore is never read as a day", () => {
-    expect(buildReadings([proposal({ unit: "₹ cr" })], [T1])).toEqual([]);
-    expect(buildReadings([proposal({ unit: null })], [T1])).toEqual([]);
-    expect(buildReadings([proposal({ unit: "DAYS" })], [T1])).toHaveLength(1);
+    expect(buildReadings([proposal({ unit: "₹ cr" })], [T1], "consolidated")).toEqual([]);
+    expect(buildReadings([proposal({ unit: null })], [T1], "consolidated")).toEqual([]);
+    expect(buildReadings([proposal({ unit: "DAYS" })], [T1], "consolidated")).toHaveLength(1);
   });
 
   it("proposes nothing from a flagged figure or one with no date, and nothing for a test with no metric", () => {
-    expect(buildReadings([proposal({}, ["value_not_on_page"])], [T1])).toEqual([]);
-    expect(buildReadings([proposal({ asOf: null })], [T1])).toEqual([]);
-    expect(buildReadings([proposal()], [{ id: "T1", metric: null, unit: "days" }])).toEqual([]);
+    expect(buildReadings([proposal({}, ["value_not_on_page"])], [T1], "consolidated")).toEqual([]);
+    expect(buildReadings([proposal({ asOf: null })], [T1], "consolidated")).toEqual([]);
+    expect(buildReadings([proposal()], [{ id: "T1", metric: null, unit: "days" }], "consolidated")).toEqual([]);
   });
 
   it("reads a figure with no prior as prior null", () => {
-    expect(buildReadings([proposal({ prior: null })], [T1])[0]!.machine.prior).toBeNull();
+    expect(buildReadings([proposal({ prior: null })], [T1], "consolidated")[0]!.machine.prior).toBeNull();
   });
 
   it("keeps the first match for a test on a page (the figures arrive best first) and fills each test once", () => {
     const out = buildReadings(
       [proposal({ value: 142, valueText: "142" }), proposal({ value: 150, valueText: "150", basis: "standalone" }), proposal({ label: "Gross margin", unit: "%", value: 31.4, valueText: "31.4" })],
       [T1, { id: "T2", metric: "Gross margin", unit: "%" }],
+    "consolidated",
     );
     expect(out.map((r) => [r.testId, r.machine.current])).toEqual([["T1", 142], ["T2", 31.4]]);
   });
 
   it("two tests may watch one metric", () => {
-    expect(buildReadings([proposal()], [T1, { id: "T3", metric: "Receivable days", unit: "days" }]).map((r) => r.testId)).toEqual(["T1", "T3"]);
+    expect(buildReadings([proposal()], [T1, { id: "T3", metric: "Receivable days", unit: "days" }], "consolidated").map((r) => r.testId)).toEqual(["T1", "T3"]);
+  });
+});
+
+describe("basis (a standalone repeat of a consolidated line)", () => {
+  it("carries the basis the page printed into the reading", () => {
+    expect(buildReadings([proposal({ basis: "consolidated" })], [T1], "consolidated")[0]!.machine.basis).toBe("consolidated");
+    expect(buildReadings([proposal({ basis: null })], [T1], "consolidated")[0]!.machine.basis).toBeNull();
+  });
+
+  it("proposes the consolidated line, not the standalone repeat, whichever comes first on the page", () => {
+    const standalone = proposal({ value: 150, valueText: "150", basis: "standalone" });
+    const group = proposal({ value: 142, valueText: "142", basis: "consolidated" });
+    for (const built of [[standalone, group], [group, standalone]]) {
+      const out = buildReadings(built, [T1], "consolidated");
+      expect(out.map((r) => [r.machine.current, r.machine.basis])).toEqual([[142, "consolidated"]]);
+    }
+    expect(buildReadings([standalone, group], [T1], "standalone")[0]!.machine.current).toBe(150);
+  });
+
+  it("still proposes a line printed on the other basis alone: nothing on the page repeats it", () => {
+    expect(buildReadings([proposal({ basis: "standalone" })], [T1], "consolidated").map((r) => r.machine.basis)).toEqual(["standalone"]);
   });
 });
 
 describe("machineReadingSchema", () => {
   it("is strict: extra keys, a missing date or a non-finite number are refused", () => {
-    const ok = { current: 1, readingAsOf: "2026-03-31", prior: null, unit: "days", label: "x", period: "FY26", valueText: "1", quote: "x 1", page: 3 };
+    const ok = { current: 1, readingAsOf: "2026-03-31", prior: null, unit: "days", label: "x", period: "FY26", valueText: "1", quote: "x 1", page: 3, basis: null };
     expect(machineReadingSchema.safeParse(ok).success).toBe(true);
     expect(machineReadingSchema.safeParse({ ...ok, status: "met" }).success).toBe(false);
     expect(machineReadingSchema.safeParse({ ...ok, readingAsOf: null }).success).toBe(false);

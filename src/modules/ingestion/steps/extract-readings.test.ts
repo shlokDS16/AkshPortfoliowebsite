@@ -93,6 +93,12 @@ describe("extract_page: reading proposals", () => {
     expect(r.proposals.readings.map((x) => [x.testId, x.pass])).toEqual([["T1", 1], ["T1", 2]]);
   });
 
+  it("carries the basis the page printed into the reading", async () => {
+    const r = run([test("T1", "Revenue from operations")]);
+    await extractPage(r.ctx);
+    expect(r.proposals.readings[0]!.machineValue.basis).toBe("consolidated");
+  });
+
   it("never changes the figures the step reports", async () => {
     const plain = run([]);
     const mapped = run([test("T1", "Revenue from operations")]);

@@ -29,7 +29,8 @@ export function ReadingRows({ readings, ticked, onTick }: Props) {
                   <span className="font-mono text-data tabular-nums">{`${r.valueText}${r.unit ? ` ${r.unit}` : ""}`}</span>
                 </p>
                 <p className="text-small text-ink-muted">
-                  {r.period} · as of {formatDate(r.asOf)}
+                  {r.period}
+                  {r.basis ? ` · ${r.basis}` : ""} · as of {formatDate(r.asOf)}
                   {r.prior !== null ? ` · prior ${r.prior}` : ""}
                 </p>
                 <p className="mt-0.5 break-words font-mono text-caption text-ink-muted">

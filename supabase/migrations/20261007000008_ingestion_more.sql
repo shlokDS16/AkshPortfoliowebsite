@@ -263,3 +263,9 @@ revoke all on public.document_digests, public.reading_proposals from public, ano
 grant select on public.document_digests, public.reading_proposals to authenticated;
 grant update (status, item_id, revision_id, decided_at) on public.reading_proposals to authenticated;
 grant select, insert on public.document_digests, public.reading_proposals to service_role;
+
+-- 9. A re-read replaces what Aksh had not checked (Plan 2b Task 8): his click on "Re-read" rejects the page's pending rows and marks
+-- them superseded, so they stay apart from the figures he dropped himself. Only a rejected row can be superseded.
+alter table public.proposals add column superseded boolean not null default false check (not superseded or status = 'rejected');
+alter table public.reading_proposals add column superseded boolean not null default false check (not superseded or status = 'rejected');
+grant update (superseded) on public.proposals, public.reading_proposals to authenticated;

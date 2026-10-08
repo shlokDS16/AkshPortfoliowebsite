@@ -34,7 +34,7 @@ describe("proposals repo: what a re-read needs", () => {
 
   it("inserts readings into reading_proposals on (document, page, test, pass), leaving a repeat as it is (carry c)", async () => {
     const { db, calls } = fakeDb([{ error: null }]);
-    const machineValue = { current: 1, readingAsOf: "2026-03-31", prior: null, unit: "days", label: "Receivable days", period: "FY26", valueText: "1", quote: "q", page: 4 };
+    const machineValue = { current: 1, readingAsOf: "2026-03-31", prior: null, unit: "days", label: "Receivable days", period: "FY26", valueText: "1", quote: "q", page: 4, basis: null };
     await createProposalsRepo(db).insertReadings([{ documentId: "d1", pageNo: 4, extractionId: "e1", itemIdHint: "i1", testId: "T1", machineValue, pass: 2 }]);
     expect(calls[0]!.table).toBe("reading_proposals");
     expect(calls[0]!.ops).toEqual([

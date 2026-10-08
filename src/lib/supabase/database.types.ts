@@ -942,6 +942,7 @@ export type Database = {
           reason: string
           revision_id: string | null
           status: string
+          superseded: boolean
           updated_at: string
         }
         Insert: {
@@ -959,6 +960,7 @@ export type Database = {
           reason: string
           revision_id?: string | null
           status?: string
+          superseded?: boolean
           updated_at?: string
         }
         Update: {
@@ -976,6 +978,7 @@ export type Database = {
           reason?: string
           revision_id?: string | null
           status?: string
+          superseded?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -1089,6 +1092,7 @@ export type Database = {
           pass: number
           revision_id: string | null
           status: string
+          superseded: boolean
           test_id: string
           updated_at: string
         }
@@ -1105,6 +1109,7 @@ export type Database = {
           pass?: number
           revision_id?: string | null
           status?: string
+          superseded?: boolean
           test_id: string
           updated_at?: string
         }
@@ -1121,6 +1126,7 @@ export type Database = {
           pass?: number
           revision_id?: string | null
           status?: string
+          superseded?: boolean
           test_id?: string
           updated_at?: string
         }

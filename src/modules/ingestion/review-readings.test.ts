@@ -40,7 +40,7 @@ describe("the review screen's reading list", () => {
     const data = await buildReview(ports, DOC);
     expect(data!.rows).toHaveLength(1);
     expect(data!.readings).toEqual([
-      { id: R1, page: 7, testId: "T1", label: "Receivable days", valueText: "142", unit: "days", period: "FY26", asOf: "2026-03-31", prior: 131, quote: "Receivable days 142 131", status: "pending" },
+      { id: R1, page: 7, testId: "T1", label: "Receivable days", valueText: "142", unit: "days", period: "FY26", asOf: "2026-03-31", prior: 131, quote: "Receivable days 142 131", status: "pending", basis: "consolidated" },
     ]);
     expect(data!.counts.pending).toBe(1); // the figure only: a reading is never counted as a figure
   });
@@ -50,32 +50,47 @@ describe("the review screen's reading list", () => {
     expect((await buildReview(ports, DOC))!.readings).toEqual([]);
   });
 
-  it("leaves out a rejected reading and a rejected figure that a later pass replaced, and keeps one Aksh dropped himself", async () => {
-    review.records.push(record(P1, { status: "rejected", pass: 1 }), record("00000002-0000-4000-8000-000000000002", { pass: 2 }));
+  it("leaves out what the re-read replaced, and keeps what Aksh dropped himself (his drop beats the later pass)", async () => {
+    review.records.push(
+      record(P1, { status: "rejected", pass: 1, superseded: true }),
+      record("00000002-0000-4000-8000-000000000002", { pass: 2, baseKey: "x" }),
+      record("00000003-0000-4000-8000-000000000003", { status: "rejected", fact: { label: "Profit for the year" } }),
+      record("00000004-0000-4000-8000-000000000004", { pass: 2, fact: { label: "Profit for the year" } }),
+    );
     review.readings.push(
-      reading(R1, { status: "rejected", pass: 1 }),
+      reading(R1, { status: "rejected", pass: 1, superseded: true }),
       reading(R2, { pass: 2 }),
       reading(R3, { testId: "T2", status: "rejected", pass: 1 }),
+      reading("00000014-0000-4000-8000-000000000014", { testId: "T2", pass: 2 }),
     );
     const data = await buildReview(ports, DOC);
-    expect(data!.rows.map((r) => r.id)).toEqual(["00000002-0000-4000-8000-000000000002"]);
+    expect(data!.rows.map((r) => r.id)).toEqual(["00000002-0000-4000-8000-000000000002", "00000003-0000-4000-8000-000000000003"]);
     expect(data!.readings.map((r) => r.id)).toEqual([R2, R3]);
+  });
+
+  it("lists a standalone reading only when no reading of the preferred basis has the same test and period", async () => {
+    review.readings.push(
+      reading(R1, { machine: { basis: "consolidated" } }),
+      reading(R2, { machine: { basis: "standalone", page: 9, current: 150, valueText: "150" } }),
+      reading(R3, { testId: "T2", machine: { basis: "standalone", label: "Gross margin", unit: "%" } }),
+    );
+    expect((await buildReview(ports, DOC))!.readings.map((r) => [r.id, r.basis])).toEqual([[R1, "consolidated"], [R3, "standalone"]]);
   });
 
   it("orders readings by page then test", () => {
     const recs = [reading("a", { testId: "T10", machine: { page: 3 } }), reading("b", { testId: "T2", machine: { page: 3 } }), reading("c", { testId: "T1", machine: { page: 9 } })];
-    expect(readingViews(recs).map((r) => r.id)).toEqual(["b", "a", "c"]);
+    expect(readingViews(recs, "consolidated").map((r) => r.id)).toEqual(["b", "a", "c"]);
   });
 });
 
 describe("currentRecords and currentReadings", () => {
-  it("only drop a rejected row from an older pass; accepted, edited and the newest pass stay", () => {
+  it("drop a superseded row and a later pass's repeat of a line Aksh dropped; accepted, edited and filed rows stay", () => {
     const recs = [
-      record("a", { status: "rejected", pass: 1 }), record("b", { status: "accepted", pass: 1 }), record("c", { status: "edited", pass: 1 }),
-      record("d", { pass: 2 }), record("e", { fact: { page: 9 }, status: "rejected", pass: 1 }),
+      record("a", { status: "rejected", superseded: true }), record("b", { status: "accepted" }), record("c", { status: "edited", fact: { label: "Profit for the year" } }),
+      record("d", { pass: 2 }), record("e", { status: "rejected", fact: { label: "Finance costs" } }), record("f", { pass: 2, fact: { label: "Finance costs" } }),
     ];
     expect(currentRecords(recs).map((r) => r.id)).toEqual(["b", "c", "d", "e"]);
-    expect(currentReadings([reading("x", { status: "rejected", pass: 1 }), reading("y", { pass: 2 })]).map((r) => r.id)).toEqual(["y"]);
+    expect(currentReadings([reading("x", { status: "rejected", superseded: true }), reading("y", { pass: 2 }), reading("z", { status: "filed" })]).map((r) => r.id)).toEqual(["y"]);
   });
 });
 
@@ -135,8 +150,8 @@ describe("filing under the company's file", () => {
     expect((error as ReviewError).code).toBe("nothing-to-file");
   });
 
-  it("files an accepted reading of any pass: only a rejected one is replaced by a re-read", () => {
-    expect(filableReadingIds([reading("old", { status: "accepted", pass: 1 }), reading("new", { status: "accepted", pass: 2 })])).toEqual(["old", "new"]);
+  it("files an accepted reading of any pass: only a row the re-read replaced is gone", () => {
+    expect(filableReadingIds([reading("old", { status: "accepted", pass: 1 }), reading("new", { status: "accepted", pass: 2 })], "consolidated")).toEqual(["old", "new"]);
   });
 });
 

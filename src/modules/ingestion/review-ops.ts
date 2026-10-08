@@ -131,7 +131,7 @@ export async function fileUnder(ports: ReviewPorts, documentId: string, input: u
   if (all.some((r) => r.flags.length > 0 && r.status === "pending")) throw new ReviewError("checks-left");
   // The screen's own rule decides what is filed, so the count Aksh sees is what the editor then shows.
   const ids = filableIds(all.flatMap((rec) => toView(rec) ?? []), doc.basis);
-  const readingIds = filableReadingIds(await ports.review.listReadings(documentId));
+  const readingIds = filableReadingIds(await ports.review.listReadings(documentId), doc.basis);
   if (ids.length === 0 && readingIds.length === 0) throw new ReviewError("nothing-to-file");
 
   await ports.docs.update(documentId, { title, sourceType, filedOn, sourceUrl });

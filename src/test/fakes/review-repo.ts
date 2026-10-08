@@ -19,19 +19,19 @@ export const machine = (over: Partial<MachineFact> = {}): MachineFact => ({
   prior: { label: "FY25", value: 1102, valueText: "1,102.00" }, ...over,
 });
 
-export function record(id: string, over: { fact?: Partial<MachineFact>; flags?: Flag[]; status?: string; accepted?: unknown; itemId?: string | null; reason?: string; pass?: number } = {}): ProposalRecord {
+export function record(id: string, over: { fact?: Partial<MachineFact>; flags?: Flag[]; status?: string; accepted?: unknown; itemId?: string | null; reason?: string; pass?: number; baseKey?: string; superseded?: boolean } = {}): ProposalRecord {
   const fact = machine(over.fact);
-  return { id, pageNo: fact.page, pass: over.pass ?? 1, machine: fact, accepted: over.accepted ?? null, flags: over.flags ?? [], reason: over.reason ?? "core", status: over.status ?? "pending", itemId: over.itemId ?? null };
+  return { id, pageNo: fact.page, pass: over.pass ?? 1, baseKey: over.baseKey ?? `${fact.label}|${fact.period}`, superseded: over.superseded ?? false, machine: fact, accepted: over.accepted ?? null, flags: over.flags ?? [], reason: over.reason ?? "core", status: over.status ?? "pending", itemId: over.itemId ?? null };
 }
 
 /** A machine reading of a test: Receivable days, 142 days at 31 March 2026, with a prior of 131, from page 7. */
 export const machineReading = (over: Partial<MachineReading> = {}): MachineReading => ({
-  current: 142, readingAsOf: "2026-03-31", prior: 131, unit: "days", label: "Receivable days", period: "FY26", valueText: "142", quote: "Receivable days 142 131", page: 7, ...over,
+  current: 142, readingAsOf: "2026-03-31", prior: 131, unit: "days", label: "Receivable days", period: "FY26", valueText: "142", quote: "Receivable days 142 131", page: 7, basis: "consolidated", ...over,
 });
 
-export function reading(id: string, over: { testId?: string; machine?: Partial<MachineReading>; status?: string; itemId?: string | null; pass?: number } = {}): ReadingRecord {
+export function reading(id: string, over: { testId?: string; machine?: Partial<MachineReading>; status?: string; itemId?: string | null; pass?: number; superseded?: boolean } = {}): ReadingRecord {
   const m = machineReading(over.machine);
-  return { id, pageNo: m.page, pass: over.pass ?? 1, testId: over.testId ?? "T1", machine: m, status: over.status ?? "pending", itemId: over.itemId ?? null };
+  return { id, pageNo: m.page, pass: over.pass ?? 1, testId: over.testId ?? "T1", machine: m, status: over.status ?? "pending", itemId: over.itemId ?? null, superseded: over.superseded ?? false };
 }
 
 export function createMemoryReviewRepo(records: ProposalRecord[] = [], readings: ReadingRecord[] = []): MemoryReviewRepo {

@@ -74,4 +74,19 @@ describe("inbox repo and the pass column (migration 0008, R2)", () => {
     const { db } = fakeDb([{ data: { selected: true, is_scan: true, kind: null }, error: null }]);
     expect(await createSupabaseInboxRepo(db).page("d1", 3)).toEqual({ selected: true, isScan: true, kind: null });
   });
+
+  it("marks what the re-read click rejects as superseded, in both tables, only for rows still pending on that page", async () => {
+    const { db, calls } = fakeDb([{ data: [{ id: "p1" }, { id: "p2" }], error: null }, { data: [{ id: "r1" }], error: null }]);
+    expect(await createSupabaseInboxRepo(db).rejectPendingOn("d1", 4)).toBe(3);
+    expect(calls.map((c) => c.table)).toEqual(["proposals", "reading_proposals"]);
+    for (const call of calls) {
+      expect(call.ops).toEqual([
+        ["update", { status: "rejected", decided_at: expect.any(String), superseded: true }],
+        ["eq", "document_id", "d1"],
+        ["eq", "page_no", 4],
+        ["eq", "status", "pending"],
+        ["select", "id"],
+      ]);
+    }
+  });
 });

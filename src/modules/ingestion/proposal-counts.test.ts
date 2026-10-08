@@ -64,4 +64,36 @@ describe("tallyPending", () => {
     expect(tally.get("a")).toEqual({ pending: 0, flagged: 0, decided: 4 });
     expect(tally.get("b")).toEqual({ pending: 1, flagged: 0, decided: 0 });
   });
+
+  describe("after a re-read (the card must say what is true)", () => {
+    const key = (label: string, pass = 1) => `${label.toLowerCase()}|FY26|consolidated${pass > 1 ? `|r${pass}` : ""}`;
+    const mine = (label: string, over: Partial<ProposalCountRow> = {}) => row("a", { fact: { label }, dedupe_key: key(label), ...over });
+
+    it("does not count the rows the re-read replaced as Aksh's decisions, so a re-read that found nothing new does not say all are checked", () => {
+      const tally = tallyPending(
+        [mine("Revenue from operations", { status: "rejected", superseded: true }), mine("Finance costs", { status: "rejected", superseded: true })],
+        basis,
+      );
+      expect(tally.get("a")).toBeUndefined();
+    });
+
+    it("counts the new pass's rows and none of the replaced ones", () => {
+      const tally = tallyPending(
+        [
+          mine("Revenue from operations", { status: "rejected", superseded: true }),
+          row("a", { fact: { label: "Revenue from operations" }, dedupe_key: key("Revenue from operations", 2) }),
+        ],
+        basis,
+      );
+      expect(tally.get("a")).toEqual({ pending: 1, flagged: 0, decided: 0 });
+    });
+
+    it("still counts a figure Aksh dropped himself as his decision, and does not count the later pass's repeat of it as waiting", () => {
+      const tally = tallyPending(
+        [mine("Finance costs", { status: "rejected" }), row("a", { fact: { label: "Finance costs" }, dedupe_key: key("Finance costs", 2) }), mine("Total equity")],
+        basis,
+      );
+      expect(tally.get("a")).toEqual({ pending: 1, flagged: 0, decided: 1 });
+    });
+  });
 });

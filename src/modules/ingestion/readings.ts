@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { MAX_PAGE_NO, normaliseText } from "@/modules/documents/client";
+import { MAX_PAGE_NO, normaliseText, type Basis } from "@/modules/documents/client";
+import { READING_LIMITS } from "./caps";
 import type { NewProposal } from "./proposals";
 import { normaliseLabel } from "./relevance";
 
@@ -14,12 +15,14 @@ export const machineReadingSchema = z.strictObject({
   current: num,
   readingAsOf: z.iso.date(),
   prior: num.nullable(),
-  unit: z.string().trim().min(1).max(12),
-  label: z.string().trim().min(1).max(80),
-  period: z.string().trim().min(1).max(10),
-  valueText: z.string().trim().min(1).max(60),
-  quote: z.string().trim().max(600),
+  unit: z.string().trim().min(1).max(READING_LIMITS.unit),
+  label: z.string().trim().min(1).max(READING_LIMITS.label),
+  period: z.string().trim().min(1).max(READING_LIMITS.period),
+  valueText: z.string().trim().min(1).max(READING_LIMITS.valueText),
+  quote: z.string().trim().max(READING_LIMITS.quote),
   page: z.number().int().min(1).max(MAX_PAGE_NO),
+  /** Consolidated or standalone as the page printed it: a standalone repeat of a consolidated line is not listed (review-readings.ts). */
+  basis: z.enum(["consolidated", "standalone"]).nullable().default(null),
 });
 export type MachineReading = z.infer<typeof machineReadingSchema>;
 
@@ -32,21 +35,23 @@ const sameUnit = (a: string | null, b: string) => a !== null && normaliseText(a)
 /**
  * One reading per test for this page: the first figure (they arrive best first) whose label is the test's metric, whose unit is the
  * test's unit, that carries no flag and whose date the headings gave. A flagged figure is Aksh's to resolve first; it proposes no reading.
+ * A figure on the document's preferred basis wins over a standalone repeat of the same line, as the figures list prefers it.
  */
-export function buildReadings(built: NewProposal[], tests: ReadingTest[]): NewReading[] {
+export function buildReadings(built: NewProposal[], tests: ReadingTest[], preferred: Basis): NewReading[] {
   const out: NewReading[] = [];
   for (const test of tests) {
     if (!test.metric) continue;
     const metric = normaliseLabel(test.metric);
-    const hit = built.find((p) => {
+    const matches = built.filter((p) => {
       const f = p.machineValue;
       return p.flags.length === 0 && f.asOf !== null && f.period !== null && normaliseLabel(f.label) === metric && sameUnit(f.unit, test.unit);
     });
+    const hit = matches.find((p) => p.machineValue.basis === preferred) ?? matches.find((p) => p.machineValue.basis === null) ?? matches[0];
     if (!hit) continue;
     const f = hit.machineValue;
     const machine: MachineReading = {
       current: f.value, readingAsOf: f.asOf as string, prior: f.prior?.value ?? null, unit: (f.unit as string).trim(),
-      label: f.label, period: f.period as string, valueText: f.valueText, quote: f.quote, page: f.page,
+      label: f.label, period: f.period as string, valueText: f.valueText, quote: f.quote, page: f.page, basis: f.basis,
     };
     if (machineReadingSchema.safeParse(machine).success) out.push({ testId: test.id, machine });
   }

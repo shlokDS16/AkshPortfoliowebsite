@@ -137,7 +137,7 @@ export async function listInbox(
       ? { data: [], error: null }
       : db
           .from("proposals")
-          .select("id, document_id, flags, status, machine_value, accepted_value")
+          .select("id, document_id, flags, status, machine_value, accepted_value, dedupe_key, superseded")
           .in("document_id", activeIds),
     readTranscripts(db, voiceIds),
     readDigestCounts(db, activeIds),

@@ -1,5 +1,6 @@
 import { machineFactSchema, proposedFactSchema, type MachineFact } from "./proposed-fact";
 import type { ProposalRecord } from "./review-repo";
+import { currentRows } from "./supersede";
 import { whyFor, type ProposalStatus, type ProposalView } from "./review-types";
 
 // One stored proposal as the review screen and the review operations read it. Server side only.
@@ -43,11 +44,8 @@ export function toView(rec: ProposalRecord): ProposalView | null {
 }
 
 /**
- * The records the screen lists: a figure Aksh's re-read rejected is left out once a later pass has proposed on its page (the new rows
- * replace it). A figure he rejected himself, and every accepted, edited or filed one, stays.
+ * The records the screen lists: a figure Aksh's re-read replaced is gone; a figure he dropped himself stays dropped when a later pass
+ * reads the same line again (see supersede.ts); every accepted, edited or filed one stays.
  */
-export function currentRecords(recs: ProposalRecord[]): ProposalRecord[] {
-  const newest = new Map<number, number>();
-  for (const r of recs) newest.set(r.pageNo, Math.max(newest.get(r.pageNo) ?? 1, r.pass));
-  return recs.filter((r) => !(r.status === "rejected" && r.pass < (newest.get(r.pageNo) ?? 1)));
-}
+export const currentRecords = (recs: ProposalRecord[]): ProposalRecord[] =>
+  currentRows(recs, (r) => ({ key: r.baseKey, pass: r.pass, status: r.status, superseded: r.superseded }));

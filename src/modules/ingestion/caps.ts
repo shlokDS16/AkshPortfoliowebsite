@@ -125,5 +125,11 @@ export const DIGEST_CLAIM_WORDS = 25;
 export const DIGEST_SECTION_MAX = 300;
 export const DIGEST_CLAIM_MAX = 400;
 export const DIGEST_LINE_MAX = 600;
+
+/**
+ * The lengths of a machine reading of a test (Plan 2b Task 8): the label is a fact label (80, as casefile allows), the unit a test's unit
+ * (12), the period a fact's period (10); the printed value and line are what the page printed, as a figure proposal keeps them.
+ */
+export const READING_LIMITS = { label: 80, unit: 12, period: 10, valueText: 60, quote: 600 } as const;
 /** A line shorter than this is not a quote worth confirming: it is on almost any page, so it counts as not confirmed. */
 export const DIGEST_MIN_LINE_CHARS = 20;

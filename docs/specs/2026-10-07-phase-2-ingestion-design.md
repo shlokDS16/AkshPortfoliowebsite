@@ -415,3 +415,15 @@ Copy (plain second person; "pending Shlok approval" means the build chose the wo
 | Editor banner, readings removed | You removed every staged test reading from (document). Saving sends them back to the review list. (Closed document: Saving drops them, because you marked the document done or skipped.) | pending Shlok approval |
 | Editor banner, readings left out | 2 more test readings from (document) are not shown: the file has no such test, or the test already has a reading as new or newer. | pending Shlok approval |
 | Test row mark | Reading from (document), p. 7 | pending Shlok approval |
+- **Fix round 1 (2026-10-08).**
+  - **The price is the reservation.** A re-read's price is what the call will reserve: the prompt, this page up to the character cap and `REREAD_MAX_COMPLETION`, rounded up to the hundred, out of the day's 150,000 tokens (about 2,500 for a short page, at most about 5,700). It replaces the earlier "3,400 or the median": a medium-effort reading is not the usual one and the median of the usual calls would understate it. `TOKENS_PER_PAGE_DEFAULT` is no longer used for it.
+  - **Basis.** A reading carries the basis the page printed. On one page the document's preferred basis wins over a standalone repeat; in the review list a reading on the other basis is left out when the preferred basis has a reading of the same test and period, and filing files only the listed ones (the figures' rule, `basisRepeats`). The row shows the basis beside the period.
+  - **What a re-read replaces.** Aksh's click marks the rows it rejects `superseded` (a column on `proposals` and `reading_proposals`, added to migration 0008 locally, settable only on a rejected row, by Aksh only). A superseded row is not listed and not counted as his decision, so a re-read that finds nothing new leaves the card at its usual "Read. No figures matched" line instead of "All figures checked." A figure or reading Aksh dropped himself stays dropped: the same line proposed again by a later pass is not listed, and his earlier row stays, unticked.
+  - **A readings failure has its own sentence** when saving cannot mark staged readings as filed (below), beside the existing one for figures.
+  - **Limits.** The machine reading's lengths are `READING_LIMITS` in `caps.ts`; the staged-readings cap is `CASEFILE_LIMITS.tests`.
+
+| Where | Text | Status |
+|---|---|---|
+| Saved, readings could not be marked filed | Saved. The test readings could not be marked as filed; they stay staged, and are left out next time because the tests already have them. | pending Shlok approval |
+| Reading row, basis | FY26 · consolidated · as of 31 Mar 2026 · prior 131 | pending Shlok approval |
+| The price (changed) | This uses about 2,500 of today's 150,000 AI tokens. Figures from this page that you have not checked yet are replaced by the new reading. (The number is the call's reservation for this page.) | pending Shlok approval |

@@ -187,15 +187,30 @@ describe("saveCaseFileRevisionAction: provenance of staged figures", () => {
       expect(recordFiledReadings).not.toHaveBeenCalled();
     });
 
-    it("still tries the readings when the figures' record fails, and the save shows the provenance-missing notice if either did", async () => {
+    it("still tries the readings when the figures' record fails, and each failure has its own sentence (the figures first, the readings second)", async () => {
+      const both = JSON.stringify({ staged: [P1], provenance: [], stagedReadings: [{ testId: "T1", proposalId: R1 }] });
       recordFiledFacts.mockRejectedValueOnce(new Error("db down"));
       const id = await thesis();
-      const to = await save(id, { provenance: JSON.stringify({ staged: [P1], provenance: [], stagedReadings: [{ testId: "T1", proposalId: R1 }] }) });
+      expect(await save(id, { provenance: both })).toBe(`/desk/items/${id}?notice=revision-saved-provenance-missing`);
       expect(recordFiledReadings).toHaveBeenCalledTimes(1);
-      expect(to).toBe(`/desk/items/${id}?notice=revision-saved-provenance-missing`);
+      recordFiledFacts.mockRejectedValueOnce(new Error("db down"));
       recordFiledReadings.mockRejectedValueOnce(new Error("db down"));
-      expect(await save(id, { provenance: readings })).toBe(`/desk/items/${id}?notice=revision-saved-provenance-missing`);
+      const twice = await save(id, { provenance: both });
+      expect(param(twice, "notice")).toBe("revision-saved-provenance-missing");
+      expect(param(twice, "also")).toBe("revision-saved-readings-missing");
       expect(repo.revisions).toHaveLength(2);
+    });
+
+    it("a readings failure alone says it is about the readings, not the figures, and past the publishing gate it is the second line", async () => {
+      recordFiledReadings.mockRejectedValueOnce(new Error("db down"));
+      const id = await thesis();
+      expect(await save(id, { provenance: readings })).toBe(`/desk/items/${id}?notice=revision-saved-readings-missing`);
+      await repo.insertRevision({ itemId: id, bodyMd: "v1", structured: {}, changeReason: null, author: "aksh" });
+      repo.setVisibility(id, "public");
+      recordFiledReadings.mockRejectedValueOnce(new Error("db down"));
+      const to = await save(id, { provenance: readings });
+      expect(param(to, "notice")).toBe("revision-pending-gate");
+      expect(param(to, "also")).toBe("revision-saved-readings-missing");
     });
 
     it("does not file readings for a note (no facts sheet)", async () => {

@@ -1,8 +1,10 @@
 import { InvalidInputError } from "@/lib/errors";
 import { MAX_PAGE_NO } from "@/modules/documents";
-import { GROQ_CAPS, MAX_PASSES, TOKENS_PER_PAGE_DEFAULT } from "./caps";
+import { GROQ_CAPS, MAX_PASSES, PAGE_CHAR_LIMIT, REREAD_MAX_COMPLETION } from "./caps";
 import { InboxError } from "./errors";
+import { estimateTokens } from "./governor";
 import { documentOf, type InboxPorts } from "./inbox-ops";
+import { SYSTEM_PROMPT, userPrompt } from "./prompts";
 
 // "Re-read this page" (Plan 2b Task 8, rulings R2 and R3, Shlok's Q21). Aksh asks for one page to be read again, harder: the cost is
 // shown first and comes from the constants; his click rejects the page's figures he has not checked (so the new reading replaces them)
@@ -14,12 +16,12 @@ export type RereadCost = { tokens: number; dayCap: number; text: string };
 const grouped = (n: number) => n.toLocaleString("en-US");
 
 /**
- * What one more reading of a page costs out of the day's allowance. The measured median of recent calls counts when it is higher than
- * the default (a medium-effort reading is not cheaper than the usual one); it is rounded to the hundred, as the meter says it.
+ * What one more reading of this page costs out of the day's allowance: what the call will reserve (the prompt, this page up to the
+ * character cap, and the re-read's completion room, which includes the medium-effort reasoning), rounded up to the hundred. The usual
+ * per-page cost is the low-effort one and would understate a re-read.
  */
-export function rereadCost(median: number | null): RereadCost {
-  const measured = median !== null && Number.isFinite(median) ? Math.round(median / 100) * 100 : 0;
-  const tokens = Math.max(TOKENS_PER_PAGE_DEFAULT, measured);
+export function rereadCost(pageNo: number, pageText: string): RereadCost {
+  const tokens = Math.ceil(estimateTokens(SYSTEM_PROMPT, userPrompt(pageNo, pageText.slice(0, PAGE_CHAR_LIMIT)), REREAD_MAX_COMPLETION) / 100) * 100;
   return {
     tokens,
     dayCap: GROQ_CAPS.tpd,
@@ -41,9 +43,11 @@ async function check(p: InboxPorts, documentId: string, pageNo: number, aiOn: bo
 }
 
 /** The price of re-reading this page, after the checks the click would make. Changes nothing. */
-export async function previewReread(p: InboxPorts, documentId: string, pageNo: number, aiOn: boolean, median: number | null): Promise<RereadCost> {
+export async function previewReread(p: InboxPorts, documentId: string, pageNo: number, aiOn: boolean): Promise<RereadCost> {
   await check(p, documentId, pageNo, aiOn);
-  return rereadCost(median);
+  const page = await p.docs.getPage(documentId, pageNo);
+  if (!page) throw new InboxError("reread-not-ready");
+  return rereadCost(pageNo, page.text);
 }
 
 /**
