@@ -10,7 +10,7 @@ const step = (over: Partial<StepState> = {}): StepState => ({
   kind: "extract_page", status: "queued", notBefore: EARLIER, waitReason: null, pageNo: 4, lastError: null, everClaimed: true, ...over,
 });
 const doc = (over: Partial<DocState> = {}): DocState => ({
-  status: "active", pageCount: 312, pagesRead: 88, aiOn: true, pending: 0, flagged: 0, decided: 0, steps: [], ...over,
+  status: "active", pageCount: 312, pagesRead: 88, scanPages: 0, aiOn: true, pending: 0, flagged: 0, decided: 0, steps: [], ...over,
 });
 const view = (over: Partial<DocState> = {}, eta: string | null = "ready by 11:40") => trayFor(doc(over), NOW, eta);
 

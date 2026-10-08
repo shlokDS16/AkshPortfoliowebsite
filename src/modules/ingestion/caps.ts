@@ -37,3 +37,21 @@ export const MAX_PROPOSALS_PER_DOCUMENT = 60;
 export const TOKENS_PER_PAGE_DEFAULT = 3_400;
 /** The GitHub pump runs every 15 minutes (spec s8); each run drains for DRAIN_MS.pump. */
 export const PUMP_EVERY_MIN = 15;
+
+/** The OCR.space bucket in provider_usage. reserve_units derives the day wait (ocr_day) from the 'ocr' prefix. */
+export const OCR_BUCKET = "ocrspace";
+/**
+ * OCR.space free tier at 75% of 500 a day and 25,000 a month (spec s9, https://ocr.space/ocrapi). One unit is one request.
+ * No month counter is kept (the ledger is pruned after 48 hours): 375 a day times 31 days is below the month cap, so the day cap binds.
+ */
+export const OCR_CAPS = { day: 375, month: 18_750 } as const;
+/** The free tier takes files up to 1 MB (spec s9). Read as 1,048,576 bytes; a response that says otherwise is a size refusal. */
+export const OCR_MAX_BYTES = 1_048_576;
+/** One OCR.space call waits at most this long; a timeout is a provider retry, never a failure of the page. */
+export const OCR_TIMEOUT_MS = 30_000;
+/** When OCR.space says the quota is spent and the ledger cannot say when it frees, ask again after this long. */
+export const OCR_BLOCK_FALLBACK_MS = 60 * 60 * 1000;
+/** The third refusal in a row while our own ledger is under the daily cap reads as a key problem, not a quota (ruling R9). */
+export const OCR_KEY_REFUSALS = 3;
+/** A scanned document is read whole when at least this share of its pages are scans and they fit its page budget (ruling R6). */
+export const OCR_WHOLE_SHARE = 0.8;

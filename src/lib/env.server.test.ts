@@ -45,9 +45,9 @@ describe("parseServerEnv", () => {
   });
 
   it("ignores unrelated variables such as dev-only tokens", () => {
-    const env = parseServerEnv({ ...valid, SUPABASE_ACCESS_TOKEN: "sbp_devonly", OCRSPACE_API_KEY: "x" });
+    const env = parseServerEnv({ ...valid, SUPABASE_ACCESS_TOKEN: "sbp_devonly", GOOGLE_VISION_API_KEY: "x" });
     expect(env).not.toHaveProperty("SUPABASE_ACCESS_TOKEN");
-    expect(env).not.toHaveProperty("OCRSPACE_API_KEY");
+    expect(env).not.toHaveProperty("GOOGLE_VISION_API_KEY");
   });
 });
 
@@ -67,6 +67,14 @@ describe("parseServerEnv: the LLM settings (optional; unset means AI reading is 
     expect(parseServerEnv(valid).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-120b");
     expect(parseServerEnv({ ...valid, GROQ_MODEL_TEXT: "" }).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-120b");
     expect(parseServerEnv({ ...valid, GROQ_MODEL_TEXT: "openai/gpt-oss-20b" }).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-20b");
+  });
+
+  it("treats OCRSPACE_API_KEY as optional (unset means scan reading is off), blank included, and never echoes a bad key", () => {
+    expect(parseServerEnv(valid).OCRSPACE_API_KEY).toBeUndefined();
+    expect(parseServerEnv({ ...valid, OCRSPACE_API_KEY: "" }).OCRSPACE_API_KEY).toBeUndefined();
+    expect(parseServerEnv({ ...valid, OCRSPACE_API_KEY: "K81234567888957" }).OCRSPACE_API_KEY).toBe("K81234567888957");
+    expect(() => parseServerEnv({ ...valid, OCRSPACE_API_KEY: "short" })).toThrow(/OCRSPACE_API_KEY/);
+    expect(() => parseServerEnv({ ...valid, OCRSPACE_API_KEY: "short" })).not.toThrow(/short"/);
   });
 
   it("accepts LLM_ADAPTER groq or fixture and refuses anything else", () => {

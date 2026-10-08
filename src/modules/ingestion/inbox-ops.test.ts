@@ -259,6 +259,58 @@ describe("readSelected", () => {
   });
 });
 
+describe("scanned pages (ruling R6): the tick and the keep-reading button route a scan to the scan reader", () => {
+  const stepsOf = () => inbox.steps.filter((s) => s.kind !== "pdf_text").map((s) => [s.kind, s.pageNo, s.status]);
+  const scan = (pageNo: number, selected = false) => inbox.pages.set(`${DOC}:${pageNo}`, { selected, selectedBy: selected ? "rule" : null, isScan: true });
+
+  it("ticking a scan page queues ocr_page, not extract_page", async () => {
+    pages([]);
+    scan(7);
+    await setPageSelected(ports, DOC, 7, true, true);
+    expect(stepsOf()).toEqual([["ocr_page", 7, "queued"]]);
+    expect(inbox.pages.get(`${DOC}:7`)).toMatchObject({ selected: true, selectedBy: "aksh", isScan: true });
+  });
+
+  it("unticking a scan page skips its queued scan read, and ticking it again revives that step", async () => {
+    pages([]);
+    scan(7);
+    await setPageSelected(ports, DOC, 7, true, true);
+    await setPageSelected(ports, DOC, 7, false, true);
+    expect(stepsOf()).toEqual([["ocr_page", 7, "skipped"]]);
+    await setPageSelected(ports, DOC, 7, true, true);
+    expect(stepsOf()).toEqual([["ocr_page", 7, "queued"]]);
+  });
+
+  it("a scan page counts against the page budget like any other", async () => {
+    pages([4, 5, 6]);
+    scan(7);
+    expect(await code(setPageSelected(ports, DOC, 7, true, true))).toBe("page-budget-reached");
+  });
+
+  it("readSelected queues the scan reader for a ticked scan and the figure reader for a ticked digital page", async () => {
+    pages([4]);
+    scan(7, true);
+    await readSelected(ports, DOC, true);
+    expect(stepsOf()).toEqual([
+      ["extract_page", 4, "queued"],
+      ["ocr_page", 7, "queued"],
+    ]);
+  });
+
+  it("readSelected checks the step the page needs: a scan read earlier (now text) gets its extract step, and nothing is queued twice", async () => {
+    pages([]);
+    inbox.pages.set(`${DOC}:7`, { selected: true, selectedBy: "aksh", isScan: false }); // the scan reader has filled it
+    await inbox.queue.enqueue(job, [{ kind: "ocr_page", pageNo: 7 }]);
+    inbox.steps.find((s) => s.kind === "ocr_page")!.status = "done";
+    await readSelected(ports, DOC, true);
+    await readSelected(ports, DOC, true);
+    expect(stepsOf()).toEqual([
+      ["ocr_page", 7, "done"],
+      ["extract_page", 7, "queued"],
+    ]);
+  });
+});
+
 describe("inbox messages", () => {
   it("every InboxError code is a desk message code whose text equals the error's message", () => {
     for (const c of Object.keys(INBOX_ERROR_TEXT) as InboxErrorCode[]) {

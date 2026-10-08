@@ -17,12 +17,23 @@ export function createMemoryUsageRepo(): MemoryUsageRepo {
       reservations.push({ id, bucket, tokens, settled: null });
       return { ok: true, id };
     },
+    async reserveUnits(bucket, units) {
+      const id = `res-${reservations.length + 1}`;
+      reservations.push({ id, bucket, tokens: units, settled: null });
+      return { ok: true, id };
+    },
     async settle(id, used, status) {
       const r = reservations.find((x) => x.id === id);
       if (r) r.settled = { used, status };
     },
     async block(bucket, kind, until, reason) {
       blocks.push({ bucket, kind, until, reason });
+    },
+    async earliestReset() {
+      return null;
+    },
+    async refusalsSinceUse() {
+      return 0;
     },
     async totals() {
       const used = reservations.flatMap((r) => (r.settled?.status === "used" ? [r.settled.used] : []));

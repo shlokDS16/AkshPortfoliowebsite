@@ -1,9 +1,9 @@
 import "server-only";
 import { serverEnv } from "@/lib/env.server";
-import { createLlmPort, type LlmPort } from "@/lib/providers";
+import { createLlmPort, createOcrPort, type LlmPort, type OcrPort } from "@/lib/providers";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
-import { createProposalsRepo, createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
+import { createProposalsRepo, createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, OCR_MAX_BYTES, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
 import { latestFileForCompany } from "@/modules/research";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
 import type { Step } from "./steps";
@@ -13,6 +13,11 @@ import type { Step } from "./steps";
 /** The LLM port, or null when AI reading is off (no GROQ_API_KEY, and no LLM_ADAPTER=fixture off Vercel). */
 function buildLlm(): LlmPort | null {
   return createLlmPort(serverEnv());
+}
+
+/** The scan reader, or null when scan reading is off (no OCRSPACE_API_KEY, and no LLM_ADAPTER=fixture off Vercel). */
+function buildOcr(): OcrPort | null {
+  return createOcrPort(serverEnv(), { maxBytes: OCR_MAX_BYTES });
 }
 
 /** True when steps that need the LLM can run; the inbox says "AI reading is off" otherwise. */
@@ -25,6 +30,7 @@ function buildDeps(): DrainDeps {
   return {
     db,
     llm: buildLlm(),
+    ocr: buildOcr(),
     models: { text: serverEnv().GROQ_MODEL_TEXT },
     // Built once per drain; handlers use only these (ruling R7). The documents surface has no update.
     repos: {

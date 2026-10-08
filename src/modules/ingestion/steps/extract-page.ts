@@ -5,6 +5,8 @@ import { llmTimeoutMs } from "../deadline";
 import { callWithinBudget, estimateTokens } from "../governor";
 import { extractionSchema, PROMPT_VERSION, retryPrompt, SYSTEM_PROMPT, userPrompt, type Extraction } from "../prompts";
 import { buildProposals } from "../proposals";
+import { OCR_NOTHING_READ, SCAN_READING_OFF } from "../ocr-copy";
+import { stepsForPage } from "../page-steps";
 import { normaliseLabel } from "../relevance";
 import type { StepContext, StepHandler, StepOutcome } from "../types";
 
@@ -12,7 +14,8 @@ import type { StepContext, StepHandler, StepOutcome } from "../types";
 // proposals and nothing else; period and unit come from the printed headings in code (E3); every value and quote is
 // checked against the stored page text (buildProposals). Every write is idempotent, so a duplicate step is harmless.
 
-export const SCAN_PAGE = "This page is a scan. Scans are read in a later update; enter it manually or skip.";
+/** A scan with no scan reader to send it to (ruling R6: no OCRSPACE_API_KEY). With a reader the page is routed to ocr_page instead. */
+export const SCAN_PAGE = SCAN_READING_OFF;
 export const PAGE_TOO_BIG = "This page is too big for the free AI allowance. Enter the figures yourself.";
 export const PAGE_NOT_STORED = "This page is no longer stored, so it cannot be read. Choose Skip, or Try again.";
 export const KEY_REFUSED = "The AI service did not accept the desk's key. Check the Groq key in the settings, then try again.";
@@ -52,7 +55,12 @@ export const extractPage: StepHandler = async (ctx) => {
 
   const [doc, page] = await Promise.all([documents.get(documentId), documents.getPage(documentId, pageNo)]);
   if (!doc || !page) return attention(PAGE_NOT_STORED);
-  if (page.isScan || page.text.trim() === "") return attention(SCAN_PAGE);
+  if (page.isScan || page.text.trim() === "") {
+    // Read by the scan reader already and nothing there; or no reader; else this step was queued before the page was routed.
+    if (page.ocr) return attention(OCR_NOTHING_READ);
+    if (!deps.ocr) return attention(SCAN_PAGE);
+    return { kind: "done", result: { scan: true }, enqueue: [stepsForPage({ pageNo, isScan: true, kind: page.kind })] };
+  }
 
   const have = await proposals.countForDocument(documentId);
   if (have >= MAX_PROPOSALS_PER_DOCUMENT) return { kind: "done", result: { proposals: 0, capped: true } };

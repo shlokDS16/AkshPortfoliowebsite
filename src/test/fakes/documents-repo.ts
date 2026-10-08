@@ -90,7 +90,7 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
         if (pages.has(key(documentId, pageNo))) continue; // on conflict do nothing
         pages.set(key(documentId, pageNo), {
           documentId, pageNo, text, charCount: text.length, isScan: text.trim().length < 50, kind: null, basis: null, score: 0,
-          selected: false, selectedBy: null,
+          selected: false, selectedBy: null, ocr: false,
         });
       }
     },
@@ -119,7 +119,17 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
     },
     async getPage(documentId, pageNo) {
       const p = pages.get(key(documentId, pageNo));
-      return p ? { pageNo: p.pageNo, text: p.text, isScan: p.isScan, kind: p.kind, basis: p.basis } : null;
+      return p
+        ? { pageNo: p.pageNo, text: p.text, isScan: p.isScan, kind: p.kind, basis: p.basis, ocr: p.ocr, selected: p.selected, selectedBy: p.selectedBy }
+        : null;
+    },
+    async countSelected(documentId) {
+      return forDoc(documentId).filter((p) => p.selected).length;
+    },
+    async fillScanPage(documentId, pageNo, text) {
+      const p = pages.get(key(documentId, pageNo));
+      if (!p || p.text.trim().length >= 50) throw new DbError("documents.fillScanPage", "P0001", "document_pages.text is written once");
+      pages.set(key(documentId, pageNo), { ...p, text, charCount: text.length, isScan: text.trim().length < 50, ocr: true });
     },
   };
   return repo;

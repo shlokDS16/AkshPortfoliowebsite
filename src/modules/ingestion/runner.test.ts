@@ -22,6 +22,7 @@ function deps(time = fakeTime()): DrainDeps {
   return {
     db: {} as Db,
     llm: null,
+    ocr: null,
     models: { text: "test-model" },
     repos: {
       documents: machineDocuments(createMemoryDocumentsRepo()),
@@ -90,6 +91,7 @@ const handlers = (h: Partial<Record<StepKind, StepHandler>>): Record<StepKind, S
   pdf_text: h.pdf_text ?? always({ kind: "done" }),
   select_pages: h.select_pages ?? always({ kind: "done" }),
   extract_page: h.extract_page ?? always({ kind: "done" }),
+  ocr_page: h.ocr_page ?? always({ kind: "done" }),
 });
 
 describe("drain", () => {
@@ -181,7 +183,7 @@ describe("drain", () => {
     };
     await drain(deps(), memoryRepo([step("pdf_text", 1)]).repo, handlers({ pdf_text: look }), 240_000);
     expect(seen).not.toBeNull();
-    expect(Object.keys(seen!).sort()).toEqual(["clock", "llm", "models", "now", "repos"]);
+    expect(Object.keys(seen!).sort()).toEqual(["clock", "llm", "models", "now", "ocr", "repos"]);
   });
 
   it("a step whose lease expired twice goes to needs_attention without running its handler", async () => {

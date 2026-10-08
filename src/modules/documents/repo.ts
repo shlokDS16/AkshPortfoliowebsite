@@ -53,6 +53,13 @@ export interface DocumentsRepo {
    */
   setSelection(documentId: string, pageNos: number[], by: "rule"): Promise<number[]>;
   getPage(documentId: string, pageNo: number): Promise<PageForExtraction | null>;
+  /** How many pages of the document are ticked (by the rule or by Aksh). */
+  countSelected(documentId: string): Promise<number>;
+  /**
+   * Writes the OCR text of a scan page and marks it `ocr` (text and ocr only). The database allows this once, while the
+   * page has under 50 characters (migration 0006's guard); a page that already has text is refused.
+   */
+  fillScanPage(documentId: string, pageNo: number, text: string): Promise<void>;
 }
 
 const toDocument = (r: Row): DocumentRow => ({
@@ -184,7 +191,7 @@ const toPage = (r: { page_no: number; text: string; is_scan: boolean | null }): 
 /** The page-text half of the repo, used by job code on the secret-key client. */
 function machinePages(db: Db): Pick<
   DocumentsRepo,
-  "download" | "insertPages" | "setPageCount" | "listPagesForSelection" | "setVerdicts" | "setSelection" | "getPage"
+  "download" | "insertPages" | "setPageCount" | "listPagesForSelection" | "setVerdicts" | "setSelection" | "getPage" | "countSelected" | "fillScanPage"
 > {
   return {
     async download(path) {
@@ -241,12 +248,32 @@ function machinePages(db: Db): Pick<
     async getPage(documentId, pageNo) {
       const { data, error } = await db
         .from("document_pages")
-        .select("page_no, text, is_scan, kind, basis")
+        .select("page_no, text, is_scan, kind, basis, ocr, selected, selected_by")
         .eq("document_id", documentId)
         .eq("page_no", pageNo)
         .maybeSingle();
       if (error) throw jobDbError("documents.getPage", error);
-      return data ? { ...toPage(data), kind: data.kind as PageKind | null, basis: data.basis as Basis | null } : null;
+      return data
+        ? {
+            ...toPage(data),
+            kind: data.kind as PageKind | null,
+            basis: data.basis as Basis | null,
+            ocr: data.ocr,
+            selected: data.selected,
+            selectedBy: data.selected_by as "rule" | "aksh" | null,
+          }
+        : null;
+    },
+    async countSelected(documentId) {
+      const { count, error } = await db.from("document_pages").select("page_no", { count: "exact", head: true }).eq("document_id", documentId).eq("selected", true);
+      if (error) throw jobDbError("documents.countSelected", error);
+      return count ?? 0;
+    },
+    async fillScanPage(documentId, pageNo, text) {
+      // Only `text` and `ocr` (service_role's column grants); the trigger refuses a second fill of a page that has text.
+      const { data, error } = await db.from("document_pages").update({ text, ocr: true }).eq("document_id", documentId).eq("page_no", pageNo).select("page_no");
+      if (error) throw jobDbError("documents.fillScanPage", error);
+      if (data.length === 0) throw jobDbError("documents.fillScanPage", { message: "no such page", code: "empty" });
     },
   };
 }

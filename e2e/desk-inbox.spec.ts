@@ -83,9 +83,9 @@ test("upload a PDF: it is read, its statement pages are ticked, its figures wait
   await expect(card.getByRole("button", { name: "Skip this document" })).toHaveCount(0);
   await retire(documentId);
 
-  // A document with nothing to review can be skipped: the card moves to Finished and its job stops.
+  // A document with nothing to review can be skipped (its one page has over 50 characters: under that a page is a scan and goes to the scan reader): the card moves to Finished and its job stops.
   const quietTitle = `notice-${run}`;
-  await page.getByLabel("Choose a PDF").setInputFiles({ name: `${quietTitle}.pdf`, mimeType: "application/pdf", buffer: Buffer.from(makePdf([[`Notice of meeting ${run}`]])) });
+  await page.getByLabel("Choose a PDF").setInputFiles({ name: `${quietTitle}.pdf`, mimeType: "application/pdf", buffer: Buffer.from(makePdf([[`Notice of the annual general meeting of the members, ${run}`]])) });
   const quiet = page.locator("article", { hasText: quietTitle });
   await expect(quiet.locator("xpath=ancestor::section[1]")).toHaveAccessibleName(/^Ready for you/, { timeout: 60_000 });
   await expect(quiet.getByText("Read. No figures matched; open it beside your file.")).toBeVisible();

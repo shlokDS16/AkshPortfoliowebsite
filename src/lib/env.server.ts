@@ -17,6 +17,8 @@ const serverSchema = publicSchema.extend({
   GROQ_MODEL_TEXT: z.preprocess(blank, z.string().trim().min(1).default("openai/gpt-oss-120b")),
   /** [DEV-ONLY] `fixture` for local e2e; createLlmPort refuses it on Vercel preview/production (ruling R27). */
   LLM_ADAPTER: optional(z.enum(["groq", "fixture"])),
+  // Scanned pages (spec s9, Plan 2b Task 2). No key means "Scan reading is off"; the app still runs.
+  OCRSPACE_API_KEY: optional(z.string().trim().min(8, "must be an OCR.space API key")),
   /** Set by Vercel (development | preview | production); unset locally and in CI. */
   VERCEL_ENV: optional(z.string().trim()),
 });

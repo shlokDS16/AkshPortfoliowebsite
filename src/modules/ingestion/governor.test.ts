@@ -13,8 +13,11 @@ function fakeUsage(refusal?: Block) {
   const repo = {
     reserve: vi.fn(async () => (refusal ? ({ ok: false, ...refusal } as const) : ({ ok: true, id: "res-1" } as const))),
     settle: vi.fn(async () => {}),
+    reserveUnits: vi.fn(async () => ({ ok: true, id: "res-u" }) as const),
     block: vi.fn(async () => {}),
     totals: vi.fn(async () => ({ lastMinute: 0, today: 0, medianPerCall: null })),
+    earliestReset: vi.fn(async () => null),
+    refusalsSinceUse: vi.fn(async () => 0),
   } satisfies UsageRepo;
   return repo;
 }

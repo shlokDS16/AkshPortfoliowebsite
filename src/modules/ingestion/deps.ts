@@ -1,4 +1,5 @@
 import type { LlmPort } from "@/lib/providers/llm";
+import type { OcrPort } from "@/lib/providers/ocr";
 import type { Db } from "@/lib/supabase/types";
 import type { DocumentsRepo } from "@/modules/documents";
 import type { ProposalsRepo } from "./proposals-repo";
@@ -11,7 +12,7 @@ import type { UsageRepo } from "./usage-repo";
  */
 export type MachineDocumentsRepo = Pick<
   DocumentsRepo,
-  "get" | "download" | "insertPages" | "setPageCount" | "listPagesForSelection" | "setVerdicts" | "setSelection" | "getPage"
+  "get" | "download" | "insertPages" | "setPageCount" | "listPagesForSelection" | "setVerdicts" | "setSelection" | "getPage" | "countSelected" | "fillScanPage"
 >;
 
 /** What job code may read of Aksh's research (E5): the labels of his newest file for a company, never his words. */
@@ -26,6 +27,8 @@ export type DrainDeps = {
   /** The secret-key client ops hands the runner; the queue repo is built on it. Handlers use `repos`. */
   db: Db;
   llm: LlmPort | null;
+  /** The scan reader, or null when scan reading is off (no OCRSPACE_API_KEY): ocr_page steps then wait. */
+  ocr: OcrPort | null;
   models: { text: string };
   repos: MachineRepos;
   now: () => Date;
@@ -46,5 +49,7 @@ export function machineDocuments(repo: DocumentsRepo): MachineDocumentsRepo {
     setVerdicts: (documentId, verdicts) => repo.setVerdicts(documentId, verdicts),
     setSelection: (documentId, pageNos, by) => repo.setSelection(documentId, pageNos, by),
     getPage: (documentId, pageNo) => repo.getPage(documentId, pageNo),
+    countSelected: (documentId) => repo.countSelected(documentId),
+    fillScanPage: (documentId, pageNo, text) => repo.fillScanPage(documentId, pageNo, text),
   };
 }

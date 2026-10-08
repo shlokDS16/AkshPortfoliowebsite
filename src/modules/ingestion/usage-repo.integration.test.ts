@@ -75,6 +75,49 @@ describe.skipIf(!stack)("createUsageRepo against reserve_usage on the local data
     if (!out.ok) expect(out.reason).toBe("groq_day");
   });
 
+  describe("reserve_units for the OCR bucket (migration 0008)", () => {
+    const ocr = () => `ocr-it-${randomUUID()}`;
+
+    it("reserves one request at a time against a day cap, refuses over it as ocr_day with the reset time, and frees on release", async () => {
+      const b = ocr();
+      const first = await repo.reserveUnits(b, 1, { day: 2 });
+      const second = await repo.reserveUnits(b, 1, { day: 2 });
+      expect(first.ok && second.ok).toBe(true);
+      if (!first.ok || !second.ok) throw new Error("expected room");
+      const third = await repo.reserveUnits(b, 1, { day: 2 });
+      expect(third.ok).toBe(false);
+      if (third.ok) throw new Error("unreachable");
+      expect(third.reason).toBe("ocr_day");
+      expect(third.notBefore.getTime()).toBeGreaterThan(Date.now() + 23 * 3_600_000);
+      await repo.settle(second.id, 0, "released");
+      expect((await repo.reserveUnits(b, 1, { day: 2 })).ok).toBe(true);
+    });
+
+    it("refuses a bucket that is not an OCR or voice one, loudly", async () => {
+      await expect(repo.reserveUnits(`it:${randomUUID()}`, 1, { day: 5 })).rejects.toThrow(/reserve_units/);
+    });
+
+    it("honours a recorded ocr_day block, and says when the day frees and how many refusals came since the last use", async () => {
+      const b = ocr();
+      const used = await repo.reserveUnits(b, 1, { day: 5 });
+      if (!used.ok) throw new Error("expected room");
+      await repo.settle(used.id, 1, "used");
+      expect(await repo.refusalsSinceUse(b)).toBe(0);
+      const reset = await repo.earliestReset(b);
+      expect(reset!.getTime()).toBeGreaterThan(Date.now() + 23 * 3_600_000);
+      const until = new Date(Date.now() + 3_600_000);
+      await repo.block(b, "rate_limited", until, "ocr_day", { remainingTokens: null, remainingRequests: null, retryAfterSeconds: null });
+      await repo.block(b, "rate_limited", until, "ocr_day", { remainingTokens: null, remainingRequests: null, retryAfterSeconds: null });
+      expect(await repo.refusalsSinceUse(b)).toBe(2);
+      const out = await repo.reserveUnits(b, 1, { day: 5 });
+      expect(out.ok).toBe(false);
+      if (out.ok) throw new Error("unreachable");
+      expect(out.reason).toBe("ocr_day");
+      expect(out.notBefore.getTime()).toBe(until.getTime());
+      expect(await repo.earliestReset(`ocr-it-${randomUUID()}`)).toBeNull();
+    });
+  });
+
   it("prunes through the service role (nothing is older than 48 hours here)", async () => {
     await expect(pruneUsage(db)).resolves.toEqual(expect.any(Number));
   });

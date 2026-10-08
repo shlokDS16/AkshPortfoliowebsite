@@ -11,7 +11,7 @@ describe("machineDocuments (documents.status done/skipped are Aksh's)", () => {
     const full = { get, update } as unknown as DocumentsRepo;
     const machine = machineDocuments(full);
     expect(Object.keys(machine)).toEqual([
-      "get", "download", "insertPages", "setPageCount", "listPagesForSelection", "setVerdicts", "setSelection", "getPage",
+      "get", "download", "insertPages", "setPageCount", "listPagesForSelection", "setVerdicts", "setSelection", "getPage", "countSelected", "fillScanPage",
     ]);
     expect("update" in machine).toBe(false);
     await machine.get("doc-1");

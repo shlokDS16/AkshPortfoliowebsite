@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createFixtureLlm } from "./fixture-llm";
-import { createLlmPort } from "./index";
+import { createLlmPort, createOcrPort } from "./index";
 import type { LlmRequest } from "./llm";
 
 const KEY = `gsk_${"k".repeat(40)}`;
@@ -77,5 +77,37 @@ describe("createFixtureLlm", () => {
     const out = await llm.complete(req("x"));
     expect(out.kind).toBe("invalid");
     expect(out.kind === "invalid" && out.issues.join("|")).toMatch(/rows\.0\.current/);
+  });
+});
+
+describe("createOcrPort (the fixture wins; else OCR.space when a key is set; else scan reading is off)", () => {
+  const opts = { maxBytes: 1_048_576 };
+
+  it("is null when no key is set", () => {
+    expect(createOcrPort({}, opts)).toBeNull();
+  });
+
+  it("is OCR.space when a key is set, and the fixture when LLM_ADAPTER=fixture", () => {
+    expect(createOcrPort({ OCRSPACE_API_KEY: "K81234567888957" }, opts)?.name).toBe("ocrspace");
+    expect(createOcrPort({ OCRSPACE_API_KEY: "K81234567888957", LLM_ADAPTER: "fixture" }, opts)?.name).toBe("fixture");
+    expect(createOcrPort({ LLM_ADAPTER: "fixture", VERCEL_ENV: "development" }, opts)?.name).toBe("fixture");
+  });
+
+  it("refuses the fixture on Vercel preview and production (ruling R27)", () => {
+    const warn = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const VERCEL_ENV of ["preview", "production"]) {
+      expect(createOcrPort({ LLM_ADAPTER: "fixture", VERCEL_ENV, OCRSPACE_API_KEY: "K81234567888957" }, opts)).toBeNull();
+    }
+    expect(warn).toHaveBeenCalled();
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("K81234567888957");
+  });
+
+  it("the fixture reads a page as statement text and never calls the network", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const out = await createOcrPort({ LLM_ADAPTER: "fixture" }, opts)?.read({ bytes: new Uint8Array(3), filetype: "PDF" }, { table: true });
+    expect(out).toMatchObject({ kind: "ok" });
+    expect(out?.kind === "ok" && out.text).toContain("Statement of Profit and Loss");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 });

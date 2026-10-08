@@ -3,6 +3,7 @@ import type { Db } from "@/lib/supabase/types";
 import { createSupabaseDocumentsRepo, type Basis, type DocumentStatus, type PageKind } from "@/modules/documents";
 import { GROQ_CAPS, TOKENS_PER_PAGE_DEFAULT } from "./caps";
 import { estimateReadyBy, formatReadyBy } from "./eta";
+import { isScanHeavy, PAGE_STEP_KINDS } from "./page-steps";
 import { tallyPending } from "./proposal-counts";
 import { trayFor, type DocState, type TrayView } from "./trays";
 import type { StepKind, StepStatus, WaitReason } from "./types";
@@ -24,8 +25,11 @@ export type InboxDoc = {
   /** Figures Aksh has already accepted, edited, dropped or filed. */
   decided: number;
   view: TrayView;
-  /** Statement pages and ticked pages only, never page text: `firstLine` is the first line of the page, at most 120 characters. */
-  pages: { pageNo: number; kind: PageKind | null; basis: Basis | null; firstLine: string; selected: boolean; by: "rule" | "aksh" | null }[];
+  /**
+   * Statement pages and ticked pages, plus the scan pages of a scanned document (so Aksh can tick them), never page text:
+   * `firstLine` is the first line of the page, at most 120 characters.
+   */
+  pages: { pageNo: number; kind: PageKind | null; basis: Basis | null; firstLine: string; selected: boolean; by: "rule" | "aksh" | null; scan: boolean }[];
 };
 
 const FINISHED_SHOWN = 10;
@@ -37,6 +41,7 @@ type StepRow = {
 };
 type PageRow = {
   document_id: string; page_no: number; kind: string | null; basis: string | null; selected: boolean; selected_by: string | null; first_line: string | null;
+  is_scan: boolean | null;
 };
 
 const firstLineOf = (text: string | null) => (text ?? "").split("\n")[0].trim();
@@ -52,9 +57,12 @@ const toSteps = (rows: StepRow[]): DocState["steps"] =>
     everClaimed: r.lease_owner !== null || r.status !== "queued",
   }));
 
-/** "ready by 11:40" for the extract pages still to read; the day's allowance is treated as spent when a step waits on it. */
+/**
+ * "ready by 11:40" for the pages still to read (a scan is counted once; its figures follow it); the day's allowance is
+ * treated as spent when a step waits on it.
+ */
 export function etaFor(steps: DocState["steps"], now: Date): string | null {
-  const left = steps.filter((s) => s.kind === "extract_page" && (s.status === "queued" || s.status === "running")).length;
+  const left = steps.filter((s) => PAGE_STEP_KINDS.includes(s.kind) && (s.status === "queued" || s.status === "running")).length;
   if (left === 0) return null;
   const dayWait = steps.some((s) => s.waitReason === "groq_day" && new Date(s.notBefore) > now);
   const eta = estimateReadyBy({
@@ -97,9 +105,9 @@ export async function listInbox(
       ? { data: [], error: null }
       : db
           .from("document_pages")
-          .select("document_id, page_no, kind, basis, selected, selected_by, first_line")
+          .select("document_id, page_no, kind, basis, selected, selected_by, first_line, is_scan")
           .in("document_id", activeIds)
-          .or("kind.not.is.null,selected.eq.true")
+          .or("kind.not.is.null,selected.eq.true,is_scan.eq.true")
           .order("document_id")
           .order("page_no"),
     companyIds.length === 0 ? { data: [], error: null } : db.from("companies").select("id, nse_symbol").in("id", companyIds),
@@ -140,10 +148,13 @@ export async function listInbox(
 
   const docs = rows.map((d): InboxDoc => {
     const steps = toSteps(stepsOf.get(d.id) ?? []);
+    const scans = (pagesOf.get(d.id) ?? []).filter((p) => p.is_scan).length;
+    const listScans = isScanHeavy(scans, d.page_count);
     const state: DocState = {
       status: d.status as DocumentStatus,
       pageCount: d.page_count,
       pagesRead: readCounts.get(d.id) ?? 0,
+      scanPages: scans,
       aiOn,
       pending: waiting.get(d.id)?.pending ?? 0,
       flagged: waiting.get(d.id)?.flagged ?? 0,
@@ -162,14 +173,18 @@ export async function listInbox(
       flagged: state.flagged,
       decided: state.decided,
       view: trayFor(state, now, etaFor(steps, now)),
-      pages: (pagesOf.get(d.id) ?? []).map((p) => ({
-        pageNo: p.page_no,
-        kind: p.kind as PageKind | null,
-        basis: p.basis as Basis | null,
-        firstLine: firstLineOf(p.first_line),
-        selected: p.selected,
-        by: p.selected_by as "rule" | "aksh" | null,
-      })),
+      // A cover page that happens to have little text is not offered: only a mostly scanned document lists its scans.
+      pages: (pagesOf.get(d.id) ?? [])
+        .filter((p) => !p.is_scan || listScans || p.selected || p.kind !== null)
+        .map((p) => ({
+          pageNo: p.page_no,
+          kind: p.kind as PageKind | null,
+          basis: p.basis as Basis | null,
+          firstLine: firstLineOf(p.first_line),
+          selected: p.selected,
+          by: p.selected_by as "rule" | "aksh" | null,
+          scan: p.is_scan ?? false,
+        })),
     };
   });
   return { docs, usage, aiOn };
@@ -198,7 +213,7 @@ export async function countInbox(db: Db, now: Date): Promise<number> {
   if (jobs.error) throw dbError("inbox.countSteps", jobs.error);
   const stepsOf = new Map<string, StepRow[]>(jobs.data.map((j) => [j.document_id, j.job_steps]));
   return open.data.filter((d) => {
-    const state: DocState = { status: "active", pageCount: null, pagesRead: 0, aiOn: true, pending: 0, flagged: 0, decided: 0, steps: toSteps(stepsOf.get(d.id) ?? []) };
+    const state: DocState = { status: "active", pageCount: null, pagesRead: 0, scanPages: 0, aiOn: true, pending: 0, flagged: 0, decided: 0, steps: toSteps(stepsOf.get(d.id) ?? []) };
     const { tray } = trayFor(state, now, null);
     return tray === "ready" || tray === "attention";
   }).length;

@@ -1,6 +1,6 @@
 import type { LlmResult } from "@/lib/providers/llm";
 import { GROQ_CAPS } from "./caps";
-import type { BlockReason, UsageRepo } from "./usage-repo";
+import type { BlockReason, UnitCaps, UsageRepo } from "./usage-repo";
 
 /** About 3.5 characters per token for the English and numeric text of statements; the completion cap is added whole. */
 export const estimateTokens = (system: string, user: string, maxCompletion: number): number =>
@@ -67,4 +67,35 @@ export async function callWithinBudget<T>(
     // The next reservation reads the ledger afresh; Groq's own 429 would defer us if the bucket is really empty.
   }
   return { kind: "called", result };
+}
+
+export type UnitsResult<R> = { kind: "deferred"; notBefore: Date; reason: BlockReason } | { kind: "called"; result: R };
+
+/**
+ * Reserve units (one OCR request, seconds of audio), call, settle (ruling R9). The call says whether the provider counted
+ * it: `spent` true settles the units as used, false releases them (a refusal, a local size check, a network error).
+ * An over-cap ledger is always a deferral with a time. A call that throws releases its units and throws again, so
+ * the runner counts a provider retry and no reservation is left holding the allowance.
+ */
+export async function callWithinUnits<R>(
+  deps: { usage: UsageRepo; now: () => Date },
+  bucket: string,
+  units: number,
+  caps: UnitCaps,
+  call: () => Promise<{ result: R; spent: boolean }>,
+): Promise<UnitsResult<R>> {
+  const r = await deps.usage.reserveUnits(bucket, units, caps);
+  if (!r.ok) {
+    const earliest = new Date(deps.now().getTime() + MIN_WAIT_SECONDS * 1000);
+    return { kind: "deferred", notBefore: r.notBefore.getTime() < earliest.getTime() ? earliest : r.notBefore, reason: r.reason };
+  }
+  let out: { result: R; spent: boolean };
+  try {
+    out = await call();
+  } catch (error) {
+    await deps.usage.settle(r.id, 0, "released");
+    throw error;
+  }
+  await deps.usage.settle(r.id, out.spent ? units : 0, out.spent ? "used" : "released");
+  return { kind: "called", result: out.result };
 }

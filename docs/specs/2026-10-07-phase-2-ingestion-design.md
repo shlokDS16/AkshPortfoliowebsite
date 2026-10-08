@@ -232,3 +232,26 @@ Rechecked 2026-10-08 (additions to the s9 table; the figures already in s9 were 
 | Groq Whisper free file limit | 25 MB on the free tier (100 MB on the developer tier); the model page shows 100 MB without a tier split | https://console.groq.com/docs/speech-to-text ; https://console.groq.com/docs/model/whisper-large-v3-turbo |
 | Groq Whisper billing | a minimum of 10 audio seconds is billed per request | https://console.groq.com/docs/speech-to-text |
 | OCR.space limit status and timeout | not documented on the vendor page; to be measured with a real key (R26: no constant lands in `caps.ts` until s9 carries the verified value) | https://ocr.space/ocrapi |
+
+### 16.7 Plan 2b Task 2: scanned PDF pages (2026-10-08, append-only)
+The OCR.space call was checked against https://ocr.space/OCRAPI on 2026-10-08: `POST https://api.ocr.space/parse/image`, multipart with `file`, `filetype`, `isTable`, `OCREngine` (1, 2 or 3) and `scale`; **the key is the `apikey` HTTP header, not a form field**; the answer carries `IsErroredOnProcessing`, `ErrorMessage` and `ParsedResults[].ParsedText`. The page documents no quota status code, no quota message and no timeout (exit code -20 means a timeout), so the adapter reads HTTP 403 and 429 and the quota words in an errored answer as "the day's allowance", and a key named as invalid (or HTTP 401) as a key problem. Engine 2 is used (the default; Engine 1 is deprecated). "1 MB" is read as 1,048,576 bytes (`OCR_MAX_BYTES`); an answer that calls the file too big is a size refusal, so a different reading only costs one request. Each scan page is split out of the stored PDF and sent alone (the free tier takes 3 pages a request), with `@cantoo/pdf-lib` 2.11.1 (MIT, published 2026-09-15; `pdf-lib` 1.17.1 was last published in 2021).
+
+Behaviour:
+- A scan page is a page with under 50 characters of text. `stepsForPage` sends a scan to `ocr_page` and any other page to `extract_page`; select_pages, Aksh's tick and "Read the ticked pages" all use it.
+- A document where at least 80% of the pages are scans and the scans number no more than its page budget is scanned whole by select_pages. A larger scanned document waits for Aksh's ticks.
+- `ocr_page` reserves one request in the `ocrspace` bucket (375 a day; no month counter), writes the text over the scan page once, marks it `ocr`, classifies it and queues `extract_page` when the page was ticked, or is a statement page and the document's budget has room (never one Aksh unticked). A refusal never counts as a failure: the daily allowance defers on `ocr_day` with a block until the ledger's earliest reset (an hour when the ledger is empty); a key the reader names as bad, or the third refusal in a row while our own ledger is under its cap, is a sentence for Aksh.
+
+Copy (plain second person). "Pending Shlok approval" means the build chose the wording and Shlok has not yet read it.
+| Where | Text | Status |
+|---|---|---|
+| Needs attention, scan page over 1 MB | This scanned page is over the free reader's 1 MB limit. Enter it manually or skip. | from the plan |
+| Needs attention, key refused | The scan reader did not accept the desk's key. Check the OCR.space key in the settings, then try again. | first sentence from ruling R9; second pending Shlok approval |
+| Needs attention, nothing read | Nothing could be read from this scan. Enter the figures yourself, or skip. | pending Shlok approval |
+| Needs attention, page refused or not separable | The scan reader could not take this page. Enter it manually or skip. | pending Shlok approval |
+| Needs attention, scan with no reader (replaces "Scans are read in a later update") | Scan reading is off, so this scanned page cannot be read. Enter it manually or skip. | pending Shlok approval |
+| Paused, `ocr_off` | Scan reading is off. | from ruling R6 |
+| Paused, `ocr_day` | Today's free scan reading is used up. It carries on by itself within 24 hours. | pending Shlok approval |
+| Paused, `voice_day` / `voice_hour` (used by Task 4) | Today's free voice reading is used up. It carries on by itself within 24 hours. / Waiting for the next hour of voice reading. It carries on by itself. | pending Shlok approval |
+| Being read | Reading scanned pages: 3 of 12, ready by 11:40 | pending Shlok approval |
+| Ready, a large scanned document with nothing ticked | N pages are scans. Tick the pages to read; each uses one of today's 375 scan reads. | pending Shlok approval (Shlok's threshold: the document's page budget) |
+| Page chooser, an unread scan | Scanned page, not read yet | pending Shlok approval |

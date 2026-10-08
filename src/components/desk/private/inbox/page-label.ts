@@ -10,8 +10,9 @@ const KIND: Record<PageKind, string> = {
   other: "Other",
 };
 
-/** "P&L · consolidated": what the page is, and on which basis the document prints it. */
-export function pageLabel(page: { kind: PageKind | null; basis: string | null }): string {
+/** "P&L · consolidated": what the page is, and on which basis the document prints it. A scan not yet read says so. */
+export function pageLabel(page: { kind: PageKind | null; basis: string | null; scan?: boolean }): string {
+  if (page.scan && !page.kind) return "Scanned page, not read yet";
   const kind = page.kind ? KIND[page.kind] : "Not a statement page";
   return page.basis ? `${kind} · ${page.basis}` : kind;
 }

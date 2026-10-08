@@ -34,6 +34,7 @@ function repoWith(bytes: Uint8Array, opts: { sha256?: string; pageCount?: number
 function ctx(repo: MemoryDocumentsRepo, step: Partial<Step>, opts: { clock?: () => number; llm?: LlmPort | null } = {}): StepContext {
   const deps: StepDeps = {
     llm: opts.llm === undefined ? null : opts.llm,
+    ocr: null,
     models: { text: "test-model" },
     repos: {
       documents: machineDocuments(repo),

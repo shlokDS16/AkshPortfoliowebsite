@@ -1,4 +1,6 @@
+import type { PageKind } from "@/modules/documents/client";
 import type { InboxRepo } from "@/modules/ingestion/inbox-repo";
+import { PAGE_STEP_KINDS } from "@/modules/ingestion/page-steps";
 import type { QueueRepo } from "@/modules/ingestion/queue-repo";
 import type { StepKind, StepStatus } from "@/modules/ingestion/types";
 
@@ -6,7 +8,7 @@ export type FakeStep = { jobId: string; kind: StepKind; pageNo: number | null; s
 
 export type MemoryInbox = InboxRepo & {
   /** document_pages: key `${documentId}:${pageNo}`. */
-  pages: Map<string, { selected: boolean; selectedBy: "rule" | "aksh" | null }>;
+  pages: Map<string, { selected: boolean; selectedBy: "rule" | "aksh" | null; isScan?: boolean; kind?: PageKind | null }>;
   jobs: Map<string, { documentId: string; cancelled: boolean }>;
   steps: FakeStep[];
   queue: QueueRepo;
@@ -46,7 +48,12 @@ export function createMemoryInbox(): MemoryInbox {
     queue,
     async page(documentId, pageNo) {
       const p = pages.get(key(documentId, pageNo));
-      return p ? { selected: p.selected } : null;
+      return p ? { selected: p.selected, isScan: p.isScan ?? false, kind: p.kind ?? null } : null;
+    },
+    async selectedPageInfo(documentId) {
+      return [...pages]
+        .flatMap(([k, p]) => (k.startsWith(`${documentId}:`) && p.selected ? [{ pageNo: Number(k.split(":")[1]), isScan: p.isScan ?? false, kind: p.kind ?? null }] : []))
+        .sort((a, b) => a.pageNo - b.pageNo);
     },
     async selectedPages(documentId) {
       return [...pages]
@@ -54,22 +61,21 @@ export function createMemoryInbox(): MemoryInbox {
         .sort((a, b) => a - b);
     },
     async setPageSelected(documentId, pageNo, selected) {
-      pages.set(key(documentId, pageNo), { selected, selectedBy: "aksh" });
+      pages.set(key(documentId, pageNo), { ...pages.get(key(documentId, pageNo)), selected, selectedBy: "aksh" });
     },
     liveJob: async (documentId) => live(documentId),
     async cancelJob(documentId) {
       for (const j of jobs.values()) if (j.documentId === documentId) j.cancelled = true;
     },
-    async extractPages(jobId) {
-      return steps.flatMap((s) => (s.jobId === jobId && s.kind === "extract_page" && s.pageNo !== null ? [s.pageNo] : []));
+    async pageSteps(jobId) {
+      return steps.flatMap((s) => (s.jobId === jobId && PAGE_STEP_KINDS.includes(s.kind) && s.pageNo !== null ? [{ pageNo: s.pageNo, kind: s.kind }] : []));
     },
-    async reviveStep(jobId, pageNo) {
-      const s = find(jobId, "extract_page", pageNo);
+    async reviveStep(jobId, pageNo, kind) {
+      const s = find(jobId, kind, pageNo);
       if (s?.status === "skipped") s.status = "queued";
     },
     async skipQueuedStep(jobId, pageNo) {
-      const s = find(jobId, "extract_page", pageNo);
-      if (s?.status === "queued") s.status = "skipped";
+      for (const s of steps) if (s.jobId === jobId && s.pageNo === pageNo && PAGE_STEP_KINDS.includes(s.kind) && s.status === "queued") s.status = "skipped";
     },
     async retryAttention(jobId) {
       for (const s of steps) if (s.jobId === jobId && s.status === "needs_attention") Object.assign(s, { status: "queued", failures: 0, lastError: null });

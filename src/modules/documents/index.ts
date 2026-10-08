@@ -7,5 +7,6 @@ export { DOCUMENT_ERROR_TEXT, DocumentError, type DocumentErrorCode } from "./er
 export { createSupabaseDocumentsRepo, type DocumentPatch, type DocumentsRepo } from "./repo";
 export { finishUpload, startUpload, startUploadInputSchema, titleFromFileName } from "./upload";
 export { closePdf, openPdf, pageText, PdfOpenError, type PdfDoc } from "./pages";
+export { PdfSplitError, splitPdfPage } from "./split";
 export { classifyPages, selectPages, type PageVerdict } from "./selector";
 export { pageTexts } from "./read";

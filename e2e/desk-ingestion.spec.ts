@@ -6,8 +6,10 @@ import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
 import { createSupabaseDocumentsRepo } from "@/modules/documents/repo";
 import { finishUpload, startUpload } from "@/modules/documents/upload";
+import { FIXTURE_OCR_TEXT } from "@/lib/providers/fixture-ocr";
 import { machineDocuments } from "@/modules/ingestion/deps";
 import { createQueueRepo } from "@/modules/ingestion/queue-repo";
+import { makeFixturePdf } from "../scripts/make-fixture-pdf.mjs";
 import { ensureUser, requireStack, tokenHashFor } from "./support/auth";
 import { E2E_ADMIN_EMAIL, E2E_CRON_SECRET } from "./support/stack";
 
@@ -111,7 +113,14 @@ test("the machine's page methods hold under service_role: download, idempotent p
     expect(untick.error).toBeNull();
     expect(await machine.setSelection(documentId, [2, 3], "rule")).toEqual([2]);
     expect(await machine.setSelection(documentId, [2, 3], "rule")).toEqual([2]); // a repeated run gives the same answer
-    expect(await machine.getPage(documentId, 2)).toEqual({ ...pages[1], isScan: false, kind: "pl", basis: "consolidated" });
+    expect(await machine.getPage(documentId, 2)).toEqual({ ...pages[1], isScan: false, kind: "pl", basis: "consolidated", ocr: false, selected: true, selectedBy: "rule" });
+    expect(await machine.countSelected(documentId)).toBe(1);
+
+    // A scan page (p. 4, under 50 characters) is filled once by the scan reader's text; a page with text is not.
+    await machine.fillScanPage(documentId, 4, "Statement of Profit and Loss. Revenue from operations 1,284.00 1,102.00 and more text.");
+    expect(await machine.getPage(documentId, 4)).toMatchObject({ isScan: false, ocr: true });
+    await expect(machine.fillScanPage(documentId, 4, "A second fill is refused by the database trigger, not by the code.")).rejects.toThrow();
+    await expect(machine.fillScanPage(documentId, 2, "A page that already has text is not overwritten by a later read.")).rejects.toThrow();
 
     const { data } = await admin.from("document_pages").select("page_no, kind, basis, score, selected, selected_by").eq("document_id", documentId).order("page_no");
     expect(data?.slice(1, 3)).toEqual([
@@ -167,6 +176,37 @@ test("the pump reads an uploaded PDF's pages, selects its statement pages and re
       [6, null, null],
     ]);
     expect(pages?.[3].text).toContain("Revenue from operations 1,284.00 1,102.00");
+  } finally {
+    await cleanUp(documentId, jobId);
+  }
+});
+
+test("the pump reads a scanned page with the scan reader (fixture), then reads its figures like a digital page", async ({ request }) => {
+  const documentId = await upload(new Uint8Array(makeFixturePdf(`${RUN}-scan`, { scan: true })), "scan");
+  let jobId: string | null = null;
+  try {
+    jobId = await createQueueRepo(admin).createJob(documentId, { kind: "pdf_text", pageNo: 1 });
+    await pump(request);
+
+    const steps = await stepsOf(jobId);
+    expect(steps.map((s) => [s.kind, s.page_no, s.status, s.last_error])).toEqual([
+      ["pdf_text", 1, "done", null],
+      ["select_pages", null, "done", null],
+      ["ocr_page", 1, "done", null],
+      ["extract_page", 1, "done", null],
+    ]);
+    // One scan in a one-page report is a mostly scanned document that fits its budget: scanned whole, nothing ticked first.
+    expect(steps[1].result).toEqual({ selected: 0, scansQueued: 1 });
+    expect(steps[2].result).toMatchObject({ ocr: true, selected: true });
+    expect((steps[3].result as { proposals: number }).proposals).toBe(3);
+
+    const { data: page } = await admin.from("document_pages").select("text, ocr, is_scan, kind, selected, selected_by").eq("document_id", documentId).eq("page_no", 1).single();
+    expect(page).toEqual({ text: FIXTURE_OCR_TEXT, ocr: true, is_scan: false, kind: "pl", selected: true, selected_by: "rule" });
+    const { count } = await admin.from("proposals").select("id", { count: "exact", head: true }).eq("document_id", documentId).eq("status", "pending");
+    expect(count).toBe(3);
+    // The ledger counted one scan read, as a used unit in the OCR bucket.
+    const { data: usage } = await service.from("provider_usage").select("status, tokens_used").eq("bucket", "ocrspace").eq("kind", "reservation").order("at", { ascending: false }).limit(1).single();
+    expect(usage).toEqual({ status: "used", tokens_used: 1 });
   } finally {
     await cleanUp(documentId, jobId);
   }

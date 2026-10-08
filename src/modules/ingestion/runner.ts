@@ -20,7 +20,7 @@ const gaveUp = (failure: "schema" | "provider", error: string) =>
   `${failure === "schema" ? SCHEMA_GAVE_UP : PROVIDER_GAVE_UP} (${note(error)})`.slice(0, ERROR_MAX);
 
 /** What a handler gets: everything but the client (ruling R7), so a step cannot reach the database except through repos. */
-const stepDeps = (deps: DrainDeps): StepDeps => ({ llm: deps.llm, models: deps.models, repos: deps.repos, now: deps.now, clock: deps.clock });
+const stepDeps = (deps: DrainDeps): StepDeps => ({ llm: deps.llm, ocr: deps.ocr, models: deps.models, repos: deps.repos, now: deps.now, clock: deps.clock });
 
 /**
  * Claims and runs steps until the budget is spent or nothing is runnable (ADR-004 s4.4). Never throws for a

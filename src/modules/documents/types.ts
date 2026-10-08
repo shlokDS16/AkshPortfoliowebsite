@@ -41,14 +41,25 @@ export type PageRow = {
   score: number;
   selected: boolean;
   selectedBy: "rule" | "aksh" | null;
+  /** True once the text came from OCR (migration 0008). */
+  ocr: boolean;
 };
 
 /** One page's text as pdf_text writes it. */
 export type PageText = { pageNo: number; text: string };
 /** What select_pages and extract_page read of a page. */
 export type PageForReading = { pageNo: number; text: string; isScan: boolean };
-/** What extract_page reads of one page: its text and the selector's verdict (null when the rule never classed it). */
-export type PageForExtraction = PageForReading & { kind: PageKind | null; basis: Basis | null };
+/**
+ * What extract_page and ocr_page read of one page: its text, the selector's verdict (null when the rule never classed it),
+ * whether the text came from OCR, and whether (and by whom) the page is ticked.
+ */
+export type PageForExtraction = PageForReading & {
+  kind: PageKind | null;
+  basis: Basis | null;
+  ocr: boolean;
+  selected: boolean;
+  selectedBy: "rule" | "aksh" | null;
+};
 
 /** What the browser claims about a file before it uploads it. Every field is checked on the server. */
 export type StartUploadInput = {

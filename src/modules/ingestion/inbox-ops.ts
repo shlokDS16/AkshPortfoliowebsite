@@ -4,6 +4,7 @@ import { MAX_PAGE_BUDGET, type DocumentRow, type DocumentsRepo } from "@/modules
 import { MAX_PDF_PAGES } from "./caps";
 import { InboxError } from "./errors";
 import type { InboxRepo } from "./inbox-repo";
+import { stepsForPage } from "./page-steps";
 import type { QueueRepo } from "./queue-repo";
 
 // What the inbox buttons do (spec s6.3, s7). Each takes the repos it needs, so tests run on fakes and the actions
@@ -39,9 +40,11 @@ export async function setPageSelected(p: InboxPorts, documentId: string, pageNo:
   if (!job) return;
   if (!selected) return p.inbox.skipQueuedStep(job, pageNo);
   if (!aiOn) return;
-  // job_steps_once makes the insert a no-op when the page was ticked before, so a skipped step is revived instead.
-  await p.queue.enqueue(job, [{ kind: "extract_page", pageNo }]);
-  await p.inbox.reviveStep(job, pageNo);
+  // A scan goes to the scan reader first (ruling R6). job_steps_once makes the insert a no-op when the page was ticked
+  // before, so a skipped step is revived instead.
+  const step = stepsForPage({ pageNo, isScan: page.isScan, kind: page.kind });
+  await p.queue.enqueue(job, [step]);
+  await p.inbox.reviveStep(job, pageNo, step.kind);
 }
 
 /** The most pages the AI reads of one document: 1 to 40 (documents.llm_page_budget check). */
@@ -88,13 +91,14 @@ export async function markDone(p: InboxPorts, documentId: string): Promise<void>
   if (doc.status === "active" || !doc.originalDeletedAt) await p.docs.update(doc.id, { status: "done", originalDeletedAt: doc.originalDeletedAt ?? new Date().toISOString() });
 }
 
-/** Documents read while AI was off: queue an extract step for every ticked page that has none. */
+/** Documents read while AI was off: queue the reading step of every ticked page that has none (a scan gets the scan reader). */
 export async function readSelected(p: InboxPorts, documentId: string, aiOn: boolean): Promise<void> {
   const doc = await documentOf(p, documentId, ["active"]);
   if (!aiOn) throw new InboxError("ai-off");
   const job = await p.inbox.liveJob(doc.id);
   if (!job) throw new InvalidInputError();
-  const have = new Set(await p.inbox.extractPages(job));
-  const missing = (await p.inbox.selectedPages(doc.id)).filter((pageNo) => !have.has(pageNo));
-  await p.queue.enqueue(job, missing.map((pageNo) => ({ kind: "extract_page", pageNo })));
+  // Kind-aware (ruling R6): a scan whose ocr_page is done still needs its extract_page, so "any step" is not enough.
+  const have = new Set((await p.inbox.pageSteps(job)).map((s) => `${s.kind}:${s.pageNo}`));
+  const wanted = (await p.inbox.selectedPageInfo(doc.id)).map(stepsForPage);
+  await p.queue.enqueue(job, wanted.filter((s) => !have.has(`${s.kind}:${s.pageNo}`)));
 }

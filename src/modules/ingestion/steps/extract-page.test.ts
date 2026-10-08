@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createFixtureLlm } from "@/lib/providers/fixture-llm";
 import type { LlmPort, LlmRequest, LlmResult } from "@/lib/providers/llm";
+import type { OcrPort } from "@/lib/providers/ocr";
 import { validateCaseFile } from "@/modules/casefile/client";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch, type MemoryProposalsRepo } from "@/test/fakes/proposals-repo";
@@ -10,6 +11,7 @@ import { machineDocuments, type StepDeps } from "../deps";
 import { PROMPT_VERSION, SYSTEM_PROMPT, type Extraction } from "../prompts";
 import type { UsageRepo } from "../usage-repo";
 import type { Step, StepContext } from "../types";
+import { OCR_NOTHING_READ } from "../ocr-copy";
 import { extractPage, KEY_REFUSED, PAGE_NOT_STORED, PAGE_TOO_BIG, SCAN_PAGE } from "./extract-page";
 
 const DOC = "11111111-1111-4111-8111-111111111111";
@@ -42,14 +44,15 @@ function setup(pageText = PL_TEXT, opts: { isScan?: boolean; companyId?: string 
   });
   documents.pages.set(`${DOC}:4`, {
     documentId: DOC, pageNo: 4, text: pageText, charCount: pageText.length, isScan: opts.isScan ?? false, kind: "pl", basis: "consolidated",
-    score: 9, selected: true, selectedBy: "rule",
+    score: 9, selected: true, selectedBy: "rule", ocr: false,
   });
   return { documents, proposals: createMemoryProposalsRepo(), usage: createMemoryUsageRepo() };
 }
 
-function ctx(s: Setup, llm: LlmPort | null, step: Partial<Step> = {}, opts: { clock?: () => number; research?: ReturnType<typeof createMemoryResearch>; usage?: UsageRepo } = {}): StepContext {
+function ctx(s: Setup, llm: LlmPort | null, step: Partial<Step> = {}, opts: { clock?: () => number; research?: ReturnType<typeof createMemoryResearch>; usage?: UsageRepo; ocr?: OcrPort | null } = {}): StepContext {
   const deps: StepDeps = {
     llm,
+    ocr: opts.ocr ?? null,
     models: { text: "test-model" },
     repos: { documents: machineDocuments(s.documents), usage: opts.usage ?? s.usage, proposals: s.proposals, research: opts.research ?? createMemoryResearch() },
     now: () => new Date(T0),
@@ -79,11 +82,22 @@ describe("extract_page: before the call", () => {
     expect(out).toEqual({ kind: "defer", notBefore: new Date(T0 + 6 * 3_600_000), reason: "ai_off" });
   });
 
-  it("sends a scan page to Needs attention with the plain sentence, without calling the AI", async () => {
+  it("sends a scan page to Needs attention with the plain sentence when scan reading is off, without calling the AI", async () => {
     const { llm, complete } = fake({ kind: "ok", data: EXTRACTION, usage: USAGE, rate: NO_RATE });
     const out = await extractPage(ctx(setup("", { isScan: true }), llm));
-    expect(out).toEqual({ kind: "attention", error: "This page is a scan. Scans are read in a later update; enter it manually or skip." });
-    expect(SCAN_PAGE).toBe("This page is a scan. Scans are read in a later update; enter it manually or skip.");
+    expect(out).toEqual({ kind: "attention", error: "Scan reading is off, so this scanned page cannot be read. Enter it manually or skip." });
+    expect(SCAN_PAGE).toBe("Scan reading is off, so this scanned page cannot be read. Enter it manually or skip.");
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it("hands a scan page that reached it to the scan reader (a step queued before routing), and says so when it was read and is empty", async () => {
+    const { llm, complete } = fake({ kind: "ok", data: EXTRACTION, usage: USAGE, rate: NO_RATE });
+    const reader = { name: "fixture", read: vi.fn() } as unknown as OcrPort;
+    const routed = await extractPage(ctx(setup("", { isScan: true }), llm, {}, { ocr: reader }));
+    expect(routed).toEqual({ kind: "done", result: { scan: true }, enqueue: [{ kind: "ocr_page", pageNo: 4 }] });
+    const s = setup("x", { isScan: true });
+    s.documents.pages.set(`${DOC}:4`, { ...s.documents.pages.get(`${DOC}:4`)!, ocr: true });
+    expect(await extractPage(ctx(s, llm, {}, { ocr: reader }))).toEqual({ kind: "attention", error: OCR_NOTHING_READ });
     expect(complete).not.toHaveBeenCalled();
   });
 
