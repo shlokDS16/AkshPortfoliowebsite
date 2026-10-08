@@ -6,9 +6,9 @@ import type { ProposalView, ReviewData } from "@/modules/ingestion/client";
 import { DOC_ID, kaveri } from "@/test/review-fixtures";
 import { ReviewOneAtATime } from "./review-one-at-a-time";
 
-const mocks = vi.hoisted(() => ({ resolve: vi.fn(), save: vi.fn(), file: vi.fn(), start: vi.fn(), push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
-vi.mock("@/modules/ingestion/actions", () => ({ resolveFlagAction: mocks.resolve, saveValuesAction: mocks.save, fileUnderAction: mocks.file }));
+const mocks = vi.hoisted(() => ({ resolve: vi.fn(), save: vi.fn(), file: vi.fn(), start: vi.fn(), push: vi.fn(), refresh: vi.fn(), link: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }) }));
+vi.mock("@/modules/ingestion/actions", () => ({ resolveFlagAction: mocks.resolve, saveValuesAction: mocks.save, fileUnderAction: mocks.file, setDocumentCompanyAction: mocks.link }));
 vi.mock("@/modules/research/actions", () => ({ startFileAction: mocks.start }));
 
 const ITEM = "11111111-2222-4333-8444-555555555555";
@@ -67,6 +67,21 @@ describe("Check 1 of 1", () => {
     expect(await screen.findByText("4 accepted · 0 edited · 1 rejected")).toBeInTheDocument();
   });
 
+  it("answers keys 1 and 2 only while focus is in the card (WCAG 2.1.4)", async () => {
+    const data = kaveri();
+    render(
+      <>
+        <button>elsewhere</button>
+        <ReviewOneAtATime data={data} />
+      </>,
+    );
+    expect(screen.getByRole("region", { name: "Check 1 of 1" })).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "elsewhere" }));
+    await userEvent.keyboard("12");
+    expect(screen.queryByLabelText("Value as printed on the page")).toBeNull();
+    expect(mocks.resolve).not.toHaveBeenCalled();
+  });
+
   it("asks for the year and unit when the page did not give them", async () => {
     const data = kaveri();
     const flag = { ...data.flags[0], flags: ["period_unknown", "unit_unknown"] as ProposalView["flags"], period: "", unit: "", why: [] };
@@ -96,7 +111,7 @@ describe("the values list", () => {
     const data = kaveri();
     render(<ReviewOneAtATime data={data} />);
     await resolve(data);
-    expect(screen.getByRole("heading", { name: "All checked. 5 figures to file" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "All checked. 5 figures to file" })).toHaveFocus();
     for (const name of [/^Revenue from operations/, /^Finance costs/, /^Profit for the year/, /^Total borrowings/, /^Cash and cash equivalents/]) {
       expect(screen.getByRole("checkbox", { name })).toBeChecked();
     }
@@ -206,11 +221,43 @@ describe("File under", () => {
     expect(screen.getByText("Tick at least one figure to file.")).toBeInTheDocument();
   });
 
-  it("a document with no company has no file to file under, and says so", () => {
-    const data = kaveri();
-    render(<ReviewOneAtATime data={{ ...data, flags: [], rows: data.rows.filter((r) => r.flags.length === 0), document: { ...data.document, companyId: null, companyName: null }, target: null }} />);
-    expect(screen.getByText("This document is not linked to a company, so there is no file to put its figures in.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /file/i })).toBeNull();
+  describe("a document with no company", () => {
+    const noCompany = () => {
+      const data = kaveri();
+      return { ...data, flags: [], rows: data.rows.filter((r) => r.flags.length === 0), document: { ...data.document, companyId: null, companyName: null }, target: null };
+    };
+    const companies = [{ id: "c1", symbol: "KAVERI" }, { id: "c2", symbol: "ACME" }];
+
+    it("offers the existing companies instead of the file button, and links the one chosen", async () => {
+      mocks.link.mockResolvedValue({ ok: true });
+      render(<ReviewOneAtATime data={noCompany()} companies={companies} />);
+      expect(screen.getByText("This document is not linked to a company, so there is no file to put its figures in.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /file/i })).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: "Link to this company" }));
+      expect(screen.getByRole("alert")).toHaveTextContent("Choose the company this document is about.");
+      await userEvent.selectOptions(screen.getByLabelText("Company"), "$KAVERI");
+      await userEvent.click(screen.getByRole("button", { name: "Link to this company" }));
+      expect(mocks.link).toHaveBeenCalledWith(DOC_ID, "c1");
+      await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
+    });
+
+    it("says why when linking fails, and tells him how to get a company when none exists", async () => {
+      mocks.link.mockResolvedValue({ ok: false, code: "invalid-input", message: "Check the fields and try again." });
+      const { unmount } = render(<ReviewOneAtATime data={noCompany()} companies={companies} />);
+      await userEvent.selectOptions(screen.getByLabelText("Company"), "$ACME");
+      await userEvent.click(screen.getByRole("button", { name: "Link to this company" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Check the fields and try again.");
+      expect(mocks.refresh).not.toHaveBeenCalled();
+      unmount();
+      render(<ReviewOneAtATime data={noCompany()} companies={[]} />);
+      expect(screen.getByText(/No company exists yet/)).toBeInTheDocument();
+    });
+
+    it("once linked the page carries on to the normal File under", () => {
+      const data = noCompany();
+      render(<ReviewOneAtATime data={{ ...data, document: { ...data.document, companyId: "c1", companyName: "Kaveri Fixtures" }, target: kaveri().target }} />);
+      expect(screen.getByRole("button", { name: /^File these 4 figures under Kaveri file/ })).toBeEnabled();
+    });
   });
 });
 

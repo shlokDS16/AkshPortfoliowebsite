@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -10,33 +9,25 @@ import { errorText } from "@/lib/messages";
 import { fileUnderAction, saveValuesAction } from "@/modules/ingestion/actions";
 import type { ReviewData, ValueDecision } from "@/modules/ingestion/client";
 import { startFileAction } from "@/modules/research/actions";
+import { CompanyChooser } from "./company-chooser";
 
 const SOURCE_TYPES = ["Annual report", "Presentation", "Filing", "Transcript", "Other"] as const;
 type SourceType = (typeof SOURCE_TYPES)[number];
 const field = "min-h-11 w-full rounded-sm border border-input bg-paper px-3 text-body text-ink";
 
-type Props = { document: ReviewData["document"]; target: ReviewData["target"]; count: number; decisions: ValueDecision[] };
+type Props = { document: ReviewData["document"]; target: ReviewData["target"]; count: number; decisions: ValueDecision[]; companies: { id: string; symbol: string }[] };
 
 /**
  * Files the ticked figures under the company's file (spec s6.5). The document's source row is confirmed here once:
  * title, type, filed-on (required) and link. "Start a file for X" is Aksh's own click on the existing item service.
  */
-export function FileUnder({ document: doc, target, count, decisions }: Props) {
+export function FileUnder({ document: doc, target, count, decisions, companies }: Props) {
   const id = useId();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!doc.companyId || !doc.companyName) {
-    return (
-      <section aria-label="File under" className="space-y-3 rounded-sm border border-rule bg-surface p-4">
-        <p className="text-body text-ink">{errorText("no-company")}</p>
-        <Link href="/desk/inbox" className="inline-flex min-h-11 items-center text-body text-geru underline decoration-1 underline-offset-3">
-          Back to the inbox
-        </Link>
-      </section>
-    );
-  }
+  if (!doc.companyId || !doc.companyName) return <CompanyChooser documentId={doc.id} companies={companies} />;
   const companyId = doc.companyId;
   const companyName = doc.companyName;
 
@@ -105,7 +96,7 @@ export function FileUnder({ document: doc, target, count, decisions }: Props) {
           {companyName} has no file yet. This starts one, private and empty, and puts {figures} in its Facts form.
         </p>
       )}
-      <Button type="submit" disabled={busy || count === 0}>
+      <Button type="submit" disabled={busy || count === 0} className="h-auto min-h-11 max-w-full whitespace-normal py-2 text-left">
         {target ? `File ${figures} under ${target.title}` : `Start a file for ${companyName}`}
       </Button>
       {count === 0 ? <p className="text-small text-ink-muted">{errorText("nothing-to-file")}</p> : null}

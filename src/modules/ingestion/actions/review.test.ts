@@ -3,7 +3,7 @@ import { InvalidInputError } from "@/lib/errors";
 import { ReviewError } from "../errors";
 
 const order: string[] = [];
-const ops = vi.hoisted(() => ({ resolveFlag: vi.fn(), saveValues: vi.fn(), fileUnder: vi.fn() }));
+const ops = vi.hoisted(() => ({ resolveFlag: vi.fn(), saveValues: vi.fn(), fileUnder: vi.fn(), setCompany: vi.fn() }));
 const revalidatePath = vi.hoisted(() => vi.fn());
 const requireAdmin = vi.fn(async () => {
   order.push("requireAdmin");
@@ -23,7 +23,7 @@ vi.mock("@/modules/documents", async (importOriginal) => ({ ...(await importOrig
 vi.mock("../review-repo", () => ({ createReviewRepo: (db: unknown) => ({ db }) }));
 vi.mock("../review", () => ops);
 
-import { fileUnderAction, resolveFlagAction, saveValuesAction } from "./review";
+import { fileUnderAction, resolveFlagAction, saveValuesAction, setDocumentCompanyAction } from "./review";
 
 const DOC = "0b9f3c1e-7a42-4c55-9e1d-2f6a8b3c4d5e";
 const VIEW = { id: "p1", status: "edited" };
@@ -31,6 +31,7 @@ const CASES = [
   ["resolveFlagAction", () => resolveFlagAction(DOC, "p1", { kind: "reject" }), "resolveFlag", [DOC, "p1", { kind: "reject" }], VIEW, { ok: true, view: VIEW }],
   ["saveValuesAction", () => saveValuesAction(DOC, [{ id: "p1", keep: true }]), "saveValues", [DOC, [{ id: "p1", keep: true }]], { accepted: 4, edited: 1, rejected: 1 }, { ok: true, accepted: 4, edited: 1, rejected: 1 }],
   ["fileUnderAction", () => fileUnderAction(DOC, { itemId: "i1" }), "fileUnder", [DOC, { itemId: "i1" }], { itemId: "i1", count: 5 }, { ok: true, itemId: "i1", count: 5 }],
+  ["setDocumentCompanyAction", () => setDocumentCompanyAction(DOC, "c1"), "setCompany", [DOC, "c1"], undefined, { ok: true }],
 ] as const;
 
 beforeEach(() => {

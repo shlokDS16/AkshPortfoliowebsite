@@ -27,9 +27,9 @@ export type InboxDoc = {
 };
 
 const FINISHED_SHOWN = 10;
-const COLUMNS = "id, title, company_id, created_at, status, page_count, llm_page_budget";
+const COLUMNS = "id, title, company_id, created_at, status, page_count, llm_page_budget, basis";
 
-type DocRow = { id: string; title: string; company_id: string | null; created_at: string; status: string; page_count: number | null; llm_page_budget: number };
+type DocRow = { id: string; title: string; company_id: string | null; created_at: string; status: string; page_count: number | null; llm_page_budget: number; basis: string };
 type StepRow = {
   kind: string; status: string; not_before: string; wait_reason: string | null; page_no: number | null; last_error: string | null; lease_owner: string | null;
 };
@@ -101,16 +101,21 @@ export async function listInbox(
           .order("document_id")
           .order("page_no"),
     companyIds.length === 0 ? { data: [], error: null } : db.from("companies").select("id, nse_symbol").in("id", companyIds),
-    // At most 60 per document (MAX_PROPOSALS_PER_DOCUMENT); only the flags are read.
+    // At most 60 per document (MAX_PROPOSALS_PER_DOCUMENT). The reading is needed to leave out the standalone repeats
+    // of a consolidated line, as the review screen does; a filed figure never matters here.
     activeIds.length === 0
       ? { data: [], error: null }
-      : db.from("proposals").select("document_id, flags").in("document_id", activeIds).eq("status", "pending"),
+      : db
+          .from("proposals")
+          .select("id, document_id, flags, status, machine_value, accepted_value")
+          .in("document_id", activeIds)
+          .neq("status", "filed"),
   ]);
   if (jobs.error) throw dbError("inbox.listSteps", jobs.error);
   if (pages.error) throw dbError("inbox.listPages", pages.error);
   if (companies.error) throw dbError("inbox.listCompanies", companies.error);
   if (proposals.error) throw dbError("inbox.listProposals", proposals.error);
-  const waiting = tallyPending(proposals.data);
+  const waiting = tallyPending(proposals.data, new Map(rows.map((d) => [d.id, d.basis as Basis])));
 
   const stepsOf = new Map<string, StepRow[]>(jobs.data.map((j) => [j.document_id, j.job_steps]));
   const symbolOf = new Map(companies.data.map((c) => [c.id, c.nse_symbol]));

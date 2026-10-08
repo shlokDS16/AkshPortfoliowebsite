@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { requireAdmin } from "@/modules/identity";
-import { fileUnder, resolveFlag, saveValues, type ReviewPorts } from "../review";
+import { fileUnder, resolveFlag, saveValues, setCompany, type ReviewPorts } from "../review";
 import { createReviewRepo } from "../review-repo";
 import type { FileUnderResult, ResolveResult, SaveValuesResult } from "../review-types";
-import { actionFailure } from "../upload-flow";
+import { actionFailure, type ActionResult } from "../upload-flow";
 
 // The review screen's buttons. Every action checks the admin first and runs on the admin's own cookie session
 // (RLS and the column grants apply). Failures come back as a fixed code with its fixed text. The browser's input is
@@ -55,6 +55,18 @@ export async function fileUnderAction(documentId: string, input: unknown): Promi
     refresh(documentId);
     revalidatePath(`/desk/items/${result.itemId}`);
     return { ok: true, ...result };
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+/** For a document uploaded without a company: link it to an existing one so it has a file to go under. */
+export async function setDocumentCompanyAction(documentId: string, companyId: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  try {
+    await setCompany(await ports(), documentId, companyId);
+    refresh(documentId);
+    return { ok: true };
   } catch (error) {
     return actionFailure(error);
   }

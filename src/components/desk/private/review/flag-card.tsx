@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ export function FlagCard({ documentId, flag, n, total, pageText, onResolved }: P
   const [typing, setTyping] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
+  const card = useRef<HTMLElement>(null);
   const line = pageText ? pageLine(pageText, flag.label) : null;
   const needsPeriod = flag.flags.includes("period_unknown") || flag.period === "";
   const needsUnit = flag.flags.includes("unit_unknown") || flag.unit === "";
@@ -40,22 +40,17 @@ export function FlagCard({ documentId, flag, n, total, pageText, onResolved }: P
   }
   const drop = () => void send({ kind: "reject" });
 
-  // Keys 1 and 2 answer the card unless Aksh is typing in a field.
-  const onKey = useEffectEvent((e: KeyboardEvent) => {
-    const t = e.target as HTMLElement | null;
-    if (busy || e.ctrlKey || e.metaKey || e.altKey || t?.closest("input, textarea, select, [contenteditable]")) return;
+  // Keys 1 and 2 answer the card only while focus is inside it (WCAG 2.1.4), and never while Aksh types in a field.
+  function onKey(e: KeyboardEvent<HTMLElement>) {
+    const t = e.target as HTMLElement;
+    if (busy || e.ctrlKey || e.metaKey || e.altKey || t.closest("input, textarea, select")) return;
     if (e.key !== "1" && e.key !== "2") return;
     e.preventDefault(); // the key answers the card; it must not also be typed into the field it opens
     if (e.key === "1") setTyping(true);
     else drop();
-  });
-  useEffect(() => {
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-  useEffect(() => {
-    if (n > 1) heading.current?.focus();
-  }, [n]);
+  }
+  // Each new card takes focus, so the keys work at once and a screen reader hears "Check 2 of 3".
+  useEffect(() => card.current?.focus(), [n]);
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -67,12 +62,12 @@ export function FlagCard({ documentId, flag, n, total, pageText, onResolved }: P
   }
 
   return (
-    <section aria-label={`Check ${n} of ${total}`} className="space-y-4 rounded-sm border border-l-4 border-rule border-l-bad bg-paper p-4">
+    <section ref={card} tabIndex={-1} onKeyDown={onKey} aria-label={`Check ${n} of ${total}`} className="space-y-4 outline-none rounded-sm border border-l-4 border-rule border-l-bad bg-paper p-4">
       <p className="font-mono text-mono-label uppercase text-bad">
         Check {n} of {total}
       </p>
       <div>
-        <h2 ref={heading} tabIndex={-1} className="text-subtitle text-ink outline-none">
+        <h2 className="text-subtitle text-ink">
           {flag.label}
         </h2>
         <p className="mt-0.5 text-small text-ink-muted">

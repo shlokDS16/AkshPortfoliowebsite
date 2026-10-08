@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatCount } from "@/lib/format";
 import { groupValues, type ProposalView, type ReviewData } from "@/modules/ingestion/client";
 import { FileUnder } from "./file-under";
@@ -10,13 +10,13 @@ import { PageText, wordsOf } from "./page-text";
 import { decisionsOf, isTicked, omit, summaryOf, type Ticks, type Typed } from "./review-state";
 import { ValuesList } from "./values-list";
 
-type Props = { data: ReviewData };
+type Props = { data: ReviewData; companies?: { id: string; symbol: string }[] };
 
 /**
  * The review screen (segment 4 C): the flagged figures one at a time, then the values list and "File under".
  * Desktop keeps the page text beside the work; a phone opens it under a row on demand.
  */
-export function ReviewOneAtATime({ data }: Props) {
+export function ReviewOneAtATime({ data, companies = [] }: Props) {
   const { document: doc } = data;
   const [rows, setRows] = useState<ProposalView[]>(data.rows);
   const [ticks, setTicks] = useState<Ticks>({});
@@ -31,7 +31,14 @@ export function ReviewOneAtATime({ data }: Props) {
   const decisions = decisionsOf(shown, ticks, typed);
   const kept = decisions.filter((d) => d.keep).length;
   const summary = summaryOf(rows, shown, ticks, typed);
+  const valuesHeading = useRef<HTMLHeadingElement>(null);
+  const checking = current !== undefined;
   const focus = current ?? shown.find((r) => r.id === openId) ?? shown[0];
+
+  // The last card goes away: focus moves to the list it hands over to, not to the top of the page.
+  useEffect(() => {
+    if (!checking && flagIds.length > 0) valuesHeading.current?.focus();
+  }, [checking, flagIds.length]);
 
   const resolved = (view: ProposalView) => {
     setRows((all) => all.map((r) => (r.id === view.id ? view : r)));
@@ -70,7 +77,7 @@ export function ReviewOneAtATime({ data }: Props) {
             ) : (
               <>
                 <section aria-labelledby="values-heading" className="space-y-3">
-                  <h2 id="values-heading" className="text-subtitle text-ink">
+                  <h2 id="values-heading" ref={valuesHeading} tabIndex={-1} className="text-subtitle text-ink outline-none">
                     {flagIds.length > 0 ? "All checked. " : ""}
                     {formatCount(shown.length, "figure")} to file
                   </h2>
@@ -89,7 +96,7 @@ export function ReviewOneAtATime({ data }: Props) {
                     onOpen={(id) => setOpenId((open) => (open === id ? null : id))}
                   />
                 </section>
-                <FileUnder document={doc} target={data.target} count={kept} decisions={decisions} />
+                <FileUnder document={doc} target={data.target} count={kept} decisions={decisions} companies={companies} />
               </>
             )}
           </div>

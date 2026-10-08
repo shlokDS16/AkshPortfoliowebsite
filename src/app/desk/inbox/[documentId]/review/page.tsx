@@ -3,7 +3,7 @@ import { ReviewOneAtATime } from "@/components/desk/private/review/review-one-at
 import { isUuid } from "@/lib/ids";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
-import { getReview } from "@/modules/ingestion";
+import { getReview, listCompanyOptions } from "@/modules/ingestion";
 
 type Props = { params: Promise<{ documentId: string }> };
 
@@ -11,7 +11,10 @@ export default async function ReviewPage({ params }: Props) {
   await requireAdmin();
   const { documentId } = await params;
   if (!isUuid(documentId)) notFound();
-  const data = await getReview(await createSupabaseServerClient(), documentId);
+  const db = await createSupabaseServerClient();
+  const data = await getReview(db, documentId);
   if (!data) notFound();
-  return <ReviewOneAtATime data={data} />;
+  // Only a document uploaded without a company needs the list: it has to be linked before its figures can be filed.
+  const companies = data.document.companyId ? [] : await listCompanyOptions(db);
+  return <ReviewOneAtATime data={data} companies={companies} />;
 }

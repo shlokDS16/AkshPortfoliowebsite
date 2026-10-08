@@ -121,3 +121,15 @@ export async function fileUnder(ports: ReviewPorts, documentId: string, input: u
   const count = await ports.review.assignItem(documentId, itemId);
   return { itemId, count };
 }
+
+/**
+ * Links a document that came in without a company to an existing one, so its figures have a file to go under. Only a
+ * company-less document: a document already linked keeps its company.
+ */
+export async function setCompany(ports: ReviewPorts, documentId: string, companyId: unknown): Promise<void> {
+  if (!isUuid(documentId) || !isUuid(companyId)) throw new InvalidInputError();
+  const doc = await ports.docs.get(documentId);
+  if (!doc || (doc.companyId !== null && doc.companyId !== companyId)) throw new InvalidInputError();
+  if ((await ports.review.companyName(companyId)) === null) throw new InvalidInputError();
+  await ports.docs.update(documentId, { companyId });
+}

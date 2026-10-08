@@ -14,13 +14,14 @@ const coreRank = (label: string) => {
 };
 
 /** Figures that can still be filed: not yet filed, not waiting on a check, and not a flagged one Aksh dropped. */
-export const isListed = (v: ProposalView): boolean =>
+export const isListed = (v: { status: string; flags: readonly unknown[] }): boolean =>
   v.status !== "filed" && !(v.flags.length > 0 && (v.status === "pending" || v.status === "rejected"));
 
-const sameLine = (a: ProposalView, b: ProposalView) => normaliseLabel(a.label) === normaliseLabel(b.label) && a.period === b.period && (a.period !== "" || a.page === b.page);
+type Line = Pick<ProposalView, "id" | "label" | "period" | "page" | "basis">;
+const sameLine = (a: Line, b: Line) => normaliseLabel(a.label) === normaliseLabel(b.label) && a.period === b.period && (a.period !== "" || a.page === b.page);
 
 /** Ids of the figures printed on the other basis that the preferred basis already shows (the standalone repeat of a consolidated line). */
-export function basisRepeats(rows: ProposalView[], preferred: Basis): Set<string> {
+export function basisRepeats(rows: Line[], preferred: Basis): Set<string> {
   const keep = rows.filter((r) => r.basis === preferred);
   return new Set(rows.filter((r) => r.basis !== null && r.basis !== preferred && keep.some((k) => sameLine(k, r))).map((r) => r.id));
 }

@@ -8,7 +8,7 @@ import type { ProposalView, ReviewCounts, ReviewData } from "./review-types";
 // The review screen's read (spec s6.5). The decisions and filing live in review-ops.ts; this file re-exports them so
 // the screen's server code has one import.
 export { decide, sameFact, buildFact, type Decision, type Decided } from "./decide";
-export { fileUnder, resolveFlag, saveValues, type ReviewPorts } from "./review-ops";
+export { fileUnder, resolveFlag, saveValues, setCompany, type ReviewPorts } from "./review-ops";
 export type { ProposalView, ReviewData } from "./review-types";
 
 type Ports = { docs: DocumentsRepo; review: ReviewRepo };
