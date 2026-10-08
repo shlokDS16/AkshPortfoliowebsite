@@ -54,6 +54,11 @@ export function createMemoryReviewRepo(records: ProposalRecord[] = []): MemoryRe
       for (const r of mine) r.itemId = itemId;
       return repo.records.filter((r) => (r.status === "accepted" || r.status === "edited") && r.itemId === itemId).length;
     },
+    async unassignItem(_documentId, itemId) {
+      const mine = repo.records.filter((r) => (r.status === "accepted" || r.status === "edited") && r.itemId === itemId);
+      for (const r of mine) r.itemId = null;
+      return mine.length;
+    },
   };
   return repo;
 }

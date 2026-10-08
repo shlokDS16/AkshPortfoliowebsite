@@ -11,7 +11,7 @@ export function failTo(path: string, error: unknown, label: string): never {
   return redirect(`${path}?error=${errorCode(error)}`);
 }
 
-/** Sends the admin back with a fixed one-time confirmation code. */
-export function doneTo(path: string, notice: ItemNoticeCode, hash = ""): never {
-  return redirect(`${path}?notice=${notice}${hash}`);
+/** Sends the admin back with a fixed one-time confirmation code, and optionally a second code shown as a second line (`also`). */
+export function doneTo(path: string, notice: ItemNoticeCode, hash = "", also?: ItemNoticeCode): never {
+  return redirect(`${path}?notice=${notice}${also ? `&also=${also}` : ""}${hash}`);
 }

@@ -26,7 +26,7 @@ export type DocumentRow = {
 };
 
 /** What the document pane's picker needs of a document. */
-export type DocumentListItem = Pick<DocumentRow, "id" | "title" | "pageCount" | "filedOn" | "sourceUrl" | "sourceType">;
+export type DocumentListItem = Pick<DocumentRow, "id" | "title" | "pageCount" | "filedOn" | "sourceUrl" | "sourceType" | "originalDeletedAt">;
 
 export type PageKind = "pl" | "bs" | "cf" | "notes" | "segment" | "mdna" | "other";
 

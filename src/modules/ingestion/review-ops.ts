@@ -122,6 +122,12 @@ export async function fileUnder(ports: ReviewPorts, documentId: string, input: u
   return { itemId, count };
 }
 
+/** Send back to review: the document's figures staged under the item leave its editor and return to this screen's list. Only unfiled accepted or edited ones move. */
+export async function unstage(ports: ReviewPorts, documentId: string, itemId: unknown): Promise<number> {
+  if (!isUuid(documentId) || !isUuid(itemId) || !(await ports.docs.get(documentId))) throw new InvalidInputError();
+  return ports.review.unassignItem(documentId, itemId);
+}
+
 /**
  * Links a document that came in without a company to an existing one, so its figures have a file to go under. Only a
  * company-less document: a document already linked keeps its company.

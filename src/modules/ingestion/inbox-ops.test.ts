@@ -4,7 +4,7 @@ import { errorCode, errorText } from "@/lib/messages";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryInbox, type MemoryInbox } from "@/test/fakes/inbox-repo";
 import { INBOX_ERROR_TEXT, InboxError, type InboxErrorCode } from "./errors";
-import { readSelected, retryAttention, setBudget, setPageSelected, skipAttention, skipDocument, type InboxPorts } from "./inbox-ops";
+import { markDone, readSelected, retryAttention, setBudget, setPageSelected, skipAttention, skipDocument, type InboxPorts } from "./inbox-ops";
 
 const DOC = "0b9f3c1e-7a42-4c55-9e1d-2f6a8b3c4d5e";
 const SHA = "a".repeat(64);
@@ -185,6 +185,50 @@ describe("skipDocument", () => {
     await docs.update(DOC, { status: "uploading" });
     await expect(skipDocument(ports, DOC)).rejects.toBeInstanceOf(InvalidInputError);
     expect((await docs.get(DOC))?.status).toBe("uploading");
+  });
+});
+
+describe("markDone", () => {
+  it("cancels the job, deletes the stored PDF and marks the document done with the time the original went", async () => {
+    docs.objects.set(`${DOC}.pdf`, { size: 10, mimetype: "application/pdf" });
+    await markDone(ports, DOC);
+    const doc = await docs.get(DOC);
+    expect(doc?.status).toBe("done");
+    expect(doc?.originalDeletedAt).not.toBeNull();
+    expect(docs.objects.has(`${DOC}.pdf`)).toBe(false);
+    expect(inbox.jobs.get(job)?.cancelled).toBe(true);
+  });
+
+  it("stops the job first, then deletes the file, then writes the status", async () => {
+    const seen: string[] = [];
+    const cancel = ports.inbox.cancelJob;
+    ports.inbox.cancelJob = async (id) => (seen.push("cancel"), cancel(id));
+    const remove = docs.removeObject;
+    docs.removeObject = async (path) => (seen.push("remove"), remove(path));
+    const update = docs.update;
+    docs.update = async (id, patch) => (seen.push(`status ${patch.status}`), update(id, patch));
+    await markDone(ports, DOC);
+    expect(seen).toEqual(["cancel", "remove", "status done"]);
+  });
+
+  it("can be pressed again after a failure part-way, and again after it worked", async () => {
+    docs.removeObject = async () => {
+      throw new Error("storage down");
+    };
+    await expect(markDone(ports, DOC)).rejects.toThrow("storage down");
+    expect((await docs.get(DOC))?.status).toBe("active");
+    docs.removeObject = createMemoryDocumentsRepo().removeObject;
+    await markDone(ports, DOC);
+    await expect(markDone(ports, DOC)).resolves.toBeUndefined();
+    expect((await docs.get(DOC))?.status).toBe("done");
+  });
+
+  it("never touches an upload that has not finished, a skipped document, or one that does not exist", async () => {
+    await docs.update(DOC, { status: "uploading" });
+    await expect(markDone(ports, DOC)).rejects.toBeInstanceOf(InvalidInputError);
+    await docs.update(DOC, { status: "skipped" });
+    await expect(markDone(ports, DOC)).rejects.toBeInstanceOf(InvalidInputError);
+    await expect(markDone(ports, "not-an-id")).rejects.toBeInstanceOf(InvalidInputError);
   });
 });
 

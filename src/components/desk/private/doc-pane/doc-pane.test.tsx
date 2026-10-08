@@ -20,6 +20,7 @@ const DOC: DocumentListItem = {
   filedOn: "2026-07-12",
   sourceUrl: "https://example.com/ar.pdf",
   sourceType: "Annual report",
+  originalDeletedAt: null,
 };
 const PAGES: Record<number, string> = {
   1: "Kaveri Fixtures Limited",
@@ -63,6 +64,12 @@ describe("DocPane reading", () => {
     await waitFor(() => expect(mocks.read).toHaveBeenLastCalledWith(DOC.id, 6)); // clamped to the last page
     expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
     expectTokenOnly(container);
+  });
+
+  it("says the PDF was deleted once the document is done, and still reads the stored page text", async () => {
+    render(<Harness docs={[{ ...DOC, originalDeletedAt: "2026-10-08T10:00:00Z" }]} />);
+    expect(screen.getByText("The PDF was deleted; page text is still here.")).toBeInTheDocument();
+    expect(await screen.findByText("Kaveri Fixtures Limited")).toBeInTheDocument();
   });
 
   it("keeps the page text out of a live region (only loading and errors are announced)", async () => {

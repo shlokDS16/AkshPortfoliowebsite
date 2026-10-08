@@ -31,7 +31,7 @@ export function kaveri(over: Partial<ReviewData> = {}): ReviewData {
   ];
   const { values, hiddenBasis } = groupValues(rows, "consolidated");
   return {
-    document: { id: DOC_ID, title: "Annual report 2025-26", companyId: "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", companyName: "Kaveri Fixtures", filedOn: null, sourceUrl: null, sourceType: "Annual report" },
+    document: { id: DOC_ID, title: "Annual report 2025-26", companyId: "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", companyName: "Kaveri Fixtures", filedOn: null, sourceUrl: null, sourceType: "Annual report", status: "active", originalDeletedAt: null },
     flags: [finance],
     rows,
     values,

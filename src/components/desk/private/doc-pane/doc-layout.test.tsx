@@ -12,7 +12,7 @@ vi.mock("@/modules/documents/actions", () => ({
   checkQuotesAction: vi.fn().mockResolvedValue([]),
 }));
 
-const DOC: DocumentListItem = { id: "0b6f3c1e-8a2d-4f5b-9c7e-1d2a3b4c5d6e", title: "Annual report", pageCount: 2, filedOn: null, sourceUrl: null, sourceType: "Annual report" };
+const DOC: DocumentListItem = { id: "0b6f3c1e-8a2d-4f5b-9c7e-1d2a3b4c5d6e", title: "Annual report", pageCount: 2, filedOn: null, sourceUrl: null, sourceType: "Annual report", originalDeletedAt: null };
 
 function setRail(matches: boolean) {
   vi.stubGlobal("matchMedia", (query: string) => ({ matches, media: query, addEventListener: () => {}, removeEventListener: () => {} }));

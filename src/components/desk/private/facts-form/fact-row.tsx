@@ -1,5 +1,6 @@
 import type { FactDraft, SourceDraft } from "./draft";
 import { SelectField, TextField } from "./field";
+import { ProvenanceChip } from "./provenance-chip";
 import { RowFrame } from "./row-frame";
 import type { FieldErrors } from "./validate";
 
@@ -12,6 +13,8 @@ type Props = {
   rowErrors?: string[];
   /** The body cites this fact as [F3]; removing it will be flagged before saving. */
   cited: boolean;
+  /** "From <doc>, p. 4" on a figure staged from a document, or the provenance chip on a saved one. */
+  mark?: { staged?: string; chip?: string };
 };
 
 /** The `<datalist>` of the file's topics, rendered once by FactsForm; every Topic field suggests from it. */
@@ -22,7 +25,7 @@ export const sourceOptions = (sources: SourceDraft[], value: string) => [
   ...sources.map((s) => ({ value: s.id, label: s.doc.trim() ? `${s.id} · ${s.doc}` : s.id })),
 ];
 
-export function FactRow({ row, sources, onChange, onRemove, errors, rowErrors, cited }: Props) {
+export function FactRow({ row, sources, onChange, onRemove, errors, rowErrors, cited, mark }: Props) {
   const f = (k: keyof FactDraft) => ({ id: `ff-${row.id}-${k}`, error: errors[`${row.id}.${k}`] });
   const set = (k: keyof FactDraft) => (v: string) => onChange({ [k]: v });
   return (
@@ -31,7 +34,15 @@ export function FactRow({ row, sources, onChange, onRemove, errors, rowErrors, c
       id={row.id}
       onRemove={onRemove}
       errors={rowErrors}
-      note={cited ? <p className="text-caption text-ink-muted">Cited in the body as [{row.id}].</p> : null}
+      note={
+        cited || mark ? (
+          <div className="flex flex-col gap-1">
+            {mark?.staged ? <p className="text-caption text-ink-body" data-testid="staged-note">{mark.staged}</p> : null}
+            {mark?.chip ? <ProvenanceChip text={mark.chip} /> : null}
+            {cited ? <p className="text-caption text-ink-muted">Cited in the body as [{row.id}].</p> : null}
+          </div>
+        ) : null
+      }
     >
       <TextField {...f("label")} label="Metric" value={row.label} onChange={set("label")} placeholder="Revenue from operations" className="col-span-2" />
       <TextField {...f("value")} label="Value" value={row.value} onChange={set("value")} placeholder="1284" />

@@ -78,7 +78,7 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
       return [...docs.values()]
         .filter((d) => d.companyId === companyId && d.status !== "uploading")
         .sort((a, b) => newest(a.filedOn, b.filedOn) || newest(a.createdAt, b.createdAt))
-        .map(({ id, title, pageCount, filedOn, sourceUrl, sourceType }) => ({ id, title, pageCount, filedOn, sourceUrl, sourceType }));
+        .map(({ id, title, pageCount, filedOn, sourceUrl, sourceType, originalDeletedAt }) => ({ id, title, pageCount, filedOn, sourceUrl, sourceType, originalDeletedAt }));
     },
     async download(path) {
       const bytes = files.get(path);

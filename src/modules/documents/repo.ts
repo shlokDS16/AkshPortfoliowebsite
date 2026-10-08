@@ -3,12 +3,12 @@ import { dbError, jobDbError } from "@/lib/supabase/errors";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
 import type { PageVerdict } from "./selector";
-import type { Basis, DocSourceType, DocumentRow, DocumentStatus, PageForExtraction, PageForReading, PageKind, PageText } from "./types";
+import type { Basis, DocSourceType, DocumentListItem, DocumentRow, DocumentStatus, PageForExtraction, PageForReading, PageKind, PageText } from "./types";
 
 const BUCKET = "documents";
 const DOCUMENT_COLUMNS =
   "id, company_id, title, kind, storage_path, sha256, bytes, page_count, status, llm_page_budget, basis, source_type, filed_on, source_url, original_deleted_at, created_at";
-const LIST_COLUMNS = "id, title, page_count, filed_on, source_url, source_type";
+const LIST_COLUMNS = "id, title, page_count, filed_on, source_url, source_type, original_deleted_at";
 /** PostgREST returns at most 1,000 rows a request (Supabase default max_rows): longer reads go in ranges. */
 const PAGE_RANGE = 1_000;
 
@@ -35,7 +35,7 @@ export interface DocumentsRepo {
   signUpload(path: string): Promise<{ path: string; token: string }>;
   objectInfo(path: string): Promise<{ size: number; mimetype: string } | null>;
   removeObject(path: string): Promise<void>;
-  listForCompany(companyId: string): Promise<Pick<DocumentRow, "id" | "title" | "pageCount" | "filedOn" | "sourceUrl" | "sourceType">[]>;
+  listForCompany(companyId: string): Promise<DocumentListItem[]>;
 
   // Job code (the secret-key client; migration 0006 grants). Errors carry the operation and code only.
   /** The stored original's bytes. */
@@ -168,6 +168,7 @@ export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
         filedOn: r.filed_on,
         sourceUrl: r.source_url,
         sourceType: r.source_type as DocSourceType,
+        originalDeletedAt: r.original_deleted_at,
       }));
     },
     ...machinePages(db),

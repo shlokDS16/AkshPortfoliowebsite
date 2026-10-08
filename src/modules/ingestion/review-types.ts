@@ -1,4 +1,4 @@
-import type { Basis, DocSourceType } from "@/modules/documents/client";
+import type { Basis, DocSourceType, DocumentStatus } from "@/modules/documents/client";
 import type { Flag } from "./proposed-fact";
 import type { ActionFailure } from "./upload-flow";
 
@@ -32,7 +32,7 @@ export type ProposalView = {
 export type ReviewCounts = { pending: number; accepted: number; edited: number; rejected: number; filed: number };
 
 export type ReviewData = {
-  document: { id: string; title: string; companyId: string | null; companyName: string | null; filedOn: string | null; sourceUrl: string | null; sourceType: DocSourceType };
+  document: { id: string; title: string; companyId: string | null; companyName: string | null; filedOn: string | null; sourceUrl: string | null; sourceType: DocSourceType; status: DocumentStatus; originalDeletedAt: string | null };
   /** Every figure that carries a flag, in page order, whatever has been decided so far ("Check 1 of 2"). */
   flags: ProposalView[];
   /** Every figure not yet filed, flagged or not: the screen regroups them as Aksh resolves flags. */

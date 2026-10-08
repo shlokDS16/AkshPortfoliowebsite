@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { latestFigureDate, parseFactsSheet, type SheetError } from "@/modules/casefile/client";
+import type { StagedRow } from "@/modules/ingestion/client";
 import { ADD_SOURCE_EVENT, type AddSourceDetail } from "../add-source-event";
 import { checkableFromCaseFile, checkableFromDraft } from "./checkable";
 import { blankSource, draftIds, draftToSheet, nextId, toDraft, type Draft } from "./draft";
-import { brokenCitations, fieldErrors, rowErrors } from "./validate";
+import { mergeStaged } from "./staged";
+import { brokenCitations, citedFacts, fieldErrors, rowErrors } from "./validate";
 
 export type FactsMode = "form" | "text";
 
@@ -13,16 +15,21 @@ export type FactsMode = "form" | "text";
  * One facts state for both modes. The text sheet is the only thing saved; the form is a view over it, converted with
  * casefile's parseFactsSheet / serializeFactsSheet. A switch that could lose typed input is refused and says why.
  */
-export function useFactsState(sheet: string, bodyMd: string) {
+export function useFactsState(sheet: string, bodyMd: string, staged: StagedRow[] = []) {
+  // The staged figures are merged once, as the form opens (ADR-004 s4.7): after that they are rows like any other.
   const [initial] = useState(() => {
     const parsed = parseFactsSheet(sheet);
-    return parsed.errors.length === 0 ? { mode: "form" as FactsMode, draft: toDraft(parsed.caseFile) } : { mode: "text" as FactsMode, draft: null };
+    if (parsed.errors.length > 0) return { mode: "text" as FactsMode, draft: null, unmerged: null, merged: null };
+    const unmerged = toDraft(parsed.caseFile);
+    const merged = staged.length > 0 ? mergeStaged(unmerged, staged, citedFacts(bodyMd)) : null;
+    return { mode: "form" as FactsMode, draft: merged?.draft ?? unmerged, unmerged, merged };
   });
   const [mode, setMode] = useState<FactsMode>(initial.mode);
   const [text, setText] = useState(sheet);
   const [draft, setDraft] = useState<Draft | null>(initial.draft);
-  // The form's sheet when it opened: switching back with no change keeps Aksh's own text.
-  const [origin, setOrigin] = useState(() => (initial.draft ? draftToSheet(initial.draft) : ""));
+  // The form's sheet when it opened, before any staged row was merged in (R6): switching to Text sheet with no edit then
+  // shows the merged rows, and switching back with no change keeps Aksh's own text.
+  const [origin, setOrigin] = useState(() => (initial.unmerged ? draftToSheet(initial.unmerged) : ""));
   // Every id the form has loaded: a new row never reuses one, even after its row was removed (see nextId).
   const [loaded, setLoaded] = useState(() => (initial.draft ? draftIds(initial.draft) : []));
   const [refusal, setRefusal] = useState<{ to: FactsMode; errors: SheetError[] } | null>(null);
@@ -96,6 +103,22 @@ export function useFactsState(sheet: string, bodyMd: string) {
     if (reveal) document.getElementById(`ff-${reveal.id}-doc`)?.scrollIntoView?.({ block: "center" });
   }, [reveal]);
 
+  // Which staged figures are still in the facts: the pairs the save records, and every staged id so a deleted one goes back to review.
+  const present = useMemo(() => new Set(mode === "form" ? (draft?.facts.map((f) => f.id) ?? []) : parsed.errors.length === 0 ? parsed.caseFile.facts.map((f) => f.id) : []), [mode, draft, parsed]);
+  const pairs = useMemo(() => (initial.merged?.provenance ?? []).filter((p) => present.has(p.factId)), [initial.merged, present]);
+  const mergedIds = useMemo(() => (initial.merged?.provenance ?? []).map((p) => p.proposalId), [initial.merged]);
+  const staging = {
+    pairs,
+    /** Every staged figure the form opened with (a row Aksh then deleted is still in this list). */
+    mergedIds,
+    /** Staged figures that could not be shown because the text sheet does not parse. */
+    unseen: initial.merged ? 0 : staged.length,
+    skipped: initial.merged?.skipped ?? 0,
+    overflow: initial.merged?.overflow ?? 0,
+    /** The hidden `provenance` field: null when no staged figure was merged. */
+    field: mergedIds.length > 0 ? JSON.stringify({ staged: mergedIds, provenance: pairs }) : null,
+  };
+
   const checkable = useMemo(
     () => (mode === "form" && draft ? checkableFromDraft(draft) : parsed.errors.length === 0 ? checkableFromCaseFile(parsed.caseFile) : []),
     [mode, draft, parsed],
@@ -122,6 +145,7 @@ export function useFactsState(sheet: string, bodyMd: string) {
     fieldCount,
     blocking: parsed.errors.length > 0 || fieldCount > 0,
     latest: parsed.errors.length === 0 ? latestFigureDate(parsed.caseFile) : null,
+    staging,
   };
 }
 

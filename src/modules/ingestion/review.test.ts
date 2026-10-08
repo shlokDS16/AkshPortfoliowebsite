@@ -4,7 +4,7 @@ import { errorCode, errorText } from "@/lib/messages";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryReviewRepo, machine, record, type MemoryReviewRepo } from "@/test/fakes/review-repo";
 import { REVIEW_ERROR_TEXT, ReviewError, type ReviewErrorCode } from "./errors";
-import { buildFact, buildReview, decide, fileUnder, resolveFlag, saveValues, type ReviewPorts } from "./review";
+import { buildFact, buildReview, decide, fileUnder, resolveFlag, saveValues, unstage, type ReviewPorts } from "./review";
 import type { EditFields } from "./review-types";
 
 const DOC = "0b9f3c1e-7a42-4c55-9e1d-2f6a8b3c4d5e";
@@ -242,6 +242,23 @@ describe("fileUnder", () => {
     await expect(fileUnder(ports, DOC, { ...input, sourceType: "Notes" })).rejects.toBeInstanceOf(InvalidInputError);
     await expect(fileUnder(ports, DOC, { ...input, sourceUrl: "javascript:alert(1)" })).rejects.toBeInstanceOf(InvalidInputError);
     await expect(fileUnder(ports, DOC, { ...input, path: "x" })).rejects.toBeInstanceOf(InvalidInputError);
+  });
+});
+
+describe("unstage (Send back to review)", () => {
+  it("takes the document's unfiled figures out of the item and keeps their decisions", async () => {
+    review.records.push(
+      record(P1, { status: "accepted", accepted: machine(), itemId: ITEM }),
+      record(P2, { status: "edited", accepted: machine(), itemId: ITEM }),
+      record(P3, { status: "filed", accepted: machine(), itemId: ITEM }),
+      record(P4, { status: "accepted", accepted: machine(), itemId: "99999999-9999-4999-8999-999999999999" }),
+    );
+    expect(await unstage(ports, DOC, ITEM)).toBe(2);
+    expect(review.records.map((r) => [r.status, r.itemId])).toEqual([["accepted", null], ["edited", null], ["filed", ITEM], ["accepted", "99999999-9999-4999-8999-999999999999"]]);
+  });
+  it("refuses a malformed id or a document that is not there", async () => {
+    await expect(unstage(ports, DOC, "nope")).rejects.toBeInstanceOf(InvalidInputError);
+    await expect(unstage(ports, "00000000-0000-4000-8000-0000000000aa", ITEM)).rejects.toBeInstanceOf(InvalidInputError);
   });
 });
 

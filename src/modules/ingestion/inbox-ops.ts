@@ -76,6 +76,18 @@ export async function skipDocument(p: InboxPorts, documentId: string): Promise<v
   if (doc.status === "active") await p.docs.update(doc.id, { status: "skipped" });
 }
 
+/**
+ * Done with this document (ADR-004 s4.8): its job stops, the stored PDF is deleted to save space, and the document moves
+ * to Finished. Its page text, its source link and any figures already filed stay; figures still waiting stay hidden.
+ */
+export async function markDone(p: InboxPorts, documentId: string): Promise<void> {
+  const doc = await documentOf(p, documentId, ["active", "done"]);
+  // The job stops first, then the file goes, then the status: each step is safe to repeat if a later one fails.
+  await p.inbox.cancelJob(doc.id);
+  if (doc.storagePath && !doc.originalDeletedAt) await p.docs.removeObject(doc.storagePath);
+  if (doc.status === "active" || !doc.originalDeletedAt) await p.docs.update(doc.id, { status: "done", originalDeletedAt: doc.originalDeletedAt ?? new Date().toISOString() });
+}
+
 /** Documents read while AI was off: queue an extract step for every ticked page that has none. */
 export async function readSelected(p: InboxPorts, documentId: string, aiOn: boolean): Promise<void> {
   const doc = await documentOf(p, documentId, ["active"]);

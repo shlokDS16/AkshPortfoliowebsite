@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { formatCount } from "@/lib/format";
 import { groupValues, type ProposalView, type ReviewData } from "@/modules/ingestion/client";
+import { DoneButton } from "./done-button";
 import { FileUnder } from "./file-under";
 import { FlagCard } from "./flag-card";
 import { PageText, wordsOf } from "./page-text";
@@ -57,6 +58,12 @@ export function ReviewOneAtATime({ data, companies = [] }: Props) {
         </p>
         <h1 className="break-words text-title text-ink desk:text-title-desk">Review: {doc.title}</h1>
         {doc.companyName ? <p className="text-small text-ink-muted">{doc.companyName}</p> : null}
+        {data.counts.filed > 0 ? (
+          <p data-testid="filed-count" className="text-small text-ink-body">
+            {formatCount(data.counts.filed, "figure")} from this document {data.counts.filed === 1 ? "is" : "are"} filed in a case file.
+          </p>
+        ) : null}
+        {doc.status === "active" || doc.status === "done" ? <DoneButton documentId={doc.id} done={doc.status === "done"} /> : null}
       </header>
 
       {rows.length === 0 ? (

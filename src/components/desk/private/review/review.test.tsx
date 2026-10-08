@@ -6,9 +6,9 @@ import type { ProposalView, ReviewData } from "@/modules/ingestion/client";
 import { DOC_ID, kaveri } from "@/test/review-fixtures";
 import { ReviewOneAtATime } from "./review-one-at-a-time";
 
-const mocks = vi.hoisted(() => ({ resolve: vi.fn(), save: vi.fn(), file: vi.fn(), start: vi.fn(), push: vi.fn(), refresh: vi.fn(), link: vi.fn() }));
+const mocks = vi.hoisted(() => ({ resolve: vi.fn(), save: vi.fn(), file: vi.fn(), start: vi.fn(), push: vi.fn(), refresh: vi.fn(), link: vi.fn(), done: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }) }));
-vi.mock("@/modules/ingestion/actions", () => ({ resolveFlagAction: mocks.resolve, saveValuesAction: mocks.save, fileUnderAction: mocks.file, setDocumentCompanyAction: mocks.link }));
+vi.mock("@/modules/ingestion/actions", () => ({ resolveFlagAction: mocks.resolve, saveValuesAction: mocks.save, fileUnderAction: mocks.file, setDocumentCompanyAction: mocks.link, markDoneAction: mocks.done }));
 vi.mock("@/modules/research/actions", () => ({ startFileAction: mocks.start }));
 
 const ITEM = "11111111-2222-4333-8444-555555555555";
@@ -272,5 +272,38 @@ describe("with nothing to check", () => {
   it("says there is nothing to review when no figure is waiting", () => {
     render(<ReviewOneAtATime data={kaveri({ flags: [], rows: [], values: [] })} />);
     expect(screen.getByText(/Nothing to review/)).toBeInTheDocument();
+  });
+});
+
+describe("filed figures and Done with this document", () => {
+  it("says how many figures from the document are filed", () => {
+    render(<ReviewOneAtATime data={kaveri({ flags: [], rows: [], values: [], counts: { pending: 0, accepted: 0, edited: 0, rejected: 1, filed: 4 } })} />);
+    expect(screen.getByTestId("filed-count")).toHaveTextContent("4 figures from this document are filed in a case file.");
+  });
+  it("marks the document done, says what happened to the PDF and refreshes", async () => {
+    mocks.done.mockResolvedValue({ ok: true });
+    render(<ReviewOneAtATime data={kaveri()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Done with this document" }));
+    expect(mocks.done).toHaveBeenCalledWith(DOC_ID);
+    expect(await screen.findByRole("status")).toHaveTextContent("Done. The PDF was deleted to save space; its page text and your figures stay.");
+    expect(mocks.refresh).toHaveBeenCalled();
+  });
+  it("shows a refusal and does not refresh", async () => {
+    mocks.done.mockResolvedValue({ ok: false, code: "save-failed", message: "Could not save. Try again." });
+    render(<ReviewOneAtATime data={kaveri()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Done with this document" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not save. Try again.");
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+  it("once done, offers no button and says the PDF is gone", () => {
+    const data = kaveri();
+    render(<ReviewOneAtATime data={{ ...data, document: { ...data.document, status: "done", originalDeletedAt: "2026-10-08T10:00:00Z" } }} />);
+    expect(screen.queryByRole("button", { name: "Done with this document" })).toBeNull();
+    expect(screen.getByText("Done with this document. The PDF was deleted; page text is still here.")).toBeInTheDocument();
+  });
+  it("offers nothing for a skipped document", () => {
+    const data = kaveri();
+    render(<ReviewOneAtATime data={{ ...data, document: { ...data.document, status: "skipped" } }} />);
+    expect(screen.queryByRole("button", { name: "Done with this document" })).toBeNull();
   });
 });

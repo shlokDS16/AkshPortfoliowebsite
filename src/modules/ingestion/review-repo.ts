@@ -31,6 +31,8 @@ export interface ReviewRepo {
   record(documentId: string, id: string, decided: { status: "accepted" | "edited" | "rejected"; acceptedValue: ProposedFact | null }): Promise<void>;
   /** Puts the document's accepted and edited figures that are not yet in a revision under the item; returns how many. */
   assignItem(documentId: string, itemId: string): Promise<number>;
+  /** Send back to review: the document's figures staged under the item (no revision yet) leave it, still accepted or edited. Returns how many. */
+  unassignItem(documentId: string, itemId: string): Promise<number>;
 }
 
 const COLUMNS = "id, page_no, machine_value, accepted_value, flags, reason, status, item_id";
@@ -74,6 +76,18 @@ export function createReviewRepo(db: Db): ReviewRepo {
         .is("revision_id", null)
         .select("id");
       if (error) throw dbError("review.assignItem", error);
+      return data.length;
+    },
+    async unassignItem(documentId, itemId) {
+      const { data, error } = await db
+        .from("proposals")
+        .update({ item_id: null })
+        .eq("document_id", documentId)
+        .eq("item_id", itemId)
+        .in("status", ["accepted", "edited"])
+        .is("revision_id", null)
+        .select("id");
+      if (error) throw dbError("review.unassignItem", error);
       return data.length;
     },
   };

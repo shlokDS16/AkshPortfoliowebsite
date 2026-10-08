@@ -8,7 +8,7 @@ import type { ProposalView, ReviewCounts, ReviewData } from "./review-types";
 // The review screen's read (spec s6.5). The decisions and filing live in review-ops.ts; this file re-exports them so
 // the screen's server code has one import.
 export { decide, sameFact, buildFact, type Decision, type Decided } from "./decide";
-export { fileUnder, resolveFlag, saveValues, setCompany, type ReviewPorts } from "./review-ops";
+export { fileUnder, resolveFlag, saveValues, setCompany, unstage, type ReviewPorts } from "./review-ops";
 export type { ProposalView, ReviewData } from "./review-types";
 
 type Ports = { docs: DocumentsRepo; review: ReviewRepo };
@@ -34,7 +34,7 @@ export async function buildReview(ports: Ports, documentId: string): Promise<Rev
     doc.companyId ? ports.review.companyName(doc.companyId) : null,
   ]);
   return {
-    document: { id: doc.id, title: doc.title, companyId: doc.companyId, companyName, filedOn: doc.filedOn, sourceUrl: doc.sourceUrl, sourceType: doc.sourceType },
+    document: { id: doc.id, title: doc.title, companyId: doc.companyId, companyName, filedOn: doc.filedOn, sourceUrl: doc.sourceUrl, sourceType: doc.sourceType, status: doc.status, originalDeletedAt: doc.originalDeletedAt },
     flags,
     rows,
     values,

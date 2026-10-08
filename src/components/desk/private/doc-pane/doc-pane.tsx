@@ -53,6 +53,7 @@ export function DocPane({ documents, docId, onPick, pageNo, onPage, facts, onClo
             {doc.filedOn ? ` · filed ${formatDate(doc.filedOn)}` : ""}
             {doc.pageCount ? ` · ${doc.pageCount} pages` : ""}
           </p>
+          {doc.originalDeletedAt ? <p className="text-small text-ink-muted">The PDF was deleted; page text is still here.</p> : null}
           {doc.sourceUrl ? (
             <a href={doc.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1 text-small">
               Original link <ExternalLink aria-hidden strokeWidth={1.5} className="size-3.5" />

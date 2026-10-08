@@ -13,6 +13,7 @@ import { istDate } from "@/lib/dates";
 import { errorText, noticeText } from "@/lib/messages";
 import { setFiguresToAction, saveCaseFileRevisionAction } from "@/modules/casefile/actions";
 import { makeCompanyPublicAction } from "@/modules/catalog/actions";
+import { unstageAction } from "@/modules/ingestion/actions";
 import { publishCheckedAction, unpublishItemAction } from "@/modules/compliance/actions";
 import { requireAdmin } from "@/modules/identity";
 import { isItemId } from "@/modules/research";
@@ -21,20 +22,21 @@ import { MetaForm } from "./meta-form";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; notice?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string; also?: string; from?: string; to?: string }>;
 };
 
 export default async function ItemPage({ params, searchParams }: Props) {
   await requireAdmin();
   const { id } = await params;
-  const { error, notice, from, to } = await searchParams;
+  const { error, notice, also, from, to } = await searchParams;
   if (!isItemId(id)) notFound();
   const data = await loadEditor(id);
   if (!data) notFound();
-  const { item, revisions, current, pending, latest, candidate, isFile, company, documents, preview, body, sheet, decision, decisionRevNo, latestFigure } = data;
+  const { item, revisions, current, pending, latest, candidate, isFile, company, documents, staged, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure } = data;
   const isPublic = item.visibility === "public";
   const errorMessage = errorText(error);
   const noticeMessage = noticeText(notice);
+  const alsoMessage = noticeText(also);
   const companyLabel = company ? (company.nseSymbol ? `$${company.nseSymbol}` : company.name) : null;
   const gate = (
     <aside id="gate" tabIndex={-1} className="min-w-0 space-y-4 desk:sticky desk:top-[calc(var(--top-bar-h)+16px)] desk:self-start">
@@ -74,6 +76,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
         {noticeMessage ? (
           <p role="status" className="rounded-sm border border-rule px-3 py-2 text-small text-ink">
             {noticeMessage}
+            {alsoMessage ? <span className="mt-1 block">{alsoMessage}</span> : null}
           </p>
         ) : null}
         {isPublic && pending.length > 0 ? (
@@ -86,7 +89,17 @@ export default async function ItemPage({ params, searchParams }: Props) {
           {body ? <BodyPreview itemId={item.id} body={body} named={item.companyId !== null} /> : null}
           {!isPublic ? <FiguresToHint latest={latestFigure} figuresTo={item.dataAsOf} action={setFiguresToAction.bind(null, item.id)} /> : null}
           <MetaForm item={item} />
-          <RevisionEditor key={latest?.id ?? "none"} action={saveCaseFileRevisionAction.bind(null, item.id)} bodyMd={latest?.bodyMd ?? ""} sheet={sheet} isPublic={isPublic} figuresTo={item.dataAsOf} />
+          <RevisionEditor
+            key={`${latest?.id ?? "none"}:${staged.map((s) => s.proposalId).join(",")}`}
+            action={saveCaseFileRevisionAction.bind(null, item.id)}
+            bodyMd={latest?.bodyMd ?? ""}
+            sheet={sheet}
+            isPublic={isPublic}
+            figuresTo={item.dataAsOf}
+            staged={staged}
+            provenance={provenance}
+            sendBack={unstageAction.bind(null, item.id)}
+          />
           <WordingGuide />
           <History revisions={revisions} currentId={current?.id ?? null} pendingIds={new Set(pending.map((r) => r.id))} from={from} to={to} />
         </DocLayout>

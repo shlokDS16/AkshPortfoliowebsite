@@ -131,6 +131,9 @@ const NOTICES = {
   "figures-to-set": "Figures to updated to the latest figure date. Run the publishing gate again.",
   refiled: "Filed.",
   "name-saved": "Saved. The name is screened.",
+  "document-done": "Done. The PDF was deleted to save space; its page text and your figures stay.",
+  "revision-saved-provenance-missing":
+    "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-pending-gate":
     "Revision saved. This item is public, so the new revision is waiting for the publishing gate; the public page still shows the previous one.",
 } as const;

@@ -12,3 +12,6 @@ export type {
 } from "./review-types";
 export { whyFor } from "./review-types";
 export { groupValues, isListed } from "./review-values";
+export type { StagedRow } from "./staging";
+export type { FactProvenance } from "./provenance";
+export { factDiffers, likePrinted } from "./fact-differs";
