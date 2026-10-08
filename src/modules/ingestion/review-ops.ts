@@ -38,7 +38,10 @@ export const fileUnderInput = z.strictObject({
 type Row = { rec: ProposalRecord; machine: MachineFact };
 
 async function rowsOf(ports: ReviewPorts, documentId: string): Promise<Map<string, Row>> {
-  if (!isUuid(documentId) || !(await ports.docs.get(documentId))) throw new InvalidInputError();
+  const doc = isUuid(documentId) ? await ports.docs.get(documentId) : null;
+  if (!doc) throw new InvalidInputError();
+  // Done and skipped are Aksh's: pending figures stay hidden and cannot be decided or filed afterwards.
+  if (doc.status === "done" || doc.status === "skipped") throw new ReviewError("document-closed");
   const rows = new Map<string, Row>();
   for (const rec of await ports.review.list(documentId)) {
     const machine = machineOf(rec);

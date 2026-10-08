@@ -280,18 +280,30 @@ describe("filed figures and Done with this document", () => {
     render(<ReviewOneAtATime data={kaveri({ flags: [], rows: [], values: [], counts: { pending: 0, accepted: 0, edited: 0, rejected: 1, filed: 4 } })} />);
     expect(screen.getByTestId("filed-count")).toHaveTextContent("4 figures from this document are filed in a case file.");
   });
-  it("marks the document done, says what happened to the PDF and refreshes", async () => {
+  it("asks before it deletes the PDF, and does nothing when Aksh keeps it", async () => {
+    render(<ReviewOneAtATime data={kaveri()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Done with this document" }));
+    expect(screen.getByText(/This deletes the stored PDF and cannot be undone/)).toBeInTheDocument();
+    expect(mocks.done).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Keep the PDF" }));
+    expect(mocks.done).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Done with this document" })).toBeInTheDocument();
+  });
+  it("marks the document done on the second press, says it once and refreshes", async () => {
     mocks.done.mockResolvedValue({ ok: true });
     render(<ReviewOneAtATime data={kaveri()} />);
     await userEvent.click(screen.getByRole("button", { name: "Done with this document" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete the PDF and finish" }));
     expect(mocks.done).toHaveBeenCalledWith(DOC_ID);
-    expect(await screen.findByRole("status")).toHaveTextContent("Done. The PDF was deleted to save space; its page text and your figures stay.");
+    expect(await screen.findByText("Done with this document. The PDF was deleted; page text is still here.")).toBeInTheDocument();
+    expect(screen.queryByText(/Done\. The PDF was deleted to save space/)).toBeNull();
     expect(mocks.refresh).toHaveBeenCalled();
   });
   it("shows a refusal and does not refresh", async () => {
     mocks.done.mockResolvedValue({ ok: false, code: "save-failed", message: "Could not save. Try again." });
     render(<ReviewOneAtATime data={kaveri()} />);
     await userEvent.click(screen.getByRole("button", { name: "Done with this document" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete the PDF and finish" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not save. Try again.");
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
@@ -300,6 +312,16 @@ describe("filed figures and Done with this document", () => {
     render(<ReviewOneAtATime data={{ ...data, document: { ...data.document, status: "done", originalDeletedAt: "2026-10-08T10:00:00Z" } }} />);
     expect(screen.queryByRole("button", { name: "Done with this document" })).toBeNull();
     expect(screen.getByText("Done with this document. The PDF was deleted; page text is still here.")).toBeInTheDocument();
+  });
+  it("shows why instead of the controls once the document is done or skipped", () => {
+    const data = kaveri();
+    for (const status of ["done", "skipped"] as const) {
+      const { unmount } = render(<ReviewOneAtATime data={{ ...data, document: { ...data.document, status } }} />);
+      expect(screen.getByText("You marked this document done or skipped, so its figures can no longer be reviewed or filed.")).toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Check 1 of 1" })).toBeNull();
+      expect(screen.queryByRole("form", { name: "File under" })).toBeNull();
+      unmount();
+    }
   });
   it("offers nothing for a skipped document", () => {
     const data = kaveri();

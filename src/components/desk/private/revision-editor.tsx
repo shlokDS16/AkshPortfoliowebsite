@@ -38,7 +38,7 @@ export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figure
   const body = useRef<HTMLTextAreaElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const [bodyText, setBodyText] = useState(bodyMd);
-  const facts = useFactsState(sheet ?? "", bodyText, sheet === null ? [] : staged);
+  const facts = useFactsState(sheet ?? "", bodyText, sheet === null ? [] : staged, Object.keys(provenance));
   const marks = useMemo(() => {
     const saved = sheet === null ? null : parseFactsSheet(sheet);
     return buildMarks(facts.staging.pairs, staged, saved && saved.errors.length === 0 ? saved.caseFile : null, provenance);

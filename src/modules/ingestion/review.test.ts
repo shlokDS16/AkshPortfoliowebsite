@@ -245,6 +245,20 @@ describe("fileUnder", () => {
   });
 });
 
+describe("a document marked done or skipped", () => {
+  it.each(["done", "skipped"] as const)("can no longer be reviewed or filed once %s", async (status) => {
+    review.records.push(finance(P1), record(P2));
+    await docs.update(DOC, { status });
+    const input = { itemId: ITEM, title: "AR", sourceType: "Annual report", filedOn: "2026-05-20", sourceUrl: null };
+    expect(await code(resolveFlag(ports, DOC, P1, { kind: "reject" }))).toBe("document-closed");
+    expect(await code(saveValues(ports, DOC, [{ id: P2, keep: true }]))).toBe("document-closed");
+    expect(await code(fileUnder(ports, DOC, input))).toBe("document-closed");
+    expect(review.recorded).toEqual([]);
+    expect(review.records.map((r) => [r.status, r.itemId])).toEqual([["pending", null], ["pending", null]]);
+    expect(errorText("document-closed")).toMatch(/^You marked this document done or skipped/);
+  });
+});
+
 describe("unstage (Send back to review)", () => {
   it("takes the document's unfiled figures out of the item and keeps their decisions", async () => {
     review.records.push(

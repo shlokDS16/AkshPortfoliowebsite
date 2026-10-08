@@ -3,26 +3,33 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { errorText, noticeText } from "@/lib/messages";
+import { errorText } from "@/lib/messages";
 import { markDoneAction } from "@/modules/ingestion/actions";
 
 type Props = { documentId: string; done: boolean };
 
-/** Done with this document (ADR-004 s4.8): the stored PDF is deleted to free space; its page text and filed figures stay. */
+/**
+ * Done with this document (ADR-004 s4.8). The stored PDF is the only copy, so the first press asks; the second deletes
+ * it to free space. Its page text and filed figures stay.
+ */
 export function DoneButton({ documentId, done }: Props) {
   const router = useRouter();
+  const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [finished, setFinished] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function finish() {
     setBusy(true);
-    setMessage(null);
+    setError(null);
     try {
       const result = await markDoneAction(documentId);
-      setMessage(result.ok ? { ok: true, text: noticeText("document-done") ?? "" } : { ok: false, text: result.message });
-      if (result.ok) router.refresh();
+      if (!result.ok) return setError(result.message);
+      setFinished(true);
+      setAsking(false);
+      router.refresh();
     } catch {
-      setMessage({ ok: false, text: errorText("save-failed") ?? "" });
+      setError(errorText("save-failed"));
     } finally {
       setBusy(false);
     }
@@ -30,16 +37,30 @@ export function DoneButton({ documentId, done }: Props) {
 
   return (
     <div className="space-y-2">
-      {done ? (
-        <p className="text-small text-ink-muted">Done with this document. The PDF was deleted; page text is still here.</p>
+      {done || finished ? (
+        <p role="status" className="text-small text-ink-muted">
+          Done with this document. The PDF was deleted; page text is still here.
+        </p>
+      ) : asking ? (
+        <div className="space-y-2">
+          <p className="text-small text-ink-body">This deletes the stored PDF and cannot be undone. Its page text and the figures you filed stay.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" disabled={busy} onClick={finish}>
+              Delete the PDF and finish
+            </Button>
+            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setAsking(false)}>
+              Keep the PDF
+            </Button>
+          </div>
+        </div>
       ) : (
-        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={finish}>
+        <Button type="button" variant="outline" size="sm" onClick={() => setAsking(true)}>
           Done with this document
         </Button>
       )}
-      {message ? (
-        <p role={message.ok ? "status" : "alert"} className={message.ok ? "text-small text-ink-muted" : "text-small text-bad"}>
-          {message.text}
+      {error ? (
+        <p role="alert" className="text-small text-bad">
+          {error}
         </p>
       ) : null}
     </div>

@@ -133,6 +133,23 @@ describe("staged figures in the editor", () => {
   });
 });
 
+describe("an id that once carried provenance is never handed out again", () => {
+  const gone = (): Record<string, FactProvenance> => ({
+    F11: { proposalId: "pp", documentTitle: "AR", page: 4, edited: true, filedAt: "x", machine: machine({ label: "Deleted line", value: 41.7, valueText: "41.70" }) },
+  });
+  it("a typed fact takes F12, not the deleted F11 (no false chip)", async () => {
+    open({ staged: [], provenance: gone() });
+    await userEvent.click(screen.getByRole("button", { name: "Add fact" }));
+    expect(screen.getByRole("group", { name: "Fact F12" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Fact F11" })).toBeNull();
+    expect(screen.queryByTestId("provenance-chip")).toBeNull();
+  });
+  it("staged figures start past it too", () => {
+    open({ provenance: gone() });
+    expect(hidden()?.provenance.map((p) => p.factId)).toEqual(["F12", "F13", "F14", "F15"]);
+  });
+});
+
 describe("chipText", () => {
   const fact = { id: "F6", label: "Finance costs", value: 41.2, unit: "₹ cr", period: "FY26", asOf: "2026-03-31", sourceId: "S1", locator: "p. 4", prior: { label: "FY25", value: 38.1 }, topic: "P&L" };
   const prov = (over = {}, edited = false): FactProvenance => ({

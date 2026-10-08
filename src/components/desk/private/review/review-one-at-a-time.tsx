@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { formatCount } from "@/lib/format";
+import { errorText } from "@/lib/messages";
 import { groupValues, type ProposalView, type ReviewData } from "@/modules/ingestion/client";
 import { DoneButton } from "./done-button";
 import { FileUnder } from "./file-under";
@@ -24,6 +25,7 @@ export function ReviewOneAtATime({ data, companies = [] }: Props) {
   const [typed, setTyped] = useState<Typed>({});
   const [openId, setOpenId] = useState<string | null>(null);
 
+  const closed = doc.status === "done" || doc.status === "skipped";
   const flagIds = data.flags.map((f) => f.id);
   const waiting = flagIds.flatMap((id) => rows.filter((r) => r.id === id && r.status === "pending"));
   const current = waiting[0];
@@ -66,7 +68,11 @@ export function ReviewOneAtATime({ data, companies = [] }: Props) {
         {doc.status === "active" || doc.status === "done" ? <DoneButton documentId={doc.id} done={doc.status === "done"} /> : null}
       </header>
 
-      {rows.length === 0 ? (
+      {closed ? (
+        <p role="status" className="text-body text-ink-body">
+          {errorText("document-closed")}
+        </p>
+      ) : rows.length === 0 ? (
         <p className="text-body text-ink-body">Nothing to review. No figures are waiting for this document.</p>
       ) : (
         <div className="desk:grid desk:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] desk:items-start desk:gap-8">

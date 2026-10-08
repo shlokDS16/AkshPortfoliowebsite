@@ -49,6 +49,7 @@ const ERRORS = {
   "not-this-file": "That is not this company's file. Reload and try again.",
   "no-company": "This document is not linked to a company, so there is no file to put its figures in.",
   "nothing-to-file": "Tick at least one figure to file.",
+  "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -90,6 +91,7 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "not-this-file": "not-this-file",
   "no-company": "no-company",
   "nothing-to-file": "nothing-to-file",
+  "document-closed": "document-closed",
 };
 
 /**
@@ -131,7 +133,6 @@ const NOTICES = {
   "figures-to-set": "Figures to updated to the latest figure date. Run the publishing gate again.",
   refiled: "Filed.",
   "name-saved": "Saved. The name is screened.",
-  "document-done": "Done. The PDF was deleted to save space; its page text and your figures stay.",
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-pending-gate":

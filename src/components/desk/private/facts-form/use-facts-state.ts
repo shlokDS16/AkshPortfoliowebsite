@@ -15,13 +15,13 @@ export type FactsMode = "form" | "text";
  * One facts state for both modes. The text sheet is the only thing saved; the form is a view over it, converted with
  * casefile's parseFactsSheet / serializeFactsSheet. A switch that could lose typed input is refused and says why.
  */
-export function useFactsState(sheet: string, bodyMd: string, staged: StagedRow[] = []) {
+export function useFactsState(sheet: string, bodyMd: string, staged: StagedRow[] = [], provenanceIds: string[] = []) {
   // The staged figures are merged once, as the form opens (ADR-004 s4.7): after that they are rows like any other.
   const [initial] = useState(() => {
     const parsed = parseFactsSheet(sheet);
     if (parsed.errors.length > 0) return { mode: "text" as FactsMode, draft: null, unmerged: null, merged: null };
     const unmerged = toDraft(parsed.caseFile);
-    const merged = staged.length > 0 ? mergeStaged(unmerged, staged, citedFacts(bodyMd)) : null;
+    const merged = staged.length > 0 ? mergeStaged(unmerged, staged, [...citedFacts(bodyMd), ...provenanceIds]) : null;
     return { mode: "form" as FactsMode, draft: merged?.draft ?? unmerged, unmerged, merged };
   });
   const [mode, setMode] = useState<FactsMode>(initial.mode);
@@ -31,7 +31,7 @@ export function useFactsState(sheet: string, bodyMd: string, staged: StagedRow[]
   // shows the merged rows, and switching back with no change keeps Aksh's own text.
   const [origin, setOrigin] = useState(() => (initial.unmerged ? draftToSheet(initial.unmerged) : ""));
   // Every id the form has loaded: a new row never reuses one, even after its row was removed (see nextId).
-  const [loaded, setLoaded] = useState(() => (initial.draft ? draftIds(initial.draft) : []));
+  const [loaded, setLoaded] = useState(() => [...(initial.draft ? draftIds(initial.draft) : []), ...provenanceIds]);
   const [refusal, setRefusal] = useState<{ to: FactsMode; errors: SheetError[] } | null>(null);
 
   const formText = useMemo(() => (draft ? draftToSheet(draft) : ""), [draft]);
