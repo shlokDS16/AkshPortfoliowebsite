@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(118);
+select plan(125);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -205,15 +205,15 @@ select throws_ok($$ update public.document_pages set text = 'again' where docume
 
 -- 7. The ledger: block reasons widened, reserve_units (R9).
 select lives_ok($$ insert into public.provider_usage (bucket, kind, retry_after_s, blocked_until, block_reason) values
-    ('b-ocr', 'rate_limited', 30, clock_timestamp() + interval '30 seconds', 'ocr_day'),
+    ('ocr-blocked', 'rate_limited', 30, clock_timestamp() + interval '30 seconds', 'ocr_day'),
     ('b-vh', 'rate_limited', 30, clock_timestamp() + interval '30 seconds', 'voice_hour'),
     ('b-vd', 'rate_limited', 30, clock_timestamp() + interval '30 seconds', 'voice_day') $$,
   'a block row may name ocr_day, voice_hour or voice_day');
 select throws_ok($$ insert into public.provider_usage (bucket, kind, retry_after_s, blocked_until, block_reason)
                     values ('b-x', 'rate_limited', 30, clock_timestamp() + interval '30 seconds', 'ocr_month') $$,
   '23514', null, 'ocr_month is refused');
-select is((select format('%s,%s,%s', r.ok, r.reason, r.not_before = (select max(blocked_until) from public.provider_usage where bucket = 'b-ocr'))
-             from public.reserve_units('b-ocr', 1, null, null, 375, null, null) r),
+select is((select format('%s,%s,%s', r.ok, r.reason, r.not_before = (select max(blocked_until) from public.provider_usage where bucket = 'ocr-blocked'))
+             from public.reserve_units('ocr-blocked', 1, null, null, 375, null, null) r),
   'f,ocr_day,t', 'a future blocked_until blocks with its block_reason');
 select ok((select r.ok and r.reservation_id is not null and r.reason is null from public.reserve_units('ocrspace', 1, null, null, 2, null, null) r),
   'the first scan read is ok');
@@ -240,21 +240,23 @@ select is((select format('%s,%s', r.ok, r.reason) from public.reserve_units('whi
 select ok((select r.ok from public.reserve_units('whisper-m', 60, 100, null, null, null, null) r), 'a minute-unit bucket takes a call');
 select is((select format('%s,%s', r.ok, r.reason) from public.reserve_units('whisper-m', 60, 100, null, null, null, null) r),
   'f,groq_minute', 'a second 60-unit call inside the minute cap of 100 waits (groq_minute)');
-select ok((select r.ok from public.reserve_units('free', 500, null, null, null, 20, null) r),
+select ok((select r.ok from public.reserve_units('whisper-free', 500, null, null, null, 20, null) r),
   'null caps mean no cap on that window');
-select ok((select r.ok from public.reserve_units('w-rel', 3000, null, 5400, null, null, null) r), 'a reservation to release');
-select lives_ok($$ update public.provider_usage set status = 'released', tokens_used = 0 where bucket = 'w-rel' $$,
+select ok((select r.ok from public.reserve_units('whisper-rel', 3000, null, 5400, null, null, null) r), 'a reservation to release');
+select lives_ok($$ update public.provider_usage set status = 'released', tokens_used = 0 where bucket = 'whisper-rel' $$,
   'service_role releases it');
-select ok((select r.ok from public.reserve_units('w-rel', 3000, null, 5400, null, null, null) r), 'released reservations do not count');
+select ok((select r.ok from public.reserve_units('whisper-rel', 3000, null, 5400, null, null, null) r), 'released reservations do not count');
 select lives_ok($$ update public.provider_usage set tokens_used = 1000 where bucket = 'whisper-h' and status = 'reserved' $$,
   'a reservation reconciles to the measured units');
 select ok((select r.ok from public.reserve_units('whisper-h', 4000, null, 5400, 21600, 15, 1500) r),
   'and the measured 1,000 (not the 3,000 estimate) is what counts afterwards: 1,000 + 4,000 fits 5,400');
-select throws_ok($$ select * from public.reserve_units('w', 0, null, null, 10, null, null) $$, '22023', null, 'zero units are refused');
-select throws_ok($$ select * from public.reserve_units('w', 10, null, null, null, null, null) $$, '22023', null, 'a call with no cap at all is refused');
-select throws_ok($$ select * from public.reserve_units('w', 6000, null, 5400, 21600, null, null) $$, '22023', null,
+select throws_ok($$ select * from public.reserve_units('nonsense', 1, null, null, 10, null, null) $$, '22023', null,
+  'an unknown bucket family is refused (no silent voice_day)');
+select throws_ok($$ select * from public.reserve_units('whisper-x', 0, null, null, 10, null, null) $$, '22023', null, 'zero units are refused');
+select throws_ok($$ select * from public.reserve_units('whisper-x', 10, null, null, null, null, null) $$, '22023', null, 'a call with no cap at all is refused');
+select throws_ok($$ select * from public.reserve_units('whisper-x', 6000, null, 5400, 21600, null, null) $$, '22023', null,
   'one call larger than the hour cap is refused');
-select throws_ok($$ select * from public.reserve_units('w', 10, 0, null, 10, null, null) $$, '22023', null, 'a zero cap is refused');
+select throws_ok($$ select * from public.reserve_units('whisper-x', 10, 0, null, 10, null, null) $$, '22023', null, 'a zero cap is refused');
 reset role;
 
 -- 8. Both functions: service_role only, SECURITY DEFINER with an empty search_path.
@@ -332,10 +334,24 @@ select lives_ok($$ insert into public.reading_proposals (id, document_id, page_n
      null, 'T12', '{"current":"3","readingAsOf":"FY26","prior":null,"unit":"x"}') $$,
   'service_role inserts pending readings');
 select lives_ok($$ insert into public.reading_proposals (document_id, page_no, extraction_id, test_id, machine_value)
-    values ('d1000000-0000-4000-8000-000000000001', 1, 'f1000000-0000-4000-8000-000000000001', 'T1', '{}')
-    on conflict (extraction_id, test_id) do nothing $$,
-  'the same reading again is absorbed by on conflict do nothing');
+    values ('d1000000-0000-4000-8000-000000000001', 1, 'f2000000-0000-4000-8000-000000000002', 'T1', '{}')
+    on conflict (document_id, page_no, test_id, pass) do nothing $$,
+  'a rerun of the same pass under a new extraction is absorbed by on conflict do nothing');
 select is((select count(*) from public.reading_proposals), 2::bigint, 'and adds no row');
+select throws_ok($$ insert into public.reading_proposals (document_id, page_no, extraction_id, test_id, machine_value)
+    values ('d1000000-0000-4000-8000-000000000001', 1, 'f2000000-0000-4000-8000-000000000002', 'T1', '{}') $$,
+  '23505', null, 'without on conflict the same page, test and pass is refused');
+select lives_ok($$ insert into public.reading_proposals (document_id, page_no, extraction_id, test_id, machine_value, pass)
+    values ('d1000000-0000-4000-8000-000000000001', 1, 'f2000000-0000-4000-8000-000000000002', 'T1', '{}', 2)
+    on conflict (document_id, page_no, test_id, pass) do nothing $$,
+  'a re-read (pass 2) may propose the same test again');
+select is((select count(*) from public.reading_proposals), 3::bigint, 'and adds its own row');
+select throws_ok($$ insert into public.reading_proposals (document_id, page_no, extraction_id, test_id, machine_value, pass)
+    values ('d1000000-0000-4000-8000-000000000001', 1, 'f2000000-0000-4000-8000-000000000002', 'T4', '{}', 10) $$,
+  '23514', null, 'pass 10 is refused');
+select throws_ok($$ insert into public.reading_proposals (document_id, page_no, extraction_id, test_id, machine_value)
+    values ('d1000000-0000-4000-8000-000000000001', 1, 'f2000000-0000-4000-8000-000000000002', 'T5', '[1]') $$,
+  '23514', null, 'machine_value must be a JSON object');
 select throws_ok($$ insert into public.reading_proposals (document_id, page_no, extraction_id, test_id, machine_value)
     values ('d1000000-0000-4000-8000-000000000001', 1, 'f1000000-0000-4000-8000-000000000001', 'F1', '{}') $$,
   '23514', null, 'a reading needs a test id of the form T<n>');
@@ -365,6 +381,8 @@ select throws_ok($$ update public.reading_proposals set machine_value = '{"curre
   'what the machine read is never changed', 'machine_value never changes, not even for the owner');
 select throws_ok($$ update public.reading_proposals set test_id = 'T9' $$, 'P0001',
   'what the machine read is never changed', 'nor the test id');
+select throws_ok($$ update public.reading_proposals set pass = 3 $$, 'P0001',
+  'what the machine read is never changed', 'nor the pass');
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 select throws_ok($$ update public.reading_proposals set status = 'rejected' $$, '42501',
   'only Aksh decides on a reading (ADR-004 s4.2)', 'an owner-rights update under service_role claims is refused');
@@ -373,7 +391,7 @@ select set_config('request.jwt.claims', '', true);
 -- Aksh decides and files.
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
-select is((select count(*) from public.reading_proposals), 2::bigint, 'the admin sees the readings');
+select is((select count(*) from public.reading_proposals), 3::bigint, 'the admin sees the readings');
 select lives_ok($$ update public.reading_proposals set status = 'accepted', item_id = 'a1000000-0000-4000-8000-000000000001', decided_at = now()
                    where id = 'b1000000-0000-4000-8000-000000000001' $$,
   'the admin accepts a reading and files it under an item');

@@ -1086,6 +1086,7 @@ export type Database = {
           item_id_hint: string | null
           machine_value: NonNullable<Json>
           page_no: number
+          pass: number
           revision_id: string | null
           status: string
           test_id: string
@@ -1101,6 +1102,7 @@ export type Database = {
           item_id_hint?: string | null
           machine_value: NonNullable<Json>
           page_no: number
+          pass?: number
           revision_id?: string | null
           status?: string
           test_id: string
@@ -1116,6 +1118,7 @@ export type Database = {
           item_id_hint?: string | null
           machine_value?: NonNullable<Json>
           page_no?: number
+          pass?: number
           revision_id?: string | null
           status?: string
           test_id?: string

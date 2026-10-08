@@ -62,9 +62,11 @@ alter table public.provider_usage add constraint provider_usage_block_reason_che
   check (block_reason in ('groq_minute', 'groq_day', 'ocr_day', 'voice_hour', 'voice_day'));
 
 -- Reserve units (requests, or seconds of audio) before a call. A null cap means no cap on that window. Same lock and
--- window rules as reserve_usage. The window that is full names the wait: the minute is groq_minute (Whisper is a
--- Groq model); the hour is voice_hour; the day is ocr_day for an OCR bucket (name starts with 'ocr') and voice_day
--- otherwise. p_rpm and p_rpd count requests; the other caps count units.
+-- window rules as reserve_usage. The bucket must belong to a known family, so a misnamed bucket fails loudly instead
+-- of showing the wrong paused copy: an OCR bucket (name starts with 'ocr') or a voice bucket (name contains
+-- 'whisper', any case). The window that is full names the wait: the day is ocr_day or voice_day by family; the hour
+-- is voice_hour; the minute is groq_minute (no OCR-minute reason exists; the OCR bucket has only a day cap in use).
+-- p_rpm and p_rpd count requests; the other caps count units.
 create function public.reserve_units(
   p_bucket text, p_units integer, p_minute_cap integer, p_hour_cap integer, p_day_cap integer, p_rpm integer, p_rpd integer)
 returns table (ok boolean, reservation_id uuid, not_before timestamptz, reason text)
@@ -73,7 +75,7 @@ as $$
 declare
   v_now timestamptz;
   v_block record;
-  v_day_reason text := case when p_bucket like 'ocr%' then 'ocr_day' else 'voice_day' end;
+  v_day_reason text;
   v_min_units bigint;
   v_hour_units bigint;
   v_day_units bigint;
@@ -83,6 +85,12 @@ declare
 begin
   if p_bucket is null or p_units is null or p_units < 1 then
     raise exception 'a bucket and at least one unit are required' using errcode = '22023';
+  end if;
+  v_day_reason := case when lower(p_bucket) like 'ocr%' then 'ocr_day'
+                       when lower(p_bucket) like '%whisper%' then 'voice_day' end;
+  if v_day_reason is null then
+    raise exception 'unknown bucket family: an OCR bucket starts with ocr, a voice bucket contains whisper'
+      using errcode = '22023';
   end if;
   if p_minute_cap is null and p_hour_cap is null and p_day_cap is null and p_rpm is null and p_rpd is null then
     raise exception 'at least one cap is required' using errcode = '22023';
@@ -178,16 +186,19 @@ create table public.reading_proposals (
   extraction_id uuid not null references public.extractions (id) on delete restrict,
   item_id_hint  uuid references public.items (id) on delete restrict,
   test_id       text not null check (test_id ~ '^T\d{1,3}$'),
-  machine_value jsonb not null,
+  machine_value jsonb not null check (jsonb_typeof(machine_value) = 'object'),
+  -- The extract_page pass that produced it (R2/R3): a re-read is a later pass and may propose the test again.
+  pass          smallint not null default 1 check (pass between 1 and 9),
   status        text not null default 'pending' check (status in ('pending', 'accepted', 'rejected', 'filed')),
   item_id       uuid references public.items (id) on delete restrict,
   revision_id   uuid references public.item_revisions (id) on delete restrict,
   decided_at    timestamptz,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
-  -- A lost lease re-reads the cached extraction: the same (extraction, test) is inserted once. A re-read (new
-  -- extraction) may propose the same test again.
-  unique (extraction_id, test_id),
+  -- Idempotent on a rerun: extract_page writes a new extractions row on every run (cache hit included), so the key
+  -- cannot use extraction_id. A lost-lease rerun of the same pass inserts the same (document, page, test, pass) once
+  -- (on conflict do nothing); a re-read is a later pass and adds its own row.
+  unique (document_id, page_no, test_id, pass),
   check ((status = 'filed') = (revision_id is not null))
 );
 create index reading_proposals_document_status_idx on public.reading_proposals (document_id, status);
@@ -217,7 +228,7 @@ returns trigger language plpgsql set search_path = ''
 as $$
 begin
   if new.machine_value is distinct from old.machine_value or new.extraction_id <> old.extraction_id
-     or new.test_id <> old.test_id or new.item_id_hint is distinct from old.item_id_hint
+     or new.test_id <> old.test_id or new.pass <> old.pass or new.item_id_hint is distinct from old.item_id_hint
      or new.document_id <> old.document_id or new.page_no <> old.page_no then
     raise exception 'what the machine read is never changed' using errcode = 'P0001';
   end if;
