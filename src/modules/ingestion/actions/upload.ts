@@ -18,7 +18,7 @@ export async function startUploadAction(input: StartUploadInput): Promise<StartU
   return result;
 }
 
-/** Activates the document once its object is really there, then queues its job (first step: pdf_text from page 1). */
+/** Activates the document once its object is really there, then queues its job (the first step of its kind). */
 export async function finishUploadAction(documentId: string): Promise<FinishUploadResult> {
   await requireAdmin();
   const db = await createSupabaseServerClient();

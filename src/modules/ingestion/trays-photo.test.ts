@@ -13,7 +13,7 @@ const step = (over: Partial<StepState> = {}): StepState => ({
   kind: "ocr_page", status: "queued", notBefore: EARLIER, waitReason: null, pageNo: 1, lastError: null, everClaimed: true, ...over,
 });
 const doc = (steps: StepState[], over: Partial<DocState> = {}): DocState => ({
-  status: "active", pageCount: 1, pagesRead: 1, scanPages: 0, aiOn: true, pending: 0, flagged: 0, decided: 0, steps, ...over,
+  status: "active", pageCount: 1, pagesRead: 1, scanPages: 0, aiOn: true, photo: true, pending: 0, flagged: 0, decided: 0, steps, ...over,
 });
 
 describe("a photo in the trays", () => {
@@ -32,9 +32,11 @@ describe("a photo in the trays", () => {
 
   it("a vision read that could not finish names page 1 and the reason it stored", () => {
     const stuck = [step({ status: "done" }), step({ kind: "vision_page", status: "needs_attention", lastError: "x" })];
-    expect(trayFor(doc(stuck), NOW, null)).toMatchObject({ tray: "attention", attentionPages: [1], message: "Page 1 could not be read." });
+    expect(trayFor(doc(stuck), NOW, null)).toMatchObject({ tray: "attention", attentionPages: [1], message: "This photo could not be read." });
     const gone = [step({ status: "needs_attention", lastError: IMAGE_NOT_STORED })];
-    expect(trayFor(doc(gone), NOW, null).message).toBe(`Page 1 could not be read. ${IMAGE_NOT_STORED}`);
+    expect(trayFor(doc(gone), NOW, null).message).toBe(`This photo could not be read. ${IMAGE_NOT_STORED}`);
+    // A PDF whose page 1 is stuck still says page 1.
+    expect(trayFor({ ...doc(gone), photo: false }, NOW, null).message).toBe(`Page 1 could not be read. ${IMAGE_NOT_STORED}`);
   });
 
   it("waits on the AI allowance like any page", () => {

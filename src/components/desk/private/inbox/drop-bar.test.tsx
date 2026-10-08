@@ -75,7 +75,7 @@ describe("DropBar", () => {
   });
 
   it("names the earlier upload of the same file and links to it", async () => {
-    mocks.start.mockResolvedValue({ ok: false, code: "upload-duplicate", message: "You uploaded this PDF before. Open the earlier copy.", earlier: { id: "e1", createdAt: "2026-10-03T06:00:00Z" } });
+    mocks.start.mockResolvedValue({ ok: false, code: "upload-duplicate", message: "You uploaded this file before. Open the earlier copy.", earlier: { id: "e1", createdAt: "2026-10-03T06:00:00Z" } });
     render(<DropBar companies={[]} actions={actionsMock()} />);
     await userEvent.upload(input(), file("ar.pdf", 3 * MB));
     const alert = await screen.findByRole("alert");

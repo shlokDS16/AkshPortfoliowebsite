@@ -133,6 +133,20 @@ describe("OCR.space adapter", () => {
   });
 });
 
+describe("redaction before truncation", () => {
+  it("a key that straddles the 300-character cut leaves no fragment", async () => {
+    const key = "K81234567888957";
+    // The key starts 8 characters before the cut: a cut-then-redact order would keep its first 8 characters.
+    const filler = "x ".repeat(146); // 292 characters
+    const message = `${filler}${key} and more text after the key`;
+    const r = await createOcrSpace({ apiKey: key, maxBytes: MAX, fetch: (async () => errored(message)) as unknown as typeof fetch }).read(PDF, { table: true });
+    const text = (r as { message: string }).message;
+    expect(text).not.toContain(key.slice(0, 6));
+    expect(text).not.toContain(key.slice(-6));
+    expect(text.length).toBeLessThanOrEqual(300);
+  });
+});
+
 describe("redact", () => {
   it("removes the exact key, apikey assignments and long mixed tokens, and leaves words and numbers", () => {
     expect(redact(`bad ${KEY} here`, KEY)).toBe("bad [removed] here");

@@ -26,8 +26,9 @@ const QUOTA =
   /quota|rate\s*limit|too\s+many|maximum\s+\d+\s+times|upto\s+maximum|times\s+in\s+\d+\s+seconds|(request|usage|daily|monthly|day|month)[^.]*\blimit|limit[^.]*\b(request|usage|day|month)/i;
 
 /** Quota, key, size and page limits are told apart by the provider's words; anything else is a plain provider error. */
-function classify(message: string): OcrResult {
-  const text = message.slice(0, MESSAGE_MAX);
+function classify(message: string, apiKey: string): OcrResult {
+  // Redact first, then cut: a key that straddles the cut would otherwise leave a fragment nothing recognises.
+  const text = redact(message, apiKey).slice(0, MESSAGE_MAX);
   if (KEY_NAMED.test(message) && KEY_BAD.test(message) && !QUOTA.test(message)) return { kind: "refused", reason: "key", message: text };
   if (SIZE.test(message)) return { kind: "refused", reason: "size", message: text };
   if (PAGES.test(message)) return { kind: "refused", reason: "pages", message: text };
@@ -100,7 +101,7 @@ export function createOcrSpace(opts: OcrSpaceOptions): OcrPort {
         if (status === 413) return { kind: "refused", reason: "size", message: "HTTP 413" };
         if (status === 403 || status === 429) {
           // A 403 is the free plan's quota answer; only a body that names the key as bad changes that.
-          const verdict = classify(await response.text().catch(() => ""));
+          const verdict = classify(await response.text().catch(() => ""), opts.apiKey);
           const reason = verdict.kind === "refused" && verdict.reason === "key" ? "key" : "day";
           return { kind: "refused", reason, message: `HTTP ${status}` };
         }
@@ -114,7 +115,7 @@ export function createOcrSpace(opts: OcrSpaceOptions): OcrPort {
         return { kind: "provider_error", message: "unreadable answer" };
       }
       if (answer.IsErroredOnProcessing === true) {
-        return classify(messageOf(answer.ErrorMessage) || "The scan reader reported an error.");
+        return classify(messageOf(answer.ErrorMessage) || "The scan reader reported an error.", opts.apiKey);
       }
       const results = Array.isArray(answer.ParsedResults) ? answer.ParsedResults : [];
       return { kind: "ok", text: results.map(parsedText).join("\n").trim() };

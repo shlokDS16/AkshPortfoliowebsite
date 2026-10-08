@@ -15,6 +15,9 @@ export type CanvasLike = {
 };
 export type ImageEnv = { decode(file: Blob): Promise<Bitmap>; canvas(): CanvasLike };
 
+/** A picture the browser cannot open (damaged, or a format it does not know). Pending Shlok approval, spec s16.8. */
+export const PHOTO_UNREADABLE = "This photo could not be opened. Try another one.";
+
 export type DownscaleResult = { ok: true; file: File } | { ok: false; message: string };
 
 /** The real browser: createImageBitmap honours the photo's orientation, a canvas draws and encodes it. */
@@ -34,7 +37,7 @@ const jpegName = (name: string) => `${name.replace(/\.[^./\\]+$/, "") || "photo"
 const percent = (fraction: number) => Math.round(fraction * 100);
 
 export async function downscaleImage(file: File, env: ImageEnv = browserImageEnv): Promise<DownscaleResult> {
-  const unreadable: DownscaleResult = { ok: false, message: errorText("upload-unsupported") ?? "" };
+  const unreadable: DownscaleResult = { ok: false, message: PHOTO_UNREADABLE };
   let bitmap: Bitmap;
   try {
     bitmap = await env.decode(file);

@@ -141,6 +141,7 @@ export async function listInbox(
       pagesRead: readCounts.get(d.id) ?? 0,
       scanPages: scans,
       aiOn,
+      photo: d.kind === "image",
       pending: waiting.get(d.id)?.pending ?? 0,
       flagged: waiting.get(d.id)?.flagged ?? 0,
       decided: waiting.get(d.id)?.decided ?? 0,

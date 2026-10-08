@@ -41,7 +41,7 @@ export async function ocrImagePage(ctx: StepContext, doc: DocumentRow): Promise<
     chars = read.text.trim().length;
   }
 
-  const result = { chars, ocr: true as const };
-  if (ctx.deps.llm === null) return { kind: "done", result: { ...result, aiOff: true } };
-  return { kind: "done", result, enqueue: [{ kind: "vision_page", pageNo: PAGE }] };
+  // Always queued, even with AI reading off: vision_page waits (ai_off) and carries on when a key is set. A photo has no page
+  // list to tick later, so skipping the step here would leave it unreadable for good.
+  return { kind: "done", result: { chars, ocr: true as const }, enqueue: [{ kind: "vision_page", pageNo: PAGE }] };
 }

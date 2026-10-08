@@ -274,3 +274,11 @@ Copy (plain second person). "Pending Shlok approval" means the build chose the w
 | Upload refused, any other file (`upload-unsupported`, replaces `upload-not-pdf`) | Drop a PDF, a photo or a voice note. | from ruling R12 (the voice note works from Task 4) |
 | Upload refused, photo too big after shrinking (`upload-image-too-large`) | This photo is still over 1 MB after shrinking; crop it to the table. | from the plan |
 | Needs attention, photo no longer stored | This photo is no longer stored, so it cannot be read. Choose Skip, or Try again. | pending Shlok approval |
+
+Task 3 fix round 1 (2026-10-08, append-only): a photo uploaded while AI reading is off now keeps its `vision_page` step, which waits (`ai_off`) and carries on once a key is set; a photo has no page list to tick, so it could not be queued later. More copy, all pending Shlok approval:
+| Where | Text | Status |
+|---|---|---|
+| `upload-duplicate` (replaces the 2a wording; the card still adds "You uploaded this on 3 Oct." and "Open it") | You uploaded this file before. Open the earlier copy. | pending Shlok approval |
+| Drop bar, section label (screen readers) | Upload a file | pending Shlok approval (was "Upload a PDF") |
+| Upload refused, the browser cannot open the picture | This photo could not be opened. Try another one. | pending Shlok approval |
+| Needs attention, a photo (replaces "Page 1 could not be read.") | This photo could not be read. | pending Shlok approval |

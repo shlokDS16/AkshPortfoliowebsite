@@ -5,7 +5,7 @@ import { DeskError } from "@/lib/errors";
  * Messages never carry data; a duplicate's earlier upload travels as `earlier` and the screen formats it.
  */
 export const DOCUMENT_ERROR_TEXT = {
-  "upload-duplicate": "You uploaded this PDF before. Open the earlier copy.",
+  "upload-duplicate": "You uploaded this file before. Open the earlier copy.",
   "upload-too-large": "Over 50 MB. Upload the financial statements section, or compress the file.",
   "upload-unsupported": "Drop a PDF, a photo or a voice note.",
   "upload-image-too-large": "This photo is still over 1 MB after shrinking; crop it to the table.",

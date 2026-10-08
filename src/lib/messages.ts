@@ -30,7 +30,7 @@ const ERRORS = {
   "name-on-public-item": "A public item names this. Unpublish that item before changing what this name is.",
   "no-figure-date": "This file has no dated figure yet, so there is nothing to set Figures to.",
   // Uploads (= DOCUMENT_ERROR_TEXT in modules/documents/errors.ts; a test keeps them equal).
-  "upload-duplicate": "You uploaded this PDF before. Open the earlier copy.",
+  "upload-duplicate": "You uploaded this file before. Open the earlier copy.",
   "upload-too-large": "Over 50 MB. Upload the financial statements section, or compress the file.",
   "upload-unsupported": "Drop a PDF, a photo or a voice note.",
   "upload-image-too-large": "This photo is still over 1 MB after shrinking; crop it to the table.",

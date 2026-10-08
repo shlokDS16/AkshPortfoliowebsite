@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { IMAGE_MAX_BYTES } from "@/modules/documents/client";
-import { downscaleImage, fitWithin, type CanvasLike, type ImageEnv } from "./downscale";
+import { downscaleImage, fitWithin, PHOTO_UNREADABLE, type CanvasLike, type ImageEnv } from "./downscale";
 
 // jsdom has no canvas: the environment is a mock that records what was drawn and sizes each encoded blob from its quality.
 
@@ -71,6 +71,6 @@ describe("downscaleImage", () => {
 
   it("a file the browser cannot decode is refused with the unsupported sentence", async () => {
     const broken: ImageEnv = { decode: async () => Promise.reject(new Error("bad image")), canvas: () => env(1, 1, () => 1).canvas };
-    expect(await downscaleImage(photo(), broken)).toEqual({ ok: false, message: "Drop a PDF, a photo or a voice note." });
+    expect(await downscaleImage(photo(), broken)).toEqual({ ok: false, message: PHOTO_UNREADABLE });
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createFixtureLlm } from "@/lib/providers/fixture-llm";
 import type { LlmPort } from "@/lib/providers/llm";
 import type { OcrPort, OcrResult } from "@/lib/providers/ocr";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
@@ -9,6 +10,7 @@ import { machineDocuments, type StepDeps } from "../deps";
 import { IMAGE_NOT_STORED, OCR_KEY_REFUSED, OCR_TOO_BIG } from "../ocr-copy";
 import type { Step, StepContext } from "../types";
 import { ocrPage } from "./ocr-page";
+import { visionPage } from "./vision-page";
 
 // ocr_page on a photo (Plan 2b Task 3): the one page is made here, read by the scan reader, and handed to vision_page.
 
@@ -91,9 +93,18 @@ describe("ocr_page on a photo", () => {
     expect(out).toMatchObject({ kind: "done", enqueue: [{ kind: "vision_page", pageNo: 1 }] });
   });
 
-  it("with AI reading off the text is kept and no vision step is queued", async () => {
+  it("with AI reading off the text is kept and the vision step is still queued, so the photo is not stranded", async () => {
     const out = await ocrPage(ctx(setup(), ocrWith(), { llm: null }));
-    expect(out).toEqual({ kind: "done", result: { chars: TEXT.length, ocr: true, aiOff: true } });
+    expect(out).toEqual({ kind: "done", result: { chars: TEXT.length, ocr: true }, enqueue: [{ kind: "vision_page", pageNo: 1 }] });
+  });
+
+  it("turning AI reading on later lets the photo proceed: the queued vision step waits while it is off, then reads", async () => {
+    const repo = setup();
+    await ocrPage(ctx(repo, ocrWith(), { llm: null }));
+    const waiting = await visionPage(ctx(repo, ocrWith(), { llm: null }));
+    expect(waiting).toMatchObject({ kind: "defer", reason: "ai_off" });
+    const out = await visionPage(ctx(repo, ocrWith(), { llm: createFixtureLlm() }));
+    expect(out).toMatchObject({ kind: "done", result: { proposals: 3 } });
   });
 
   it("waits, as every scan does, when scan reading is off", async () => {

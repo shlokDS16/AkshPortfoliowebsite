@@ -14,6 +14,8 @@ export type DocState = {
   /** Pages with under 50 characters of text (the page table's is_scan), whether or not they have been through the scan reader. */
   scanPages: number;
   aiOn: boolean;
+  /** The document is one photo: its sentences say "photo", not "page 1". */
+  photo?: boolean;
   /** Proposals waiting for Aksh's check, and how many of them are flagged. */
   pending: number;
   flagged: number;
@@ -40,6 +42,8 @@ export const PDF_NOT_OPENED_TEXT = "This PDF could not be opened (it may be pass
 export const QUEUED_TEXT = "Queued. Starts within 15 minutes, sooner while this page is open.";
 /** Every figure is decided: the review screen (and Done) is still one click away. Pending Shlok approval (spec s16.5). */
 export const ALL_CHECKED = "All figures checked.";
+/** Pending Shlok approval, spec s16.8. */
+const PHOTO_COULD_NOT_BE_READ = "This photo could not be read.";
 const NO_FIGURES = "Read. No figures matched; open it beside your file.";
 const NO_FIGURES_AI_OFF = "Read. AI reading is off; open it beside your file to enter figures.";
 const CHOOSING = "Choosing the pages to read.";
@@ -94,7 +98,7 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
     let message: string;
     if (whole) message = whole.lastError ?? (whole.kind === "pdf_text" ? PDF_NOT_OPENED_TEXT : "The desk could not choose the pages to read.");
     else {
-      message = `${pages.length === 1 ? "Page" : "Pages"} ${pageList(pages)} could not be read.`;
+      message = d.photo ? PHOTO_COULD_NOT_BE_READ : `${pages.length === 1 ? "Page" : "Pages"} ${pageList(pages)} could not be read.`;
       // Scan pages stored why (too big for the free reader, key refused...): when every stuck page says the same, say it once.
       const notes = new Set(stuck.map((s) => (s.kind === "ocr_page" && s.lastError && OCR_ATTENTION_TEXT.includes(s.lastError) ? s.lastError : null)));
       const note = notes.size === 1 ? [...notes][0] : null;
