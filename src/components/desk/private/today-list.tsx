@@ -3,7 +3,9 @@ import { formatTime } from "@/lib/format";
 import { filingErrorText, parseCapture, type TodayGroup } from "@/modules/capture";
 import type { KnownTokenLists } from "@/modules/catalog";
 import { CaptureText } from "./capture-text";
+import { firstLink } from "./first-link";
 import { toKnownTokens } from "./known-tokens";
+import { ReadLinkButton } from "./read-link-button";
 
 const KIND_WORD = { note: "private note", thesis: "thesis", learning: "learning note", process: "process note" } as const;
 
@@ -33,6 +35,7 @@ export function TodayList({ groups, known }: { groups: TodayGroup[]; known: Know
                     {KIND_WORD[parseCapture(e.rawText).kind]}
                     {e.parseError ? <span className="text-warn"> · {filingErrorText(e.parseError)}</span> : null}
                   </p>
+                  <LinkAction raw={e.rawText} companyId={group.key === "none" ? null : group.key} />
                 </div>
                 <span className="text-small tabular-nums text-ink-muted">{formatTime(e.createdAt)}</span>
               </li>
@@ -42,4 +45,10 @@ export function TodayList({ groups, known }: { groups: TodayGroup[]; known: Know
       ))}
     </div>
   );
+}
+
+/** A capture with a link offers "Read this link": Aksh's click, never automatic (no surprise fetch or spend). */
+function LinkAction({ raw, companyId }: { raw: string; companyId: string | null }) {
+  const link = firstLink(raw);
+  return link ? <ReadLinkButton url={link} companyId={companyId} /> : null;
 }

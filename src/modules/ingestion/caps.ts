@@ -86,3 +86,8 @@ export const WHISPER_TIMEOUT_MS = 90_000;
 export const WHISPER_WAIT = { defaultSeconds: 60, hourAfterSeconds: 600, dayAfterSeconds: 3_600 } as const;
 /** A transcript the card can save as one capture: captures.raw_text allows 20,000 characters (capture/service.ts). */
 export const TRANSCRIPT_SAVE_MAX_CHARS = 20_000;
+
+/** Pasted text and a web page's text are cut into pages of about this many characters (Plan 2b Task 5, spec s6.3 / s16.10). */
+export const TEXT_PAGE_CHARS = 8_000;
+/** text_pages writes this many pages a step, then enqueues itself from the next page (like pdf_text). */
+export const TEXT_PAGES_PER_STEP = 25;

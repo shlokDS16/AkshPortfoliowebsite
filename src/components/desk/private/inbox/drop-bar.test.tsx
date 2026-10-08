@@ -97,7 +97,7 @@ describe("DropBar", () => {
   it("past 90% of the free storage the bar is disabled, says why with the real percentage, and ignores a dropped file", () => {
     render(<DropBar companies={[]} actions={actionsMock()} storageShare={0.91} />);
     expect(input()).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent("Storage is 91% full. Mark finished documents as done to free space.");
+    expect(screen.getAllByRole("status").at(-1)!).toHaveTextContent("Storage is 91% full. Mark finished documents as done to free space.");
     fireEvent.drop(screen.getByText(/or drop one here/).closest("div")!.parentElement!, { dataTransfer: { files: [file("ar.pdf", 3 * MB)] } });
     expect(mocks.hash).not.toHaveBeenCalled();
     expect(mocks.start).not.toHaveBeenCalled();
@@ -143,6 +143,6 @@ describe("DropBar", () => {
   it("takes uploads at 72%", () => {
     render(<DropBar companies={[]} actions={actionsMock()} storageShare={0.72} />);
     expect(input()).toBeEnabled();
-    expect(screen.getByRole("status")).toHaveTextContent("");
+    expect(screen.getAllByRole("status").at(-1)!).toHaveTextContent("");
   });
 });

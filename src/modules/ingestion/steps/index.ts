@@ -3,6 +3,7 @@ import { extractPage } from "./extract-page";
 import { ocrPage } from "./ocr-page";
 import { pdfText } from "./pdf-text";
 import { selectPagesStep } from "./select-pages";
+import { textPages } from "./text-pages";
 import { transcribe } from "./transcribe";
 import { visionPage } from "./vision-page";
 
@@ -16,4 +17,5 @@ export const HANDLERS: Record<StepKind, StepHandler> = {
   ocr_page: ocrPage,
   vision_page: visionPage,
   transcribe,
+  text_pages: textPages,
 };

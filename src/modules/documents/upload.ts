@@ -96,7 +96,7 @@ export async function startUpload(
 }
 
 /** Uploads are refused when they would take storage above 90% (spec s9). */
-async function assertRoomFor(repo: DocumentsRepo, bytes: number): Promise<void> {
+export async function assertRoomFor(repo: DocumentsRepo, bytes: number): Promise<void> {
   const { storageBytes } = await repo.usage();
   if (storageBytes + bytes > STORAGE_REFUSE * STORAGE_BYTES) throw new DocumentError("upload-storage-full");
 }

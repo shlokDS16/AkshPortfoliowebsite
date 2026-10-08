@@ -99,7 +99,8 @@ describe("audio paths", () => {
     expect(mimesOfStoragePath(`${ID}.webm`)).toEqual(["audio/webm"]);
     expect(mimesOfStoragePath(`${ID}.pdf`)).toEqual(["application/pdf"]);
     expect(mimesOfStoragePath(`${ID}.jpg`)).toEqual(["image/jpeg"]);
-    expect(mimesOfStoragePath(`${ID}.txt`)).toEqual([]);
+    expect(mimesOfStoragePath(`${ID}.txt`)).toEqual(["text/plain"]); // a pasted text or a fetched page (Task 5)
+    expect(mimesOfStoragePath(`${ID}.exe`)).toEqual([]);
   });
 
   it("tells the transcriber an .m4a is audio/mp4 and refuses a path that is not a voice note's", () => {

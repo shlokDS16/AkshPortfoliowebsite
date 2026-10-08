@@ -95,6 +95,7 @@ const handlers = (h: Partial<Record<StepKind, StepHandler>>): Record<StepKind, S
   ocr_page: h.ocr_page ?? always({ kind: "done" }),
   vision_page: h.vision_page ?? always({ kind: "done" }),
   transcribe: h.transcribe ?? always({ kind: "done" }),
+  text_pages: h.text_pages ?? always({ kind: "done" }),
 });
 
 describe("drain", () => {

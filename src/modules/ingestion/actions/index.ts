@@ -3,5 +3,7 @@ export { finishUploadAction, startUploadAction } from "./upload";
 export { retryStepAction, setBudgetAction, skipDocumentAction, skipStepAction } from "./inbox";
 export { markDoneAction, unstageAction } from "./staging";
 export { discardTranscriptAction, markTranscriptSavedAction } from "./voice";
+export { startLinkAction, startTextAction } from "./link";
 export { fileUnderAction, resolveFlagAction, saveValuesAction, setDocumentCompanyAction } from "./review";
 export type { ActionFailure, ActionResult, FinishUploadResult, StartUploadResult } from "../upload-flow";
+export type { StartDocumentResult } from "../link-flow";

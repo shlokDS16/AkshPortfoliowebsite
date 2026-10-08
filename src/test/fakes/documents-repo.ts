@@ -10,6 +10,8 @@ export type MemoryDocumentsRepo = DocumentsRepo & {
   pages: Map<string, PageRow>;
   storageBytes: number;
   removed: string[];
+  /** documents.fetched_from by document id, as insertUploading set it. */
+  fetchedFrom: Map<string, string | null>;
   /** The next insert of this hash loses a race: another request inserts the same file first. */
   simulateRace(sha256: string, earlierId: string): void;
 };
@@ -19,6 +21,7 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
   const objects = new Map<string, { size: number; mimetype: string }>();
   const files = new Map<string, Uint8Array>();
   const pages = new Map<string, PageRow>();
+  const fetchedFrom = new Map<string, string | null>();
   const key = (documentId: string, pageNo: number) => `${documentId}:${pageNo}`;
   const forDoc = (documentId: string) =>
     [...pages.values()].filter((p) => p.documentId === documentId).sort((a, b) => a.pageNo - b.pageNo);
@@ -31,6 +34,7 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
     objects,
     files,
     pages,
+    fetchedFrom,
     storageBytes: 0,
     removed: [],
     simulateRace(sha256, earlierId) {
@@ -50,7 +54,9 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
       if ([...docs.values()].some((d) => d.sha256 === row.sha256)) {
         throw new DbError("documents.insertUploading", "23505", "duplicate key value violates unique constraint");
       }
-      docs.set(row.id, { ...blank(row.id, row.sha256, stamp()), ...row, transcriptStatus: row.transcriptStatus ?? null, status: "uploading" });
+      const { fetchedFrom: from, ...rest } = row;
+      fetchedFrom.set(row.id, from ?? null);
+      docs.set(row.id, { ...blank(row.id, row.sha256, stamp()), ...rest, transcriptStatus: row.transcriptStatus ?? null, status: "uploading" });
     },
     async get(id) {
       return docs.get(id) ?? null;
@@ -64,6 +70,11 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
     },
     async signUpload(path) {
       return { path, token: `token-for-${path}` };
+    },
+    async putObject(path, bytes, contentType) {
+      if (objects.has(path)) throw new DbError("documents.putObject", undefined, "The resource already exists");
+      files.set(path, bytes.slice());
+      objects.set(path, { size: bytes.byteLength, mimetype: contentType });
     },
     async objectInfo(path) {
       return objects.get(path) ?? null;

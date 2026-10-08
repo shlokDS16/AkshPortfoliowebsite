@@ -1,4 +1,4 @@
-import { classifyPages, selectPages } from "@/modules/documents";
+import { classifyPages, selectPages, selectTextPages } from "@/modules/documents";
 import { readsScansWhole, stepsForPage } from "../page-steps";
 import type { NewStep, StepHandler } from "../types";
 
@@ -13,10 +13,14 @@ export const selectPagesStep: StepHandler = async ({ documentId, deps }) => {
   const doc = await documents.get(documentId);
   if (!doc) return { kind: "attention", error: DOCUMENT_GONE };
 
-  const pages = await documents.listPagesForSelection(documentId);
+  // Pasted text and a web page are text from the start: no page of them is a scan (a short page is folded into its neighbour),
+  // and Aksh chose them, so a table without a statement heading is read too (ruling R15).
+  const fromText = doc.kind === "text" || doc.kind === "url";
+  const pages = (await documents.listPagesForSelection(documentId)).map((p) => (fromText ? { ...p, isScan: false } : p));
   const verdicts = classifyPages(pages);
   await documents.setVerdicts(documentId, verdicts.filter((v) => v.kind !== "other"));
-  const chosen = selectPages(verdicts, { budget: doc.llmPageBudget, basis: doc.basis });
+  const opts = { budget: doc.llmPageBudget, basis: doc.basis };
+  const chosen = fromText ? selectTextPages(pages, verdicts, opts) : selectPages(verdicts, opts);
   // Pages Aksh already decided on are left alone; the rule's pages (now or from an earlier run) come back.
   const selected = await documents.setSelection(documentId, chosen, "rule");
 

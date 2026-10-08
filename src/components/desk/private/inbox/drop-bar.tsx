@@ -11,6 +11,7 @@ import { hashFile, MAX_UPLOAD_BYTES, STORAGE_REFUSE, VOICE_MAX_BYTES } from "@/m
 import { finishUploadAction, startUploadAction } from "@/modules/ingestion/actions";
 import type { InboxActions } from "./types";
 import { acceptFor } from "./file-kinds";
+import { LinkPaste } from "./link-paste";
 import { uploadFile, type UploadDeps, type UploadStage } from "./upload-file";
 
 export type CompanyOption = { id: string; symbol: string };
@@ -31,7 +32,7 @@ type Notice = { tone: "ok" | "bad"; text: string; earlier?: { id: string; create
 /**
  * Choose or drop a PDF, or a photo or screenshot of a table (shrunk here first), or, only while `voiceOn`, a voice note: it goes
  * straight to Storage with a signed path, then the desk starts reading it (spec s6.2). With voice notes off the bar neither offers
- * nor takes them, and the server refuses one anyway.
+ * nor takes them, and the server refuses one anyway. Below the file chooser a link or some pasted text is read the same way (link-paste.tsx).
  */
 export function DropBar({ companies, actions, storageShare = 0, voiceOn = false }: { companies: CompanyOption[]; actions: Pick<InboxActions, "kick">; storageShare?: number; voiceOn?: boolean }) {
   // Past 90% of the free storage the server refuses every upload (spec s10), so the bar says so instead of letting a file wait for it.
@@ -79,7 +80,7 @@ export function DropBar({ companies, actions, storageShare = 0, voiceOn = false 
   const busy = stage !== null || full;
 
   return (
-    <section aria-label="Upload a file" className="space-y-2">
+    <section aria-label="Add a file, a link or text" className="space-y-2">
       <div
         onDragOver={(e) => (e.preventDefault(), setDragging(true))}
         onDragLeave={() => setDragging(false)}
@@ -101,6 +102,7 @@ export function DropBar({ companies, actions, storageShare = 0, voiceOn = false 
             {voiceOn ? `, or a voice note (MP3, M4A or WebM, up to ${VOICE_MAX_BYTES / 1_000_000} MB).` : "."}
           </p>
         </div>
+        <LinkPaste extras={extras} kick={actions.kick} disabled={busy} />
         <details>
           <summary className="inline-flex min-h-11 cursor-pointer items-center text-small text-ink">Company, filing date and link (optional)</summary>
           <div className="grid gap-3 pt-1 md:grid-cols-3">

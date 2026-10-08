@@ -8,6 +8,7 @@ export type { DocState, Tray, TrayView } from "./trays";
 export { UPLOAD_NOT_FINISHED } from "./trays";
 export { TRANSCRIPT_READY } from "./voice-copy";
 export type { ActionFailure, ActionResult, FinishUploadResult, StartUploadResult } from "./upload-flow";
+export type { StartDocumentResult } from "./link-flow";
 export { FLAGS, machineFactSchema, proposedFactSchema, type Flag, type MachineFact, type ProposedFact } from "./proposed-fact";
 export type {
   EditFields, FileUnderInput, FileUnderResult, ProposalStatus, ProposalView, ResolveInput, ResolveResult, ReviewCounts, ReviewData, SaveValuesResult, ValueDecision,

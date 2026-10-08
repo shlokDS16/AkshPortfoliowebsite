@@ -1,3 +1,4 @@
+import { TEXT_DENSITY_MIN } from "./limits";
 import type { Basis, PageKind } from "./types";
 
 // Which pages the AI reads (spec s6.3): statement headings at the top of the page, number density, the document's
@@ -51,5 +52,25 @@ export function selectPages(verdicts: PageVerdict[], opts: { budget: number; bas
     .sort((a, b) => b.rank - a.rank || a.pageNo - b.pageNo)
     .slice(0, Math.max(0, opts.budget))
     .map((v) => v.pageNo)
+    .sort((a, b) => a - b);
+}
+
+/**
+ * The pages to read of a pasted text or a web page (ruling R15). Aksh chose this text, so besides the statement pages the
+ * rule picks every page where more than TEXT_DENSITY_MIN of the words are numbers, best first within the budget, in page order.
+ * A page that is only dense (no heading) has no stored verdict; the caller passes the pages with isScan false.
+ */
+export function selectTextPages(pages: { pageNo: number; text: string }[], verdicts: PageVerdict[], opts: { budget: number; basis: Basis }): number[] {
+  const verdictOf = new Map(verdicts.map((v) => [v.pageNo, v]));
+  return pages
+    .flatMap((p) => {
+      const v = verdictOf.get(p.pageNo);
+      if (v && v.kind !== "other" && v.score > 0) return [{ pageNo: p.pageNo, rank: v.score + (v.basis === opts.basis ? 20 : v.basis === null ? 5 : -40) }];
+      const density = numberDensity(p.text);
+      return density > TEXT_DENSITY_MIN ? [{ pageNo: p.pageNo, rank: density * 50 }] : [];
+    })
+    .sort((a, b) => b.rank - a.rank || a.pageNo - b.pageNo)
+    .slice(0, Math.max(0, opts.budget))
+    .map((r) => r.pageNo)
     .sort((a, b) => a - b);
 }

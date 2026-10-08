@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { fixturePdfBytes } from "@/test/fixtures/pdf";
 import { closePdf, openPdf, pageText } from "./pages";
-import { classifyPages, selectPages, type PageVerdict } from "./selector";
+import { classifyPages, selectPages, selectTextPages, type PageVerdict } from "./selector";
 
 type Page = { pageNo: number; text: string; isScan: boolean };
 // The database's rule (document_pages.is_scan): under 50 characters of text is a scan, read by OCR in Plan 2b.
@@ -80,5 +80,42 @@ describe("selectPages", () => {
     const verdicts = classifyPages([scan, ...fixture.filter((p) => p.pageNo !== 4)]);
     expect(selectPages(verdicts, { budget: 20, basis: "consolidated" })).not.toContain(4);
     expect(selectPages(classifyPages(fixture), { budget: 0, basis: "consolidated" })).toEqual([]);
+  });
+});
+
+describe("selectTextPages (ruling R15: Aksh chose this text, so a table is read even with no statement heading)", () => {
+  const table = "Quarterly results\nRevenue from operations 1,284.00 1,102.00\nFinance costs 41.20 38.90\nProfit for the year 152.60 118.30";
+  const prose = "Management spoke to analysts about demand in the quarter and said the order book looks healthy for the year ahead overall.";
+  const heading = "Statement of Profit and Loss for the year ended March 31, 2026\nRevenue from operations 1,284.00 1,102.00";
+  const pick = (texts: string[], budget = 20) => {
+    const pages = texts.map((text, i) => ({ pageNo: i + 1, text, isScan: false }));
+    return selectTextPages(pages, classifyPages(pages), { budget, basis: "consolidated" });
+  };
+
+  it("selects a pasted table that has no statement heading", () => {
+    expect(pick([table])).toEqual([1]);
+  });
+
+  it("selects a page with a statement heading and leaves prose alone", () => {
+    expect(pick([prose, heading, prose])).toEqual([2]);
+  });
+
+  it("needs number density above 0.15: 3 numbers in 19 words (0.158) is read, 3 in 21 (0.143) is not", () => {
+    const words = (n: number) => Array.from({ length: n }, () => "word").join(" ");
+    expect(pick([`${words(16)} 1,234 5,678 9,012`])).toEqual([1]);
+    expect(pick([`${words(18)} 1,234 5,678 9,012`])).toEqual([]);
+  });
+
+  it("takes the best pages first within the budget, in page order: headings, then the densest tables", () => {
+    const dense = "1,284.00 1,102.00 41.20 38.90 152.60 118.30 Revenue Costs";
+    const thin = "Revenue 1,284.00 for the year in the quarter and the half and all of it was good news for us";
+    expect(pick([thin, heading, dense, prose], 2)).toEqual([2, 3]);
+    expect(pick([thin, heading, dense, prose], 1)).toEqual([2]);
+    expect(pick([thin, heading, dense, prose], 0)).toEqual([]);
+  });
+
+  it("does not let a short page count as a scan: text pages are never held back for OCR", () => {
+    const pages = [{ pageNo: 1, text: "1,284.00 1,102.00", isScan: false }];
+    expect(selectTextPages(pages, classifyPages(pages), { budget: 5, basis: "consolidated" })).toEqual([1]);
   });
 });

@@ -40,3 +40,19 @@ export const VOICE_MAX_MINUTES = VOICE_MAX_SECONDS / 60;
 
 /** PostgREST returns at most this many rows a request (Supabase default max_rows): a longer read goes in ranges. */
 export const POSTGREST_ROWS = 1_000;
+
+/** A link the desk opens for Aksh (Plan 2b Task 5): at most this many bytes, the same 50 MB as an upload. */
+export const LINK_MAX_BYTES = MAX_UPLOAD_BYTES;
+/** One link fetch, every redirect included, is cut off after this long. */
+export const LINK_TIMEOUT_MS = 30_000;
+/** A link may send the desk on to at most this many other addresses; each is checked from scratch. */
+export const LINK_MAX_REDIRECTS = 2;
+/**
+ * Pasted text, or the text of a web page, is kept up to this many characters (a server action body is 1 MB by default, and
+ * 25 pages of 8,000 characters is far more than a results table needs). Longer text is refused, not cut.
+ */
+export const TEXT_MAX_CHARS = 200_000;
+/** Text shorter than this is too little to read; it is also ingestion's READABLE_CHARS (a test keeps them equal). */
+export const TEXT_MIN_CHARS = 50;
+/** Pasted text or a web page has no statement heading to go by: a page with more than this share of number tokens is read for figures (ruling R15). */
+export const TEXT_DENSITY_MIN = 0.15;

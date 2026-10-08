@@ -12,12 +12,15 @@ export type ActionResult = { ok: true } | ActionFailure;
 
 /**
  * The job and first step of each kind (ruling R12): a PDF's text layer from page 1 (spec s5); a photo goes to the scan
- * reader first, as its one page; a voice note is typed out from its page 1. Links and pasted text join with their own tasks.
+ * reader first, as its one page; a voice note is typed out from its page 1; a web page and pasted text are cut into pages from page 1.
  */
 export const FIRST_STEP: Partial<Record<DocumentKind, { job: JobKind; step: NewStep }>> = {
   pdf: { job: "ingest_pdf", step: { kind: "pdf_text", pageNo: 1 } },
   image: { job: "ingest_image", step: { kind: "ocr_page", pageNo: 1 } },
   audio: { job: "ingest_audio", step: { kind: "transcribe", pageNo: 1 } },
+  // A fetched web page and pasted text are stored as text and cut into pages (ruling R1); a fetched PDF is a pdf.
+  url: { job: "ingest_url", step: { kind: "text_pages", pageNo: 1 } },
+  text: { job: "ingest_text", step: { kind: "text_pages", pageNo: 1 } },
 };
 
 /** A recording's length as the browser measured it, kept on its first step to size the reservation. A claim, so only a plain positive number passes. */

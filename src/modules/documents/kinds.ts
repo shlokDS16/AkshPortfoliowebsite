@@ -1,5 +1,5 @@
 // What the desk accepts as an upload, per kind (ruling R12). Browser-safe: the drop bar and the server read the same table.
-// Links join in a later task; a pasted text or a link answer is stored by the desk itself, never uploaded.
+// A pasted text or a link's answer (kinds url and text) is stored by the desk itself, never uploaded by the browser (store.ts).
 
 import { IMAGE_MAX_BYTES, MAX_UPLOAD_BYTES, VOICE_MAX_BYTES } from "./limits";
 
@@ -10,6 +10,8 @@ export type UploadKind = "pdf" | "image" | "audio";
 export const IMAGE_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
 export type ImageMime = (typeof IMAGE_MIMES)[number];
 export const PDF_MIME = "application/pdf";
+/** A pasted text, or a web page reduced to its text, is stored as <id>.txt with this bare type. */
+export const TEXT_MIME = "text/plain";
 /** Voice notes (ruling R23): bare types, `audio/x-m4a` included (some phones and Chrome name an .m4a that way). */
 export const AUDIO_MIMES = ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/webm"] as const;
 export type AudioMime = (typeof AUDIO_MIMES)[number];
@@ -48,6 +50,7 @@ export function audioMimeOfPath(path: string): AudioMime | null {
 /** The types a stored object may have, by its path's extension (what finishUpload compares the stored object with). An .m4a has two names. */
 export function mimesOfStoragePath(path: string): readonly string[] {
   if (path.endsWith(".pdf")) return [PDF_MIME];
+  if (path.endsWith(".txt")) return [TEXT_MIME];
   const image = imageMimeOfPath(path);
   if (image) return [image];
   const ext = /\.([a-z0-9]+)$/.exec(path)?.[1];

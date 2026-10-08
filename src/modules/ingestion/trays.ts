@@ -125,7 +125,7 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
   // A deferred or backing-off step has no lease again, so only a document whose steps were all never picked up is "waiting".
   if (!d.steps.some((s) => s.everClaimed)) return view("waiting", QUEUED_TEXT);
 
-  if (unfinished.some((s) => s.kind === "pdf_text")) {
+  if (unfinished.some((s) => s.kind === "pdf_text" || s.kind === "text_pages")) {
     const at = Math.max(1, d.pagesRead);
     return view("reading", d.pageCount === null ? `Reading page ${at}` : `Reading page ${at} of ${d.pageCount}`);
   }

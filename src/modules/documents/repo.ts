@@ -27,8 +27,10 @@ export interface DocumentsRepo {
   /** `status` lets an upload that never finished be resumed instead of refused as a duplicate. */
   findBySha(sha256: string): Promise<{ id: string; createdAt: string; status: DocumentStatus } | null>;
   insertUploading(row: {
-    id: string; title: string; kind: "pdf" | "image" | "audio"; storagePath: string; sha256: string; bytes: number;
+    id: string; title: string; kind: DocumentKind; storagePath: string; sha256: string; bytes: number;
     companyId: string | null; filedOn: string | null; sourceUrl: string | null;
+    /** The https link a url or fetched-PDF document came from; set here and never changed (no UPDATE grant). */
+    fetchedFrom?: string | null;
     /** 'pending' for a voice note (its transcript waits for Aksh), else null. */
     transcriptStatus?: TranscriptStatus | null;
   }): Promise<void>;
@@ -36,6 +38,8 @@ export interface DocumentsRepo {
   update(id: string, patch: DocumentPatch): Promise<void>;
   usage(): Promise<{ storageBytes: number; databaseBytes: number }>;
   signUpload(path: string): Promise<{ path: string; token: string }>;
+  /** Stores bytes the server holds (a fetched PDF, a text) at a path it chose, on the admin's session. Never overwrites. */
+  putObject(path: string, bytes: Uint8Array, contentType: string): Promise<void>;
   objectInfo(path: string): Promise<{ size: number; mimetype: string } | null>;
   removeObject(path: string): Promise<void>;
   listForCompany(companyId: string): Promise<DocumentListItem[]>;
@@ -126,6 +130,7 @@ export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
         filed_on: row.filedOn,
         source_url: row.sourceUrl,
         transcript_status: row.transcriptStatus ?? null,
+        fetched_from: row.fetchedFrom ?? null,
         status: "uploading",
       });
       if (error) throw dbError("documents.insertUploading", error);
@@ -153,6 +158,10 @@ export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
       const { data, error } = await db.storage.from(BUCKET).createSignedUploadUrl(path);
       if (error) throw dbError("documents.signUpload", { message: error.message });
       return { path: data.path, token: data.token };
+    },
+    async putObject(path, bytes, contentType) {
+      const { error } = await db.storage.from(BUCKET).upload(path, bytes, { contentType, upsert: false });
+      if (error) throw dbError("documents.putObject", { message: error.message });
     },
     async objectInfo(path) {
       const { data, error } = await db.storage.from(BUCKET).list("", { search: path, limit: 1 });

@@ -132,7 +132,7 @@ export async function listInbox(
 
   // How far the PDF read has got: the pages stored so far, asked only of documents still being read.
   const reading = new Set(
-    [...stepsOf].filter(([, steps]) => steps.some((s) => s.kind === "pdf_text" && (s.status === "queued" || s.status === "running"))).map(([id]) => id),
+    [...stepsOf].filter(([, steps]) => steps.some((s) => (s.kind === "pdf_text" || s.kind === "text_pages") && (s.status === "queued" || s.status === "running"))).map(([id]) => id),
   );
   const readCounts = new Map<string, number>();
   await Promise.all(

@@ -21,5 +21,13 @@
     "rows": [
       { "label": "Trade receivables", "current_text": "210.40", "prior_text": "188.10", "line": "Trade receivables 210.40 188.10" },
       { "label": "Inventories", "current_text": "305.00", "prior_text": "251.70", "line": "Inventories 305.00 251.70" }
+    ] } },
+  { "when": "Quarterly results table", "output": {
+    "page_kind": "pl", "basis": "consolidated", "unit_header": "(Rs. in crore)",
+    "current_header": "Quarter ended June 30, 2026", "prior_header": "Quarter ended June 30, 2025",
+    "rows": [
+      { "label": "Revenue from operations", "current_text": "412.60", "prior_text": "371.20", "line": "Revenue from operations 412.60 371.20" },
+      { "label": "Finance costs", "current_text": "12.40", "prior_text": "13.10", "line": "Finance costs 12.40 13.10" },
+      { "label": "Profit for the quarter", "current_text": "38.90", "prior_text": "31.50", "line": "Profit for the quarter 38.90 31.50" }
     ] } }
 ]
