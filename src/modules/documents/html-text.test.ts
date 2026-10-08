@@ -63,6 +63,13 @@ describe("htmlToText: the visible text of a page", () => {
     expect(Date.now() - started).toBeLessThan(2000);
   });
 
+  it("keeps tag positions right after letters that change length when lower-cased (U+0130), so script and style stay hidden", () => {
+    const dotted = "İ".repeat(40);
+    expect(htmlToText(`<p>${dotted}</p><script>var secret = "SCRIPT TEXT";</script><p>Revenue 412.60</p>`).text).toBe(`${dotted}\nRevenue 412.60`);
+    expect(htmlToText(`<p>İİİ</p><style>td{color:red}</style><p>Revenue 412.60</p>`).text).toBe("İİİ\nRevenue 412.60");
+    expect(htmlToText(`<p>${dotted}</p><TITLE>Q1</TITLE><SCRIPT>hidden()</SCRIPT><p>x</p>`)).toEqual({ title: "Q1", text: `${dotted}\nx` });
+  });
+
   it("reads text with no tags as it is", () => {
     expect(htmlToText("just words").text).toBe("just words");
   });

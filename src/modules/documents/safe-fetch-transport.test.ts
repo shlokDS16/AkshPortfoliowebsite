@@ -27,7 +27,7 @@ function fakeHttps(status: number, headers: Record<string, string>, payload: Buf
   return seen;
 }
 
-const run = (url = "https://www.bseindia.com/xml-data/a.pdf?x=1") => httpsTransport({ url: new URL(url), address: PINNED, signal: new AbortController().signal });
+const run = (url = "https://www.bseindia.com/xml-data/a.pdf?x=1") => httpsTransport({ url: new URL(url), addresses: [PINNED], signal: new AbortController().signal });
 
 async function text(body: AsyncIterable<Uint8Array>): Promise<string> {
   const parts: Buffer[] = [];
@@ -39,7 +39,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("pinnedLookup", () => {
   it("answers with the vetted address whatever name it is asked for (a second resolution cannot swap it)", () => {
-    const lookup = pinnedLookup(PINNED);
+    const lookup = pinnedLookup([PINNED]);
     const single = vi.fn();
     lookup("anything.example", {}, single);
     expect(single).toHaveBeenCalledWith(null, "93.184.216.34", 4);
@@ -49,6 +49,19 @@ describe("pinnedLookup", () => {
     const none = vi.fn();
     lookup("x.example", undefined, none);
     expect(none).toHaveBeenCalledWith(null, "93.184.216.34", 4);
+  });
+});
+
+describe("pinnedLookup with several vetted addresses", () => {
+  it("offers all of them when Node asks for all (so it can fall back to the next family), and the first otherwise", () => {
+    const v6 = { address: "2606:2800:220:1::1", family: 6 as const };
+    const lookup = pinnedLookup([PINNED, v6]);
+    const all = vi.fn();
+    lookup("x.example", { all: true }, all);
+    expect(all).toHaveBeenCalledWith(null, [{ address: "93.184.216.34", family: 4 }, { address: "2606:2800:220:1::1", family: 6 }]);
+    const single = vi.fn();
+    lookup("x.example", {}, single);
+    expect(single).toHaveBeenCalledWith(null, "93.184.216.34", 4);
   });
 });
 
@@ -95,7 +108,7 @@ describe("httpsTransport", () => {
 
   it("brackets are not part of an IPv6 literal host, and an address literal sends no server name", async () => {
     const seen = fakeHttps(200, {}, Buffer.from("x"));
-    await httpsTransport({ url: new URL("https://[2606:4700:4700::1111]/a"), address: { address: "2606:4700:4700::1111", family: 6 }, signal: new AbortController().signal });
+    await httpsTransport({ url: new URL("https://[2606:4700:4700::1111]/a"), addresses: [{ address: "2606:4700:4700::1111", family: 6 }], signal: new AbortController().signal });
     expect(seen.options).toMatchObject({ host: "2606:4700:4700::1111", port: 443 });
     expect(seen.options?.servername).toBeUndefined();
   });

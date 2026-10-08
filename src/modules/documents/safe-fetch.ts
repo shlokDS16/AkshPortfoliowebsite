@@ -16,8 +16,11 @@ import { httpsTransport, systemResolver } from "./safe-fetch-transport";
 
 export type Address = { address: string; family: 4 | 6 };
 export type Resolver = (hostname: string) => Promise<Address[]>;
-/** What the transport may use: the page to GET, the vetted address to connect to, and the abort signal. Nothing else. */
-export type TransportRequest = { url: URL; address: Address; signal: AbortSignal };
+/**
+ * What the transport may use: the page to GET, the vetted addresses to connect to (all checked, IPv4 first, so a host without
+ * working IPv6 still connects), and the abort signal. Nothing else.
+ */
+export type TransportRequest = { url: URL; addresses: Address[]; signal: AbortSignal };
 export type TransportResponse = {
   status: number;
   /** Lower-case header names. */
@@ -50,15 +53,16 @@ function parseLink(raw: string): URL {
   return url;
 }
 
-/** The address to connect to: the host's own address when it is one, else the resolver's answer. Every address must be public. */
-async function vetHost(url: URL, resolve: Resolver, signal: AbortSignal): Promise<Address> {
+/** The addresses to connect to: the host's own address when it is one, else the resolver's answers. Every address must be public. */
+async function vetHost(url: URL, resolve: Resolver, signal: AbortSignal): Promise<Address[]> {
   const host = url.hostname.replace(/^\[|\]$/g, "");
   const kind = isIP(host);
   const answers = kind === 0 ? await raceAbort(resolve(host), signal) : [{ address: host, family: kind === 6 ? (6 as const) : (4 as const) }];
   if (answers.length === 0) throw new DocumentError("link-failed");
   // One private answer refuses the host, whatever the other answers are.
   if (answers.some((a) => isBlockedAddress(a.address))) throw new DocumentError("link-blocked");
-  return answers[0];
+  // IPv4 first (stable order within a family): the connection tries the next address if the first cannot be reached.
+  return [...answers.filter((a) => a.family === 4), ...answers.filter((a) => a.family !== 4)];
 }
 
 function aborted(): Error {
@@ -122,8 +126,8 @@ export async function safeFetch(link: string, deps: SafeFetchDeps = {}): Promise
   try {
     let url = parseLink(link);
     for (let redirects = 0; ; redirects += 1) {
-      const address = await vetHost(url, resolve, signal);
-      const res = await raceAbort(transport({ url, address, signal }), signal);
+      const addresses = await vetHost(url, resolve, signal);
+      const res = await raceAbort(transport({ url, addresses, signal }), signal);
       if (REDIRECTS.has(res.status)) {
         res.close();
         if (redirects >= LINK_MAX_REDIRECTS) throw new DocumentError("link-redirects");
@@ -135,7 +139,13 @@ export async function safeFetch(link: string, deps: SafeFetchDeps = {}): Promise
         } catch {
           throw new DocumentError("link-failed");
         }
-        url = parseLink(next); // from scratch: scheme, credentials, port, then the address on the next loop
+        // From scratch: scheme, credentials, port, then the address on the next loop. A refused target is not Aksh's typing,
+        // so it is "could not open", not "use a full link".
+        try {
+          url = parseLink(next);
+        } catch {
+          throw new DocumentError("link-failed");
+        }
         continue;
       }
       if (res.status < 200 || res.status >= 300) {
@@ -146,7 +156,10 @@ export async function safeFetch(link: string, deps: SafeFetchDeps = {}): Promise
     }
   } catch (error) {
     if (error instanceof DocumentError) throw error;
-    // The reason (a refused connection, a bad certificate, a reset) is not shown: it can name an address.
+    // The reason (a refused connection, a bad certificate, a reset) is not shown: it can name an address. The server log gets the
+    // error's class and code only, never its message, the link or an address, so a real site's refusal leaves a trace.
+    const code = (error as { code?: unknown } | null)?.code;
+    console.error("link fetch failed", error instanceof Error ? error.name : "unknown", typeof code === "string" ? code : "no code");
     throw new DocumentError(signal.aborted ? "link-timeout" : "link-failed");
   } finally {
     clearTimeout(timer);

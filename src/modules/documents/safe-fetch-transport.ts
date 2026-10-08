@@ -17,14 +17,14 @@ export const systemResolver: Resolver = async (hostname) => {
 type LookupCallback = (error: Error | null, address: string | { address: string; family: number }[], family?: number) => void;
 
 /**
- * A `lookup` for net.connect that ignores the name it is asked about and answers with the vetted address, in whichever shape
- * the caller asks for (`all` is set when Node tries several families). The socket therefore connects to the address that was
- * checked: no second resolution can swap it (DNS rebinding).
+ * A `lookup` for net.connect that ignores the name it is asked about and answers with the vetted addresses, in whichever shape
+ * the caller asks for (`all` is set when Node tries several families, and then falls back to the next one). The socket therefore
+ * connects only to addresses that were checked: no second resolution can swap them (DNS rebinding).
  */
-export function pinnedLookup(pinned: Address) {
+export function pinnedLookup(pinned: Address[]) {
   return (_hostname: string, options: { all?: boolean } | undefined, callback: LookupCallback): void => {
-    if (options?.all) callback(null, [{ address: pinned.address, family: pinned.family }]);
-    else callback(null, pinned.address, pinned.family);
+    if (options?.all) callback(null, pinned.map((a) => ({ address: a.address, family: a.family })));
+    else callback(null, pinned[0].address, pinned[0].family);
   };
 }
 
@@ -49,7 +49,7 @@ function decoded(res: Readable, encoding: string | undefined): Readable | null {
 const first = (value: string | string[] | undefined): string | undefined => (Array.isArray(value) ? value[0] : value);
 
 /** One GET over TLS to port 443 of the vetted address. Certificates are checked as Node does by default. */
-export const httpsTransport: Transport = ({ url, address, signal }) =>
+export const httpsTransport: Transport = ({ url, addresses, signal }) =>
   new Promise<TransportResponse>((resolve, reject) => {
     const host = url.hostname.replace(/^\[|\]$/g, "");
     const request = https.request(
@@ -59,7 +59,7 @@ export const httpsTransport: Transport = ({ url, address, signal }) =>
         path: `${url.pathname}${url.search}`,
         method: "GET",
         headers: REQUEST_HEADERS,
-        lookup: pinnedLookup(address),
+        lookup: pinnedLookup(addresses),
         // The name goes in the TLS handshake (SNI) and the Host header; an address literal has no name to send.
         servername: isIP(host) ? undefined : host,
         agent: false,

@@ -35,6 +35,9 @@ async function read<T>(label: string, load: () => Promise<T>, fallback: T): Prom
 
 const firstLine = (text: string) => Array.from(text.split("\n")[0]).slice(0, 120).join("");
 
+// "Read this link" in the Today list runs its fetch (up to 30 s) and storage on this route, like the inbox page does.
+export const maxDuration = 300;
+
 export default async function DeskHome({ searchParams }: { searchParams: Promise<{ error?: string; notice?: string }> }) {
   await requireAdmin();
   const { error, notice } = await searchParams;

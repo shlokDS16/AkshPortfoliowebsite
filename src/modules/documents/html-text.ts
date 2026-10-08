@@ -56,7 +56,9 @@ function tidy(raw: string): string {
 
 /** `title` is the page's <title> (decoded, null when it has none); `text` is the visible text, one line per block or table row, no blank lines. */
 export function htmlToText(html: string): { title: string | null; text: string } {
-  const lower = html.toLowerCase();
+  // An ASCII-only fold keeps every index the same as in `html`: toLowerCase changes the length of some letters (U+0130 becomes two
+  // code units), which would move the positions of </script and </style and let hidden text through.
+  const lower = html.replace(/[A-Z]+/g, (s) => s.toLowerCase());
   const out: string[] = [];
   let title: string | null = null;
   let i = 0;

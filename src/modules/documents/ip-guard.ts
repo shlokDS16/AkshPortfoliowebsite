@@ -75,6 +75,8 @@ function blockedV6(g: number[]): boolean {
   if (zeroUpTo(6)) return true; // ::/96: the unspecified address, ::1 and the old IPv4-compatible form
   if ((g[0] & 0xfe00) === 0xfc00) return true; // fc00::/7 unique local
   if ((g[0] & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+  if ((g[0] & 0xffc0) === 0xfec0) return true; // fec0::/10 site-local (deprecated)
+  if (zeroUpTo(4) && g[4] === 0xffff && g[5] === 0) return true; // ::ffff:0:0:0/96 SIIT translated IPv4
   if ((g[0] & 0xff00) === 0xff00) return true; // ff00::/8 multicast
   if (g[0] === 0x64 && g[1] === 0xff9b) return true; // 64:ff9b::/96 and 64:ff9b:1::/48 NAT64
   if (g[0] === 0x2001 && (g[1] === 0x0db8 || g[1] === 0)) return true; // 2001:db8::/32 documentation, 2001::/32 Teredo
