@@ -37,7 +37,7 @@ function buildDeps(): DrainDeps {
     llm: buildLlm(),
     ocr: buildOcr(),
     transcriber: buildTranscriber(),
-    models: { text: serverEnv().GROQ_MODEL_TEXT, vision: serverEnv().GROQ_MODEL_VISION, whisper: serverEnv().GROQ_MODEL_WHISPER },
+    models: { text: serverEnv().GROQ_MODEL_TEXT, vision: serverEnv().GROQ_MODEL_VISION, classify: serverEnv().GROQ_MODEL_CLASSIFY, whisper: serverEnv().GROQ_MODEL_WHISPER },
     // Built once per drain; handlers use only these (ruling R7). The documents surface has no update.
     repos: {
       documents: machineDocuments(createSupabaseDocumentsRepo(db)),

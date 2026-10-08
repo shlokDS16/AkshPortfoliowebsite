@@ -192,7 +192,7 @@ describe("runStartText", () => {
 describe("pasted text of a results table yields proposals with the fixture LLM", () => {
   const stepCtx = (docs: ReturnType<typeof createMemoryDocumentsRepo>, proposals: ReturnType<typeof createMemoryProposalsRepo>, step: Partial<Step>): StepContext => {
     const deps: StepDeps = {
-      llm: createFixtureLlm(), ocr: null, transcriber: null, models: { text: "t", vision: "v", whisper: "w" },
+      llm: createFixtureLlm(), ocr: null, transcriber: null, models: { text: "t", vision: "v", classify: "c", whisper: "w" },
       repos: { documents: machineDocuments(docs), usage: createMemoryUsageRepo(), proposals, research: createMemoryResearch() },
       now: () => new Date(T0), clock: () => T0,
     };

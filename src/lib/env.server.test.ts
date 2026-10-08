@@ -74,6 +74,12 @@ describe("parseServerEnv: the LLM settings (optional; unset means AI reading is 
     expect(parseServerEnv({ ...valid, GROQ_MODEL_TEXT: "openai/gpt-oss-20b" }).GROQ_MODEL_TEXT).toBe("openai/gpt-oss-20b");
   });
 
+  it("defaults GROQ_MODEL_CLASSIFY to openai/gpt-oss-20b, also when the template leaves it empty", () => {
+    expect(parseServerEnv(valid).GROQ_MODEL_CLASSIFY).toBe("openai/gpt-oss-20b");
+    expect(parseServerEnv({ ...valid, GROQ_MODEL_CLASSIFY: "" }).GROQ_MODEL_CLASSIFY).toBe("openai/gpt-oss-20b");
+    expect(parseServerEnv({ ...valid, GROQ_MODEL_CLASSIFY: "other/model" }).GROQ_MODEL_CLASSIFY).toBe("other/model");
+  });
+
   it("defaults GROQ_MODEL_WHISPER to Whisper large v3 turbo, also when the template leaves it empty", () => {
     expect(parseServerEnv(valid).GROQ_MODEL_WHISPER).toBe("whisper-large-v3-turbo");
     expect(parseServerEnv({ ...valid, GROQ_MODEL_WHISPER: "" }).GROQ_MODEL_WHISPER).toBe("whisper-large-v3-turbo");

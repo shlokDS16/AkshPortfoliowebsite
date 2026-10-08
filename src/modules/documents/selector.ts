@@ -1,4 +1,4 @@
-import { TEXT_DENSITY_MIN } from "./limits";
+import { DOUBTFUL_DENSITY_MIN, DOUBTFUL_MAX_PAGES, TEXT_DENSITY_MIN } from "./limits";
 import type { Basis, PageKind } from "./types";
 
 // Which pages the AI reads (spec s6.3): statement headings at the top of the page, number density, the document's
@@ -20,6 +20,7 @@ const numberDensity = (text: string): number => {
   if (tokens.length === 0) return 0;
   return tokens.filter((t) => /^\(?-?[\d,]+(?:\.\d+)?\)?$/.test(t)).length / tokens.length;
 };
+const headingHits = (text: string): number => HEADINGS.filter(([, re]) => re.test(text)).length;
 const basisOf = (head: string): Basis | null =>
   /\bconsolidated\b/i.test(head) ? "consolidated" : /\bstandalone\b/i.test(head) ? "standalone" : null;
 
@@ -28,7 +29,7 @@ export function classifyPages(pages: { pageNo: number; text: string; isScan: boo
   for (const p of pages) {
     const head = p.text.slice(0, HEAD);
     const density = numberDensity(p.text);
-    const hits = HEADINGS.filter(([, re]) => re.test(p.text)).length;
+    const hits = headingHits(p.text);
     const top = HEADINGS.find(([, re]) => re.test(head));
     const prev = out[out.length - 1];
     let verdict: PageVerdict = { pageNo: p.pageNo, kind: "other", basis: basisOf(head), score: 0 };
@@ -73,4 +74,26 @@ export function selectTextPages(pages: { pageNo: number; text: string }[], verdi
     .slice(0, Math.max(0, opts.budget))
     .map((r) => r.pageNo)
     .sort((a, b) => a - b);
+}
+
+/**
+ * The pages the rules could not place and the small model may (ruling R16): the rules said 'other', the page is not a scan,
+ * it is not a contents page (fewer than 3 statement headings) and more than DOUBTFUL_DENSITY_MIN of its words are numbers.
+ * At most DOUBTFUL_MAX_PAGES, the densest first, returned in page order.
+ */
+export function doubtfulPages(pages: { pageNo: number; text: string; isScan: boolean }[], verdicts: PageVerdict[]): number[] {
+  const kindOf = new Map(verdicts.map((v) => [v.pageNo, v.kind]));
+  return pages
+    .filter((p) => !p.isScan && kindOf.get(p.pageNo) === "other" && headingHits(p.text) < 3)
+    .map((p) => ({ pageNo: p.pageNo, density: numberDensity(p.text) }))
+    .filter((p) => p.density > DOUBTFUL_DENSITY_MIN)
+    .sort((a, b) => b.density - a.density || a.pageNo - b.pageNo)
+    .slice(0, DOUBTFUL_MAX_PAGES)
+    .map((p) => p.pageNo)
+    .sort((a, b) => a - b);
+}
+
+/** A model verdict worth keeping (confidence already checked): 20 + 20 x confidence, below any heading page's 40 plus its density. */
+export function modelVerdict(page: { pageNo: number; text: string }, kind: Exclude<PageKind, "other">, confidence: number): PageVerdict {
+  return { pageNo: page.pageNo, kind, basis: basisOf(page.text.slice(0, HEAD)), score: 20 + 20 * confidence };
 }

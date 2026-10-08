@@ -36,7 +36,7 @@ function ctx(repo: MemoryDocumentsRepo, step: Partial<Step>, opts: { clock?: () 
     llm: opts.llm === undefined ? null : opts.llm,
     ocr: null,
     transcriber: null,
-    models: { text: "test-model", vision: "test-vision", whisper: "test-whisper" },
+    models: { text: "test-model", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
     repos: {
       documents: machineDocuments(repo),
       usage: createMemoryUsageRepo(),

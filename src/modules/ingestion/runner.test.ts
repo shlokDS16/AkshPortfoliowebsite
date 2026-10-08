@@ -24,7 +24,7 @@ function deps(time = fakeTime()): DrainDeps {
     llm: null,
     ocr: null,
     transcriber: null,
-    models: { text: "test-model", vision: "test-vision", whisper: "test-whisper" },
+    models: { text: "test-model", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
     repos: {
       documents: machineDocuments(createMemoryDocumentsRepo()),
       usage: createMemoryUsageRepo(),
@@ -96,6 +96,7 @@ const handlers = (h: Partial<Record<StepKind, StepHandler>>): Record<StepKind, S
   vision_page: h.vision_page ?? always({ kind: "done" }),
   transcribe: h.transcribe ?? always({ kind: "done" }),
   text_pages: h.text_pages ?? always({ kind: "done" }),
+  classify_pages: h.classify_pages ?? always({ kind: "done" }),
 });
 
 describe("drain", () => {

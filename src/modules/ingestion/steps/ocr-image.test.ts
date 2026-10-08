@@ -41,7 +41,7 @@ function ctx(repo: MemoryDocumentsRepo, ocr: OcrPort | null, opts: { llm?: LlmPo
     llm: opts.llm === undefined ? fakeLlm : opts.llm,
     ocr,
     transcriber: null,
-    models: { text: "test-model", vision: "test-vision", whisper: "test-whisper" },
+    models: { text: "test-model", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
     repos: { documents: machineDocuments(repo), usage: opts.usage ?? createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
     now: () => new Date(T0),
     clock: () => T0,

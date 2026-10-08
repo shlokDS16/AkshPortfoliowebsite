@@ -13,5 +13,5 @@ export { createLinkFetchDeps, type LinkFetchEnv } from "./fixture-link";
 export { htmlToText } from "./html-text";
 export { closePdf, openPdf, pageText, PdfOpenError, type PdfDoc } from "./pages";
 export { PdfSplitError, splitPdfPage } from "./split";
-export { classifyPages, selectPages, selectTextPages, type PageVerdict } from "./selector";
+export { classifyPages, doubtfulPages, modelVerdict, selectPages, selectTextPages, type PageVerdict } from "./selector";
 export { pageTexts } from "./read";

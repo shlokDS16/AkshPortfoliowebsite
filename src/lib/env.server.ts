@@ -17,6 +17,8 @@ const serverSchema = publicSchema.extend({
   GROQ_MODEL_TEXT: z.preprocess(blank, z.string().trim().min(1).default("openai/gpt-oss-120b")),
   /** Reads a photo or screenshot of a table, one image per call (spec s9; https://console.groq.com/docs/vision). */
   GROQ_MODEL_VISION: z.preprocess(blank, z.string().trim().min(1).default("qwen/qwen3.8-27b")),
+  /** Sorts the pages the rules could not place, ten openings per call (spec s9; https://console.groq.com/docs/rate-limits). */
+  GROQ_MODEL_CLASSIFY: z.preprocess(blank, z.string().trim().min(1).default("openai/gpt-oss-20b")),
   /** Transcribes a voice note (spec s9; https://console.groq.com/docs/speech-to-text). Free tier: 25 MB a file. */
   GROQ_MODEL_WHISPER: z.preprocess(blank, z.string().trim().min(1).default("whisper-large-v3-turbo")),
   /**

@@ -59,7 +59,7 @@ function ctx(s: Setup, llm: LlmPort | null, step: Partial<Step> = {}): StepConte
     llm,
     ocr: null,
     transcriber: null,
-    models: { text: "test-text", vision: "test-vision", whisper: "test-whisper" },
+    models: { text: "test-text", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
     repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: s.proposals, research: createMemoryResearch() },
     now: () => new Date(T0),
     clock: () => T0,

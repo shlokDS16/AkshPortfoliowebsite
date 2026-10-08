@@ -1,6 +1,7 @@
-import { classifyPages, selectPages, selectTextPages } from "@/modules/documents";
+import { classifyPages, doubtfulPages, selectPages, selectTextPages } from "@/modules/documents";
 import { readsScansWhole, stepsForPage } from "../page-steps";
 import type { NewStep, StepHandler } from "../types";
+import { firstClassifyStep } from "./classify-args";
 
 // select_pages (spec s6.3): classify every page, keep the verdicts of statement pages, tick the best pages within the
 // document's budget as the rule's choice, and enqueue one read per page when AI reading is on. A scanned document whose
@@ -32,5 +33,10 @@ export const selectPagesStep: StepHandler = async ({ documentId, deps }) => {
   const enqueue: NewStep[] = selected.map((pageNo) => stepsForPage({ pageNo, isScan: false, kind: kindOf.get(pageNo) ?? null }));
   // The scans of a mostly scanned document: each is read, then classifies itself and queues its figures if it is a statement page.
   if (whole) enqueue.push(...scans.map((pageNo) => stepsForPage({ pageNo, isScan: true, kind: null })));
-  return { kind: "done", result: { selected: selected.length, ...(whole ? { scansQueued: scans.length } : {}) }, enqueue };
+  // Pages the rules could not place go to the small model, but only for a document with page budget left to spend on them (ruling R16).
+  // Pasted text and a web page are read by density already, so the model has nothing to add there.
+  const doubtful = fromText ? [] : doubtfulPages(pages, verdicts);
+  const sorting = doubtful.length > 0 && (await documents.countSelected(documentId)) < doc.llmPageBudget;
+  if (sorting) enqueue.push(firstClassifyStep(doubtful));
+  return { kind: "done", result: { selected: selected.length, ...(whole ? { scansQueued: scans.length } : {}), ...(sorting ? { doubtful: doubtful.length } : {}) }, enqueue };
 };

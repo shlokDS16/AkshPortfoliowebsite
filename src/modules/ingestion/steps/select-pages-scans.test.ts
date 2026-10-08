@@ -31,7 +31,7 @@ function repoOf(pages: string[], budget: number): MemoryDocumentsRepo {
 
 function run(repo: MemoryDocumentsRepo, llm: LlmPort | null = fakeLlm) {
   const deps: StepDeps = {
-    llm, ocr: null, models: { text: "m", vision: "v", whisper: "w" }, transcriber: null,
+    llm, ocr: null, models: { text: "m", vision: "v", classify: "c", whisper: "w" }, transcriber: null,
     repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
     now: () => new Date(T0), clock: () => T0,
   };

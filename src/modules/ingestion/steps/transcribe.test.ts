@@ -38,7 +38,7 @@ function fakeTranscriber(...answers: TranscriberResult[]) {
 function ctx(repo: MemoryDocumentsRepo, transcriber: TranscriberPort | null, opts: { args?: Record<string, unknown>; usage?: MemoryUsageRepo; clock?: () => number } = {}): StepContext {
   const deps: StepDeps = {
     llm: null, ocr: null, transcriber,
-    models: { text: "t", vision: "v", whisper: "w" },
+    models: { text: "t", vision: "v", classify: "c", whisper: "w" },
     repos: { documents: machineDocuments(repo), usage: opts.usage ?? createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),

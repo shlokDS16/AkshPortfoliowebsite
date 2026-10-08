@@ -56,3 +56,8 @@ export const TEXT_MAX_CHARS = 200_000;
 export const TEXT_MIN_CHARS = 50;
 /** Pasted text or a web page has no statement heading to go by: a page with more than this share of number tokens is read for figures (ruling R15). */
 export const TEXT_DENSITY_MIN = 0.15;
+
+/** A page the rules called 'other' is sent to the small model only when more than this share of its words are numbers (ruling R16). */
+export const DOUBTFUL_DENSITY_MIN = 0.15;
+/** At most this many pages of one document go to the classifier (three batches of ten), the densest first (ruling R16). */
+export const DOUBTFUL_MAX_PAGES = 30;

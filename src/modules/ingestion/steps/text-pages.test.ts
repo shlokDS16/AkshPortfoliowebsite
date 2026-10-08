@@ -29,7 +29,7 @@ function repoWith(bytes: Uint8Array, over: { sha256?: string; kind?: "text" | "u
 function ctx(repo: MemoryDocumentsRepo, step: Partial<Step> = {}): StepContext {
   const deps: StepDeps = {
     llm: null, ocr: null, transcriber: null,
-    models: { text: "t", vision: "v", whisper: "w" },
+    models: { text: "t", vision: "v", classify: "c", whisper: "w" },
     repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
     now: () => new Date(T0),
     clock: () => T0,

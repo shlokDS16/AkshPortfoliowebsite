@@ -3,15 +3,19 @@
 // (documents.sha256 is unique and the local database is not reset). Without a nonce the bytes are the committed file's.
 // makeFixturePdf(nonce, { scan: true }) is a one-page scanned report: an image and the "Run <nonce>" line, under 50 characters
 // of text, so the page is a scan (document_pages.is_scan) and goes to the scan reader (Plan 2b Task 2).
+// makeFixturePdf(nonce, { doubtful: true }) swaps the directors' report on page 2 for a table of figures with no statement heading: the rules
+// call it "other" and it is mostly numbers, so it goes to the classifier (Plan 2b Task 6).
 import { mkdirSync, writeFileSync } from "node:fs";
 
 const esc = (s) => s.replace(/[\\()]/g, (c) => `\\${c}`);
 
-/** @param {string} [nonce] @param {{ scan?: boolean }} [opts] @returns {Buffer} */
+/** @param {string} [nonce] @param {{ scan?: boolean; doubtful?: boolean }} [opts] @returns {Buffer} */
 export function makeFixturePdf(nonce, opts = {}) {
   const pages = opts.scan ? [[...(nonce ? [`Run ${nonce}`] : [])]] : [
     ["Kaveri Fixtures Limited", "Annual Report 2025-26", ...(nonce ? [`Run ${nonce}`] : [])],
-    ["Directors' Report", "The Board presents its report for the year."],
+    opts.doubtful
+      ? ["Particulars 1,200.00 1,100.00", "Other income 41.20 38.90", "Total 1,325.20 1,140.90", "Tax 12.10 9.80", "Dividend 5.00 4.50"]
+      : ["Directors' Report", "The Board presents its report for the year."],
     ["Management Discussion and Analysis", "Demand improved in the second half of the year."],
     ["Consolidated Statement of Profit and Loss for the year ended March 31, 2026", "(Rs. in crore)",
       "Particulars Year ended March 31, 2026 Year ended March 31, 2025",

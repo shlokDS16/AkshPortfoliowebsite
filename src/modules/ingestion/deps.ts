@@ -32,8 +32,8 @@ export type DrainDeps = {
   ocr: OcrPort | null;
   /** The voice transcriber, or null while voice notes are off (VOICE_NOTES unset): transcribe steps then stop with a sentence. */
   transcriber: TranscriberPort | null;
-  /** Groq model ids: the text model reads digital pages, the vision model reads one photo per call, whisper types out a voice note. */
-  models: { text: string; vision: string; whisper: string };
+  /** Groq model ids: the text model reads digital pages, the vision model reads one photo per call, the small model sorts doubtful pages, whisper types out a voice note. */
+  models: { text: string; vision: string; classify: string; whisper: string };
   repos: MachineRepos;
   now: () => Date;
   clock: () => number;

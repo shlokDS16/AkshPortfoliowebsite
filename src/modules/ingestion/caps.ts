@@ -91,3 +91,15 @@ export const TRANSCRIPT_SAVE_MAX_CHARS = 20_000;
 export const TEXT_PAGE_CHARS = 8_000;
 /** text_pages writes this many pages a step, then enqueues itself from the next page (like pdf_text). */
 export const TEXT_PAGES_PER_STEP = 25;
+
+/**
+ * The ambiguous-page classifier on gpt-oss-20b (Plan 2b Task 6). Its own bucket (the model id) under GROQ_CAPS, the same 30 RPM,
+ * 1K RPD, 8K TPM and 200K TPD per model as the extractor (spec s9, https://console.groq.com/docs/rate-limits, read 2026-10-08).
+ * A batch of 10 pages x 600 characters is about 2,000 input tokens and 400 out, well under the 6,000 a minute.
+ */
+export const CLASSIFY_BATCH = 10;
+/** Characters from the top of each page; the heading and the first rows are enough to tell a statement from a schedule. */
+export const CLASSIFY_PAGE_CHARS = 600;
+export const CLASSIFY_MAX_COMPLETION = 400;
+/** A model verdict under this confidence is ignored and the rule's verdict ('other') stands (ruling R16). */
+export const CLASSIFY_MIN_CONFIDENCE = 0.6;

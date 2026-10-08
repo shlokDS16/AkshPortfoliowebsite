@@ -181,6 +181,34 @@ test("the pump reads an uploaded PDF's pages, selects its statement pages and re
   }
 });
 
+test("the pump sorts a table the rules could not place with the small model (fixture: it places nothing), and leaves the rule's pages as they were", async ({ request }) => {
+  const documentId = await upload(new Uint8Array(makeFixturePdf(`${RUN}-doubtful`, { doubtful: true })), "doubtful");
+  let jobId: string | null = null;
+  try {
+    jobId = await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
+    await pump(request);
+
+    const steps = await stepsOf(jobId);
+    expect(steps.map((s) => [s.kind, s.page_no, s.status, s.last_error])).toEqual([
+      ["pdf_text", 1, "done", null],
+      ["select_pages", null, "done", null],
+      ["classify_pages", 2, "done", null],
+      ["extract_page", 3, "done", null],
+      ["extract_page", 4, "done", null],
+      ["extract_page", 5, "done", null],
+    ]);
+    expect(steps[1].result).toEqual({ selected: 3, doubtful: 1 });
+    expect(steps[2].result).toMatchObject({ promptVersion: "classify-v1", asked: 1, kept: 0, selected: 0 });
+    const { data: page } = await admin.from("document_pages").select("kind, selected, selected_by").eq("document_id", documentId).eq("page_no", 2).single();
+    expect(page).toEqual({ kind: null, selected: false, selected_by: null });
+    // The call went through the governor, in the classify model's own bucket.
+    const { data: usage } = await service.from("provider_usage").select("status").eq("bucket", "openai/gpt-oss-20b").eq("kind", "reservation").order("at", { ascending: false }).limit(1).single();
+    expect(usage).toEqual({ status: "used" });
+  } finally {
+    await cleanUp(documentId, jobId);
+  }
+});
+
 test("the pump reads a scanned page with the scan reader (fixture), then reads its figures like a digital page", async ({ request }) => {
   const documentId = await upload(new Uint8Array(makeFixturePdf(`${RUN}-scan`, { scan: true })), "scan");
   let jobId: string | null = null;

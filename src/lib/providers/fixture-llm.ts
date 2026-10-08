@@ -11,13 +11,15 @@ const FIXTURES = FIXTURE_TABLE as FixtureEntry[];
 const EMPTY_PAGE = { page_kind: "other", basis: "unknown", unit_header: null, current_header: null, prior_header: null, rows: [] };
 // Small on purpose: three fixture reads in a minute must fit the 6,000 TPM cap, or the e2e would meet a real deferral.
 const USAGE = { promptTokens: 800, completionTokens: 200, totalTokens: 1000 };
+/** A page-classification request with no committed answer places nothing: the rules' choice stands. */
+const NO_PAGES_PLACED = { pages: [] };
 const NO_RATE = { remainingTokens: null, remainingRequests: null, retryAfterSeconds: null };
 
 export function createFixtureLlm(table: readonly FixtureEntry[] = FIXTURES): LlmPort {
   return {
     name: "fixture",
     async complete<T>(req: LlmRequest<T>): Promise<LlmResult<T>> {
-      const output = table.find((entry) => req.user.includes(entry.when))?.output ?? EMPTY_PAGE;
+      const output = table.find((entry) => req.user.includes(entry.when))?.output ?? (req.schemaName === "page_classification" ? NO_PAGES_PLACED : EMPTY_PAGE);
       const checked = req.schema.safeParse(output);
       if (!checked.success) {
         const issues = checked.error.issues.slice(0, 10).map((i) => `${i.path.join(".")}: ${i.message}`);
