@@ -96,3 +96,9 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - 2026-10-08: Plan 2a Task 14 built (desk-backend): staged machine figures merge into the Facts form once, `recordFiledFacts` writes provenance after the revision (never a condition of the save), staged rows Aksh deletes return to review, Done with this document deletes the PDF and stops its job.
 
 - 2026-10-08: Plan 2a final-review fix wave (desk-backend): one filing rule for review and editor, "All figures checked." card with its Review link, plain Try again / Skip copy, Drop these figures for closed documents, Change company, migration 0006 narrowed in place (service_role no longer updates documents.status or ticks as Aksh), provenance count check, full-loop e2e.
+
+## 2026-10-08 - Plan 2a build complete (lean mode)
+- Fresh controller session in worktree exciting-newton-1e57fd (a PreToolUse hook blocks writes to other worktrees; branch reset to phase-2a 6c73b1c, push HEAD:phase-2a).
+- Built and reviewed: T13 review screen + File under (+ company chooser), T14 staged rows + provenance + Done (opus review, security stand-in for defenso), T15 degradation copy, meters, Needs-you cards, repeat-run e2e fixes (two real bugs: mobile grid overflow, seeded file lost from the recent list), T16 close-out docs (hosted push and first real report deferred to after the trial).
+- Final whole-branch review (opus): 0 Critical; 3 Important (filed figures could vanish, Done unreachable after deciding all figures, false "upload again" copy) + 3 must-fix (stranded staged figures of closed documents, wrong company unfixable, machine could change documents.status). One fix wave (0e1d2b7), scoped re-review all addressed. Unit 2026, pgTAP 632, whole e2e suite green twice on one DB.
+- Open for Shlok: Q13-Q15, Q19, Q20; merge and hosted push after Aksh's trial.
