@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/format";
 import type { DocumentListItem } from "@/modules/documents/client";
 import { ADD_SOURCE_EVENT, type AddSourceDetail } from "../add-source-event";
 import type { CheckableFact } from "../facts-form/checkable";
+import { DigestPanel } from "./digest-panel";
 import { PageView } from "./page-view";
 import { PaneSearch } from "./pane-search";
 import { QuoteCheck } from "./quote-check";
@@ -35,8 +36,10 @@ export function DocPane({ documents, docId, onPick, pageNo, onPage, facts, onClo
   const [words, setWords] = useState<string[]>([]);
   const [used, setUsed] = useState<string | null>(null);
 
+  const source: AddSourceDetail = { doc: doc.title, type: doc.sourceType, filedOn: doc.filedOn ?? "", url: doc.sourceUrl ?? "" };
+
   function addAsSource() {
-    const detail: AddSourceDetail = { doc: doc.title, type: doc.sourceType, filedOn: doc.filedOn ?? "", url: doc.sourceUrl ?? "" };
+    const detail = source;
     // Cancelled = the Facts form took it. No form listening (or a sheet it cannot read) leaves it unsaid.
     const added = !window.dispatchEvent(new CustomEvent(ADD_SOURCE_EVENT, { detail, cancelable: true }));
     setUsed(added ? doc.id : null);
@@ -109,6 +112,7 @@ export function DocPane({ documents, docId, onPick, pageNo, onPage, facts, onClo
           onPage(n);
         }}
       />
+      <DigestPanel key={`${doc.id}:${pageNo}`} documentId={doc.id} pageNo={pageNo} source={source} onUsed={onUsed} />
       <PageView
         pageNo={pageNo}
         pageCount={doc.pageCount}

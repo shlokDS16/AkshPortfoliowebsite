@@ -29,6 +29,11 @@ export type ProposalRow = {
 export interface ProposalsRepo {
   /** The newest stored answer for this exact input, model and prompt version, or null. */
   findCachedExtraction(inputHash: string, model: string, promptVersion: string): Promise<{ output: unknown } | null>;
+  /**
+   * The stored extraction of this page for this exact input, model and prompt version, with its id, or null. The digest reuses
+   * the id on a rerun (ruling R20), so its rows are written once; extract_page keeps its own pattern.
+   */
+  findExtractionFor(documentId: string, pageNo: number, inputHash: string, model: string, promptVersion: string): Promise<{ id: string; output: unknown } | null>;
   insertExtraction(row: NewExtraction): Promise<string>;
   /** How many proposals the document has, whatever their status: the per-document cap counts them all. */
   countForDocument(documentId: string): Promise<number>;
@@ -50,6 +55,22 @@ export function createProposalsRepo(db: Db): ProposalsRepo {
         .maybeSingle();
       if (error) throw jobDbError("proposals.findCached", error);
       return data ? { output: data.output } : null;
+    },
+
+    async findExtractionFor(documentId, pageNo, inputHash, model, promptVersion) {
+      const { data, error } = await db
+        .from("extractions")
+        .select("id, output")
+        .eq("document_id", documentId)
+        .eq("page_no", pageNo)
+        .eq("input_hash", inputHash)
+        .eq("model", model)
+        .eq("prompt_version", promptVersion)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw jobDbError("proposals.findExtractionFor", error);
+      return data ? { id: data.id, output: data.output } : null;
     },
 
     async insertExtraction(row) {

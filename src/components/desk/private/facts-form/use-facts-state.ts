@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { latestFigureDate, parseFactsSheet, type SheetError } from "@/modules/casefile/client";
 import type { StagedRow } from "@/modules/ingestion/client";
-import { ADD_SOURCE_EVENT, type AddSourceDetail } from "../add-source-event";
+import { ADD_FACT_EVENT, ADD_SOURCE_EVENT, type AddFactDetail, type AddSourceDetail } from "../add-source-event";
+import { withFact, withSource } from "./add-fact";
 import { checkableFromCaseFile, checkableFromDraft } from "./checkable";
-import { blankSource, draftIds, draftToSheet, nextId, toDraft, type Draft } from "./draft";
+import { draftIds, draftToSheet, toDraft, type Draft } from "./draft";
 import { mergeStaged } from "./staged";
 import { brokenCitations, citedFacts, fieldErrors, rowErrors } from "./validate";
 
@@ -66,41 +67,66 @@ export function useFactsState(sheet: string, bodyMd: string, staged: StagedRow[]
     setMode(next);
   }
 
-  // The document pane's "Use as source": the form's own source row, reused when the same document and date are already listed.
-  const [reveal, setReveal] = useState<{ id: string } | null>(null); // a new object per press, so the same row scrolls into view again
-  function addSource(detail: AddSourceDetail): boolean {
+  // The document pane's "Use as source" and "Use as a fact": the form's own rows, the source reused when the same document and date are already listed.
+  const [reveal, setReveal] = useState<{ id: string; field: string } | null>(null); // a new object per press, so the same row scrolls into view again
+  /** The draft the pane's button works on, or null (with the refusal shown) when the text sheet cannot open as a form. */
+  function baseDraft(): Draft | null {
     const base = mode === "form" && draft ? draft : parsed.errors.length === 0 ? toDraft(parsed.caseFile) : null;
-    if (!base) {
-      setRefusal({ to: "form", errors: parsed.errors });
-      return false;
-    }
-    const same = (s: { doc: string; filedOn: string }) => s.doc.trim().toLowerCase() === detail.doc.trim().toLowerCase() && s.filedOn === detail.filedOn;
-    const existing = base.sources.find(same);
-    const id = existing?.id ?? nextId("S", [...base.sources.map((x) => x.id), ...loaded]);
-    const next = existing ? base : { ...base, sources: [...base.sources, { ...blankSource(id), ...detail }] };
-    // From the text sheet, an unchanged sheet still gives back Aksh's own text; the new source makes it differ.
+    if (!base) setRefusal({ to: "form", errors: parsed.errors });
+    return base;
+  }
+  function show(base: Draft, next: Draft, to: { id: string; field: string }) {
+    // From the text sheet, an unchanged sheet still gives back Aksh's own text; the new row makes it differ.
     if (mode === "text") setOrigin(draftToSheet(base));
     setDraft(next);
     setLoaded((ids) => [...new Set([...ids, ...draftIds(next)])]);
     setRefusal(null);
     setMode("form");
-    setReveal({ id });
+    setReveal(to);
+  }
+  function addSource(detail: AddSourceDetail): boolean {
+    const base = baseDraft();
+    if (!base) return false;
+    const { draft: next, sourceId } = withSource(base, detail, loaded);
+    show(base, next, { id: sourceId, field: "doc" });
+    return true;
+  }
+  function addFact(detail: AddFactDetail): boolean {
+    const base = baseDraft();
+    if (!base) return false;
+    // A removed row's id is never reused, and nor is an id the body already cites (the Add fact button reserves the same).
+    const added = withFact(base, detail, [...loaded, ...citedFacts(bodyMd)]);
+    if (!added) return false;
+    show(base, added.draft, { id: added.factId, field: "label" });
     return true;
   }
   const onAddSource = useRef(addSource);
+  const onAddFact = useRef(addFact);
   useEffect(() => {
     onAddSource.current = addSource;
+    onAddFact.current = addFact;
   });
   useEffect(() => {
-    // The event is cancelable: a handled one is cancelled, which is how the pane learns the source is in the form.
-    const listener = (event: Event) => {
+    // The events are cancelable: a handled one is cancelled, which is how the pane learns the row is in the form.
+    const source = (event: Event) => {
       if (onAddSource.current((event as CustomEvent<AddSourceDetail>).detail)) event.preventDefault();
     };
-    window.addEventListener(ADD_SOURCE_EVENT, listener);
-    return () => window.removeEventListener(ADD_SOURCE_EVENT, listener);
+    const fact = (event: Event) => {
+      if (onAddFact.current((event as CustomEvent<AddFactDetail>).detail)) event.preventDefault();
+    };
+    window.addEventListener(ADD_SOURCE_EVENT, source);
+    window.addEventListener(ADD_FACT_EVENT, fact);
+    return () => {
+      window.removeEventListener(ADD_SOURCE_EVENT, source);
+      window.removeEventListener(ADD_FACT_EVENT, fact);
+    };
   }, []);
   useEffect(() => {
-    if (reveal) document.getElementById(`ff-${reveal.id}-doc`)?.scrollIntoView?.({ block: "center" });
+    if (!reveal) return;
+    const field = document.getElementById(`ff-${reveal.id}-${reveal.field}`);
+    field?.scrollIntoView?.({ block: "center" });
+    // A new fact's label is the next thing Aksh types.
+    if (reveal.field === "label") field?.focus?.();
   }, [reveal]);
 
   // Which staged figures are still in the facts: the pairs the save records, and every staged id so a deleted one goes back to review.

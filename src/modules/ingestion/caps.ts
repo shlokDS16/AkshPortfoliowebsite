@@ -103,3 +103,17 @@ export const CLASSIFY_PAGE_CHARS = 600;
 export const CLASSIFY_MAX_COMPLETION = 400;
 /** A model verdict under this confidence is ignored and the rule's verdict ('other') stands (ruling R16). */
 export const CLASSIFY_MIN_CONFIDENCE = 0.6;
+
+/**
+ * The private digest of a commentary page (Plan 2b Task 7, rulings R20 and R6). One call per page on the text model, the same
+ * bucket and caps as extract_page. A page's claims are few on purpose: eight claims, each a short sentence of the machine's and a
+ * line copied from the page, fit in 1,500 completion tokens, which keeps one call near the 5,100 tokens of a statement page.
+ */
+export const DIGEST_MAX_COMPLETION = 1_500;
+export const DIGEST_MAX_CLAIMS = 8;
+/** Stored lengths: migration 0008 allows section 1-300, claim 1-400 and line 1-600 characters. */
+export const DIGEST_SECTION_MAX = 300;
+export const DIGEST_CLAIM_MAX = 400;
+export const DIGEST_LINE_MAX = 600;
+/** A line shorter than this is not a quote worth confirming: it is on almost any page, so it counts as not confirmed. */
+export const DIGEST_MIN_LINE_CHARS = 20;

@@ -3,7 +3,7 @@ import { serverEnv } from "@/lib/env.server";
 import { createLlmPort, createOcrPort, createTranscriberPort, type LlmPort, type OcrPort, type TranscriberPort } from "@/lib/providers";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
-import { createProposalsRepo, createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, OCR_MAX_BYTES, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
+import { createDigestsRepo, createProposalsRepo, createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, OCR_MAX_BYTES, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
 import { latestFileForCompany } from "@/modules/research";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
 import type { Step } from "./steps";
@@ -43,6 +43,7 @@ function buildDeps(): DrainDeps {
       documents: machineDocuments(createSupabaseDocumentsRepo(db)),
       usage: createUsageRepo(db),
       proposals: createProposalsRepo(db),
+      digests: createDigestsRepo(db),
       research: { latestFileForCompany: (companyId) => latestFileForCompany(db, companyId) },
     },
     now: () => new Date(),

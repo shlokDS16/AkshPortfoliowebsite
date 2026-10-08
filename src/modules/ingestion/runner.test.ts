@@ -3,6 +3,7 @@ import { DbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
+import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { MIN_STEP_MS } from "./caps";
 import { machineDocuments, type DrainDeps } from "./deps";
@@ -30,6 +31,7 @@ function deps(time = fakeTime()): DrainDeps {
       usage: createMemoryUsageRepo(),
       proposals: createMemoryProposalsRepo(),
       research: createMemoryResearch(),
+      digests: createMemoryDigestsRepo(),
     },
     now: time.now,
     clock: time.clock,
@@ -97,6 +99,7 @@ const handlers = (h: Partial<Record<StepKind, StepHandler>>): Record<StepKind, S
   transcribe: h.transcribe ?? always({ kind: "done" }),
   text_pages: h.text_pages ?? always({ kind: "done" }),
   classify_pages: h.classify_pages ?? always({ kind: "done" }),
+  digest_page: h.digest_page ?? always({ kind: "done" }),
 });
 
 describe("drain", () => {

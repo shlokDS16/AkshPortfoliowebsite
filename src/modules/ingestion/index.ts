@@ -5,6 +5,7 @@ import "server-only";
 export * from "./caps";
 export type { NewStep, Step, StepContext, StepHandler, StepKind, StepOutcome, StepStatus, WaitReason } from "./types";
 export { machineDocuments, type DrainDeps, type StepDeps, type MachineDocumentsRepo, type MachineRepos, type MachineResearch } from "./deps";
+export { createDigestsRepo, type DigestRow, type DigestsRepo } from "./digests-repo";
 export { createProposalsRepo, type NewExtraction, type ProposalRow, type ProposalsRepo } from "./proposals-repo";
 export { llmTimeoutMs } from "./deadline";
 export { callWithinBudget, estimateTokens, type BudgetResult } from "./governor";

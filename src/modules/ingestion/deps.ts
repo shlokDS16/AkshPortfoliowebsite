@@ -3,6 +3,7 @@ import type { OcrPort } from "@/lib/providers/ocr";
 import type { TranscriberPort } from "@/lib/providers/transcriber";
 import type { Db } from "@/lib/supabase/types";
 import type { DocumentsRepo } from "@/modules/documents";
+import type { DigestsRepo } from "./digests-repo";
 import type { ProposalsRepo } from "./proposals-repo";
 import type { UsageRepo } from "./usage-repo";
 
@@ -22,7 +23,8 @@ export type MachineResearch = {
 };
 
 /** Every repo a step handler uses, built once by src/modules/ops/drain.ts (ruling R7). Tests pass fakes. */
-export type MachineRepos = { documents: MachineDocumentsRepo; usage: UsageRepo; proposals: ProposalsRepo; research: MachineResearch };
+/** `digests` inserts and lists only (the table is append-only). */
+export type MachineRepos = { documents: MachineDocumentsRepo; usage: UsageRepo; proposals: ProposalsRepo; research: MachineResearch; digests: DigestsRepo };
 
 export type DrainDeps = {
   /** The secret-key client ops hands the runner; the queue repo is built on it. Handlers use `repos`. */

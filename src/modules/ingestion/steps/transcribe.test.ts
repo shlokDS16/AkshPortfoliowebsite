@@ -4,6 +4,7 @@ import type { TranscriberPort, TranscriberResult } from "@/lib/providers/transcr
 import { VOICE_MAX_BYTES } from "@/modules/documents/client";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
+import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo, type MemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { SHORT_WAIT_MS, WHISPER_BUCKET, WHISPER_BYTES_PER_SECOND } from "../caps";
 import { machineDocuments, type StepDeps } from "../deps";
@@ -39,7 +40,7 @@ function ctx(repo: MemoryDocumentsRepo, transcriber: TranscriberPort | null, opt
   const deps: StepDeps = {
     llm: null, ocr: null, transcriber,
     models: { text: "t", vision: "v", classify: "c", whisper: "w" },
-    repos: { documents: machineDocuments(repo), usage: opts.usage ?? createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
+    repos: { documents: machineDocuments(repo), usage: opts.usage ?? createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),
   };

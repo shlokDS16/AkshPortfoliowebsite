@@ -50,6 +50,8 @@ const PHOTO_COULD_NOT_BE_READ = "This photo could not be read.";
 const NO_FIGURES = "Read. No figures matched; open it beside your file.";
 const NO_FIGURES_AI_OFF = "Read. AI reading is off; open it beside your file to enter figures.";
 const CHOOSING = "Choosing the pages to read.";
+/** Pending Shlok approval, spec s16.12. */
+const COMMENTARY_READ = "Read. The commentary notes are in the document pane beside your file; there are no figures to check.";
 /** Pending Shlok approval, spec s16.9. */
 const VOICE_COULD_NOT_BE_TYPED = "This voice note could not be typed out.";
 
@@ -137,6 +139,10 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
   if (unfinished.some((s) => s.kind === "extract_page" || s.kind === "vision_page")) {
     return view("reading", `Reading figures: ${counts.extractDone} of ${counts.extractTotal} pages${eta ? `, ${eta}` : ""}`);
   }
+  // Commentary pages are digested, not read for figures (Plan 2b Task 7; pending Shlok approval, spec s16.12).
+  if (unfinished.some((s) => s.kind === "digest_page")) {
+    return view("reading", `Reading commentary: ${counts.extractDone} of ${counts.extractTotal} pages${eta ? `, ${eta}` : ""}`);
+  }
   if (unfinished.some((s) => s.kind === "transcribe")) return view("reading", TYPING_OUT);
   if (unfinished.length > 0) return view("reading", CHOOSING);
 
@@ -145,6 +151,8 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
 
   if (d.pending > 0) return view("ready", `${figures(d.pending)} ready to check.${d.flagged > 0 ? ` ${d.flagged} ${d.flagged === 1 ? "needs" : "need"} a look.` : ""}`);
   if (d.decided > 0) return view("ready", ALL_CHECKED);
+  // Only commentary pages were read: the notes wait in the document pane, there is nothing to review (ruling R13).
+  if (counts.extractTotal > 0 && [...byPage.values()].every((steps) => steps.every((s) => s.kind === "digest_page"))) return view("ready", COMMENTARY_READ);
   if (!d.aiOn && counts.extractTotal === 0) return view("ready", NO_FIGURES_AI_OFF);
   // A scanned document too big to be read whole waits for Aksh's ticks (ruling R6; pending Shlok approval, spec s16.7).
   if (counts.extractTotal === 0 && isScanHeavy(d.scanPages, d.pageCount)) return view("ready", scansNotice(d.scanPages));

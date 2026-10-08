@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { LlmPort, LlmRequest, LlmResult } from "@/lib/providers/llm";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
+import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { machineDocuments, type StepDeps } from "../deps";
 import type { Classification } from "../prompts";
@@ -48,7 +49,7 @@ function modelThat(verdict: (pageNo: number) => [Kind, number]) {
 function ctxFor(repo: MemoryDocumentsRepo, llm: LlmPort | null, step: Partial<Step>): StepContext {
   const deps: StepDeps = {
     llm, ocr: null, transcriber: null, models: { text: "t", vision: "v", classify: "c", whisper: "w" },
-    repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
+    repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
     now: () => new Date(T0), clock: () => T0,
   };
   const base: Step = {

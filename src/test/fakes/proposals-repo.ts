@@ -17,6 +17,10 @@ export function createMemoryProposalsRepo(): MemoryProposalsRepo {
       const hit = [...extractions].reverse().find((e) => e.inputHash === inputHash && e.model === model && e.promptVersion === promptVersion);
       return hit ? { output: hit.output } : null;
     },
+    async findExtractionFor(documentId, pageNo, inputHash, model, promptVersion) {
+      const hit = extractions.find((e) => e.documentId === documentId && e.pageNo === pageNo && e.inputHash === inputHash && e.model === model && e.promptVersion === promptVersion);
+      return hit ? { id: hit.id, output: hit.output } : null;
+    },
     async insertExtraction(row) {
       const id = `ext-${extractions.length + 1}`;
       extractions.push({ ...row, id });

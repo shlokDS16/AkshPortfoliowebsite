@@ -5,6 +5,7 @@ import type { OcrPort } from "@/lib/providers/ocr";
 import { validateCaseFile } from "@/modules/casefile/client";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch, type MemoryProposalsRepo } from "@/test/fakes/proposals-repo";
+import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { GROQ_CAPS, MAX_PROPOSALS_PER_DOCUMENT } from "../caps";
 import { machineDocuments, type StepDeps } from "../deps";
@@ -55,7 +56,7 @@ function ctx(s: Setup, llm: LlmPort | null, step: Partial<Step> = {}, opts: { cl
     ocr: opts.ocr ?? null,
     transcriber: null,
     models: { text: "test-model", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
-    repos: { documents: machineDocuments(s.documents), usage: opts.usage ?? s.usage, proposals: s.proposals, research: opts.research ?? createMemoryResearch() },
+    repos: { documents: machineDocuments(s.documents), usage: opts.usage ?? s.usage, proposals: s.proposals, research: opts.research ?? createMemoryResearch(), digests: createMemoryDigestsRepo() },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),
   };

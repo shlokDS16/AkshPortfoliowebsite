@@ -4,6 +4,7 @@ import { createFixtureLlm } from "@/lib/providers/fixture-llm";
 import type { LlmPort, LlmRequest, LlmResult } from "@/lib/providers/llm";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch, type MemoryProposalsRepo } from "@/test/fakes/proposals-repo";
+import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { EXTRACT_MAX_COMPLETION, GROQ_CAPS, IMAGE_TOKENS } from "../caps";
 import { machineDocuments, type StepDeps } from "../deps";
@@ -60,7 +61,7 @@ function ctx(s: Setup, llm: LlmPort | null, step: Partial<Step> = {}): StepConte
     ocr: null,
     transcriber: null,
     models: { text: "test-text", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
-    repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: s.proposals, research: createMemoryResearch() },
+    repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: s.proposals, research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
     now: () => new Date(T0),
     clock: () => T0,
   };

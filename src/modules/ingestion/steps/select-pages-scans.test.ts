@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { LlmPort } from "@/lib/providers/llm";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
+import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { machineDocuments, type StepDeps } from "../deps";
 import { readsScansWhole, stepsForPage } from "../page-steps";
@@ -32,7 +33,7 @@ function repoOf(pages: string[], budget: number): MemoryDocumentsRepo {
 function run(repo: MemoryDocumentsRepo, llm: LlmPort | null = fakeLlm) {
   const deps: StepDeps = {
     llm, ocr: null, models: { text: "m", vision: "v", classify: "c", whisper: "w" }, transcriber: null,
-    repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
+    repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
     now: () => new Date(T0), clock: () => T0,
   };
   const step = { id: "s", jobId: "j", kind: "select_pages", pageNo: null, args: {}, status: "running", schemaFailures: 0, providerFailures: 0, leaseExpiries: 0, notBefore: "", leaseOwner: "o", lastError: null } as const;

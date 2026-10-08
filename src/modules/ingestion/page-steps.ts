@@ -7,15 +7,16 @@ import type { NewStep, StepKind } from "./types";
 
 /**
  * The steps that belong to one page of a document: the trays, the ETA and the Needs-attention page list count these
- * (ruling R13). digest_page (Task 7) joins when it exists.
+ * (ruling R13).
  */
-export const PAGE_STEP_KINDS: readonly StepKind[] = ["extract_page", "ocr_page", "vision_page"];
+export const PAGE_STEP_KINDS: readonly StepKind[] = ["extract_page", "ocr_page", "vision_page", "digest_page"];
 
 export type PageFacts = { pageNo: number; isScan: boolean; kind: PageKind | null };
 
-/** A scan goes to the scan reader first; every other page is read for figures (Task 7 sends management-discussion pages to a digest). */
+/** A scan goes to the scan reader first; a management-discussion page is digested (private commentary, no figures); every other page is read for figures. */
 export function stepsForPage(page: PageFacts): NewStep {
   if (page.isScan) return { kind: "ocr_page", pageNo: page.pageNo };
+  if (page.kind === "mdna") return { kind: "digest_page", pageNo: page.pageNo };
   return { kind: "extract_page", pageNo: page.pageNo };
 }
 

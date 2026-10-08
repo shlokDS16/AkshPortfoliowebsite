@@ -3,6 +3,7 @@ import type { LlmPort } from "@/lib/providers/llm";
 import type { OcrPort, OcrResult } from "@/lib/providers/ocr";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
+import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo, type MemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { makePdf } from "@/test/fixtures/pdf";
 import { OCR_BUCKET, OCR_CAPS } from "../caps";
@@ -60,7 +61,7 @@ function ctx(repo: MemoryDocumentsRepo, ocr: OcrPort | null, opts: { llm?: LlmPo
     ocr,
     transcriber: null,
     models: { text: "test-model", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
-    repos: { documents: machineDocuments(repo), usage: opts.usage ?? createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch() },
+    repos: { documents: machineDocuments(repo), usage: opts.usage ?? createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),
   };

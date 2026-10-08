@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { LlmPort } from "@/lib/providers/llm";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
+import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { fixturePdfBytes, fixtureWithBrokenPage2, makePdf } from "@/test/fixtures/pdf";
 import { PDF_TEXT_MS } from "../caps";
@@ -42,6 +43,7 @@ function ctx(repo: MemoryDocumentsRepo, step: Partial<Step>, opts: { clock?: () 
       usage: createMemoryUsageRepo(),
       proposals: createMemoryProposalsRepo(),
       research: createMemoryResearch(),
+      digests: createMemoryDigestsRepo(),
     },
     now: () => new Date(T0),
     clock: opts.clock ?? (() => T0),

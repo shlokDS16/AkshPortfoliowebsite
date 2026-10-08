@@ -3,6 +3,7 @@ import { createFixtureLlm } from "@/lib/providers/fixture-llm";
 import { createLinkFetchDeps, DocumentError, safeFetch, TEXT_MAX_CHARS, TEXT_MIN_CHARS, type FetchedLink } from "@/modules/documents";
 import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
+import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { READABLE_CHARS, TEXT_PAGE_CHARS } from "./caps";
 import { machineDocuments, type StepDeps } from "./deps";
@@ -193,7 +194,7 @@ describe("pasted text of a results table yields proposals with the fixture LLM",
   const stepCtx = (docs: ReturnType<typeof createMemoryDocumentsRepo>, proposals: ReturnType<typeof createMemoryProposalsRepo>, step: Partial<Step>): StepContext => {
     const deps: StepDeps = {
       llm: createFixtureLlm(), ocr: null, transcriber: null, models: { text: "t", vision: "v", classify: "c", whisper: "w" },
-      repos: { documents: machineDocuments(docs), usage: createMemoryUsageRepo(), proposals, research: createMemoryResearch() },
+      repos: { documents: machineDocuments(docs), usage: createMemoryUsageRepo(), proposals, research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
       now: () => new Date(T0), clock: () => T0,
     };
     const full: Step = { id: "s", jobId: "j", kind: "text_pages", pageNo: 1, args: {}, status: "running", schemaFailures: 0, providerFailures: 0, leaseExpiries: 0, notBefore: "", leaseOwner: "o", lastError: null, ...step };

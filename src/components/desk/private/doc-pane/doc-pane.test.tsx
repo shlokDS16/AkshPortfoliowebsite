@@ -10,8 +10,9 @@ import type { CheckableFact } from "../facts-form/checkable";
 import { DocPane } from "./doc-pane";
 import { locatorPage } from "./locator-page";
 
-const mocks = vi.hoisted(() => ({ read: vi.fn(), search: vi.fn(), check: vi.fn() }));
+const mocks = vi.hoisted(() => ({ read: vi.fn(), search: vi.fn(), check: vi.fn(), digest: vi.fn() }));
 vi.mock("@/modules/documents/actions", () => ({ readPageAction: mocks.read, searchPagesAction: mocks.search, checkQuotesAction: mocks.check }));
+vi.mock("@/modules/ingestion/actions", () => ({ readDigestAction: mocks.digest }));
 
 const DOC: DocumentListItem = {
   id: "0b6f3c1e-8a2d-4f5b-9c7e-1d2a3b4c5d6e",
@@ -31,6 +32,7 @@ beforeEach(() => {
   mocks.read.mockReset().mockImplementation(async (_id: string, n: number) => ({ ok: true, text: PAGES[n] ?? `text of page ${n}`, pageCount: 6, kind: n === 4 ? "pl" : null }));
   mocks.search.mockReset().mockResolvedValue([]);
   mocks.check.mockReset().mockResolvedValue([]);
+  mocks.digest.mockReset().mockResolvedValue({ ok: true, lines: [] });
 });
 
 function Harness({ facts = [], docs = [DOC], onUsed }: { facts?: CheckableFact[]; docs?: DocumentListItem[]; onUsed?: () => void }) {

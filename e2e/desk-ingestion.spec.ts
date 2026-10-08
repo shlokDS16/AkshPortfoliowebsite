@@ -143,16 +143,17 @@ test("the pump reads an uploaded PDF's pages, selects its statement pages and re
     expect(steps.map((s) => [s.kind, s.page_no, s.status, s.last_error])).toEqual([
       ["pdf_text", 1, "done", null],
       ["select_pages", null, "done", null],
-      ["extract_page", 3, "done", null],
+      ["digest_page", 3, "done", null],
       ["extract_page", 4, "done", null],
       ["extract_page", 5, "done", null],
     ]);
     expect(steps[0].result).toEqual({ from: 1, through: 6 });
     expect(steps[1].result).toEqual({ selected: 3 });
-    // p. 3 has no figures; p. 4 has three lines (one misread on purpose) and p. 5 two. A repeat of a page text already
-    // read on an earlier run is copied from the cache at 0 tokens.
-    expect(steps.slice(2).map((s) => (s.result as { proposals: number; flagged: number }).proposals)).toEqual([0, 3, 2]);
-    expect(steps.slice(2).map((s) => (s.result as { proposals: number; flagged: number }).flagged)).toEqual([0, 1, 0]);
+    // p. 3 is commentary: it is digested, not read for figures (the fixture finds no claims in it). p. 4 has three lines (one
+    // misread on purpose) and p. 5 two. A repeat of a page text already read on an earlier run is copied from the cache at 0 tokens.
+    expect(steps[2].result).toMatchObject({ claims: 0, onPage: 0 });
+    expect(steps.slice(3).map((s) => (s.result as { proposals: number; flagged: number }).proposals)).toEqual([3, 2]);
+    expect(steps.slice(3).map((s) => (s.result as { proposals: number; flagged: number }).flagged)).toEqual([1, 0]);
 
     // What the desk (the admin's session, RLS) can read back: pending proposals with the machine's values, never decided.
     const { data: proposals, error } = await admin.from("proposals").select("page_no, dedupe_key, machine_value, flags, reason, status, accepted_value").eq("document_id", documentId).order("page_no").order("dedupe_key");
@@ -193,7 +194,7 @@ test("the pump sorts a table the rules could not place with the small model (fix
       ["pdf_text", 1, "done", null],
       ["select_pages", null, "done", null],
       ["classify_pages", 2, "done", null],
-      ["extract_page", 3, "done", null],
+      ["digest_page", 3, "done", null],
       ["extract_page", 4, "done", null],
       ["extract_page", 5, "done", null],
     ]);

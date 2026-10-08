@@ -1,5 +1,6 @@
 import type { StepHandler, StepKind } from "../types";
 import { classifyPagesStep } from "./classify-pages";
+import { digestPage } from "./digest-page";
 import { extractPage } from "./extract-page";
 import { ocrPage } from "./ocr-page";
 import { pdfText } from "./pdf-text";
@@ -20,4 +21,5 @@ export const HANDLERS: Record<StepKind, StepHandler> = {
   transcribe,
   text_pages: textPages,
   classify_pages: classifyPagesStep,
+  digest_page: digestPage,
 };

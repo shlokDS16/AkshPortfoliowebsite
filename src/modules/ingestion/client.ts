@@ -18,3 +18,4 @@ export { groupValues, isListed } from "./review-values";
 export type { StagedRow } from "./staging";
 export type { FactProvenance } from "./provenance";
 export { factDiffers, likePrinted } from "./fact-differs";
+export * from "./digest-view";

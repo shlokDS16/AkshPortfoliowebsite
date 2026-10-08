@@ -8,6 +8,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 // import/export ... from "x", bare import "x", dynamic import("x") and require("x").
 const FROM = /(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']|(?:import|require)\s*\(\s*["']([^"']+)["']\s*\)/g;
 
+/** The table, the panel and the reader of the private digest (Plan 2b Task 7). */
+const DIGESTS = /document_digests|DigestPanel|readDigest|digest-panel|digest-read|digest-view/;
+
+/** The generated database types name every table; they hold no query, so they are not read for this rule. */
+const GENERATED = /database\.types\.ts$/;
+
 function resolveSpec(spec: string, from: string): string | null {
   const base = spec.startsWith("@/") ? join(ROOT, spec.slice(2)) : spec.startsWith(".") ? resolve(dirname(from), spec) : null;
   if (!base) return null;
@@ -52,6 +58,11 @@ describe("rule 10: public code paths use only the cookie-less public client", ()
     }
   });
 
+  it("nothing reachable from @/modules/showcase reads or shows the machine-read digests", () => {
+    expect(names.filter((n) => /digest/i.test(n))).toEqual([]);
+    for (const [file, text] of files) if (!GENERATED.test(file)) expect(text, file).not.toMatch(DIGESTS);
+  });
+
   it("the cached snapshot reads through createSupabasePublicClient", () => {
     const queries = files.get(join(ROOT, "modules/showcase/queries.ts"))!;
     expect(queries).toContain("createSupabasePublicClient(");
@@ -82,6 +93,11 @@ describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they im
   it("finds the public pages and the components under them", () => {
     expect(names).toEqual(expect.arrayContaining(["app/layout.tsx", "app/(public)/page.tsx", "app/(public)/about/page.tsx", "app/(public)/companies/[slug]/page.tsx",
       "app/(public)/companies/[slug]/opengraph-image.tsx", "components/desk/file-sections.tsx", "components/desk/public-frame.tsx", "modules/showcase/queries.ts"]));
+  });
+
+  it("no public route reads or shows the machine-read digests (document_digests is admin-read only)", () => {
+    expect(names.filter((n) => /digest/i.test(n))).toEqual([]);
+    for (const [file, text] of reach) if (!GENERATED.test(file)) expect(text, file).not.toMatch(DIGESTS);
   });
 
   it("no public route imports the service client or the server secrets", () => {
