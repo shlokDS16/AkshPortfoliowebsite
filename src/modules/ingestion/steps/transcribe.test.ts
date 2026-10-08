@@ -150,6 +150,19 @@ describe("transcribe: waits and refusals are never failures", () => {
     expect(usage.reservations[0]!.settled).toEqual({ used: 0, status: "released" });
   });
 
+  it.each(["TimeoutError", "AbortError", "HTTP 413"])("%s may have been counted by Groq, so the seconds stay in the ledger (and it is still a provider retry)", async (message) => {
+    const usage = createMemoryUsageRepo();
+    const out = await transcribe(ctx(setup(), fakeTranscriber({ kind: "provider_error", message }).port, { args: { seconds: 40 }, usage }));
+    expect(out).toEqual({ kind: "retry", failure: "provider", error: message });
+    expect(usage.reservations[0]).toMatchObject({ tokens: 40, settled: { used: 40, status: "used" } });
+  });
+
+  it.each(["HTTP 500", "HTTP 401", "TypeError", "unreadable answer"])("%s did not reach the audio, so the seconds are released", async (message) => {
+    const usage = createMemoryUsageRepo();
+    await transcribe(ctx(setup(), fakeTranscriber({ kind: "provider_error", message }).port, { usage }));
+    expect(usage.reservations[0]!.settled).toEqual({ used: 0, status: "released" });
+  });
+
   it("a transcriber that throws releases the seconds and throws again, so the runner counts a retry", async () => {
     const usage = createMemoryUsageRepo();
     const port: TranscriberPort = { name: "fixture", transcribe: async () => { throw new Error("boom"); } };

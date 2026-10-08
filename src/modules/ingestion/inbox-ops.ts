@@ -64,6 +64,8 @@ export async function retryAttention(p: InboxPorts, documentId: string): Promise
 /** Skip: the document's stuck steps are set aside; the pages already read stay searchable. */
 export async function skipAttention(p: InboxPorts, documentId: string): Promise<void> {
   const doc = await documentOf(p, documentId, ["active"]);
+  // A voice note that cannot be typed out has nothing left to read: skipping it closes it and deletes the recording.
+  if (doc.kind === "audio") return skipDocument(p, documentId);
   const job = await p.inbox.liveJob(doc.id);
   if (job) await p.inbox.skipAttention(job);
 }
@@ -76,7 +78,10 @@ export async function skipDocument(p: InboxPorts, documentId: string): Promise<v
   const doc = await documentOf(p, documentId, ["active", "skipped"]);
   // The job stops first: if the status write then fails, Skip can be pressed again, and nothing keeps spending the allowance.
   await p.inbox.cancelJob(doc.id);
-  if (doc.status === "active") await p.docs.update(doc.id, { status: "skipped" });
+  // Aksh's voice is not kept once he has said he does not want the note (a PDF's original stays, as before): the recording goes, then the status.
+  const recording = doc.kind === "audio" && doc.storagePath && !doc.originalDeletedAt ? doc.storagePath : null;
+  if (recording) await p.docs.removeObject(recording);
+  if (doc.status === "active" || recording) await p.docs.update(doc.id, { status: "skipped", ...(recording ? { originalDeletedAt: new Date().toISOString() } : {}) });
 }
 
 /**

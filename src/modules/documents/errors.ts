@@ -1,4 +1,5 @@
 import { DeskError } from "@/lib/errors";
+import { VOICE_MAX_MB, VOICE_MAX_MINUTES } from "./limits";
 
 /**
  * Fixed text per code (errata R11): equal to the entries in src/lib/messages.ts (a test keeps them equal).
@@ -12,8 +13,8 @@ export const DOCUMENT_ERROR_TEXT = {
   "upload-storage-full": "Storage is over 90% full. Mark finished documents as done to free space.",
   "upload-missing": "The upload did not arrive complete. Upload the file again.",
   "voice-off": "Voice notes are not switched on yet.",
-  "voice-too-large": "This voice note is over 25 MB. Record a shorter one.",
-  "voice-too-long": "This voice note is longer than 90 minutes. Record a shorter one.",
+  "voice-too-large": `This voice note is over ${VOICE_MAX_MB} MB. Record a shorter one.`,
+  "voice-too-long": `This voice note is longer than ${VOICE_MAX_MINUTES} minutes. Record a shorter one.`,
 } as const;
 
 export type DocumentErrorCode = keyof typeof DOCUMENT_ERROR_TEXT;

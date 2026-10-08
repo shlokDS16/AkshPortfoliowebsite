@@ -1,3 +1,5 @@
+import { VOICE_MAX_MB } from "@/modules/documents/client";
+
 // The words about voice notes (browser-safe: the trays show them). Every line is also in spec s16.9, marked there as
 // pending Shlok approval where the build chose the wording and he has not yet read it.
 
@@ -5,7 +7,7 @@
 export const VOICE_OFF = "Voice notes are not switched on yet.";
 export const VOICE_NOT_STORED = "This voice note is no longer stored, so it cannot be typed out. Choose Skip, or Try again.";
 export const VOICE_NOTHING_HEARD = "Nothing could be heard in this recording. Skip it, or try another one.";
-export const VOICE_TOO_BIG = "This voice note is over 25 MB, more than the free voice reading takes. Skip it, or record a shorter one.";
+export const VOICE_TOO_BIG = `This voice note is over ${VOICE_MAX_MB} MB, more than the free voice reading takes. Skip it, or record a shorter one.`;
 
 /** What a voice note's tray says while it is typed out and once it is (R13: it is not counted as figures). */
 export const TYPING_OUT = "Typing out your voice note.";

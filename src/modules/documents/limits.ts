@@ -32,6 +32,11 @@ export const IMAGE_QUALITY = { start: 0.85, step: 0.05, floor: 0.6 } as const;
 export const VOICE_MAX_BYTES = 25_000_000;
 /** The most audio one recording may hold: the hour allowance (75% of 7,200 seconds, spec s9). A test keeps it equal to WHISPER_CAPS.secondsHour. */
 export const VOICE_MAX_SECONDS = 5_400;
+/** A claimed recording length above this is not a length at all (the server action argument is a client claim). */
+export const VOICE_SECONDS_SANITY = 1_000_000;
+/** The limits as the refusal sentences say them (derived, so a changed limit changes the words). */
+export const VOICE_MAX_MB = VOICE_MAX_BYTES / 1_000_000;
+export const VOICE_MAX_MINUTES = VOICE_MAX_SECONDS / 60;
 
 /** PostgREST returns at most this many rows a request (Supabase default max_rows): a longer read goes in ranges. */
 export const POSTGREST_ROWS = 1_000;

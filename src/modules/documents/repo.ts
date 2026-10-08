@@ -172,6 +172,7 @@ export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
         .select(LIST_COLUMNS)
         .eq("company_id", companyId)
         .neq("status", "uploading") // an unfinished upload has no file to open
+        .neq("kind", "audio") // a voice note's words are Aksh's own, shown only on its inbox card, never beside a filing
         .order("filed_on", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
       if (error) throw dbError("documents.listForCompany", error);

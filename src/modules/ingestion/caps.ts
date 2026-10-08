@@ -82,5 +82,7 @@ export const WHISPER_MIN_BILLED_SECONDS = 10;
 export const WHISPER_BYTES_PER_SECOND = 40_000;
 /** One Whisper call waits at most this long (a 25 MB file on the free tier can take a while). */
 export const WHISPER_TIMEOUT_MS = 90_000;
+/** A Whisper 429 with no retry-after waits this long; over the first threshold it is the hour allowance, over the second the day's. */
+export const WHISPER_WAIT = { defaultSeconds: 60, hourAfterSeconds: 600, dayAfterSeconds: 3_600 } as const;
 /** A transcript the card can save as one capture: captures.raw_text allows 20,000 characters (capture/service.ts). */
 export const TRANSCRIPT_SAVE_MAX_CHARS = 20_000;

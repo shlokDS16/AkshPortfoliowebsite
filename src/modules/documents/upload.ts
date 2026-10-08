@@ -4,7 +4,7 @@ import { isUuid } from "@/lib/ids";
 import { isUniqueViolation } from "@/lib/supabase/errors";
 import { DocumentError } from "./errors";
 import { mimesOfStoragePath, storageExtension, UPLOAD_KINDS, type UploadKind } from "./kinds";
-import { STORAGE_BYTES, STORAGE_REFUSE, VOICE_MAX_SECONDS } from "./limits";
+import { STORAGE_BYTES, STORAGE_REFUSE, VOICE_MAX_SECONDS, VOICE_SECONDS_SANITY } from "./limits";
 import type { DocumentsRepo } from "./repo";
 import type { DocumentRow, StartUploadInput } from "./types";
 
@@ -24,7 +24,7 @@ export const startUploadInputSchema = z.strictObject({
   companyId: z.guid().nullable(),
   filedOn: z.iso.date().nullable(),
   sourceUrl: z.url({ protocol: /^https?$/ }).regex(/^https?:\/\//).max(2000).nullable(),
-  seconds: z.number().min(0).max(1_000_000).nullable().optional(),
+  seconds: z.number().min(0).max(VOICE_SECONDS_SANITY).nullable().optional(),
 });
 
 type StartUploadClaim = z.infer<typeof startUploadInputSchema>;

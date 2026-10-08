@@ -9,20 +9,31 @@ import { queryWords } from "./verbatim";
 export const SNIPPET_CHARS = 160;
 export const SEARCH_RESULTS = 10;
 
+/**
+ * A voice note's transcript is Aksh's own words, shown on its inbox card and nowhere else: never beside a filing, never a
+ * source page. The pane's reads treat a voice note as having no pages, even when asked for it by id.
+ */
+async function isVoiceNote(db: Db, documentId: string): Promise<boolean> {
+  const { data, error } = await db.from("documents").select("kind").eq("id", documentId).maybeSingle();
+  if (error) throw dbError("documents.isVoiceNote", error);
+  return data?.kind === "audio";
+}
+
 /** One page and the document's page count, or null when the page is not there. */
 export async function readPage(db: Db, documentId: string, pageNo: number): Promise<{ text: string; pageCount: number; kind: PageKind | null } | null> {
   const [page, doc] = await Promise.all([
     db.from("document_pages").select("text, kind").eq("document_id", documentId).eq("page_no", pageNo).maybeSingle(),
-    db.from("documents").select("page_count").eq("id", documentId).maybeSingle(),
+    db.from("documents").select("page_count, kind").eq("id", documentId).maybeSingle(),
   ]);
   if (page.error) throw dbError("documents.readPage", page.error);
   if (doc.error) throw dbError("documents.readPage", doc.error);
-  if (!page.data || !doc.data) return null;
+  if (!page.data || !doc.data || doc.data.kind === "audio") return null;
   return { text: page.data.text, pageCount: doc.data.page_count ?? pageNo, kind: page.data.kind as PageKind | null };
 }
 
 /** Pages whose text matches a web-style query, in page order, with the matching row's text for the snippet. */
 export async function searchPageText(db: Db, documentId: string, query: string): Promise<{ pageNo: number; text: string }[]> {
+  if (await isVoiceNote(db, documentId)) return [];
   const { data, error } = await db
     .from("document_pages")
     .select("page_no, text")

@@ -1,6 +1,6 @@
 import { errorShape } from "@/lib/errors";
 import { errorCode, errorText, userWasTold } from "@/lib/messages";
-import { DocumentError, finishUpload, startUpload, type DocumentKind, type DocumentsRepo, type StartUploadInput, type StartUploadOptions } from "@/modules/documents";
+import { DocumentError, finishUpload, startUpload, VOICE_SECONDS_SANITY, type DocumentKind, type DocumentsRepo, type StartUploadInput, type StartUploadOptions } from "@/modules/documents";
 import type { QueueRepo } from "./queue-repo";
 import type { JobKind, NewStep } from "./types";
 
@@ -22,7 +22,7 @@ export const FIRST_STEP: Partial<Record<DocumentKind, { job: JobKind; step: NewS
 
 /** A recording's length as the browser measured it, kept on its first step to size the reservation. A claim, so only a plain positive number passes. */
 function withSeconds(step: NewStep, seconds: unknown): NewStep {
-  return typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 && seconds <= 1_000_000 ? { ...step, args: { seconds: Math.ceil(seconds) } } : step;
+  return typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 && seconds <= VOICE_SECONDS_SANITY ? { ...step, args: { seconds: Math.ceil(seconds) } } : step;
 }
 
 /** A fixed code and its fixed text (src/lib/messages.ts); never a database message. Unexpected failures are logged by shape. */

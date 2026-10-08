@@ -1,5 +1,5 @@
 import { audioMimeOfPath, VOICE_MAX_BYTES } from "@/modules/documents";
-import { SHORT_WAIT_MS, WHISPER_BUCKET, WHISPER_CAPS } from "../caps";
+import { SHORT_WAIT_MS, WHISPER_BUCKET, WHISPER_CAPS, WHISPER_WAIT } from "../caps";
 import { llmTimeoutMs } from "../deadline";
 import { callWithinUnits } from "../governor";
 import type { StepContext, StepHandler, StepOutcome } from "../types";
@@ -12,10 +12,11 @@ import { reservationSeconds, settledSeconds } from "../voice-budget";
 // saves it himself (the card in the inbox). A refusal is a wait or a sentence, never a failure count. Every write is idempotent.
 
 const NO_RATE = { remainingTokens: null, remainingRequests: null, retryAfterSeconds: null };
-const MINUTE_WAIT_SECONDS = 60;
-/** A retry-after over this many seconds is the hour allowance; over an hour it is the day's. */
-const HOUR_AFTER_SECONDS = 600;
-const DAY_AFTER_SECONDS = 3_600;
+/**
+ * A timeout or a 413 may still have been counted by Groq (it may have processed the audio before the answer was lost), so those
+ * keep their seconds in the ledger; any other failure released nothing it used.
+ */
+const MAY_HAVE_BEEN_COUNTED = /^(TimeoutError|AbortError|HTTP 413)$/;
 const attention = (error: string): StepOutcome => ({ kind: "attention", error });
 
 export const transcribe: StepHandler = async (ctx: StepContext) => {
@@ -48,15 +49,16 @@ export const transcribe: StepHandler = async (ctx: StepContext) => {
   const budget = await callWithinUnits({ usage, now: deps.now }, WHISPER_BUCKET, reserved, caps, async () => {
     const result = await transcriber.transcribe({ bytes, mime, name: `voice.${extension}` }, { timeoutMs });
     // The provider counted the call when it answered; the seconds settle at the length it reported (at least 10).
-    return { result, spent: result.kind === "ok" ? settledSeconds(result.seconds, reserved) : false };
+    const maybeCounted = result.kind === "provider_error" && MAY_HAVE_BEEN_COUNTED.test(result.message);
+    return { result, spent: result.kind === "ok" ? settledSeconds(result.seconds, reserved) : maybeCounted ? reserved : false };
   });
   if (budget.kind === "deferred") return { kind: "defer", notBefore: budget.notBefore, reason: budget.reason };
 
   const out = budget.result;
   if (out.kind === "provider_error") return { kind: "retry", failure: "provider", error: out.message.slice(0, 400) };
   if (out.kind === "rate_limited") {
-    const wait = Math.max(out.retryAfterSeconds ?? MINUTE_WAIT_SECONDS, 1);
-    const reason = wait > DAY_AFTER_SECONDS ? "voice_day" : wait > HOUR_AFTER_SECONDS ? "voice_hour" : "groq_minute";
+    const wait = Math.max(out.retryAfterSeconds ?? WHISPER_WAIT.defaultSeconds, 1);
+    const reason = wait > WHISPER_WAIT.dayAfterSeconds ? "voice_day" : wait > WHISPER_WAIT.hourAfterSeconds ? "voice_hour" : "groq_minute";
     const notBefore = new Date(deps.now().getTime() + wait * 1000);
     await usage.block(WHISPER_BUCKET, "rate_limited", notBefore, reason, NO_RATE);
     return { kind: "defer", notBefore, reason };

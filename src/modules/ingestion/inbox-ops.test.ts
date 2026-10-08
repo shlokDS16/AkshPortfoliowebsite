@@ -188,6 +188,52 @@ describe("skipDocument", () => {
   });
 });
 
+describe("skipping a voice note deletes the recording", () => {
+  const VOICE = "6f1d2c3b-4a59-4e8d-b7c6-a1b2c3d4e5f6";
+  let voiceJob: string;
+  beforeEach(async () => {
+    await docs.insertUploading({ id: VOICE, title: "Call", kind: "audio", storagePath: `${VOICE}.m4a`, sha256: "c".repeat(64), bytes: 10, companyId: null, filedOn: null, sourceUrl: null, transcriptStatus: "pending" });
+    await docs.update(VOICE, { status: "active" });
+    docs.objects.set(`${VOICE}.m4a`, { size: 10, mimetype: "audio/mp4" });
+    voiceJob = await inbox.queue.createJob(VOICE, "ingest_audio", { kind: "transcribe", pageNo: 1 });
+  });
+
+  it("Skip this document: the job stops, the recording goes, the time it went is kept and the note is skipped", async () => {
+    await skipDocument(ports, VOICE);
+    const doc = await docs.get(VOICE);
+    expect(doc?.status).toBe("skipped");
+    expect(doc?.originalDeletedAt).not.toBeNull();
+    expect(docs.objects.has(`${VOICE}.m4a`)).toBe(false);
+    expect(inbox.jobs.get(voiceJob)?.cancelled).toBe(true);
+  });
+
+  it("Skip on a note that could not be typed out does the same", async () => {
+    await skipAttention(ports, VOICE);
+    expect(await docs.get(VOICE)).toMatchObject({ status: "skipped" });
+    expect(docs.objects.has(`${VOICE}.m4a`)).toBe(false);
+  });
+
+  it("can be pressed again after a failure part-way, and after it worked", async () => {
+    const remove = docs.removeObject;
+    docs.removeObject = async () => {
+      throw new Error("storage down");
+    };
+    await expect(skipDocument(ports, VOICE)).rejects.toThrow("storage down");
+    expect((await docs.get(VOICE))?.status).toBe("active");
+    docs.removeObject = remove;
+    await skipDocument(ports, VOICE);
+    await expect(skipDocument(ports, VOICE)).resolves.toBeUndefined();
+    expect(await docs.get(VOICE)).toMatchObject({ status: "skipped" });
+  });
+
+  it("a PDF keeps its original when skipped (as before)", async () => {
+    docs.objects.set(`${DOC}.pdf`, { size: 10, mimetype: "application/pdf" });
+    await skipDocument(ports, DOC);
+    expect(docs.objects.has(`${DOC}.pdf`)).toBe(true);
+    expect((await docs.get(DOC))?.originalDeletedAt).toBeNull();
+  });
+});
+
 describe("markDone", () => {
   it("cancels the job, deletes the stored PDF and marks the document done with the time the original went", async () => {
     docs.objects.set(`${DOC}.pdf`, { size: 10, mimetype: "application/pdf" });
