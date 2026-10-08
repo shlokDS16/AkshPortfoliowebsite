@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { dbError } from "@/lib/supabase/errors";
+import { DbError, dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 import type { CaseFile } from "@/modules/casefile/client";
 import { factDiffers } from "./fact-differs";
@@ -46,7 +46,7 @@ export async function recordFiledFacts(db: Db, input: Input): Promise<{ filed: n
   const ids = [...new Set([...input.provenance.map((p) => p.proposalId), ...staged])];
   if (ids.length === 0) return { filed: 0 };
 
-  const loaded = await db.from("proposals").select("id, item_id, status, machine_value").in("id", ids);
+  const loaded = await db.from("proposals").select("id, item_id, document_id, status, machine_value").in("id", ids);
   if (loaded.error) throw dbError("provenance.proposals", loaded.error);
   const proposals = new Map(loaded.data.map((p) => [p.id, p]));
   const facts = new Map(structured.facts.map((f) => [f.id, f]));
@@ -74,24 +74,44 @@ export async function recordFiledFacts(db: Db, input: Input): Promise<{ filed: n
       .from("proposals")
       .update({ status: "filed", revision_id: revisionId })
       .in("id", rows.map((r) => r.proposal_id))
+      .eq("item_id", itemId)
       .in("status", ["accepted", "edited"])
       .select("id");
     if (filed.error) throw dbError("provenance.file", filed.error);
+    // A second tab unstaging in between would leave a provenance row for a proposal that did not file: say so (the save
+    // then shows the "record could not be written" notice; the revision itself is unaffected).
+    if (filed.data.length !== rows.length) throw new DbError("provenance.file", "count-mismatch", null);
   }
 
-  // A staged figure that did not become a fact goes back to the review list.
+  // A staged figure that did not become a fact leaves the editor: back to the review list, or dropped when its document is closed.
   const back = staged.filter((id) => !usedProposals.has(id));
-  if (back.length > 0) {
-    const cleared = await db
+  if (back.length > 0) await sendBack(db, itemId, back, proposals);
+  return { filed: rows.length };
+}
+
+async function sendBack(db: Db, itemId: string, ids: string[], loaded: Map<string, { document_id: string }>): Promise<void> {
+  const documents = await db.from("documents").select("id, status").in("id", [...new Set(ids.flatMap((id) => loaded.get(id)?.document_id ?? []))]);
+  if (documents.error) throw dbError("provenance.documents", documents.error);
+  const closed = new Set(documents.data.filter((d) => d.status === "done" || d.status === "skipped").map((d) => d.id));
+  const isClosed = (id: string) => closed.has(loaded.get(id)?.document_id ?? "");
+
+  const open = ids.filter((id) => !isClosed(id));
+  if (open.length > 0) {
+    const cleared = await db.from("proposals").update({ item_id: null }).in("id", open).eq("item_id", itemId).in("status", ["accepted", "edited"]).is("revision_id", null);
+    if (cleared.error) throw dbError("provenance.unstage", cleared.error);
+  }
+  // Aksh's own drop: the review screen of a done or skipped document refuses, so these could never be seen or filed again.
+  const dropped = ids.filter(isClosed);
+  if (dropped.length > 0) {
+    const drop = await db
       .from("proposals")
-      .update({ item_id: null })
-      .in("id", back)
+      .update({ status: "rejected", accepted_value: null, item_id: null, decided_at: new Date().toISOString() })
+      .in("id", dropped)
       .eq("item_id", itemId)
       .in("status", ["accepted", "edited"])
       .is("revision_id", null);
-    if (cleared.error) throw dbError("provenance.unstage", cleared.error);
+    if (drop.error) throw dbError("provenance.drop", drop.error);
   }
-  return { filed: rows.length };
 }
 
 export type FactProvenance = { proposalId: string; documentTitle: string; page: number; machine: MachineFact; edited: boolean; filedAt: string };

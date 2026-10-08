@@ -8,7 +8,7 @@ import { mergeStaged } from "./staged";
 
 const base = toDraft(parseFactsSheet(KAVERI.revisions[1].sheet).caseFile);
 const lastId = (prefix: string, ids: string[]) => Math.max(...ids.filter((i) => i.startsWith(prefix)).map((i) => Number(i.slice(1))));
-const doc = { id: "d1", title: "Annual report 2025-26", sourceType: "Annual report" as const, filedOn: "2026-05-20", sourceUrl: "https://example.com/ar.pdf" };
+const doc = { id: "d1", title: "Annual report 2025-26", sourceType: "Annual report" as const, filedOn: "2026-05-20", sourceUrl: "https://example.com/ar.pdf", status: "active" as const };
 const staged = (id: string, over = {}, status: StagedRow["status"] = "accepted", d = doc): StagedRow => ({
   proposalId: id, status, document: d, value: proposedFactSchema.parse(machine(over)),
 });

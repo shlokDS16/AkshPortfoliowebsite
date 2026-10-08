@@ -49,14 +49,19 @@ export function createMemoryReviewRepo(records: ProposalRecord[] = []): MemoryRe
       if (decided.status === "rejected") at.itemId = null;
       repo.recorded.push({ id, status: decided.status });
     },
-    async assignItem(_documentId, itemId) {
-      const mine = repo.records.filter((r) => (r.status === "accepted" || r.status === "edited") && r.itemId !== itemId);
+    async assignItem(_documentId, itemId, proposalIds) {
+      const mine = repo.records.filter((r) => proposalIds.includes(r.id) && (r.status === "accepted" || r.status === "edited"));
       for (const r of mine) r.itemId = itemId;
-      return repo.records.filter((r) => (r.status === "accepted" || r.status === "edited") && r.itemId === itemId).length;
+      return mine.length;
     },
     async unassignItem(_documentId, itemId) {
       const mine = repo.records.filter((r) => (r.status === "accepted" || r.status === "edited") && r.itemId === itemId);
       for (const r of mine) r.itemId = null;
+      return mine.length;
+    },
+    async dropStaged(_documentId, itemId) {
+      const mine = repo.records.filter((r) => (r.status === "accepted" || r.status === "edited") && r.itemId === itemId);
+      for (const r of mine) Object.assign(r, { status: "rejected", accepted: null, itemId: null });
       return mine.length;
     },
   };

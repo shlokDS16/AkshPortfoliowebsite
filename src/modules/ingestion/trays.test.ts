@@ -10,7 +10,7 @@ const step = (over: Partial<StepState> = {}): StepState => ({
   kind: "extract_page", status: "queued", notBefore: EARLIER, waitReason: null, pageNo: 4, lastError: null, everClaimed: true, ...over,
 });
 const doc = (over: Partial<DocState> = {}): DocState => ({
-  status: "active", pageCount: 312, pagesRead: 88, aiOn: true, pending: 0, flagged: 0, steps: [], ...over,
+  status: "active", pageCount: 312, pagesRead: 88, aiOn: true, pending: 0, flagged: 0, decided: 0, steps: [], ...over,
 });
 const view = (over: Partial<DocState> = {}, eta: string | null = "ready by 11:40") => trayFor(doc(over), NOW, eta);
 
@@ -120,6 +120,13 @@ describe("trayFor (spec s7), in the order the rules apply", () => {
     expect(view({ pending: 24, steps: done })).toMatchObject({ tray: "ready", message: "24 figures ready to check." });
     expect(view({ pending: 24, flagged: 2, steps: done }).message).toBe("24 figures ready to check. 2 need a look.");
     expect(view({ pending: 1, flagged: 1, steps: done }).message).toBe("1 figure ready to check. 1 needs a look.");
+  });
+
+  it("a document whose figures are all decided says so, not that nothing matched", () => {
+    const done = [step({ kind: "select_pages", status: "done", pageNo: null })];
+    expect(view({ decided: 3, steps: done })).toMatchObject({ tray: "ready", message: "All figures checked." });
+    expect(view({ decided: 3, aiOn: false, steps: done }).message).toBe("All figures checked.");
+    expect(view({ decided: 3, pending: 2, steps: done }).message).toBe("2 figures ready to check.");
   });
 
   it("nothing matched is still ready, and says what to do", () => {

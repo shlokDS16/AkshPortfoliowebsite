@@ -32,6 +32,7 @@ export const REVIEW_ERROR_TEXT = {
   "not-this-file": "That is not this company's file. Reload and try again.",
   "no-company": "This document is not linked to a company, so there is no file to put its figures in.",
   "nothing-to-file": "Tick at least one figure to file.",
+  "company-locked": "Some of this document's figures are already in its company's file, so the company cannot be changed.",
   "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
 } as const;
 

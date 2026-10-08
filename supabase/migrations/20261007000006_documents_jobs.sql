@@ -59,6 +59,14 @@ begin
      or new.page_no <> old.page_no or new.document_id <> old.document_id then
     raise exception 'document_pages.text is written once' using errcode = 'P0001';
   end if;
+  -- A page Aksh ticked is his: job code (service_role) may mark a page 'rule' but never records a tick as his,
+  -- and never undoes one (the final-review hardening of the R7 boundary).
+  if (current_user = 'service_role'
+      or nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role' = 'service_role')
+     and ((new.selected_by = 'aksh' and old.selected_by is distinct from 'aksh')
+          or (old.selected_by = 'aksh' and (new.selected is distinct from old.selected or new.selected_by is distinct from old.selected_by))) then
+    raise exception 'only Aksh ticks a page himself' using errcode = '42501';
+  end if;
   return new;
 end;
 $$;
@@ -225,7 +233,7 @@ grant update (status, not_before, schema_failures, provider_failures, lease_expi
   on public.job_steps to authenticated;
 
 grant select on public.documents to service_role;
-grant update (page_count, status) on public.documents to service_role;
+grant update (page_count) on public.documents to service_role;
 grant select, insert on public.document_pages to service_role;
 grant update (text, kind, basis, score, selected, selected_by) on public.document_pages to service_role;
 -- No UPDATE on jobs: job code never changes a job, and must never clear Aksh's cancel (cancelled_at).

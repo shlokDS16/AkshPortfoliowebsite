@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatCount } from "@/lib/format";
 import { errorText } from "@/lib/messages";
 import { groupValues, type ProposalView, type ReviewData } from "@/modules/ingestion/client";
+import { ChangeCompany } from "./change-company";
 import { DoneButton } from "./done-button";
 import { FileUnder } from "./file-under";
 import { FlagCard } from "./flag-card";
@@ -60,6 +61,9 @@ export function ReviewOneAtATime({ data, companies = [] }: Props) {
         </p>
         <h1 className="break-words text-title text-ink desk:text-title-desk">Review: {doc.title}</h1>
         {doc.companyName ? <p className="text-small text-ink-muted">{doc.companyName}</p> : null}
+        {doc.companyId && doc.companyName && doc.status === "active" ? (
+          <ChangeCompany documentId={doc.id} companyId={doc.companyId} companyName={doc.companyName} companies={companies} />
+        ) : null}
         {data.counts.filed > 0 ? (
           <p data-testid="filed-count" className="text-small text-ink-body">
             {formatCount(data.counts.filed, "figure")} from this document {data.counts.filed === 1 ? "is" : "are"} filed in a case file.

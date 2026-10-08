@@ -18,7 +18,7 @@ type Props = {
   sendBack?: (documentId: string) => Promise<ActionResult>;
 };
 
-/** Says how many machine-read figures wait in the form, and lets Aksh send a document's figures back to its review screen. */
+/** Says how many machine-read figures wait in the form, and lets Aksh send a document's figures back to its review screen (or drop them, when the document is done or skipped). */
 export function StagedBanner({ staged, mergedIds, presentIds, unseen, sendBack }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -26,6 +26,7 @@ export function StagedBanner({ staged, mergedIds, presentIds, unseen, sendBack }
   const merged = new Set(mergedIds);
   const present = new Set(presentIds);
   const docs = [...new Map(staged.map((s) => [s.document.id, s.document.title])).entries()];
+  const closed = new Set(staged.filter((s) => s.document.status === "done" || s.document.status === "skipped").map((s) => s.document.id));
   if (docs.length === 0) return null;
 
   async function back(documentId: string) {
@@ -35,7 +36,9 @@ export function StagedBanner({ staged, mergedIds, presentIds, unseen, sendBack }
     try {
       const result = await sendBack(documentId);
       if (!result.ok) return setError(result.message);
-      router.push(`/desk/inbox/${documentId}/review`);
+      // A closed document has no review screen to go back to: its figures are dropped, so the page just reloads without them.
+      if (closed.has(documentId)) router.refresh();
+      else router.push(`/desk/inbox/${documentId}/review`);
     } catch {
       setError(errorText("save-failed"));
     } finally {
@@ -62,7 +65,9 @@ export function StagedBanner({ staged, mergedIds, presentIds, unseen, sendBack }
                       {formatCount(shown, "figure")} from {title} {shown === 1 ? "is" : "are"} staged below. Check them, write your change reason and save.
                     </p>
                   ) : mine.length > left ? (
-                    <p>You removed every staged figure from {title}. Saving sends them back to the review list.</p>
+                    <p>
+                      You removed every staged figure from {title}. {closed.has(id) ? "Saving drops them, because you marked the document done or skipped." : "Saving sends them back to the review list."}
+                    </p>
                   ) : null}
                   {left > 0 ? (
                     <p className="text-ink-muted">
@@ -73,8 +78,8 @@ export function StagedBanner({ staged, mergedIds, presentIds, unseen, sendBack }
               )}
             </div>
             {sendBack ? (
-              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => back(id)} aria-label={docs.length > 1 ? `Send back to review, ${title}` : undefined}>
-                Send back to review
+              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => back(id)} aria-label={docs.length > 1 ? `${closed.has(id) ? "Drop these figures" : "Send back to review"}, ${title}` : undefined}>
+                {closed.has(id) ? "Drop these figures" : "Send back to review"}
               </Button>
             ) : null}
           </div>

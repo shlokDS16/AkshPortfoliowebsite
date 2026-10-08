@@ -202,3 +202,22 @@ The throughput line in s9 is still the proposal's estimate. Task 16's live measu
 
 ### 16.4 s10 (degradation): the queue sentence
 The strip sentence for pumps not running is built from the oldest runnable step's age in whole hours, from `public.queue_age()` (granted to anon and authenticated, numbers only), through the same 6-hour rule as `/api/health`. Waiting on quota is never a stuck queue.
+
+### 16.5 Final-review fix wave (2026-10-08, append-only)
+The whole-branch review (`.superpowers/sdd/2026-10-07-phase-2a-ingestion/final-review.md`) found defects in the human loop after review. What changed, and the copy it added (**pending Shlok approval** means the build chose the wording and Shlok has not yet read it):
+- **Filing and the editor use one rule (s6.5).** "File under" files exactly the accepted or edited figures the values list shows: a standalone repeat of a consolidated line is not filed (a resolved flagged repeat included, because the list hides it too), and the editor no longer filters a second time. "N figures filed" is the number the editor then shows.
+- **A fully checked document still leads to Done (s7).** The inbox card for a read document with decided figures and none waiting says "All figures checked." (**pending Shlok approval**) instead of "Read. No figures matched; open it beside your file.", and keeps its Review link, in the Ready and Needs attention trays alike, because the review screen is where Done lives. The desk home Needs-you card is unchanged (Q15 is still open).
+- **No false "upload again" (s7, s10).** A document keeps its hash, so the same PDF is refused as a duplicate for ever; the step messages now point at the card's buttons. All four are **pending Shlok approval**:
+
+| Where | Text |
+|---|---|
+| pdf_text, stored file differs from the upload | The stored file is not the PDF that was uploaded. Choose Try again, or Skip this document. |
+| pdf_text, original gone | The original PDF is no longer stored, so its pages cannot be read. Choose Skip, or Try again. |
+| extract_page, page gone | This page is no longer stored, so it cannot be read. Choose Skip, or Try again. |
+| select_pages, document gone | This document is no longer on your desk, so its pages cannot be chosen. Choose Skip, or Try again. |
+
+  A storage failure while downloading the original is a normal step retry (1 and 2 minutes), not an instant Needs attention. A "Read again" action was considered and is not built (Shlok's decision; Q19).
+- **A closed document's staged figures are dropped, not stranded (s6.5).** For a done or skipped document the staged banner's button reads "Drop these figures" and marks those staged figures rejected with no file (Aksh's own drop); deleting a staged figure and saving does the same. The banner line for that case reads "You removed every staged figure from <doc>. Saving drops them, because you marked the document done or skipped." (**pending Shlok approval**).
+- **A wrongly linked company can be changed (s6.5).** The review screen has a "Change company" control (the same chooser, button "Move to this company") while none of the document's figures is filed or staged. Otherwise the desk answers with `company-locked`: "Some of this document's figures are already in its company's file, so the company cannot be changed." (**pending Shlok approval**).
+- **Machine boundary (s4, migration 0006 amended in place, never pushed).** `service_role` may update only `documents.page_count`. A trigger on `document_pages` stops `service_role` recording a tick as Aksh's (`selected_by = 'aksh'`) or undoing one. `ingestion.graph.test.ts` also bans the names `publish_revision` and `unpublish_item` under ingestion, documents and the inbox route.
+- **Provenance (s6.5).** The `filed` update is limited to the item's own staged proposals and its row count is checked; a shortfall raises `provenance.file (count-mismatch)`, so the save shows the existing "record could not be written" notice.

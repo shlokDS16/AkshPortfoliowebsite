@@ -24,6 +24,6 @@ export function doc(over: Partial<InboxDoc> & { view: TrayView }): InboxDoc {
   n += 1;
   return {
     id: `0000000${n}-0000-4000-8000-000000000000`, title: `Report ${n}`, company: null, createdAt: "2026-10-03T06:00:00Z", status: "active",
-    pageCount: 312, budget: 20, pending: 0, flagged: 0, pages: [], ...over,
+    pageCount: 312, budget: 20, pending: 0, flagged: 0, decided: 0, pages: [], ...over,
   };
 }

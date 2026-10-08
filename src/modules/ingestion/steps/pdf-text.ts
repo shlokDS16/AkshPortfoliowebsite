@@ -7,9 +7,9 @@ import type { StepHandler, StepOutcome } from "../types";
 // from the next page. Every write is idempotent, so a duplicate or reclaimed step is harmless.
 
 export const PDF_NOT_OPENED = "This PDF could not be opened (it may be password-protected or damaged).";
-export const PDF_WRONG_FILE = "The stored file is not the PDF that was uploaded. Upload it again.";
+export const PDF_WRONG_FILE = "The stored file is not the PDF that was uploaded. Choose Try again, or Skip this document.";
 export const PDF_TOO_LONG = "This PDF has more than 5,000 pages. Upload the financial statements section on its own.";
-export const PDF_NOT_STORED = "The original PDF is no longer stored, so its pages cannot be read. Upload it again, or skip this document.";
+export const PDF_NOT_STORED = "The original PDF is no longer stored, so its pages cannot be read. Choose Skip, or Try again.";
 
 /** Kept free before the drain deadline for the batch write and the step's finish. */
 const WRITE_MARGIN_MS = 20_000;
@@ -35,12 +35,8 @@ export const pdfText: StepHandler = async ({ step, documentId, deadline, deps })
   // "Done with this document" deletes the original but keeps storage_path, so original_deleted_at is checked too.
   if (!doc?.storagePath || doc.originalDeletedAt) return attention(PDF_NOT_STORED);
 
-  let bytes: Uint8Array;
-  try {
-    bytes = await documents.download(doc.storagePath);
-  } catch {
-    return attention(PDF_NOT_STORED); // a plain sentence on the card, never "documents.download (no code)"
-  }
+  // A storage failure throws: the runner retries the step (1 and 2 minutes) and only then shows its plain give-up sentence.
+  const bytes = await documents.download(doc.storagePath);
   // The server never saw the upload's bytes: the hash and type the browser claimed are checked here, before parsing.
   if (sha256(bytes) !== doc.sha256 || !startsLikePdf(bytes)) return attention(PDF_WRONG_FILE);
 

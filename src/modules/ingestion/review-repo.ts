@@ -29,10 +29,12 @@ export interface ReviewRepo {
   companyName(companyId: string): Promise<string | null>;
   /** Records one decision; a rejected figure also leaves any file it was waiting for. */
   record(documentId: string, id: string, decided: { status: "accepted" | "edited" | "rejected"; acceptedValue: ProposedFact | null }): Promise<void>;
-  /** Puts the document's accepted and edited figures that are not yet in a revision under the item; returns how many. */
-  assignItem(documentId: string, itemId: string): Promise<number>;
+  /** Puts exactly these accepted or edited figures (none yet in a revision) under the item; returns how many moved. */
+  assignItem(documentId: string, itemId: string, proposalIds: string[]): Promise<number>;
   /** Send back to review: the document's figures staged under the item (no revision yet) leave it, still accepted or edited. Returns how many. */
   unassignItem(documentId: string, itemId: string): Promise<number>;
+  /** A closed (done or skipped) document's staged figures under the item: Aksh's own drop. They become rejected and leave the item. Returns how many. */
+  dropStaged(documentId: string, itemId: string): Promise<number>;
 }
 
 const COLUMNS = "id, page_no, machine_value, accepted_value, flags, reason, status, item_id";
@@ -67,11 +69,13 @@ export function createReviewRepo(db: Db): ReviewRepo {
       if (error) throw dbError("review.record", error);
       if (data.length === 0) throw new InvalidInputError();
     },
-    async assignItem(documentId, itemId) {
+    async assignItem(documentId, itemId, proposalIds) {
+      if (proposalIds.length === 0) return 0;
       const { data, error } = await db
         .from("proposals")
         .update({ item_id: itemId })
         .eq("document_id", documentId)
+        .in("id", proposalIds)
         .in("status", ["accepted", "edited"])
         .is("revision_id", null)
         .select("id");
@@ -88,6 +92,18 @@ export function createReviewRepo(db: Db): ReviewRepo {
         .is("revision_id", null)
         .select("id");
       if (error) throw dbError("review.unassignItem", error);
+      return data.length;
+    },
+    async dropStaged(documentId, itemId) {
+      const { data, error } = await db
+        .from("proposals")
+        .update({ status: "rejected", accepted_value: null, item_id: null, decided_at: new Date().toISOString() })
+        .eq("document_id", documentId)
+        .eq("item_id", itemId)
+        .in("status", ["accepted", "edited"])
+        .is("revision_id", null)
+        .select("id");
+      if (error) throw dbError("review.dropStaged", error);
       return data.length;
     },
   };

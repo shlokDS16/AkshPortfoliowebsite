@@ -137,6 +137,26 @@ describe("recordFiledFacts", () => {
     expect(t.tables.proposals.filter((p) => p.item_id === null).map((p) => p.id)).toEqual([P1, P2]);
   });
 
+  it("drops a deleted staged figure of a done or skipped document (rejected, item cleared) and sends the open document's back", async () => {
+    const CLOSED = "cccccccc-7a42-4c55-9e1d-2f6a8b3c4d5e";
+    t.tables.documents = [{ id: DOC, status: "active" }, { id: CLOSED, status: "done" }];
+    t.tables.proposals.push(proposal("00000005-0000-4000-8000-000000000005", { document_id: CLOSED }), proposal("00000006-0000-4000-8000-000000000006", { document_id: CLOSED, status: "edited" }));
+    await record({ structured: caseFile([]), staged: [P1, "00000005-0000-4000-8000-000000000005", "00000006-0000-4000-8000-000000000006"] });
+    const byId = (id: string) => t.tables.proposals.find((p) => p.id === id);
+    expect(byId(P1)).toMatchObject({ status: "accepted", item_id: null });
+    expect(byId("00000005-0000-4000-8000-000000000005")).toMatchObject({ status: "rejected", item_id: null, accepted_value: null });
+    expect(byId("00000006-0000-4000-8000-000000000006")).toMatchObject({ status: "rejected", item_id: null });
+  });
+
+  it("throws a plain coded error when fewer proposals filed than were recorded (a second tab unstaged one in between)", async () => {
+    const from = t.db.from.bind(t.db) as (table: string) => unknown;
+    (t.db as unknown as { from: (table: string) => unknown }).from = (table: string) => {
+      if (table === "fact_provenance") t.tables.proposals.find((p) => p.id === P1)!.item_id = OTHER_ITEM;
+      return from(table);
+    };
+    await expect(record({ structured: caseFile([fact({ id: "F1" }), fact({ id: "F2" })], { F1: m.quote, F2: m.quote }), provenance: [{ factId: "F1", proposalId: P1 }, { factId: "F2", proposalId: P2 }] })).rejects.toThrow("provenance.file (count-mismatch)");
+  });
+
   it("does not clear a staged figure of another item", async () => {
     t.tables.proposals.push(proposal("00000005-0000-4000-8000-000000000005", { item_id: OTHER_ITEM }));
     await record({ structured: caseFile([]), staged: ["00000005-0000-4000-8000-000000000005"] });

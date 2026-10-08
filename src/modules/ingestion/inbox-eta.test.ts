@@ -14,7 +14,7 @@ describe("the paused card's ETA", () => {
   it("says Thu 10:02 for three pages left once the day's allowance is spent", () => {
     const steps = [step({ pageNo: 4 }), step({ pageNo: 5 }), step({ pageNo: 6 })];
     expect(etaFor(steps, now)).toBe("ready by Thu 10:02");
-    const state: DocState = { status: "active", pageCount: 312, pagesRead: 312, aiOn: true, pending: 0, flagged: 0, steps };
+    const state: DocState = { status: "active", pageCount: 312, pagesRead: 312, aiOn: true, pending: 0, flagged: 0, decided: 0, steps };
     expect(trayFor(state, now, etaFor(steps, now))).toMatchObject({
       tray: "paused",
       message: "Today's free AI allowance is used up. It carries on by itself: ready by Thu 10:02.",

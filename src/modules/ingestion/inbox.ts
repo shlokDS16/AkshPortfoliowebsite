@@ -21,6 +21,8 @@ export type InboxDoc = {
   /** Figures waiting for Aksh's check, and the flagged ones among them. */
   pending: number;
   flagged: number;
+  /** Figures Aksh has already accepted, edited, dropped or filed. */
+  decided: number;
   view: TrayView;
   /** Statement pages and ticked pages only, never page text: `firstLine` is the first line of the page, at most 120 characters. */
   pages: { pageNo: number; kind: PageKind | null; basis: Basis | null; firstLine: string; selected: boolean; by: "rule" | "aksh" | null }[];
@@ -102,14 +104,13 @@ export async function listInbox(
           .order("page_no"),
     companyIds.length === 0 ? { data: [], error: null } : db.from("companies").select("id, nse_symbol").in("id", companyIds),
     // At most 60 per document (MAX_PROPOSALS_PER_DOCUMENT). The reading is needed to leave out the standalone repeats
-    // of a consolidated line, as the review screen does; a filed figure never matters here.
+    // of a consolidated line, as the review screen does; filed ones are read only to count as decided.
     activeIds.length === 0
       ? { data: [], error: null }
       : db
           .from("proposals")
           .select("id, document_id, flags, status, machine_value, accepted_value")
-          .in("document_id", activeIds)
-          .neq("status", "filed"),
+          .in("document_id", activeIds),
   ]);
   if (jobs.error) throw dbError("inbox.listSteps", jobs.error);
   if (pages.error) throw dbError("inbox.listPages", pages.error);
@@ -146,6 +147,7 @@ export async function listInbox(
       aiOn,
       pending: waiting.get(d.id)?.pending ?? 0,
       flagged: waiting.get(d.id)?.flagged ?? 0,
+      decided: waiting.get(d.id)?.decided ?? 0,
       steps,
     };
     return {
@@ -158,6 +160,7 @@ export async function listInbox(
       budget: d.llm_page_budget,
       pending: state.pending,
       flagged: state.flagged,
+      decided: state.decided,
       view: trayFor(state, now, etaFor(steps, now)),
       pages: (pagesOf.get(d.id) ?? []).map((p) => ({
         pageNo: p.page_no,
@@ -195,7 +198,7 @@ export async function countInbox(db: Db, now: Date): Promise<number> {
   if (jobs.error) throw dbError("inbox.countSteps", jobs.error);
   const stepsOf = new Map<string, StepRow[]>(jobs.data.map((j) => [j.document_id, j.job_steps]));
   return open.data.filter((d) => {
-    const state: DocState = { status: "active", pageCount: null, pagesRead: 0, aiOn: true, pending: 0, flagged: 0, steps: toSteps(stepsOf.get(d.id) ?? []) };
+    const state: DocState = { status: "active", pageCount: null, pagesRead: 0, aiOn: true, pending: 0, flagged: 0, decided: 0, steps: toSteps(stepsOf.get(d.id) ?? []) };
     const { tray } = trayFor(state, now, null);
     return tray === "ready" || tray === "attention";
   }).length;

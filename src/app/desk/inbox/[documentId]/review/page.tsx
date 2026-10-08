@@ -14,7 +14,7 @@ export default async function ReviewPage({ params }: Props) {
   const db = await createSupabaseServerClient();
   const data = await getReview(db, documentId);
   if (!data) notFound();
-  // Only a document uploaded without a company needs the list: it has to be linked before its figures can be filed.
-  const companies = data.document.companyId ? [] : await listCompanyOptions(db);
+  // The list links a document that came in without a company, and moves a wrongly linked one (nothing filed yet). A closed document has neither.
+  const companies = data.document.status === "active" ? await listCompanyOptions(db) : [];
   return <ReviewOneAtATime data={data} companies={companies} />;
 }

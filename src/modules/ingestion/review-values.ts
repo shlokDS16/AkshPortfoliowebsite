@@ -26,6 +26,17 @@ export function basisRepeats(rows: Line[], preferred: Basis): Set<string> {
   return new Set(rows.filter((r) => r.basis !== null && r.basis !== preferred && keep.some((k) => sameLine(k, r))).map((r) => r.id));
 }
 
+/**
+ * The figures filing puts under the file: exactly the accepted or edited ones the values list shows (a resolved flagged
+ * line is listed like any other; a standalone repeat of a consolidated line is not). One rule for the screen, the
+ * filing and the editor, so "N figures filed" is the number the editor then shows.
+ */
+export function filableIds(rows: ProposalView[], preferred: Basis): string[] {
+  const listed = rows.filter(isListed);
+  const repeats = basisRepeats(listed, preferred);
+  return listed.filter((r) => (r.status === "accepted" || r.status === "edited") && !repeats.has(r.id)).map((r) => r.id);
+}
+
 /** The values list: topics in the order of the core lines then "Other figures"; inside a topic the core lines first, then by page. */
 export function groupValues(rows: ProposalView[], preferred: Basis): { values: { topic: string; rows: ProposalView[] }[]; hiddenBasis: number } {
   const listed = rows.filter(isListed);

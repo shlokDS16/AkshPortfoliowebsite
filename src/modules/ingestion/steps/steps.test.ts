@@ -8,8 +8,9 @@ import { fixturePdfBytes, fixtureWithBrokenPage2, makePdf } from "@/test/fixture
 import { PDF_TEXT_MS } from "../caps";
 import { machineDocuments, type StepDeps } from "../deps";
 import type { Step, StepContext } from "../types";
+import { PAGE_NOT_STORED } from "./extract-page";
 import { pdfText, PDF_NOT_OPENED, PDF_NOT_STORED, PDF_TOO_LONG, PDF_WRONG_FILE } from "./pdf-text";
-import { selectPagesStep } from "./select-pages";
+import { DOCUMENT_GONE, selectPagesStep } from "./select-pages";
 
 const DOC = "11111111-1111-4111-8111-111111111111";
 const PATH = `${DOC}.pdf`;
@@ -139,12 +140,17 @@ describe("pdf_text", () => {
     expect(download).not.toHaveBeenCalled();
   });
 
-  it("turns any download failure into the plain not-stored sentence, never the database operation", async () => {
+  it("lets a storage download failure throw, so the runner retries the step before anything reaches the card", async () => {
     const repo = repoWith(fixturePdfBytes());
-    repo.files.clear(); // the object is gone; the fake throws a DbError like the real repo
-    const outcome = await pdfText(ctx(repo, {}));
-    expect(outcome).toEqual({ kind: "attention", error: PDF_NOT_STORED });
-    expect(PDF_NOT_STORED).toMatch(/Upload it again, or skip this document\.$/);
+    repo.files.clear(); // the fake throws a DbError like the real repo
+    await expect(pdfText(ctx(repo, {}))).rejects.toThrow();
+  });
+
+  it("never tells Aksh to upload again: a document keeps its hash, so the same PDF is refused as a duplicate", () => {
+    for (const text of [PDF_NOT_STORED, PDF_WRONG_FILE, PAGE_NOT_STORED, DOCUMENT_GONE]) {
+      expect(text).not.toMatch(/upload (it|the pdf) again/i);
+      expect(text).toMatch(/Try again|Skip/);
+    }
   });
 
   it("stores a page pdf.js cannot read as empty text (a scan page) and carries on with the document", async () => {

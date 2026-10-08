@@ -238,6 +238,33 @@ describe("fileUnder", () => {
     review.records[0].status = "rejected";
     expect(await code(fileUnder(ports, DOC, input))).toBe("nothing-to-file");
   });
+  describe("files exactly the figures the review screen lists (no standalone repeat of a consolidated line)", () => {
+    const standalone = (id: string, over: Parameters<typeof record>[1] = {}) => record(id, { ...over, fact: { basis: "standalone", ...over.fact } });
+    beforeEach(() => {
+      review.records.length = 0;
+    });
+
+    it("leaves out an accepted standalone repeat, and the count equals what is filed", async () => {
+      review.records.push(record(P1, { status: "accepted", accepted: machine() }), standalone(P2, { status: "accepted", accepted: machine({ basis: "standalone" }) }));
+      expect(await fileUnder(ports, DOC, input)).toEqual({ itemId: ITEM, count: 1 });
+      expect(review.records.map((r) => r.itemId)).toEqual([ITEM, null]);
+    });
+    it("leaves out a standalone line Aksh ticked before the consolidated page had been read", async () => {
+      review.records.push(standalone(P1, { status: "accepted", accepted: machine({ basis: "standalone" }) }), record(P2, { status: "pending" }));
+      expect(await code(fileUnder(ports, DOC, input))).toBe("nothing-to-file");
+      expect(review.records.map((r) => r.itemId)).toEqual([null, null]);
+      await saveValues(ports, DOC, [{ id: P2, keep: true }]);
+      expect(await fileUnder(ports, DOC, input)).toEqual({ itemId: ITEM, count: 1 });
+      expect(review.records.map((r) => r.itemId)).toEqual([null, ITEM]);
+    });
+    it("leaves out a resolved flagged standalone repeat, as the values list does, but files one with no consolidated twin", async () => {
+      review.records.push(record(P1, { status: "accepted", accepted: machine() }), standalone(P2, { flags: ["value_not_on_page"], status: "edited", accepted: machine({ basis: "standalone", valueText: "1,280.00", value: 1280 }) }));
+      review.records.push(standalone(P3, { fact: { label: "Total equity" }, flags: ["value_not_on_page"], status: "edited", accepted: machine({ basis: "standalone", label: "Total equity" }) }));
+      expect(await fileUnder(ports, DOC, input)).toEqual({ itemId: ITEM, count: 2 });
+      expect(review.records.map((r) => r.itemId)).toEqual([ITEM, null, ITEM]);
+    });
+  });
+
   it("refuses a crafted claim: a source type or link outside the allowed set, or an extra key", async () => {
     await expect(fileUnder(ports, DOC, { ...input, sourceType: "Notes" })).rejects.toBeInstanceOf(InvalidInputError);
     await expect(fileUnder(ports, DOC, { ...input, sourceUrl: "javascript:alert(1)" })).rejects.toBeInstanceOf(InvalidInputError);
@@ -269,6 +296,16 @@ describe("unstage (Send back to review)", () => {
     );
     expect(await unstage(ports, DOC, ITEM)).toBe(2);
     expect(review.records.map((r) => [r.status, r.itemId])).toEqual([["accepted", null], ["edited", null], ["filed", ITEM], ["accepted", "99999999-9999-4999-8999-999999999999"]]);
+  });
+  it.each(["done", "skipped"] as const)("drops the staged figures of a %s document instead (Aksh's own drop): rejected, out of the item, filed ones untouched", async (status) => {
+    review.records.push(
+      record(P1, { status: "accepted", accepted: machine(), itemId: ITEM }),
+      record(P2, { status: "edited", accepted: machine(), itemId: ITEM }),
+      record(P3, { status: "filed", accepted: machine(), itemId: ITEM }),
+    );
+    await docs.update(DOC, { status });
+    expect(await unstage(ports, DOC, ITEM)).toBe(2);
+    expect(review.records.map((r) => [r.status, r.itemId, r.accepted === null])).toEqual([["rejected", null, true], ["rejected", null, true], ["filed", ITEM, false]]);
   });
   it("refuses a malformed id or a document that is not there", async () => {
     await expect(unstage(ports, DOC, "nope")).rejects.toBeInstanceOf(InvalidInputError);

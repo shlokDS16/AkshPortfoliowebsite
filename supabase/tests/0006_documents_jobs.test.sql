@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(81);
+select plan(86);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -131,6 +131,26 @@ select ok((select is_scan from public.document_pages where document_id = 'd10000
 select ok((select first_line like 'Standalone statement of profit and loss Revenue%' and length(first_line) = 120
              from public.document_pages where document_id = 'd1000000-0000-4000-8000-000000000001' and page_no = 1),
   'first_line is the trimmed first 120 characters (R18)');
+
+-- Final-review hardening: job code records a page count and nothing else on a document, and never speaks for Aksh.
+select ok(has_column_privilege('service_role', 'public.documents', 'page_count', 'update')
+      and not has_column_privilege('service_role', 'public.documents', 'status', 'update')
+      and not has_column_privilege('service_role', 'public.documents', 'company_id', 'update'),
+  'service_role may update documents.page_count and not status or company_id');
+update public.document_pages set selected = true, selected_by = 'aksh'
+ where document_id = 'd1000000-0000-4000-8000-000000000001' and page_no = 3;
+set local role service_role;
+select lives_ok($$ update public.documents set page_count = 12 where id = 'd1000000-0000-4000-8000-000000000001' $$,
+  'service_role still records the page count');
+select throws_ok($$ update public.documents set status = 'done' where id = 'd1000000-0000-4000-8000-000000000001' $$,
+  '42501', null, 'service_role cannot mark a document done or skipped');
+select throws_ok($$ update public.document_pages set selected = true, selected_by = 'aksh'
+                    where document_id = 'd1000000-0000-4000-8000-000000000001' and page_no = 2 $$,
+  '42501', 'only Aksh ticks a page himself', 'service_role cannot record a tick as Aksh''s');
+select throws_ok($$ update public.document_pages set selected = false, selected_by = null
+                    where document_id = 'd1000000-0000-4000-8000-000000000001' and page_no = 3 $$,
+  '42501', 'only Aksh ticks a page himself', 'and cannot undo a tick Aksh made');
+reset role;
 
 -- The admin may change the selection but never the text.
 set local role authenticated;

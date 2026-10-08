@@ -13,6 +13,8 @@ export type DocState = {
   /** Proposals waiting for Aksh's check, and how many of them are flagged. */
   pending: number;
   flagged: number;
+  /** Figures Aksh has already accepted, edited, dropped or filed. */
+  decided: number;
   steps: {
     kind: StepKind;
     status: StepStatus;
@@ -30,6 +32,8 @@ export type TrayView = { tray: Tray; message: string; attentionPages: number[]; 
 export const UPLOAD_NOT_FINISHED = "Upload not finished. Choose the file again to resume.";
 export const PDF_NOT_OPENED_TEXT = "This PDF could not be opened (it may be password-protected or damaged).";
 export const QUEUED_TEXT = "Queued. Starts within 15 minutes, sooner while this page is open.";
+/** Every figure is decided: the review screen (and Done) is still one click away. Pending Shlok approval (spec s16.5). */
+export const ALL_CHECKED = "All figures checked.";
 const NO_FIGURES = "Read. No figures matched; open it beside your file.";
 const NO_FIGURES_AI_OFF = "Read. AI reading is off; open it beside your file to enter figures.";
 const CHOOSING = "Choosing the pages to read.";
@@ -97,5 +101,6 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
   if (unfinished.length > 0) return view("reading", CHOOSING);
 
   if (d.pending > 0) return view("ready", `${figures(d.pending)} ready to check.${d.flagged > 0 ? ` ${d.flagged} ${d.flagged === 1 ? "needs" : "need"} a look.` : ""}`);
+  if (d.decided > 0) return view("ready", ALL_CHECKED);
   return view("ready", !d.aiOn && counts.extractTotal === 0 ? NO_FIGURES_AI_OFF : NO_FIGURES);
 }

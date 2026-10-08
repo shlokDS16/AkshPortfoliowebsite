@@ -14,7 +14,7 @@ import type { StepContext, StepHandler, StepOutcome } from "../types";
 
 export const SCAN_PAGE = "This page is a scan. Scans are read in a later update; enter it manually or skip.";
 export const PAGE_TOO_BIG = "This page is too big for the free AI allowance. Enter the figures yourself.";
-export const PAGE_NOT_STORED = "This page is no longer stored, so it cannot be read. Skip this step, or upload the PDF again.";
+export const PAGE_NOT_STORED = "This page is no longer stored, so it cannot be read. Choose Skip, or Try again.";
 export const KEY_REFUSED = "The AI service did not accept the desk's key. Check the Groq key in the settings, then try again.";
 export const REQUEST_REFUSED = "The AI service refused to read this page. Enter the figures yourself.";
 /** How long a step waits when AI reading is off; turning it on (a key, then a redeploy) does not need the step to be touched. */

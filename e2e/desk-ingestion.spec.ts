@@ -182,7 +182,7 @@ test("the pump never parses a stored file whose hash differs from the one claime
     jobId = await createQueueRepo(admin).createJob(documentId, { kind: "pdf_text", pageNo: 1 });
     await pump(request);
     expect(await stepsOf(jobId)).toEqual([
-      { kind: "pdf_text", page_no: 1, status: "needs_attention", result: null, last_error: "The stored file is not the PDF that was uploaded. Upload it again." },
+      { kind: "pdf_text", page_no: 1, status: "needs_attention", result: null, last_error: "The stored file is not the PDF that was uploaded. Choose Try again, or Skip this document." },
     ]);
     const { count } = await admin.from("document_pages").select("page_no", { count: "exact", head: true }).eq("document_id", documentId);
     expect(count).toBe(0);

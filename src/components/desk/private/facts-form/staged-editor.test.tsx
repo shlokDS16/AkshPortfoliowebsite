@@ -10,11 +10,12 @@ import { RevisionEditor } from "../revision-editor";
 import { chipText } from "./marks";
 
 const push = vi.hoisted(() => vi.fn());
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh: vi.fn() }) }));
+const refresh = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
 const { bodyMd, sheet } = KAVERI.revisions[1];
 const canonical = serializeFactsSheet(parseFactsSheet(sheet).caseFile);
-const DOC = { id: "d1", title: "Annual report 2025-26", sourceType: "Annual report" as const, filedOn: "2026-05-20", sourceUrl: null };
+const DOC = { id: "d1", title: "Annual report 2025-26", sourceType: "Annual report" as const, filedOn: "2026-05-20", sourceUrl: null, status: "active" as const };
 const row = (id: string, over = {}, status: StagedRow["status"] = "accepted"): StagedRow => ({
   proposalId: id, status, document: DOC, value: proposedFactSchema.parse(machine(over)),
 });
@@ -93,6 +94,19 @@ describe("staged figures in the editor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send back to review" }));
     expect(sendBack).toHaveBeenCalledWith("d1");
     await waitFor(() => expect(push).toHaveBeenCalledWith("/desk/inbox/d1/review"));
+  });
+
+  it("for a done or skipped document the button drops the figures and the page reloads instead of going to a review screen that refuses", async () => {
+    push.mockClear();
+    refresh.mockClear();
+    const sendBack = vi.fn(async () => ({ ok: true as const }));
+    const closed = FOUR.map((r) => ({ ...r, document: { ...DOC, status: "done" as const } }));
+    open({ sendBack, staged: closed });
+    expect(screen.queryByRole("button", { name: "Send back to review" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Drop these figures" }));
+    expect(sendBack).toHaveBeenCalledWith("d1");
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("shows a refusal from the server and stays put", async () => {

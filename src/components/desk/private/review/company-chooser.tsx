@@ -7,10 +7,16 @@ import { Label } from "@/components/ui/label";
 import { errorText } from "@/lib/messages";
 import { setDocumentCompanyAction } from "@/modules/ingestion/actions";
 
-type Props = { documentId: string; companies: { id: string; symbol: string }[] };
+type Props = {
+  documentId: string;
+  companies: { id: string; symbol: string }[];
+  /** Set when the document already has a company: the chooser then moves it (while nothing is filed or staged), and `onDone` closes it. */
+  current?: string;
+  onDone?: () => void;
+};
 
-/** A document uploaded without a company has no file to go under: pick an existing company, then the page carries on. */
-export function CompanyChooser({ documentId, companies }: Props) {
+/** A document uploaded without a company has no file to go under: pick an existing company, then the page carries on. With `current`, it moves a wrongly linked document. */
+export function CompanyChooser({ documentId, companies, current, onDone }: Props) {
   const id = useId();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -24,8 +30,10 @@ export function CompanyChooser({ documentId, companies }: Props) {
     setError(null);
     try {
       const result = await setDocumentCompanyAction(documentId, companyId);
-      if (result.ok) router.refresh();
-      else setError(result.message);
+      if (result.ok) {
+        router.refresh();
+        onDone?.();
+      } else setError(result.message);
     } catch {
       setError(errorText("save-failed"));
     }
@@ -33,8 +41,8 @@ export function CompanyChooser({ documentId, companies }: Props) {
   }
 
   return (
-    <form onSubmit={link} aria-label="Link to a company" className="space-y-3 rounded-sm border border-rule bg-surface p-4">
-      <p className="text-body text-ink">{errorText("no-company")}</p>
+    <form onSubmit={link} aria-label={current ? "Change company" : "Link to a company"} className="space-y-3 rounded-sm border border-rule bg-surface p-4">
+      <p className="text-body text-ink">{current ? `This document is linked to ${current}. Choose the right company if that was a mistake.` : errorText("no-company")}</p>
       {companies.length === 0 ? (
         <p className="text-small text-ink-muted">No company exists yet. Capture a note that names one, for example $KAVERI, then come back.</p>
       ) : (
@@ -51,8 +59,13 @@ export function CompanyChooser({ documentId, companies }: Props) {
             </select>
           </div>
           <Button type="submit" disabled={busy}>
-            Link to this company
+            {current ? "Move to this company" : "Link to this company"}
           </Button>
+          {onDone ? (
+            <Button type="button" variant="outline" disabled={busy} onClick={onDone}>
+              Cancel
+            </Button>
+          ) : null}
         </div>
       )}
       {error ? (

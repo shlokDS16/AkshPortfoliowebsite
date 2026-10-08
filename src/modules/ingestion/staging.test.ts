@@ -12,7 +12,7 @@ const row = (id: string, page: number, over: Record<string, unknown> = {}, fact 
 });
 
 describe("listStagedForItem", () => {
-  const documents = [{ id: DOC, title: "AR 2025-26", source_type: "Annual report", filed_on: "2026-05-20", source_url: null, basis: "consolidated" }];
+  const documents = [{ id: DOC, title: "AR 2025-26", source_type: "Annual report", filed_on: "2026-05-20", source_url: null, status: "active" }];
 
   it("lists the item's accepted and edited figures that no revision holds, with their document, in page order", async () => {
     const t = createTableDb({
@@ -29,13 +29,13 @@ describe("listStagedForItem", () => {
     });
     const staged = await listStagedForItem(t.db, ITEM);
     expect(staged.map((s) => [s.proposalId, s.status])).toEqual([["p1", "accepted"], ["p2", "edited"], ["p3", "accepted"]]);
-    expect(staged[0].document).toEqual({ id: DOC, title: "AR 2025-26", sourceType: "Annual report", filedOn: "2026-05-20", sourceUrl: null });
+    expect(staged[0].document).toEqual({ id: DOC, title: "AR 2025-26", sourceType: "Annual report", filedOn: "2026-05-20", sourceUrl: null, status: "active" });
     expect(staged[1].value.label).toBe("Finance costs");
   });
 
-  it("leaves out a standalone repeat of a consolidated line, as the review screen does", async () => {
+  it("lists exactly what was filed: filing already left the standalone repeats out", async () => {
     const t = createTableDb({ proposals: [row("p1", 4), row("p2", 9, {}, { basis: "standalone" }), row("p3", 9, {}, { basis: "standalone", label: "Total equity" })], documents });
-    expect((await listStagedForItem(t.db, ITEM)).map((s) => s.proposalId)).toEqual(["p1", "p3"]);
+    expect((await listStagedForItem(t.db, ITEM)).map((s) => s.proposalId)).toEqual(["p1", "p2", "p3"]);
   });
 
   it("skips a row whose accepted value is not a whole fact, and asks for nothing more when nothing is staged", async () => {

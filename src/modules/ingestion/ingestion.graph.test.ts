@@ -9,6 +9,8 @@ const ROOTS = ["modules/ingestion", "modules/documents", "app/desk/inbox"];
 const FORBIDDEN = [
   /\baddRevision\b/, /\bappendRevision\b/, /\bcreateItem\b/, /\bcreateSupabaseResearchRepo\b/,
   /from\s+"@\/modules\/casefile\/actions"/, /from\s+"@\/modules\/research\/actions"/, /\.from\("item_revisions"\)/, /\.from\("items"\)/,
+  // The publish gate's RPCs are callable by service_role with any p_actor (phase 1, 0004/0005): 2a code never names them.
+  /\bpublish_revision\b/, /\bunpublish_item\b/,
 ];
 
 // R7: handlers take repos from ctx.deps.repos; reading the client (deps.db, deps["db"], { db } = deps) is refused.

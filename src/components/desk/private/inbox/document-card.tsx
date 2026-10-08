@@ -44,6 +44,8 @@ export function DocumentCard({ doc, aiOn, actions }: Props) {
   // A page ticked while AI was off has no step yet: with AI on, one button queues them all.
   const unqueued = view.tray === "ready" && aiOn && ticked > view.extractTotal;
   const skippable = doc.status === "active" && (view.tray === "waiting" || view.tray === "paused" || (view.tray === "ready" && doc.pending === 0));
+  // Review is also the way to Done, so it stays while any figure exists, decided or not, in the ready and attention trays.
+  const reviewable = (view.tray === "ready" || view.tray === "attention") && (doc.pending > 0 || doc.decided > 0);
   const link = "inline-flex min-h-11 items-center rounded-sm px-3 text-body font-medium no-underline";
 
   return (
@@ -66,8 +68,11 @@ export function DocumentCard({ doc, aiOn, actions }: Props) {
       {view.tray === "reading" && view.extractTotal > 0 ? <Progress done={view.extractDone} total={view.extractTotal} /> : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        {view.tray === "ready" && doc.pending > 0 ? (
-          <Link href={`/desk/inbox/${doc.id}/review`} className={cn(link, "bg-ink text-paper transition-transform duration-(--motion-fast) ease-snap active:scale-(--press-scale)")}>
+        {reviewable ? (
+          <Link
+            href={`/desk/inbox/${doc.id}/review`}
+            className={cn(link, "transition-transform duration-(--motion-fast) ease-snap active:scale-(--press-scale)", view.tray === "ready" ? "bg-ink text-paper" : "border border-rule-strong bg-paper text-ink")}
+          >
             Review
           </Link>
         ) : null}

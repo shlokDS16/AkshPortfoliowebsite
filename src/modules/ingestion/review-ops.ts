@@ -7,6 +7,7 @@ import { ReviewError } from "./errors";
 import type { MachineFact } from "./proposed-fact";
 import type { ProposalRecord, ReviewRepo } from "./review-repo";
 import type { ProposalView, ReviewCounts } from "./review-types";
+import { filableIds } from "./review-values";
 import { currentFact, machineOf, toView } from "./review-view";
 
 // What Aksh's clicks on the review screen do (spec s6.5). Each takes the repos it needs, so tests run on fakes and
@@ -105,7 +106,7 @@ export async function saveValues(ports: ReviewPorts, documentId: string, input: 
   return countsOf(rows);
 }
 
-/** Puts the document's accepted and edited figures under the company's file and records where the document came from. */
+/** Puts the document's listed accepted and edited figures (the ones the values list shows) under the company's file and records where the document came from. */
 export async function fileUnder(ports: ReviewPorts, documentId: string, input: unknown): Promise<{ itemId: string; count: number }> {
   const parsed = fileUnderInput.safeParse(input);
   if (!parsed.success) throw new InvalidInputError();
@@ -118,27 +119,38 @@ export async function fileUnder(ports: ReviewPorts, documentId: string, input: u
   if (!file || file.itemId !== itemId) throw new ReviewError("not-this-file");
   const all = [...rows.values()].map((r) => r.rec);
   if (all.some((r) => r.flags.length > 0 && r.status === "pending")) throw new ReviewError("checks-left");
-  if (!all.some((r) => r.status === "accepted" || r.status === "edited")) throw new ReviewError("nothing-to-file");
+  // The screen's own rule decides what is filed, so the count Aksh sees is what the editor then shows.
+  const ids = filableIds(all.flatMap((rec) => toView(rec) ?? []), doc.basis);
+  if (ids.length === 0) throw new ReviewError("nothing-to-file");
 
   await ports.docs.update(documentId, { title, sourceType, filedOn, sourceUrl });
-  const count = await ports.review.assignItem(documentId, itemId);
+  const count = await ports.review.assignItem(documentId, itemId, ids);
   return { itemId, count };
 }
 
-/** Send back to review: the document's figures staged under the item leave its editor and return to this screen's list. Only unfiled accepted or edited ones move. */
+/**
+ * Send back to review: the document's figures staged under the item leave its editor and return to this screen's list.
+ * Only unfiled accepted or edited ones move. A done or skipped document has no review screen to go back to, so its
+ * staged figures are dropped instead: rejected, and out of the item (Aksh's own drop).
+ */
 export async function unstage(ports: ReviewPorts, documentId: string, itemId: unknown): Promise<number> {
-  if (!isUuid(documentId) || !isUuid(itemId) || !(await ports.docs.get(documentId))) throw new InvalidInputError();
-  return ports.review.unassignItem(documentId, itemId);
+  const doc = isUuid(documentId) && isUuid(itemId) ? await ports.docs.get(documentId) : null;
+  if (!doc || !isUuid(itemId)) throw new InvalidInputError();
+  return doc.status === "done" || doc.status === "skipped" ? ports.review.dropStaged(documentId, itemId) : ports.review.unassignItem(documentId, itemId);
 }
 
 /**
- * Links a document that came in without a company to an existing one, so its figures have a file to go under. Only a
- * company-less document: a document already linked keeps its company.
+ * Links a document to an existing company, so its figures have a file to go under. A document that already has a
+ * company can be moved (a misclick in the drop bar) only while none of its figures is filed or staged under that
+ * company's file: once any is, the company is part of what was filed.
  */
 export async function setCompany(ports: ReviewPorts, documentId: string, companyId: unknown): Promise<void> {
   if (!isUuid(documentId) || !isUuid(companyId)) throw new InvalidInputError();
   const doc = await ports.docs.get(documentId);
-  if (!doc || (doc.companyId !== null && doc.companyId !== companyId)) throw new InvalidInputError();
+  if (!doc) throw new InvalidInputError();
   if ((await ports.review.companyName(companyId)) === null) throw new InvalidInputError();
+  if (doc.companyId !== null && doc.companyId !== companyId) {
+    if ((await ports.review.list(documentId)).some((r) => r.itemId !== null || r.status === "filed")) throw new ReviewError("company-locked");
+  }
   await ports.docs.update(documentId, { companyId });
 }

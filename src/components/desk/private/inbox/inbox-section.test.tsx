@@ -72,6 +72,17 @@ describe("InboxSection", () => {
     expect(within(busy).getByRole("progressbar", { name: "Pages read" })).toHaveAttribute("aria-valuenow", "7");
   });
 
+  it("a read document whose figures are all decided keeps its Review link, where Done lives, in the ready and attention trays", () => {
+    const checked = doc({ title: "Checked one", decided: 5, view: view("ready", "All figures checked.") });
+    const stuckChecked = doc({ title: "Stuck checked", decided: 2, view: view("attention", "Pages 9 could not be read.", { attentionPages: [9] }) });
+    const stuckNone = doc({ title: "Stuck none", view: view("attention", "Pages 9 could not be read.", { attentionPages: [9] }) });
+    render(section([checked, stuckChecked, stuckNone]));
+    const cardOf = (title: string) => screen.getByRole("heading", { name: title }).closest("article") as HTMLElement;
+    expect(within(cardOf("Checked one")).getByRole("link", { name: "Review" })).toHaveAttribute("href", `/desk/inbox/${checked.id}/review`);
+    expect(within(cardOf("Stuck checked")).getByRole("link", { name: "Review" })).toHaveAttribute("href", `/desk/inbox/${stuckChecked.id}/review`);
+    expect(within(cardOf("Stuck none")).queryByRole("link", { name: "Review" })).toBeNull();
+  });
+
   it("a read document with no figures offers to skip it; a waiting one too; an unfinished upload offers nothing", async () => {
     const quiet = doc({ title: "Quiet one", view: view("ready", "Read. No figures matched; open it beside your file.") });
     const half = doc({ title: "Half one", status: "uploading", view: view("waiting", "Upload not finished. Choose the file again to resume.") });

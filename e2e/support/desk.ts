@@ -59,6 +59,8 @@ export async function expectNoViolations(page: Page): Promise<void> {
 export async function expectNoViolationsInBothThemes(page: Page): Promise<void> {
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
+    // Buttons transition their colours (--motion-fast): scan once those have settled, not mid-fade.
+    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
     await expectNoViolations(page);
   }
   await page.emulateMedia({ colorScheme: "light" });
