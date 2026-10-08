@@ -50,16 +50,16 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 - [ ] Phase 1 review vs rubrics R1/R2/R3; timeline entry; ADR updates
 
 ## Phase 2 - Ingestion inbox
-- [ ] 2.1 `documents` + `ingestion` migrations (documents, pages, extractions, jobs, job_steps, provider_usage)
-- [ ] 2.2 Provider ports + fixture adapters: `LlmPort`, `OcrPort`, `TranscriberPort`
-- [ ] 2.3 Groq adapter with strict JSON + budget governor (75% caps, defer-not-fail, retry-after)
-- [ ] 2.4 Signed-URL upload → job creation → `after()` pump → admin inbox loop → cron sweep
-- [ ] 2.5 Pipelines: PDF (unpdf → OCR.space fallback, tables via Groq vision → statement-page locator → extract), image (qwen vision), voice (Whisper), URL (oEmbed), text paste
-- [ ] 2.6 Review screen (page text beside editable JSON; approve files under company/theme)
+- [x] 2.1 `documents` + `ingestion` migrations (documents, pages, extractions, jobs, job_steps, provider_usage) - migrations 0006-0007, 627 pgTAP green on a clean database; LOCAL only, not pushed to hosted (Task 16 Step 1 checklist in docs/trials/2026-10-xx-first-report.md)
+- [~] 2.2 Provider ports + fixture adapters: `LlmPort`, `OcrPort`, `TranscriberPort` - `LlmPort` and its fixture adapter built and tested (Plan 2a); `OcrPort` and `TranscriberPort` are Plan 2b
+- [x] 2.3 Groq adapter with strict JSON + budget governor (75% caps, defer-not-fail, retry-after) - built and tested against recorded responses and real `reserve_usage` integration tests (Plan 2a Tasks 9-11); no live Groq call yet (first-report measurement deferred)
+- [x] 2.4 Signed-URL upload → job creation → `after()` pump → admin inbox loop → cron sweep - Plan 2a Tasks 4-7; full flow e2e at 375 and 1280, whole suite twice green on the local stack
+- [~] 2.5 PDF pipeline built (unpdf text, page selector, statement-page extraction with the verbatim check; Plan 2a); OCR fallback, image, voice, URL and text paste are Plan 2b. Original line: Pipelines: PDF (unpdf → OCR.space fallback, tables via Groq vision → statement-page locator → extract), image (qwen vision), voice (Whisper), URL (oEmbed), text paste
+- [x] 2.6 Review screen (page text beside editable JSON; approve files under company/theme) - one flag at a time, values list, File under, staged rows in the Facts form, provenance chips, Done (Plan 2a Tasks 13-14)
 - [ ] 2.7 XLSX → SheetJS → HyperFormula → assumption confirmation → interactive valuation page (PRIVATE only; public gets a lagged static scenario table)
-- [ ] 2.10 Page selector: statement/commentary pages only go to the LLM; page budget + ETA per document; `needs_attention` terminal state with "enter manually"
-- [ ] 2.8 UI segment 4 (capture + review) decided and built
-- [ ] 2.9 Owner alerting: paused/quota states, one email per incident
+- [x] 2.10 Page selector: statement/commentary pages only go to the LLM; page budget + ETA per document; `needs_attention` terminal state with "enter manually" - Plan 2a Tasks 5-7; the ETA uses the 3,400 tokens-per-page assumption until the first real report is measured
+- [x] 2.8 UI segment 4 (capture + review) decided and built - inbox trays, drop bar, review screen, Needs-you cards (Plan 2a); controller visual QA is the one end-of-plan pass
+- [~] 2.9 Owner alerting: paused/quota states, one email per incident - in-app states, meters, the desk strip queue clause and the `queue` check in `/api/health` are built (Plan 2a Task 15); the one email per incident comes from the external uptime monitor, which is unverified until the hosted deploy
 
 ## Phase 3 - Two-tier track record
 - [ ] 3.1 `ledger` migrations (ideas, idea_events append-only + hash chain, prices_daily, idea_scores)

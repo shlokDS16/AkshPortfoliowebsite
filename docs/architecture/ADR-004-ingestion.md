@@ -1,6 +1,6 @@
 # ADR-004: Ingestion pipeline and the machine write boundary
 
-Status: Accepted (Shlok, 2026-10-07; proposed by desk-architect the same day). Approved together with the Phase 2 spec and the five ingestion-proposal defaults.
+Status: Accepted (Shlok, 2026-10-07; proposed by desk-architect the same day). Approved together with the Phase 2 spec and the five ingestion-proposal defaults. Plan 2a built through Task 15 on branch `phase-2a` (2026-10-08); the first-report measurement (s8) is pending, see `docs/trials/2026-10-xx-first-report.md`.
 Records: the five defaults Shlok accepted on 2026-10-07 (`docs/architecture/proposals/2026-10-07-ingestion-flexibility.md`, "Decisions Shlok needs to make").
 Amends: ADR-001 s9.1 (vision calls carry one image, not three), ADR-002 (`casefile/1` gains the `Notes` source type and an optional fact `topic`, read-compatible).
 Depends on: ADR-001 (binding), ADR-002, ADR-003. Spec: `docs/specs/2026-10-07-phase-2-ingestion-design.md`. Plans: `docs/plans/2026-10-07-phase-2a-ingestion.md`, `docs/plans/2026-10-07-phase-2b-ingestion.md`.
@@ -72,6 +72,8 @@ Phase 2 lets Aksh drop an annual report, a results PDF or (2b) a scan, photo, vo
 
 Enforcement, three layers: (1) `service_role` holds no write privilege on `items` or `item_revisions` (only column SELECT on `items (id, company_id, kind, title)` and `item_revisions (id, item_id, rev_no, structured, created_at)`, so the machine can match labels against facts but can never read `body_md` or `change_reason`), asserted by pgTAP, and a `BEFORE INSERT` trigger on `item_revisions` refuses any insert while `current_user = 'service_role'` in case a grant is ever added; (2) `ingestion.graph.test.ts` fails if any file under `src/modules/ingestion/`, `src/modules/documents/` or `src/app/desk/inbox/` imports `addRevision`, `appendRevision`, `createItem`, `createSupabaseResearchRepo` or `@/modules/casefile/actions`; (3) a trigger on `proposals` refuses `service_role` updates to `status` and `accepted_value`, and refuses any change to `machine_value`.
 
+Amendment (R12, 2026-10-08): the `service_role` column list on `items` also includes `created_at` and `status`: "newest" file for a company and ignoring archived files need them, and neither is Aksh's words. `body_md`, `change_reason` and every other column stay refused (pgTAP 0007).
+
 ### 4.3 Data model (drafts in Plan 2a Tasks 3 and 10; admin-only RLS; nothing public)
 - `documents` (one row per upload; `sha256` unique for dedupe; `status in ('uploading','active','done','skipped')`; everything finer is derived from steps), `document_pages` (immutable text per page, generated `char_count`, `is_scan`, `search`; `kind`, `basis`, `score`, `selected`, `selected_by` editable).
 - `jobs`, `job_steps` (lease `locked_until` + `lease_owner`, `not_before`, `wait_reason`, `schema_failures`, `provider_failures`, `lease_expiries`, terminal `needs_attention`).
@@ -103,6 +105,32 @@ Every limit has a named owner-visible state (spec s10): "Waiting for today's AI 
 ### 4.11 Scope
 2a: Notes + topics, upload, PDF text, page selection, document pane, Groq text extraction, governor, review, staging, provenance, alerting. 2b: OCR.space for scans, photos and screenshots through `qwen` vision (one image per call), voice notes through Whisper into captures (Aksh's words, never facts), links and pasted text, the ambiguous-page classifier on `gpt-oss-20b`, the document digest, "re-read this page", the public provenance line. 2c (own spec): XLSX valuation (progress 2.7), private only (publishing rule 9).
 
+### 4.12 Plan decisions (Plan 2a, 2026-10-07 to 2026-10-08; recorded at close-out)
+The plan's decisions E1-E13 as built, with the places the code differs from the plan's text.
+- **E1 Action placement.** Inbox, review and staging server actions live under `src/modules/ingestion/actions/` (`upload.ts`, `inbox.ts`, `review.ts`, `staging.ts`, re-exported by `index.ts`); the plan said one `actions.ts`, split to stay under 300 lines. Read-only page actions are `src/modules/documents/actions.ts`. The pump kick and the tab loop live in `src/app/desk/inbox/pump-actions.ts` (they import `@/modules/ops/jobs`, and `ops` imports `ingestion`, so there is no cycle). **The kick moved out of `finishUploadAction`:** the browser calls `kickReadingAction` after `finishUploadAction` returns, so the upload answer is never held by the 200-s drain.
+- **E2 Derived states.** `documents.status` is coarse; trays, progress and ETA are pure functions of `job_steps` and `proposals` (`ingestion/trays.ts`, `eta.ts`).
+- **E3 Two-column statements.** Period and unit come from the page's headers through code (`ingestion/periods.ts`), never from the model.
+- **E4 Verified rows pre-ticked;** flagged rows are resolved one at a time (s5).
+- **E5 One read-only research query.** `src/modules/research/queries.ts` is a new file (it did not exist) holding `latestFileForCompany(db, companyId)`; the graph test allows it because it only reads. It reads `items (id, title)` filtered on `company_id`, `kind in (thesis, case_study)` and `status <> archived`, newest by `created_at` (hence R12 below), and `item_revisions (structured)` by `rev_no`.
+- **E6 Fixture LLM** by `LLM_ADAPTER=fixture` (local and CI only, never on Vercel); the fixture answer is `src/lib/providers/fixtures/extraction.json` (the plan called it `fixtures/statement-page.json`).
+- **E7 Queue health.** `public.queue_age()` is granted to anon and authenticated (numbers only; the 0002 function-privilege allowlists name it); `HealthReport` has `queue: { ageSeconds, ok }`; `evaluateHealth`/`getHealthReport` take the age; the strip renders the queue clause on its own so it never says "safe" twice. `/api/health` fails on a runnable step older than 6 h. Waiting on quota is not runnable.
+- **E8 `documents.source_type`** is chosen at File under; default `Annual report`.
+- **E9 Storage meter** warns at 70% and the drop bar refuses at 90% of 1 GB (the server refuses too).
+- **E10 Topic display (default A):** the topic is the group heading; each row shows its period after the metric.
+- **E11 Staging is a client-side merge** into the Facts form draft (`facts-form/staged.ts`); provenance ids are reserved against the item's high-water mark so a deleted fact's id is never reused for a new typed fact.
+- **E12 Relevance numbers:** "moved" is a year-on-year change of at least 20%, at most 3 per page; at most 60 proposals per document; dedupe key `normalisedLabel|period|basis`.
+- **E13 Migrations:** `20261007000006_documents_jobs.sql` and `20261007000007_extraction.sql`; pgTAP `0006_documents_jobs.test.sql`, `0007_extraction.test.sql`. Both are LOCAL until the hosted push after the trial.
+
+Layout drift from the plan's file structure (no behaviour change):
+- The verbatim check is `src/modules/documents/verbatim.ts` (browser-safe, exported through `documents/client`), not in `ingestion`.
+- The strict-schema generator is `src/lib/providers/strict-schema.ts`.
+- The ETA is `src/modules/ingestion/eta.ts`; shared document types are `src/modules/documents/types.ts`.
+- `src/modules/ops/jobs.ts` re-exports `aiReadingOn`; no edit to `playwright.config.ts` or `ops.graph.test.ts` was needed.
+- Task 4's document error codes carry the `upload-` prefix; the inbox and review codes are `page-budget-reached`, `budget-range`, `ai-off` and the review codes listed in spec s16.2.
+- Two small helpers arrived late: `ingestion/allowance.ts` (AI pages today) and `ingestion/needs-you.ts` (the desk home's Needs-you cards).
+
+Lessons that bind later work: a grid track with an auto column grows to the longest unbreakable line of any card inside it and makes a phone zoom out (use `grid-cols-1`, i.e. `minmax(0, 1fr)`); `/desk/items` lists the 100 most recently updated items, so tests must find seeded items by title in the database, not on that list.
+
 ## 5. Tradeoffs
 - Verified rows are pre-ticked on the review screen. Ticking each row by hand would prove more attention but makes a 24-value report a 24-tap chore; the verbatim check already proves each number is on its cited page, and the decision left to Aksh is which numbers matter. Flags must be resolved one by one.
 - Auto-starting inside the default budget spends tokens before Aksh looks; accepted because the budget is the one he set (decision 3) and capture-speed beats a confirm step.
@@ -124,6 +152,7 @@ Paid burst adapter (decision 2) when Aksh outgrows two reports a day; Groq Devel
 ## 8. Facts, assumptions, open questions
 - **Facts:** s2 (all vendor numbers with URLs in spec s9).
 - **Assumptions:** about 3,400 tokens per statement page on `gpt-oss-120b` with low reasoning; `reasoning_effort` and `response_format: json_schema` can be combined on `gpt-oss-*` (the API reference lists both; the reasoning page does not say; Plan 2a Task 9 includes a one-off live check before the adapter is relied on); a statement page fits one call.
+- **Measurements (2026-10-08): none yet.** The 3,400-token assumption and the throughput estimate stay assumptions until the first real report is read; the checklist and the empty table are in `docs/trials/2026-10-xx-first-report.md`. Append "Measured <date>: ..." here when it is run.
 - **Open (not blocking 2a):** voice notes send Aksh's own words to Groq for transcription (2b): confirm he is comfortable with that before Plan 2b Task 5; Q11 and Q12 unchanged.
 
 ## Why this impresses an allocator

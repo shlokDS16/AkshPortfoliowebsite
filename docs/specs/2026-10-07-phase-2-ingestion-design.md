@@ -145,3 +145,60 @@ Public provenance line, OCR, images, voice, links, digest, classifier (2b); XLSX
 - Q11 interaction (s12): no change in Phase 2; ADR-005 after the trial.
 - Voice notes to Groq (2b): Aksh's consent to send his recordings to a third party.
 - Deploying Slice A changes the editor Aksh is trialling: the controller decides whether to ship it during or after the 3-day trial.
+
+## 16. Amendments from the Plan 2a build (2026-10-08, append-only; sections above are unchanged)
+
+### 16.1 s6.5 (review and filing)
+- **Start a file reuses an existing file (R13).** `startFileAction` wraps the existing `createItem` and, when the company already has a case file, returns that file instead of creating a second one. It is still Aksh's click on the existing item service; the empty revision rule is unchanged.
+- **A document with no company gets a company chooser (Task 13 fix).** In "File under", a document whose upload named no company shows a chooser of existing companies. Choosing one sets `documents.company_id` through the existing documents repo and an admin-only action, then continues to File under. It cannot create a company and cannot relink a document that already has one (debt).
+- **Done and Skip close review (Task 14 fix).** Once a document is `done` or `skipped`, its review screen refuses with `document-closed` ("You marked this document done or skipped, so its figures can no longer be reviewed or filed."); no pending figure of a closed document can be filed.
+- **Done asks first (Task 14 fix).** "Done with this document" opens a confirmation ("This deletes the stored PDF and cannot be undone. Its page text and the figures you filed stay.") with "Delete the PDF and finish"; it deletes the original once and cancels the document's job.
+
+### 16.2 s7 (what Aksh sees): additions
+The Needs-you tray on the desk home (Task 15) lists the inbox's own verdict, one card per document that waits on Aksh, using the same counts as the inbox (the basis-repeat filter included):
+
+| Where | Card or line |
+|---|---|
+| Desk home, Needs you | Neutral card "Ready to review": the document title, "24 figures ready to check.", action "Review" (its review page). Only for a document with figures to check. |
+| Desk home, Needs you | Warn card "Pages could not be read" (or "Could not be read" when the whole file failed): the document title, "Pages 142-147 could not be read.", action "Open the inbox". |
+| Inbox, free-plan room | Meters: "AI pages today: 41 of 44" (tokens spent today over `TOKENS_PER_PAGE_DEFAULT`, against 150,000 tokens a day; never red, a spent day is a pause), "Storage 412 MB of 1 GB" (warns from 70%), "Database 360 MB of 500 MB" (warns from 70%). No AI meter while AI is off. |
+| Inbox, drop bar | From 90% of storage the bar is disabled: "Storage is 91% full. Mark finished documents as done to free space." |
+| Desk strip | A stuck queue has its own clause, rendered once: "Documents have not moved for 7 h; your uploads are safe. The uptime monitor has emailed Shlok and Aksh." With late clocks too, the clock clause comes first and the "notes are safe" sentence is dropped, so the strip says "safe" once. |
+
+Message codes Plan 2a added that s7 did not list (all are fixed strings in `src/lib/messages.ts`, kept equal to the module copies by tests):
+
+| Code | Text |
+|---|---|
+| `upload-duplicate` | You uploaded this PDF before. Open the earlier copy. (the card adds "You uploaded this on 3 Oct." and an "Open it" link) |
+| `upload-too-large` | Over 50 MB. Upload the financial statements section, or compress the file. |
+| `upload-not-pdf` | Only PDF files can be uploaded. |
+| `upload-storage-full` | Storage is over 90% full. Mark finished documents as done to free space. (the drop bar shows the live percentage instead) |
+| `upload-missing` | The upload did not arrive complete. Upload the file again. |
+| `page-budget-reached` | This document is at its page limit. Raise the limit to read more pages. |
+| `budget-range` | Choose a page limit from 1 to 40. |
+| `ai-off` | AI reading is off, so figures cannot be read yet. Pages are still read and searchable. |
+| `type-value-first` | Type the value from the page first. |
+| `figure-incomplete` | Add the period, the as-of date and the unit. |
+| `figure-not-a-number` | Type the figure as printed on the page, for example 41.20. |
+| `figure-filed` | This figure is already filed. Change it in the file's Facts form. |
+| `filed-on-required` | Add the date the document was filed. |
+| `checks-left` | Check the flagged figures first. |
+| `not-this-file` | That is not this company's file. Reload and try again. |
+| `no-company` | This document is not linked to a company, so there is no file to put its figures in. |
+| `nothing-to-file` | Tick at least one figure to file. |
+| `document-closed` | You marked this document done or skipped, so its figures can no longer be reviewed or filed. |
+| `revision-saved-provenance-missing` | Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time. |
+
+Provenance chip and staged-banner strings (s6.5 specified only "read from p. 131; you changed 1,248 to 1,284" and "a banner names how many are waiting"). **Pending Shlok approval** means the build chose the wording and Shlok has not yet read it:
+- "Read from p. 4 of <doc>; you kept it." / "...; you changed 41.70 to 41.20." (specified, with "of <doc>" added: **"of {doc}" pending Shlok approval**).
+- "...; you checked it." (a flagged figure Aksh typed back as printed): **pending Shlok approval**.
+- "...; you edited it." (changed in a way that is not the value): **pending Shlok approval**.
+- Banner line 1: "N figures from <doc> are staged below. Check them, write your change reason and save." (names how many wait; as specified).
+- Banner line 2: "You removed every staged figure from <doc>. Saving sends them back to the review list.": **pending Shlok approval**.
+- Banner line 3: "N more figures from <doc> are not shown: already in this file, or over the 80-fact limit.": **pending Shlok approval**.
+
+### 16.3 s9 (quotas): the measurement is deferred
+The throughput line in s9 is still the proposal's estimate. Task 16's live measurement (hosted push, a real report, the cap update) is deferred to after Aksh's Phase 1 trial and the merge, by Shlok's lean-mode ruling of 2026-10-08. The checklist and the empty measurement table are in `docs/trials/2026-10-xx-first-report.md`; the s9 line gets its dated measurement then.
+
+### 16.4 s10 (degradation): the queue sentence
+The strip sentence for pumps not running is built from the oldest runnable step's age in whole hours, from `public.queue_age()` (granted to anon and authenticated, numbers only), through the same 6-hour rule as `/api/health`. Waiting on quota is never a stuck queue.
