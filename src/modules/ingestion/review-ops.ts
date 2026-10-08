@@ -7,6 +7,7 @@ import { ReviewError } from "./errors";
 import type { MachineFact } from "./proposed-fact";
 import type { ProposalRecord, ReviewRepo } from "./review-repo";
 import type { ProposalView, ReviewCounts } from "./review-types";
+import { filableReadingIds } from "./review-readings";
 import { filableIds } from "./review-values";
 import { currentFact, machineOf, toView } from "./review-view";
 
@@ -86,10 +87,18 @@ export async function saveValues(ports: ReviewPorts, documentId: string, input: 
   const parsed = valueDecisions.safeParse(input);
   if (!parsed.success) throw new InvalidInputError();
   const rows = await rowsOf(ports, documentId);
+  const readings = new Map((await ports.review.listReadings(documentId)).map((r) => [r.id, r]));
   const plan: { id: string; decided: Decided }[] = [];
+  const readingPlan: { id: string; status: "accepted" | "rejected" }[] = [];
   for (const d of parsed.data) {
     const row = rows.get(d.id);
-    if (!row) throw new InvalidInputError();
+    if (!row) {
+      // A test reading: ticked is accepted, unticked rejected. Aksh changes a reading in the Facts form, so an edit is refused here.
+      const rec = readings.get(d.id);
+      if (!rec || d.edit || rec.status === "filed") throw new InvalidInputError();
+      if (d.keep ? rec.status !== "accepted" : rec.status !== "rejected") readingPlan.push({ id: d.id, status: d.keep ? "accepted" : "rejected" });
+      continue;
+    }
     const { rec, machine } = row;
     const { flags } = rec;
     if (!d.keep) plan.push({ id: d.id, decided: decide({ status: rec.status, flags, machine }, { kind: "reject" }) });
@@ -103,6 +112,7 @@ export async function saveValues(ports: ReviewPorts, documentId: string, input: 
     const row = rows.get(id)!;
     row.rec = { ...row.rec, status: decided.status, accepted: decided.acceptedValue };
   }
+  for (const { id, status } of readingPlan) await ports.review.recordReading(documentId, id, status);
   return countsOf(rows);
 }
 
@@ -121,10 +131,11 @@ export async function fileUnder(ports: ReviewPorts, documentId: string, input: u
   if (all.some((r) => r.flags.length > 0 && r.status === "pending")) throw new ReviewError("checks-left");
   // The screen's own rule decides what is filed, so the count Aksh sees is what the editor then shows.
   const ids = filableIds(all.flatMap((rec) => toView(rec) ?? []), doc.basis);
-  if (ids.length === 0) throw new ReviewError("nothing-to-file");
+  const readingIds = filableReadingIds(await ports.review.listReadings(documentId));
+  if (ids.length === 0 && readingIds.length === 0) throw new ReviewError("nothing-to-file");
 
   await ports.docs.update(documentId, { title, sourceType, filedOn, sourceUrl });
-  const count = await ports.review.assignItem(documentId, itemId, ids);
+  const count = (await ports.review.assignItem(documentId, itemId, ids)) + (await ports.review.assignReadings(documentId, itemId, readingIds));
   return { itemId, count };
 }
 
@@ -136,7 +147,10 @@ export async function fileUnder(ports: ReviewPorts, documentId: string, input: u
 export async function unstage(ports: ReviewPorts, documentId: string, itemId: unknown): Promise<number> {
   const doc = isUuid(documentId) && isUuid(itemId) ? await ports.docs.get(documentId) : null;
   if (!doc || !isUuid(itemId)) throw new InvalidInputError();
-  return doc.status === "done" || doc.status === "skipped" ? ports.review.dropStaged(documentId, itemId) : ports.review.unassignItem(documentId, itemId);
+  const closed = doc.status === "done" || doc.status === "skipped";
+  const figures = closed ? await ports.review.dropStaged(documentId, itemId) : await ports.review.unassignItem(documentId, itemId);
+  const readings = closed ? await ports.review.dropStagedReadings(documentId, itemId) : await ports.review.unassignReadings(documentId, itemId);
+  return figures + readings;
 }
 
 /**

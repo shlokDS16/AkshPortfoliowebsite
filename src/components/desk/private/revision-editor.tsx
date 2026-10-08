@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { parseFactsSheet } from "@/modules/casefile/client";
-import type { ActionResult, FactProvenance, StagedRow } from "@/modules/ingestion/client";
+import type { ActionResult, FactProvenance, StagedReading, StagedRow } from "@/modules/ingestion/client";
 import { EDIT_EVENT } from "./edit-event";
 import { usePublishFacts } from "./doc-pane/workspace";
 import { FactsEditor } from "./facts-form/facts-editor";
 import { CitationWarning } from "./facts-form/citation-warning";
-import { buildMarks } from "./facts-form/marks";
+import { buildMarks, readingMarks } from "./facts-form/marks";
 import { StagedBanner } from "./facts-form/staged-banner";
 import { useFactsState } from "./facts-form/use-facts-state";
 
@@ -23,6 +23,8 @@ type Props = {
   figuresTo?: string | null;
   /** Machine-read figures Aksh has accepted for this file, merged into the Facts form as new rows. */
   staged?: StagedRow[];
+  /** Machine-read test readings Aksh has accepted for this file: applied to the test rows' reading fields (never the status). */
+  stagedReadings?: StagedReading[];
   /** Where each saved fact was read, by fact id. */
   provenance?: Record<string, FactProvenance>;
   /** Send a document's staged figures back to its review screen. */
@@ -30,19 +32,20 @@ type Props = {
 };
 
 const NO_STAGED: StagedRow[] = [];
+const NO_READINGS: StagedReading[] = [];
 const NO_PROVENANCE: Record<string, FactProvenance> = {};
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Aksh's words and the facts are separate fields (CLAUDE.md); the facts (form or text sheet) are checked with the casefile schema's own rules as he types. */
-export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figuresTo = null, staged = NO_STAGED, provenance = NO_PROVENANCE, sendBack }: Props) {
+export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figuresTo = null, staged = NO_STAGED, stagedReadings = NO_READINGS, provenance = NO_PROVENANCE, sendBack }: Props) {
   const body = useRef<HTMLTextAreaElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const [bodyText, setBodyText] = useState(bodyMd);
-  const facts = useFactsState(sheet ?? "", bodyText, sheet === null ? [] : staged, Object.keys(provenance));
+  const facts = useFactsState(sheet ?? "", bodyText, sheet === null ? [] : staged, Object.keys(provenance), sheet === null ? [] : stagedReadings);
   const marks = useMemo(() => {
     const saved = sheet === null ? null : parseFactsSheet(sheet);
-    return buildMarks(facts.staging.pairs, staged, saved && saved.errors.length === 0 ? saved.caseFile : null, provenance);
-  }, [facts.staging.pairs, staged, sheet, provenance]);
+    return { ...buildMarks(facts.staging.pairs, staged, saved && saved.errors.length === 0 ? saved.caseFile : null, provenance), ...readingMarks(facts.staging.readingPairs, stagedReadings) };
+  }, [facts.staging.pairs, facts.staging.readingPairs, staged, stagedReadings, sheet, provenance]);
   usePublishFacts(facts.checkable); // the document pane checks these quoted lines
   // Rule 4: a save that newly breaks a body citation needs a second press, once per set of newly broken ids.
   // Citations already broken when the editor opened are shown as a warning only.
@@ -98,8 +101,18 @@ export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figure
           Your words. For a company file: the view, then &quot;## What would prove me wrong&quot; with one &quot;- T1: …&quot; line per test. Cite a fact with [F1].
         </p>
       </div>
-      {sheet !== null && staged.length > 0 ? (
-        <StagedBanner staged={staged} mergedIds={facts.staging.mergedIds} presentIds={facts.staging.pairs.map((p) => p.proposalId)} unseen={facts.staging.unseen} sendBack={sendBack} />
+      {sheet !== null && staged.length + stagedReadings.length > 0 ? (
+        <StagedBanner
+          staged={staged}
+          mergedIds={facts.staging.mergedIds}
+          presentIds={facts.staging.pairs.map((p) => p.proposalId)}
+          unseen={facts.staging.unseen}
+          readings={stagedReadings}
+          readingsApplied={facts.staging.readingPairs.map((p) => p.proposalId)}
+          readingsPresent={facts.staging.readingsPresent}
+          unseenReadings={facts.staging.unseenReadings}
+          sendBack={sendBack}
+        />
       ) : null}
       {facts.staging.field ? <input type="hidden" name="provenance" value={facts.staging.field} /> : null}
       {sheet !== null ? <FactsEditor facts={facts} bodyMd={bodyText} figuresTo={figuresTo} marks={marks} /> : null}

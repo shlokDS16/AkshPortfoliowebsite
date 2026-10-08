@@ -1,4 +1,4 @@
-import type { ProposalView, ValueDecision } from "@/modules/ingestion/client";
+import type { ProposalView, ReadingView, ValueDecision } from "@/modules/ingestion/client";
 
 // What the values list means for the document, worked out in the browser from the rows and Aksh's ticks and typing.
 // The server decides again when he files (decide.ts); this is only what the screen says before then.
@@ -9,8 +9,14 @@ export type Typed = Record<string, string>;
 /** Ticked unless Aksh unticked it, or he dropped it earlier in a past visit. */
 export const isTicked = (row: ProposalView, ticks: Ticks): boolean => ticks[row.id] ?? row.status !== "rejected";
 
-export function decisionsOf(shown: ProposalView[], ticks: Ticks, typed: Typed): ValueDecision[] {
-  return shown.map((row) => ({ id: row.id, keep: isTicked(row, ticks), ...(typed[row.id] ? { edit: { valueText: typed[row.id] } } : {}) }));
+/** A reading is ticked unless Aksh unticked it, or he dropped it in an earlier visit. */
+export const isReadingTicked = (reading: ReadingView, ticks: Ticks): boolean => ticks[reading.id] ?? reading.status !== "rejected";
+
+export function decisionsOf(shown: ProposalView[], ticks: Ticks, typed: Typed, readings: ReadingView[] = []): ValueDecision[] {
+  return [
+    ...shown.map((row) => ({ id: row.id, keep: isTicked(row, ticks), ...(typed[row.id] ? { edit: { valueText: typed[row.id] } } : {}) })),
+    ...readings.map((r) => ({ id: r.id, keep: isReadingTicked(r, ticks) })),
+  ];
 }
 
 export type Summary = { accepted: number; edited: number; rejected: number };

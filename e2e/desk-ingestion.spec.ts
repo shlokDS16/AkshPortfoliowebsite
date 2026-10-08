@@ -113,7 +113,7 @@ test("the machine's page methods hold under service_role: download, idempotent p
     expect(untick.error).toBeNull();
     expect(await machine.setSelection(documentId, [2, 3], "rule")).toEqual([2]);
     expect(await machine.setSelection(documentId, [2, 3], "rule")).toEqual([2]); // a repeated run gives the same answer
-    expect(await machine.getPage(documentId, 2)).toEqual({ ...pages[1], isScan: false, kind: "pl", basis: "consolidated", ocr: false, selected: true, selectedBy: "rule" });
+    expect(await machine.getPage(documentId, 2)).toEqual({ ...pages[1], isScan: false, kind: "pl", basis: "consolidated", score: 112.5, ocr: false, selected: true, selectedBy: "rule" });
     expect(await machine.countSelected(documentId)).toBe(1);
 
     // A scan page (p. 4, under 50 characters) is filled once by the scan reader's text; a page with text is not.

@@ -36,7 +36,7 @@ function ctx(repo: MemoryDocumentsRepo, step: Partial<Step> = {}): StepContext {
     clock: () => T0,
   };
   const full: Step = {
-    id: "s", jobId: "j", kind: "text_pages", pageNo: 1, args: {}, status: "running", schemaFailures: 0, providerFailures: 0,
+    id: "s", jobId: "j", kind: "text_pages", pageNo: 1, pass: 1, args: {}, status: "running", schemaFailures: 0, providerFailures: 0,
     leaseExpiries: 0, notBefore: new Date(T0).toISOString(), leaseOwner: "o", lastError: null, ...step,
   };
   return { step: full, documentId: DOC, deadline: T0 + 240_000, deps };

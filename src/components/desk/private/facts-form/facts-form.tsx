@@ -101,10 +101,12 @@ export function FactsForm({ draft: d, update, fields, rows, bodyMd, loaded, mark
             key={t.id}
             row={t}
             condition={conditions.find((c) => c.id === t.id)?.text ?? null}
+            labels={d.facts.map((f) => f.label)}
             onChange={patch("tests", t.id)}
             onRemove={remove("tests", t.id, `ff-add-reading-${t.id}`)}
             errors={fields}
             rowErrors={rows[t.id]}
+            mark={marks[t.id]}
           />
         ))}
         {missing.map((c) => (

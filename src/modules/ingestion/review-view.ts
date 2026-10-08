@@ -41,3 +41,13 @@ export function toView(rec: ProposalRecord): ProposalView | null {
     machineText: machine.valueText,
   };
 }
+
+/**
+ * The records the screen lists: a figure Aksh's re-read rejected is left out once a later pass has proposed on its page (the new rows
+ * replace it). A figure he rejected himself, and every accepted, edited or filed one, stays.
+ */
+export function currentRecords(recs: ProposalRecord[]): ProposalRecord[] {
+  const newest = new Map<number, number>();
+  for (const r of recs) newest.set(r.pageNo, Math.max(newest.get(r.pageNo) ?? 1, r.pass));
+  return recs.filter((r) => !(r.status === "rejected" && r.pass < (newest.get(r.pageNo) ?? 1)));
+}

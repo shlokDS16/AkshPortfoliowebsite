@@ -48,7 +48,7 @@ describe("factDiffers", () => {
 describe("parseStaging", () => {
   const good = { staged: [P1], provenance: [{ factId: "F1", proposalId: P1 }] };
   it("reads the editor's field", () => {
-    expect(parseStaging(JSON.stringify(good))).toEqual(good);
+    expect(parseStaging(JSON.stringify(good))).toEqual({ ...good, stagedReadings: [] });
   });
   it.each([
     ["nothing", null],
@@ -59,7 +59,7 @@ describe("parseStaging", () => {
     ["an extra key", JSON.stringify({ ...good, extra: 1 })],
     ["a bare array", JSON.stringify(good.provenance)],
   ])("ignores %s", (_name, raw) => {
-    expect(parseStaging(raw)).toEqual({ staged: [], provenance: [] });
+    expect(parseStaging(raw)).toEqual({ staged: [], provenance: [], stagedReadings: [] });
   });
 });
 

@@ -5,7 +5,7 @@ import { errorShape, ItemNotFoundError } from "@/lib/errors";
 import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
-import { parseStaging, recordFiledFacts } from "@/modules/ingestion";
+import { parseStaging, recordFiledFacts, recordFiledReadings } from "@/modules/ingestion";
 import { addRevision, createSupabaseResearchRepo, getItemWithHistory, isItemId, updateItemMeta } from "@/modules/research";
 import { FactsSheetError, NoFigureDateError } from "./errors";
 import type { CaseFile } from "./schema";
@@ -54,6 +54,15 @@ export async function saveCaseFileRevisionAction(itemId: string, formData: FormD
     } catch (error) {
       provenanceMissing = true;
       console.error("casefile provenance failed", errorShape(error));
+    }
+  }
+  // Staged test readings have their own step (R4); one failing never strands the other.
+  if (caseFile && staging.stagedReadings.length > 0) {
+    try {
+      await recordFiledReadings(db, { itemId, revisionId: saved.revision.id, structured: caseFile, pairs: staging.stagedReadings });
+    } catch (error) {
+      provenanceMissing = true;
+      console.error("casefile readings failed", errorShape(error));
     }
   }
   revalidatePath(back);

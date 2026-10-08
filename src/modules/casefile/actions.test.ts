@@ -6,6 +6,7 @@ import { parseFactsSheet } from "./sheet";
 
 const state = vi.hoisted(() => ({ repo: null as unknown }));
 const recordFiledFacts = vi.hoisted(() => vi.fn());
+const recordFiledReadings = vi.hoisted(() => vi.fn());
 const redirect = vi.fn((to: string) => {
   throw new Error(`NEXT_REDIRECT:${to}`);
 });
@@ -17,7 +18,7 @@ vi.mock("@/modules/identity", () => ({ requireAdmin: () => requireAdmin() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => ({}) }));
 vi.mock("@/modules/research", async (original) => ({ ...(await original<typeof import("@/modules/research")>()), createSupabaseResearchRepo: () => state.repo }));
 
-vi.mock("@/modules/ingestion", async () => ({ parseStaging: (await import("@/modules/ingestion/provenance")).parseStaging, recordFiledFacts }));
+vi.mock("@/modules/ingestion", async () => ({ parseStaging: (await import("@/modules/ingestion/provenance")).parseStaging, recordFiledFacts, recordFiledReadings }));
 
 import { saveCaseFileRevisionAction, setFiguresToAction } from "./actions";
 
@@ -49,6 +50,7 @@ beforeEach(() => {
   state.repo = repo;
   redirect.mockClear();
   recordFiledFacts.mockReset().mockResolvedValue({ filed: 0 });
+  recordFiledReadings.mockReset().mockResolvedValue({ filed: 0, back: 0 });
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => vi.restoreAllMocks());
@@ -156,6 +158,51 @@ describe("saveCaseFileRevisionAction: provenance of staged figures", () => {
     const to = await save(id, { provenance: field });
     expect(param(to, "notice")).toBe("revision-pending-gate");
     expect(param(to, "also")).toBe("revision-saved-provenance-missing");
+  });
+
+  describe("staged test readings (Plan 2b Task 8, R4)", () => {
+    const R1 = "00000011-0000-4000-8000-000000000011";
+    const readings = JSON.stringify({ staged: [], provenance: [], stagedReadings: [{ testId: "T1", proposalId: R1 }] });
+
+    it("files them by their own step, with the new revision's id and the parsed file, and never through the fact step", async () => {
+      const id = await thesis();
+      expect(await save(id, { provenance: readings })).toBe(`/desk/items/${id}?notice=revision-saved`);
+      expect(recordFiledReadings).toHaveBeenCalledTimes(1);
+      expect(recordFiledReadings.mock.calls[0][1]).toEqual({
+        itemId: id,
+        revisionId: repo.revisions.at(-1)!.id,
+        structured: parseFactsSheet(KAVERI.revisions[1].sheet).caseFile,
+        pairs: [{ testId: "T1", proposalId: R1 }],
+      });
+      expect(recordFiledFacts).not.toHaveBeenCalled();
+    });
+
+    it("runs both steps when both were staged, and does not call the reading step for figures alone", async () => {
+      const id = await thesis();
+      await save(id, { provenance: JSON.stringify({ staged: [P1], provenance: [{ factId: "F2", proposalId: P1 }], stagedReadings: [{ testId: "T1", proposalId: R1 }] }) });
+      expect(recordFiledFacts).toHaveBeenCalledTimes(1);
+      expect(recordFiledReadings).toHaveBeenCalledTimes(1);
+      recordFiledReadings.mockClear();
+      await save(id, { provenance: field });
+      expect(recordFiledReadings).not.toHaveBeenCalled();
+    });
+
+    it("still tries the readings when the figures' record fails, and the save shows the provenance-missing notice if either did", async () => {
+      recordFiledFacts.mockRejectedValueOnce(new Error("db down"));
+      const id = await thesis();
+      const to = await save(id, { provenance: JSON.stringify({ staged: [P1], provenance: [], stagedReadings: [{ testId: "T1", proposalId: R1 }] }) });
+      expect(recordFiledReadings).toHaveBeenCalledTimes(1);
+      expect(to).toBe(`/desk/items/${id}?notice=revision-saved-provenance-missing`);
+      recordFiledReadings.mockRejectedValueOnce(new Error("db down"));
+      expect(await save(id, { provenance: readings })).toBe(`/desk/items/${id}?notice=revision-saved-provenance-missing`);
+      expect(repo.revisions).toHaveLength(2);
+    });
+
+    it("does not file readings for a note (no facts sheet)", async () => {
+      const note = await repo.insertItem({ kind: "learning", title: "Note", companyId: null, themeId: null, learningObjective: "Learn." });
+      await target(() => saveCaseFileRevisionAction(note.id, form({ bodyMd: "b", provenance: readings })));
+      expect(recordFiledReadings).not.toHaveBeenCalled();
+    });
   });
 
   it("never reaches the provenance step when the save itself fails", async () => {

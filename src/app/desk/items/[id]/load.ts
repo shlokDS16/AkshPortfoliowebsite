@@ -4,7 +4,7 @@ import { fileProblems, latestFigureDate, readCaseFile, serializeFactsSheet } fro
 import { getCompanyBrief } from "@/modules/catalog";
 import { allowableHashes, annotateBody, createSupabaseComplianceRepo, getLatestDecision, previewGate } from "@/modules/compliance";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
-import { listStagedForItem, provenanceForItem } from "@/modules/ingestion";
+import { listStagedForItem, listStagedReadingsForItem, provenanceForItem } from "@/modules/ingestion";
 import { createSupabaseResearchRepo, getItemWithHistory } from "@/modules/research";
 
 /** Everything the editor shows, read once per request (admin session; RLS admin policies apply). */
@@ -18,7 +18,7 @@ export async function loadEditor(id: string) {
   // The gate can be run on the newest revision unless it is already the live one.
   const candidate = latest && (item.visibility !== "public" || latest.id !== current?.id) ? latest : null;
   const isFile = item.kind === "thesis" || item.kind === "case_study";
-  const [ctx, allowances, company, decision, documents, staged, provenance] = await Promise.all([
+  const [ctx, allowances, company, decision, documents, staged, stagedReadings, provenance] = await Promise.all([
     candidate ? compliance.loadPublishContext(item.id, candidate.id) : Promise.resolve(null),
     compliance.listAllowances(item.id),
     item.companyId ? getCompanyBrief(db, item.companyId) : Promise.resolve(null),
@@ -27,6 +27,8 @@ export async function loadEditor(id: string) {
     item.companyId ? createSupabaseDocumentsRepo(db).listForCompany(item.companyId) : Promise.resolve([]),
     // Machine-read figures Aksh accepted for this file but no revision holds yet, and where the saved facts were read.
     isFile ? listStagedForItem(db, item.id) : Promise.resolve([]),
+    // Test readings Aksh accepted for this file's tests: they fill the test rows' reading fields, never a status.
+    isFile ? listStagedReadingsForItem(db, item.id) : Promise.resolve([]),
     isFile ? provenanceForItem(db, item.id) : Promise.resolve({}),
   ]);
   const preview = ctx
@@ -48,6 +50,7 @@ export async function loadEditor(id: string) {
     company,
     documents,
     staged,
+    stagedReadings,
     provenance,
     preview,
     decision,

@@ -15,13 +15,21 @@ const SOURCE_TYPES = ["Annual report", "Presentation", "Filing", "Transcript", "
 type SourceType = (typeof SOURCE_TYPES)[number];
 const field = "min-h-11 w-full rounded-sm border border-input bg-paper px-3 text-body text-ink";
 
-type Props = { document: ReviewData["document"]; target: ReviewData["target"]; count: number; decisions: ValueDecision[]; companies: { id: string; symbol: string }[] };
+type Props = { document: ReviewData["document"]; target: ReviewData["target"]; count: number; /** Ticked test readings, filed beside the figures. */ readings?: number; decisions: ValueDecision[]; companies: { id: string; symbol: string }[] };
+
+/** "this figure", "these 4 figures", "this test reading", "these 4 figures and 2 test readings". */
+function whatIsFiled(figures: number, readings: number): string {
+  const f = figures === 1 ? "this figure" : `these ${figures} figures`;
+  if (readings === 0) return f;
+  const r = readings === 1 ? "1 test reading" : `${readings} test readings`;
+  return figures === 0 ? (readings === 1 ? "this test reading" : `these ${readings} test readings`) : `${f} and ${r}`;
+}
 
 /**
  * Files the ticked figures under the company's file (spec s6.5). The document's source row is confirmed here once:
  * title, type, filed-on (required) and link. "Start a file for X" is Aksh's own click on the existing item service.
  */
-export function FileUnder({ document: doc, target, count, decisions, companies }: Props) {
+export function FileUnder({ document: doc, target, count, readings = 0, decisions, companies }: Props) {
   const id = useId();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -63,11 +71,12 @@ export function FileUnder({ document: doc, target, count, decisions, companies }
     }
   }
 
-  const figures = count === 1 ? "this figure" : `these ${count} figures`;
+  const figures = whatIsFiled(count, readings);
+  const total = count + readings;
   return (
     <form noValidate onSubmit={file} aria-label="File under" className="space-y-4 rounded-sm border border-rule bg-surface p-4">
       <fieldset className="space-y-3">
-        <legend className="mb-1 font-mono text-mono-label uppercase text-ink-muted">Where {count === 1 ? "it" : "they"} come from</legend>
+        <legend className="mb-1 font-mono text-mono-label uppercase text-ink-muted">Where {total === 1 ? "it" : "they"} come from</legend>
         <div className="space-y-1">
           <Label htmlFor={`${id}-title`}>Document title</Label>
           <Input id={`${id}-title`} name="title" required maxLength={160} defaultValue={doc.title} />
@@ -96,10 +105,10 @@ export function FileUnder({ document: doc, target, count, decisions, companies }
           {companyName} has no file yet. This starts one, private and empty, and puts {figures} in its Facts form.
         </p>
       )}
-      <Button type="submit" disabled={busy || count === 0} className="h-auto min-h-11 max-w-full whitespace-normal py-2 text-left">
+      <Button type="submit" disabled={busy || total === 0} className="h-auto min-h-11 max-w-full whitespace-normal py-2 text-left">
         {target ? `File ${figures} under ${target.title}` : `Start a file for ${companyName}`}
       </Button>
-      {count === 0 ? <p className="text-small text-ink-muted">{errorText("nothing-to-file")}</p> : null}
+      {total === 0 ? <p className="text-small text-ink-muted">{errorText("nothing-to-file")}</p> : null}
       {error ? (
         <p role="alert" className="text-small text-bad">
           {error}

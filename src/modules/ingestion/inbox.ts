@@ -1,9 +1,9 @@
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
-import { createSupabaseDocumentsRepo, type Basis, type DocumentKind, type DocumentStatus, type PageKind } from "@/modules/documents";
+import { createSupabaseDocumentsRepo, type Basis, type DocumentKind, type DocumentStatus } from "@/modules/documents";
 import { GROQ_CAPS, TOKENS_PER_PAGE_DEFAULT } from "./caps";
 import { estimateReadyBy, formatReadyBy } from "./eta";
-import { listedPages, readInboxPages, type InboxPageRow } from "./inbox-pages";
+import { listedPages, readInboxPages, type InboxPageRow, type ListedPage } from "./inbox-pages";
 import { readDigestCounts } from "./digest-read";
 import { readTranscripts } from "./inbox-transcripts";
 import { PAGE_STEP_KINDS } from "./page-steps";
@@ -36,9 +36,9 @@ export type InboxDoc = {
   view: TrayView;
   /**
    * Statement pages and ticked pages, plus every scan page (so Aksh can tick them), never page text: `firstLine` is the first
-   * line of the page, at most 120 characters. A photo is one page and has no list.
+   * line of the page, at most 120 characters. A photo is one page and has no list. `read` is true once the page's figures are read.
    */
-  pages: { pageNo: number; kind: PageKind | null; basis: Basis | null; firstLine: string; selected: boolean; by: "rule" | "aksh" | null; scan: boolean }[];
+  pages: ListedPage[];
 };
 
 const FINISHED_SHOWN = 10;
@@ -49,11 +49,19 @@ type DocRow = {
   transcript_status: string | null;
 };
 type StepRow = {
-  kind: string; status: string; not_before: string; wait_reason: string | null; page_no: number | null; last_error: string | null; lease_owner: string | null;
+  kind: string; status: string; not_before: string; wait_reason: string | null; page_no: number | null; pass: number; last_error: string | null; lease_owner: string | null;
 };
+const STEP_COLUMNS = "kind, status, not_before, wait_reason, page_no, pass, last_error, lease_owner";
 
-const toSteps = (rows: StepRow[]): DocState["steps"] =>
-  rows.map((r) => ({
+/** The tray state of a job's steps: a page read again has a row per pass, and only its newest pass counts (migration 0008, R2). */
+export const toSteps = (all: StepRow[]): DocState["steps"] => {
+  const newest = new Map<string, StepRow>();
+  for (const r of all) {
+    const key = `${r.kind}:${r.page_no}`;
+    const seen = newest.get(key);
+    if (!seen || r.pass > seen.pass) newest.set(key, r);
+  }
+  return [...newest.values()].map((r) => ({
     kind: r.kind as StepKind,
     status: r.status as StepStatus,
     notBefore: r.not_before,
@@ -62,6 +70,18 @@ const toSteps = (rows: StepRow[]): DocState["steps"] =>
     lastError: r.last_error,
     everClaimed: r.lease_owner !== null || r.status !== "queued",
   }));
+};
+
+/** The pages whose figures are read: the page's newest extract_page step is done. A page being read again is not in it until the new pass finishes. */
+export function readPageNumbers(all: StepRow[]): Set<number> {
+  const newest = new Map<number, StepRow>();
+  for (const r of all) {
+    if (r.kind !== "extract_page" || r.page_no === null) continue;
+    const seen = newest.get(r.page_no);
+    if (!seen || r.pass > seen.pass) newest.set(r.page_no, r);
+  }
+  return new Set([...newest].flatMap(([pageNo, r]) => (r.status === "done" ? [pageNo] : [])));
+}
 
 /**
  * "ready by 11:40" for the pages still to read (a scan is counted once; its figures follow it); the day's allowance is
@@ -106,7 +126,7 @@ export async function listInbox(
       ? { data: [], error: null }
       : db
           .from("jobs")
-          .select("document_id, job_steps(kind, status, not_before, wait_reason, page_no, last_error, lease_owner)")
+          .select(`document_id, job_steps(${STEP_COLUMNS})`)
           .in("document_id", activeIds)
           .is("cancelled_at", null),
     readInboxPages(db, activeIds),
@@ -179,7 +199,7 @@ export async function listInbox(
       transcript: transcripts.get(d.id) ?? null,
       view: trayFor(state, now, etaFor(steps, now)),
       // A photo is one page: nothing to tick. Every other document lists its scans, so a mixed one can have them read too.
-      pages: listedPages(d.kind, pagesOf.get(d.id) ?? []),
+      pages: listedPages(d.kind, pagesOf.get(d.id) ?? [], readPageNumbers(stepsOf.get(d.id) ?? [])),
     };
   });
   return { docs, usage, aiOn };
@@ -202,7 +222,7 @@ export async function countInbox(db: Db, now: Date): Promise<number> {
   if (open.data.length === 0) return 0;
   const jobs = await db
     .from("jobs")
-    .select("document_id, job_steps(kind, status, not_before, wait_reason, page_no, last_error, lease_owner)")
+    .select(`document_id, job_steps(${STEP_COLUMNS})`)
     .in("document_id", open.data.map((d) => d.id))
     .is("cancelled_at", null);
   if (jobs.error) throw dbError("inbox.countSteps", jobs.error);

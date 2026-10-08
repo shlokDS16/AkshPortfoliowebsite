@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DOUBTFUL_MAX_PAGES, type PageVerdict } from "@/modules/documents";
+import { PAGE_KINDS } from "../prompts";
 import type { NewStep } from "../types";
 
 // What a classify_pages step carries (ruling R2): its job_steps row is keyed by the first page of its batch, so one batch is
@@ -8,7 +9,7 @@ import type { NewStep } from "../types";
 
 const verdictSchema = z.object({
   pageNo: z.number().int().positive(),
-  kind: z.enum(["pl", "bs", "cf", "notes", "segment", "mdna", "other"]),
+  kind: z.enum(PAGE_KINDS),
   basis: z.enum(["consolidated", "standalone"]).nullable(),
   score: z.number(),
 });

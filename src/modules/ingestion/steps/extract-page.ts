@@ -1,7 +1,7 @@
-import { EXTRACT_MAX_COMPLETION, MAX_PROPOSALS_PER_DOCUMENT, OCR_OFF_RETRY_MS, PAGE_CHAR_LIMIT, SHORT_WAIT_MS } from "../caps";
+import { EXTRACT_MAX_COMPLETION, MAX_PROPOSALS_PER_DOCUMENT, OCR_OFF_RETRY_MS, PAGE_CHAR_LIMIT, REREAD_MAX_COMPLETION, SHORT_WAIT_MS } from "../caps";
 import { llmTimeoutMs } from "../deadline";
 import { callWithinBudget, estimateTokens } from "../governor";
-import { extractionSchema, PROMPT_VERSION, retryPrompt, SYSTEM_PROMPT, userPrompt, type Extraction } from "../prompts";
+import { extractionSchema, PROMPT_VERSION, REREAD_PROMPT_VERSION, retryPrompt, SYSTEM_PROMPT, userPrompt, type Extraction } from "../prompts";
 import { OCR_NOTHING_READ, SCAN_READING_OFF } from "../ocr-copy";
 import { stepsForPage } from "../page-steps";
 import type { StepHandler, StepOutcome } from "../types";
@@ -25,6 +25,9 @@ export const extractPage: StepHandler = async (ctx) => {
   if (!llm) return { kind: "defer", notBefore: new Date(deps.now().getTime() + AI_OFF_RETRY_MS), reason: "ai_off" };
   if (step.pageNo === null) return attention(PAGE_NOT_STORED);
   const pageNo = step.pageNo;
+  // A re-read (Plan 2b Task 8, R3): Aksh asked for this page again, so the cache is skipped, the model thinks at medium effort, and
+  // the rows are filed under keys of this pass. Only the literal true counts.
+  const reread = step.args.reread === true;
 
   const [doc, page] = await Promise.all([documents.get(documentId), documents.getPage(documentId, pageNo)]);
   if (!doc || !page) return attention(PAGE_NOT_STORED);
@@ -46,7 +49,8 @@ export const extractPage: StepHandler = async (ctx) => {
   let extraction: Extraction;
   let tokens = 0;
   let cached = false;
-  const stored = await proposals.findCachedExtraction(inputHash, model, PROMPT_VERSION);
+  const promptVersion = reread ? REREAD_PROMPT_VERSION : PROMPT_VERSION;
+  const stored = reread ? null : await proposals.findCachedExtraction(inputHash, model, promptVersion);
   const reuse = stored ? extractionSchema.safeParse(stored.output) : null;
   if (reuse?.success) {
     extraction = reuse.data;
@@ -58,10 +62,11 @@ export const extractPage: StepHandler = async (ctx) => {
     // A second attempt names what was wrong with the first (ADR-004 s4.5).
     const system = step.schemaFailures > 0 && step.lastError ? retryPrompt(step.lastError) : SYSTEM_PROMPT;
     const user = userPrompt(pageNo, text);
-    const budget = await callWithinBudget({ usage, now: deps.now }, model, estimateTokens(system, user, EXTRACT_MAX_COMPLETION), () =>
+    const maxCompletion = reread ? REREAD_MAX_COMPLETION : EXTRACT_MAX_COMPLETION;
+    const budget = await callWithinBudget({ usage, now: deps.now }, model, estimateTokens(system, user, maxCompletion), () =>
       llm.complete({
         model, system, user, schema: extractionSchema, schemaName: "page_extraction",
-        maxCompletionTokens: EXTRACT_MAX_COMPLETION, reasoningEffort: "low", timeoutMs,
+        maxCompletionTokens: maxCompletion, reasoningEffort: reread ? "medium" : "low", timeoutMs,
       }),
     );
     if (budget.kind === "deferred") return { kind: "defer", notBefore: budget.notBefore, reason: budget.reason };
@@ -76,9 +81,9 @@ export const extractPage: StepHandler = async (ctx) => {
     tokens = result.usage.totalTokens;
   }
 
-  const saved = await saveExtraction(ctx, doc, page, { extraction, pageNo, pageText: text, model, promptVersion: PROMPT_VERSION, inputHash, tokens, have });
+  const saved = await saveExtraction(ctx, doc, page, { extraction, pageNo, pageText: text, model, promptVersion, inputHash, tokens, have, pass: step.pass, reread });
   return {
     kind: "done",
-    result: { proposals: saved.built, flagged: saved.flagged, tokens, ...(cached ? { cached } : {}), ...(truncated ? { truncated } : {}) },
+    result: { proposals: saved.built, flagged: saved.flagged, tokens, ...(cached ? { cached } : {}), ...(truncated ? { truncated } : {}), ...(reread ? { reread } : {}) },
   };
 };

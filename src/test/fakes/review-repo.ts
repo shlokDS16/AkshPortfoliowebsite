@@ -1,9 +1,11 @@
 import { InvalidInputError } from "@/lib/errors";
 import type { Flag, MachineFact } from "@/modules/ingestion/proposed-fact";
-import type { ProposalRecord, ReviewRepo } from "@/modules/ingestion/review-repo";
+import type { ProposalRecord, ReadingRecord, ReviewRepo } from "@/modules/ingestion/review-repo";
+import type { MachineReading } from "@/modules/ingestion/readings";
 
 export type MemoryReviewRepo = ReviewRepo & {
   records: ProposalRecord[];
+  readings: ReadingRecord[];
   texts: Map<number, string>;
   file: { itemId: string; title: string } | null;
   name: string | null;
@@ -17,14 +19,25 @@ export const machine = (over: Partial<MachineFact> = {}): MachineFact => ({
   prior: { label: "FY25", value: 1102, valueText: "1,102.00" }, ...over,
 });
 
-export function record(id: string, over: { fact?: Partial<MachineFact>; flags?: Flag[]; status?: string; accepted?: unknown; itemId?: string | null; reason?: string } = {}): ProposalRecord {
+export function record(id: string, over: { fact?: Partial<MachineFact>; flags?: Flag[]; status?: string; accepted?: unknown; itemId?: string | null; reason?: string; pass?: number } = {}): ProposalRecord {
   const fact = machine(over.fact);
-  return { id, pageNo: fact.page, machine: fact, accepted: over.accepted ?? null, flags: over.flags ?? [], reason: over.reason ?? "core", status: over.status ?? "pending", itemId: over.itemId ?? null };
+  return { id, pageNo: fact.page, pass: over.pass ?? 1, machine: fact, accepted: over.accepted ?? null, flags: over.flags ?? [], reason: over.reason ?? "core", status: over.status ?? "pending", itemId: over.itemId ?? null };
 }
 
-export function createMemoryReviewRepo(records: ProposalRecord[] = []): MemoryReviewRepo {
+/** A machine reading of a test: Receivable days, 142 days at 31 March 2026, with a prior of 131, from page 7. */
+export const machineReading = (over: Partial<MachineReading> = {}): MachineReading => ({
+  current: 142, readingAsOf: "2026-03-31", prior: 131, unit: "days", label: "Receivable days", period: "FY26", valueText: "142", quote: "Receivable days 142 131", page: 7, ...over,
+});
+
+export function reading(id: string, over: { testId?: string; machine?: Partial<MachineReading>; status?: string; itemId?: string | null; pass?: number } = {}): ReadingRecord {
+  const m = machineReading(over.machine);
+  return { id, pageNo: m.page, pass: over.pass ?? 1, testId: over.testId ?? "T1", machine: m, status: over.status ?? "pending", itemId: over.itemId ?? null };
+}
+
+export function createMemoryReviewRepo(records: ProposalRecord[] = [], readings: ReadingRecord[] = []): MemoryReviewRepo {
   const repo: MemoryReviewRepo = {
     records,
+    readings,
     texts: new Map(),
     file: null,
     name: null,
@@ -57,6 +70,31 @@ export function createMemoryReviewRepo(records: ProposalRecord[] = []): MemoryRe
     async unassignItem(_documentId, itemId) {
       const mine = repo.records.filter((r) => (r.status === "accepted" || r.status === "edited") && r.itemId === itemId);
       for (const r of mine) r.itemId = null;
+      return mine.length;
+    },
+    async listReadings() {
+      return repo.readings.map((r) => ({ ...r }));
+    },
+    async recordReading(_documentId, id, status) {
+      const at = repo.readings.find((r) => r.id === id && r.status !== "filed");
+      if (!at) throw new InvalidInputError();
+      at.status = status;
+      if (status === "rejected") at.itemId = null;
+      repo.recorded.push({ id, status });
+    },
+    async assignReadings(_documentId, itemId, ids) {
+      const mine = repo.readings.filter((r) => ids.includes(r.id) && r.status === "accepted");
+      for (const r of mine) r.itemId = itemId;
+      return mine.length;
+    },
+    async unassignReadings(_documentId, itemId) {
+      const mine = repo.readings.filter((r) => r.status === "accepted" && r.itemId === itemId);
+      for (const r of mine) r.itemId = null;
+      return mine.length;
+    },
+    async dropStagedReadings(_documentId, itemId) {
+      const mine = repo.readings.filter((r) => r.status === "accepted" && r.itemId === itemId);
+      for (const r of mine) Object.assign(r, { status: "rejected", itemId: null });
       return mine.length;
     },
     async dropStaged(_documentId, itemId) {

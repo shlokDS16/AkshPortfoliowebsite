@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHOOSING_FAILED } from "./steps/classify-pages";
-import { trayFor, type DocState } from "./trays";
+import { CHOOSING_FAILED, trayFor, type DocState } from "./trays";
 
 // classify_pages in the trays (Plan 2b Task 6): not a page step, so it never changes the figures count; the tray says the
 // desk is choosing pages, waits with the AI allowance, and shows the step's own sentence when it stops.

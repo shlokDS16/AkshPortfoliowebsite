@@ -8,6 +8,10 @@ export const INBOX_ERROR_TEXT = {
   "page-budget-reached": "This document is at its page limit. Raise the limit to read more pages.",
   "budget-range": "Choose a page limit from 1 to 40.",
   "ai-off": "AI reading is off, so figures cannot be read yet. Pages are still read and searchable.",
+  // Re-reading a page (Plan 2b Task 8). Pending Shlok approval, spec s16.13.
+  "reread-closed": "You marked this document done or skipped, so its pages are not read again.",
+  "reread-not-ready": "This page is not ready to be read again. Wait for its first reading to finish.",
+  "reread-limit": "This page has been read as many times as the desk allows.",
 } as const;
 
 export type InboxErrorCode = keyof typeof INBOX_ERROR_TEXT;

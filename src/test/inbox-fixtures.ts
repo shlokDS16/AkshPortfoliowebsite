@@ -17,7 +17,7 @@ export const view = (tray: TrayView["tray"], message: string, over: Partial<Tray
   tray, message, attentionPages: [], extractDone: 0, extractTotal: 0, ...over,
 });
 export const page = (pageNo: number, over: Partial<InboxDoc["pages"][number]> = {}): InboxDoc["pages"][number] => ({
-  pageNo, kind: null, basis: null, firstLine: "", selected: false, by: null, scan: false, ...over,
+  pageNo, kind: null, basis: null, firstLine: "", selected: false, by: null, scan: false, read: false, ...over,
 });
 let n = 0;
 export function doc(over: Partial<InboxDoc> & { view: TrayView }): InboxDoc {

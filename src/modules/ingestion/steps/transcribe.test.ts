@@ -45,7 +45,7 @@ function ctx(repo: MemoryDocumentsRepo, transcriber: TranscriberPort | null, opt
     clock: opts.clock ?? (() => T0),
   };
   const step: Step = {
-    id: "step-1", jobId: "job-1", kind: "transcribe", pageNo: 1, args: opts.args ?? {}, status: "running", schemaFailures: 0, providerFailures: 0,
+    id: "step-1", jobId: "job-1", kind: "transcribe", pageNo: 1, pass: 1, args: opts.args ?? {}, status: "running", schemaFailures: 0, providerFailures: 0,
     leaseExpiries: 0, notBefore: new Date(T0).toISOString(), leaseOwner: "owner", lastError: null,
   };
   return { step, documentId: DOC, deadline: T0 + 240_000, deps };

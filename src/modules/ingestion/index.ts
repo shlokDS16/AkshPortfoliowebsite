@@ -21,5 +21,6 @@ export { readSelected, setPageSelected, type InboxPorts } from "./inbox-ops";
 export { runInbox } from "./inbox-run";
 export { trayFor, type DocState, type Tray, type TrayView } from "./trays";
 export { getReview } from "./review";
-export { listStagedForItem, type StagedRow } from "./staging";
+export { listStagedForItem, listStagedReadingsForItem, type StagedReading, type StagedRow } from "./staging";
+export { recordFiledReadings } from "./readings-filing";
 export { factDiffers, parseStaging, provenanceForItem, recordFiledFacts, type FactProvenance, type Staging } from "./provenance";

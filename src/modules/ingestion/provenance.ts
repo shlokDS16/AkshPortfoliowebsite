@@ -11,18 +11,21 @@ import { machineFactSchema, type MachineFact } from "./proposed-fact";
 export { factDiffers } from "./fact-differs";
 
 const MAX_PAIRS = 80; // CASEFILE_LIMITS.facts
+const MAX_TESTS = 12; // CASEFILE_LIMITS.tests
 
 const stagingField = z.strictObject({
   /** Every staged proposal the editor merged in. */
   staged: z.array(z.guid()).max(MAX_PAIRS),
   /** The ones still in the draft, each with the fact it became. */
   provenance: z.array(z.strictObject({ factId: z.string().regex(/^F\d{1,3}$/), proposalId: z.guid() })).max(MAX_PAIRS),
+  /** The staged test readings the editor applied to a test, each with the test it went to (filed by readings-filing.ts, never as a fact). */
+  stagedReadings: z.array(z.strictObject({ testId: z.string().regex(/^T\d{1,3}$/), proposalId: z.guid() })).max(MAX_TESTS).default([]),
 });
 export type Staging = z.infer<typeof stagingField>;
 
 /** The editor's hidden `provenance` field. Anything malformed is ignored, so the save itself never depends on it. */
 export function parseStaging(raw: FormDataEntryValue | null): Staging {
-  const none: Staging = { staged: [], provenance: [] };
+  const none: Staging = { staged: [], provenance: [], stagedReadings: [] };
   if (typeof raw !== "string" || raw.length > 20_000) return none;
   try {
     const parsed = stagingField.safeParse(JSON.parse(raw));

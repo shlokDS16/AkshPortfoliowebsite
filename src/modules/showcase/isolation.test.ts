@@ -11,6 +11,9 @@ const FROM = /(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([
 /** The table, the panel and the reader of the private digest (Plan 2b Task 7). */
 const DIGESTS = /document_digests|DigestPanel|readDigest|digest-panel|digest-read|digest-view/;
 
+/** The machine's test readings, their review list and their filing (Plan 2b Task 8): private, admin-read only, never a public line. */
+const READINGS = /reading_proposals|ReadingRows|reading-rows|readings-filing|recordFiledReadings|listStagedReadingsForItem|machineReadingSchema/;
+
 /** The generated database types name every table; they hold no query, so they are not read for this rule. */
 const GENERATED = /database\.types\.ts$/;
 
@@ -98,6 +101,11 @@ describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they im
   it("no public route reads or shows the machine-read digests (document_digests is admin-read only)", () => {
     expect(names.filter((n) => /digest/i.test(n))).toEqual([]);
     for (const [file, text] of reach) if (!GENERATED.test(file)) expect(text, file).not.toMatch(DIGESTS);
+  });
+
+  it("no public route reads or shows the machine's test readings (reading_proposals is admin-read only)", () => {
+    expect(names.filter((n) => /reading-rows|readings-filing|review-readings|readings.ts/.test(n))).toEqual([]);
+    for (const [file, text] of reach) if (!GENERATED.test(file)) expect(text, file).not.toMatch(READINGS);
   });
 
   it("no public route imports the service client or the server secrets", () => {

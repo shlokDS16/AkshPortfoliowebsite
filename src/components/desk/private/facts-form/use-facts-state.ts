@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { latestFigureDate, parseFactsSheet, type SheetError } from "@/modules/casefile/client";
-import type { StagedRow } from "@/modules/ingestion/client";
+import type { StagedReading, StagedRow } from "@/modules/ingestion/client";
 import { ADD_FACT_EVENT, ADD_SOURCE_EVENT, type AddFactDetail, type AddSourceDetail } from "../add-source-event";
 import { withFact, withSource } from "./add-fact";
 import { checkableFromCaseFile, checkableFromDraft } from "./checkable";
 import { draftIds, draftToSheet, toDraft, type Draft } from "./draft";
-import { mergeStaged } from "./staged";
+import { mergeReadings, mergeStaged } from "./staged";
 import { brokenCitations, citedFacts, fieldErrors, rowErrors } from "./validate";
 
 export type FactsMode = "form" | "text";
@@ -16,14 +16,16 @@ export type FactsMode = "form" | "text";
  * One facts state for both modes. The text sheet is the only thing saved; the form is a view over it, converted with
  * casefile's parseFactsSheet / serializeFactsSheet. A switch that could lose typed input is refused and says why.
  */
-export function useFactsState(sheet: string, bodyMd: string, staged: StagedRow[] = [], provenanceIds: string[] = []) {
+export function useFactsState(sheet: string, bodyMd: string, staged: StagedRow[] = [], provenanceIds: string[] = [], stagedReadings: StagedReading[] = []) {
   // The staged figures are merged once, as the form opens (ADR-004 s4.7): after that they are rows like any other.
   const [initial] = useState(() => {
     const parsed = parseFactsSheet(sheet);
-    if (parsed.errors.length > 0) return { mode: "text" as FactsMode, draft: null, unmerged: null, merged: null };
+    if (parsed.errors.length > 0) return { mode: "text" as FactsMode, draft: null, unmerged: null, merged: null, readings: null };
     const unmerged = toDraft(parsed.caseFile);
     const merged = staged.length > 0 ? mergeStaged(unmerged, staged, [...citedFacts(bodyMd), ...provenanceIds]) : null;
-    return { mode: "form" as FactsMode, draft: merged?.draft ?? unmerged, unmerged, merged };
+    // Staged test readings go into the test rows after the figures; they change a test's reading fields and nothing else.
+    const readings = stagedReadings.length > 0 ? mergeReadings(merged?.draft ?? unmerged, stagedReadings) : null;
+    return { mode: "form" as FactsMode, draft: readings?.draft ?? merged?.draft ?? unmerged, unmerged, merged, readings };
   });
   const [mode, setMode] = useState<FactsMode>(initial.mode);
   const [text, setText] = useState(sheet);
@@ -133,16 +135,28 @@ export function useFactsState(sheet: string, bodyMd: string, staged: StagedRow[]
   const present = useMemo(() => new Set(mode === "form" ? (draft?.facts.map((f) => f.id) ?? []) : parsed.errors.length === 0 ? parsed.caseFile.facts.map((f) => f.id) : []), [mode, draft, parsed]);
   const pairs = useMemo(() => (initial.merged?.provenance ?? []).filter((p) => present.has(p.factId)), [initial.merged, present]);
   const mergedIds = useMemo(() => (initial.merged?.provenance ?? []).map((p) => p.proposalId), [initial.merged]);
+  const testsNow = useMemo(() => new Set(mode === "form" ? (draft?.tests.map((t) => t.id) ?? []) : parsed.errors.length === 0 ? parsed.caseFile.tests.map((t) => t.id) : []), [mode, draft, parsed]);
+  const appliedReadings = initial.readings?.applied ?? [];
   const staging = {
     pairs,
+    /** The staged test readings the form opened with, applied to a test (the field names all of them; the server sends back those whose test was removed). */
+    readingPairs: appliedReadings,
+    /** The applied readings whose test is still in the file. */
+    readingsPresent: appliedReadings.filter((r) => testsNow.has(r.testId)).map((r) => r.proposalId),
+    /** Staged readings that could not be shown because the text sheet does not parse. */
+    unseenReadings: initial.readings || initial.draft ? 0 : stagedReadings.length,
+    skippedReadings: initial.readings?.skipped ?? 0,
     /** Every staged figure the form opened with (a row Aksh then deleted is still in this list). */
     mergedIds,
     /** Staged figures that could not be shown because the text sheet does not parse. */
     unseen: initial.merged ? 0 : staged.length,
     skipped: initial.merged?.skipped ?? 0,
     overflow: initial.merged?.overflow ?? 0,
-    /** The hidden `provenance` field: null when no staged figure was merged. */
-    field: mergedIds.length > 0 ? JSON.stringify({ staged: mergedIds, provenance: pairs }) : null,
+    /** The hidden `provenance` field: null when no staged figure or reading was merged. */
+    field:
+      mergedIds.length > 0 || appliedReadings.length > 0
+        ? JSON.stringify({ staged: mergedIds, provenance: pairs, ...(appliedReadings.length > 0 ? { stagedReadings: appliedReadings } : {}) })
+        : null,
   };
 
   const checkable = useMemo(

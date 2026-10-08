@@ -53,7 +53,7 @@ function ctxFor(repo: MemoryDocumentsRepo, llm: LlmPort | null, step: Partial<St
     now: () => new Date(T0), clock: () => T0,
   };
   const base: Step = {
-    id: "s", jobId: "j", kind: "select_pages", pageNo: null, args: {}, status: "running", schemaFailures: 0, providerFailures: 0, leaseExpiries: 0,
+    id: "s", jobId: "j", kind: "select_pages", pageNo: null, pass: 1, args: {}, status: "running", schemaFailures: 0, providerFailures: 0, leaseExpiries: 0,
     notBefore: "", leaseOwner: "o", lastError: null, ...step,
   };
   return { step: base, documentId: DOC, deadline: T0 + 240_000, deps };

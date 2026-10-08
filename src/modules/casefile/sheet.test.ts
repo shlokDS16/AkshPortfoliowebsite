@@ -26,7 +26,7 @@ describe("facts sheet", () => {
     const { errors } = parseFactsSheet("S1 | Doc | Annual report | 2026-07-12\nF1 | Revenue | lots | ₹ cr | FY26 | 2026-03-31 | S1 | p. 1\nZ9 | ?");
     expect(errors).toEqual([
       { line: 2, message: "F1: the value \"lots\" is not a number." },
-      { line: 3, message: "Start a row with O, S1, F1, G, T1, X1, R, SC, A or Y." },
+      { line: 3, message: "Start a row with O, S1, F1, G, T1, M, X1, R, SC, A or Y." },
     ]);
   });
 
@@ -104,5 +104,57 @@ describe("topics (G rows) and Notes sources", () => {
     const old = { ...EMPTY_CASEFILE, sources: [{ id: "S1", doc: "AR", type: "Annual report", filedOn: "2026-05-20", url: null, quote: {} }],
       facts: [{ id: "F1", label: "Revenue", value: 1, unit: "₹ cr", period: "FY26", asOf: "2026-03-31", sourceId: "S1", locator: "p. 1", prior: null }] };
     expect(readCaseFile(old).facts[0]?.topic).toBeNull();
+  });
+});
+
+describe("metrics (M rows): which fact label a test watches (Plan 2b Task 8, ADR-004 s4.13)", () => {
+  const base = [
+    "T1 | 142 | days | 2026-03-31 | 2026-10-08 | watching | 60 | 200 | 150 | above | 131",
+    "T2 | - | % | - | 2026-10-08 | no data | 0 | 100 | 40 | below | -",
+  ];
+
+  it("puts the label on the test it names, before or after the T row, and leaves the T row grammar alone", () => {
+    const after = parseFactsSheet([...base, "M | T1 | Revenue from operations"].join("\n"));
+    const before = parseFactsSheet(["M | T1 | Revenue from operations", ...base].join("\n"));
+    expect(after.errors).toEqual([]);
+    expect(before.errors).toEqual([]);
+    expect(after.caseFile.tests.map((t) => t.metric)).toEqual(["Revenue from operations", null]);
+    expect(before.caseFile).toEqual(after.caseFile);
+  });
+
+  it("reads a sheet with no M row, and a revision saved before metrics existed, as metric null", () => {
+    expect(parseFactsSheet(base.join("\n")).caseFile.tests.map((t) => t.metric)).toEqual([null, null]);
+    const old = { ...EMPTY_CASEFILE, tests: [{ id: "T1", current: 1, unit: "d", readingAsOf: null, lastChecked: "2026-10-08", status: "met", min: 0, max: 10, threshold: 5, direction: "above", prior: null }] };
+    expect(readCaseFile(old).tests[0]?.metric).toBeNull();
+  });
+
+  it("round-trips: one M row per test that has one, after the T rows, and an unmapped test writes none", () => {
+    const { caseFile } = parseFactsSheet([...base, "M | T2 | Operating margin"].join("\n"));
+    const text = serializeFactsSheet(caseFile);
+    expect(text.split("\n").filter((l) => l.startsWith("M |"))).toEqual(["M | T2 | Operating margin"]);
+    expect(text.indexOf("M | T2")).toBeGreaterThan(text.indexOf("T2 |"));
+    expect(parseFactsSheet(text)).toEqual({ caseFile, errors: [] });
+    const unmapped = parseFactsSheet(base.join("\n")).caseFile;
+    expect(serializeFactsSheet(unmapped)).not.toMatch(/^M \|/m);
+  });
+
+  it("serialises a sheet with no metrics exactly as before (existing sheets stay byte for byte)", () => {
+    const first = parseFactsSheet(KAVERI.revisions[1].sheet).caseFile;
+    expect(serializeFactsSheet(first)).not.toMatch(/^M \|/m);
+  });
+
+  it("reports an unknown test, a second metric for one test, an empty label and a | in the label on their lines", () => {
+    const { errors } = parseFactsSheet([...base, "M | T9 | Revenue", "M | T1 | Revenue", "M | T1 | Margin", "M | T2 |", "M | T2 | A|B"].join("\n"));
+    expect(errors).toEqual([
+      { line: 3, message: "M: T9 is not a test in this sheet." },
+      { line: 5, message: "T1 already watches a metric (line 4)." },
+      { line: 6, message: "M: name the metric to watch." },
+      { line: 7, message: "M: a metric cannot hold a | or a tab; the sheet uses them to split columns." },
+    ]);
+  });
+
+  it("holds a metric to 80 characters, reported on the M row", () => {
+    const { errors } = parseFactsSheet([...base, `M | T1 | ${"x".repeat(81)}`].join("\n"));
+    expect(errors.map((e) => e.line)).toEqual([3]);
   });
 });

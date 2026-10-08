@@ -60,6 +60,8 @@ export type PageForReading = { pageNo: number; text: string; isScan: boolean };
 export type PageForExtraction = PageForReading & {
   kind: PageKind | null;
   basis: Basis | null;
+  /** The selector's score for the verdict (0 when none); a model verdict is 32 to 40. */
+  score: number;
   ocr: boolean;
   selected: boolean;
   selectedBy: "rule" | "aksh" | null;

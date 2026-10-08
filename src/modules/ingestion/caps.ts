@@ -31,6 +31,14 @@ export const GROQ_CAPS = { tpm: 6_000, tpd: 150_000, rpm: 22, rpd: 750 } as cons
 /** Characters of one statement page sent to the model; with a 700-char system prompt and EXTRACT_MAX_COMPLETION, one call is about 5,100 tokens. */
 export const PAGE_CHAR_LIMIT = 12_000;
 export const EXTRACT_MAX_COMPLETION = 1_500;
+/**
+ * A re-read thinks at medium effort, and reasoning tokens count toward the completion, so it is given a little more room. One call
+ * (about 700 characters of prompt, a page up to PAGE_CHAR_LIMIT, this much completion) is about 5,700 tokens by the governor's
+ * estimate, still under the 6,000 a minute of GROQ_CAPS.tpm; a larger number would make the call impossible to reserve.
+ */
+export const REREAD_MAX_COMPLETION = 2_000;
+/** job_steps.pass allows 1 to 9 (migration 0008): a page can be read once and re-read eight times. */
+export const MAX_PASSES = 9;
 /** A document proposes at most this many figures; past it extract_page reads nothing more (spec s6.4). */
 export const MAX_PROPOSALS_PER_DOCUMENT = 60;
 /** Tokens one statement page costs (spec s9 estimate until Task 16 measures the median). */

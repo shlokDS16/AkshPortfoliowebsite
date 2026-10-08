@@ -39,13 +39,17 @@ export async function readInboxPages(db: Db, documentIds: string[]): Promise<Inb
 
 const firstLineOf = (text: string | null) => (text ?? "").split("\n")[0].trim();
 
-export type ListedPage = { pageNo: number; kind: PageKind | null; basis: Basis | null; firstLine: string; selected: boolean; by: "rule" | "aksh" | null; scan: boolean };
+export type ListedPage = {
+  pageNo: number; kind: PageKind | null; basis: Basis | null; firstLine: string; selected: boolean; by: "rule" | "aksh" | null; scan: boolean;
+  /** The page's figures are read (its newest extract_page step is done), so "Re-read" is on offer. A page being read again is not, until the new pass is done. */
+  read: boolean;
+};
 
 /**
  * What the card's page list shows of one document. A photo or a voice note is one page, so there is nothing to tick; every other document
  * lists the pages the read returned, scans included, so a document that is only partly scanned can have its scans read too.
  */
-export function listedPages(documentKind: string, rows: InboxPageRow[]): ListedPage[] {
+export function listedPages(documentKind: string, rows: InboxPageRow[], read: ReadonlySet<number> = new Set()): ListedPage[] {
   if (documentKind === "image" || documentKind === "audio") return [];
   return rows.map((p) => ({
     pageNo: p.page_no,
@@ -55,5 +59,6 @@ export function listedPages(documentKind: string, rows: InboxPageRow[]): ListedP
     selected: p.selected,
     by: p.selected_by as "rule" | "aksh" | null,
     scan: p.is_scan ?? false,
+    read: read.has(p.page_no),
   }));
 }

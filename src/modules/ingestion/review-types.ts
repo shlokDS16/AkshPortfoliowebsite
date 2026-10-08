@@ -29,6 +29,23 @@ export type ProposalView = {
   machineText: string;
 };
 
+/** One machine-read test reading as the review screen shows it (Plan 2b Task 8): what the page prints for the metric a test watches. It never carries a status. */
+export type ReadingView = {
+  id: string;
+  page: number;
+  /** "T1": the test it would update. */
+  testId: string;
+  /** The printed label of the figure (the test's metric). */
+  label: string;
+  valueText: string;
+  unit: string;
+  period: string;
+  asOf: string;
+  prior: number | null;
+  quote: string;
+  status: "pending" | "accepted" | "rejected";
+};
+
 export type ReviewCounts = { pending: number; accepted: number; edited: number; rejected: number; filed: number };
 
 export type ReviewData = {
@@ -37,6 +54,8 @@ export type ReviewData = {
   flags: ProposalView[];
   /** Every figure not yet filed, flagged or not: the screen regroups them as Aksh resolves flags. */
   rows: ProposalView[];
+  /** The test readings the machine proposed for the file's tests: unfiled, and not replaced by a re-read. */
+  readings: ReadingView[];
   /** The figures that can be filed: grouped by topic, standalone repeats of a consolidated line left out. */
   values: { topic: string; rows: ProposalView[] }[];
   hiddenBasis: number;

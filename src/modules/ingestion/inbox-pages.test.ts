@@ -53,10 +53,15 @@ describe("listedPages", () => {
   it("lists the scan pages of a document that is only partly scanned, so Aksh can tick them", () => {
     const rows = [row("d1", 3, { is_scan: true, first_line: null }), row("d1", 7, { is_scan: false, kind: "pl", basis: "consolidated", first_line: "Statement of Profit and Loss\nrest" }), row("d1", 9)];
     expect(listedPages("pdf", rows)).toEqual([
-      { pageNo: 3, kind: null, basis: null, firstLine: "", selected: false, by: null, scan: true },
-      { pageNo: 7, kind: "pl", basis: "consolidated", firstLine: "Statement of Profit and Loss", selected: false, by: null, scan: false },
-      { pageNo: 9, kind: null, basis: null, firstLine: "", selected: false, by: null, scan: true },
+      { pageNo: 3, kind: null, basis: null, firstLine: "", selected: false, by: null, scan: true, read: false },
+      { pageNo: 7, kind: "pl", basis: "consolidated", firstLine: "Statement of Profit and Loss", selected: false, by: null, scan: false, read: false },
+      { pageNo: 9, kind: null, basis: null, firstLine: "", selected: false, by: null, scan: true, read: false },
     ]);
+  });
+
+  it("marks the pages whose figures have been read, so Re-read is offered on those only", () => {
+    const rows = [row("d1", 3, { first_line: null }), row("d1", 7, { kind: "pl", selected: true })];
+    expect(listedPages("pdf", rows, new Set([7])).map((p) => [p.pageNo, p.read])).toEqual([[3, false], [7, true]]);
   });
 
   it("a photo is one page with nothing to tick", () => {

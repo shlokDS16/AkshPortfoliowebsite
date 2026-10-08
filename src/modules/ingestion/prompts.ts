@@ -6,8 +6,10 @@ import { DIGEST_CLAIM_WORDS, DIGEST_MAX_CLAIMS } from "./caps";
 // wording or schema change: the cache key includes it, so old answers are never reused for a new prompt.
 
 export const PROMPT_VERSION = "extract-v1";
+/** A re-read thinks harder (medium effort) on the same text: its answer is stored under its own version, so the cache of first reads never holds it. */
+export const REREAD_PROMPT_VERSION = `${PROMPT_VERSION}-reread`;
 
-const PAGE_KINDS = ["pl", "bs", "cf", "notes", "segment", "mdna", "other"] as const satisfies readonly PageKind[];
+export const PAGE_KINDS = ["pl", "bs", "cf", "notes", "segment", "mdna", "other"] as const satisfies readonly PageKind[];
 
 /** No length limits here: Groq's strict mode does not document them, and a long line is still a true copy (Task 9 note). */
 export const extractionSchema = z.strictObject({

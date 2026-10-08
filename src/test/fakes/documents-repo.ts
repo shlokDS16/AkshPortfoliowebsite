@@ -131,7 +131,7 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
     async getPage(documentId, pageNo) {
       const p = pages.get(key(documentId, pageNo));
       return p
-        ? { pageNo: p.pageNo, text: p.text, isScan: p.isScan, kind: p.kind, basis: p.basis, ocr: p.ocr, selected: p.selected, selectedBy: p.selectedBy }
+        ? { pageNo: p.pageNo, text: p.text, isScan: p.isScan, kind: p.kind, basis: p.basis, score: p.score, ocr: p.ocr, selected: p.selected, selectedBy: p.selectedBy }
         : null;
     },
     async countSelected(documentId) {

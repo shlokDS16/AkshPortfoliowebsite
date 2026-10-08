@@ -10,7 +10,7 @@ import { DoneButton } from "./done-button";
 import { FileUnder } from "./file-under";
 import { FlagCard } from "./flag-card";
 import { PageText, wordsOf } from "./page-text";
-import { decisionsOf, isTicked, omit, summaryOf, type Ticks, type Typed } from "./review-state";
+import { decisionsOf, isReadingTicked, isTicked, omit, summaryOf, type Ticks, type Typed } from "./review-state";
 import { ValuesList } from "./values-list";
 
 type Props = { data: ReviewData; companies?: { id: string; symbol: string }[] };
@@ -32,8 +32,10 @@ export function ReviewOneAtATime({ data, companies = [] }: Props) {
   const current = waiting[0];
   const { values, hiddenBasis } = groupValues(rows, data.preferredBasis);
   const shown = values.flatMap((g) => g.rows);
-  const decisions = decisionsOf(shown, ticks, typed);
-  const kept = decisions.filter((d) => d.keep).length;
+  const readings = data.readings;
+  const decisions = decisionsOf(shown, ticks, typed, readings);
+  const keptReadings = readings.filter((r) => isReadingTicked(r, ticks)).length;
+  const kept = decisions.filter((d) => d.keep).length - keptReadings;
   const summary = summaryOf(rows, shown, ticks, typed);
   const valuesHeading = useRef<HTMLHeadingElement>(null);
   const checking = current !== undefined;
@@ -76,7 +78,7 @@ export function ReviewOneAtATime({ data, companies = [] }: Props) {
         <p role="status" className="text-body text-ink-body">
           {errorText("document-closed")}
         </p>
-      ) : rows.length === 0 ? (
+      ) : rows.length === 0 && readings.length === 0 ? (
         <p className="text-body text-ink-body">Nothing to review. No figures are waiting for this document.</p>
       ) : (
         <div className="desk:grid desk:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] desk:items-start desk:gap-8">
@@ -111,9 +113,12 @@ export function ReviewOneAtATime({ data, companies = [] }: Props) {
                     onTick={(id, on) => setTicks((t) => ({ ...t, [id]: on }))}
                     onType={setType}
                     onOpen={(id) => setOpenId((open) => (open === id ? null : id))}
+                    readings={readings}
+                    readingTicked={(id) => isReadingTicked(readings.find((r) => r.id === id)!, ticks)}
+                    onReadingTick={(id, on) => setTicks((t) => ({ ...t, [id]: on }))}
                   />
                 </section>
-                <FileUnder document={doc} target={data.target} count={kept} decisions={decisions} companies={companies} />
+                <FileUnder document={doc} target={data.target} count={kept} readings={keptReadings} decisions={decisions} companies={companies} />
               </>
             )}
           </div>

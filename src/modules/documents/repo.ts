@@ -265,7 +265,7 @@ function machinePages(db: Db): Pick<
     async getPage(documentId, pageNo) {
       const { data, error } = await db
         .from("document_pages")
-        .select("page_no, text, is_scan, kind, basis, ocr, selected, selected_by")
+        .select("page_no, text, is_scan, kind, basis, score, ocr, selected, selected_by")
         .eq("document_id", documentId)
         .eq("page_no", pageNo)
         .maybeSingle();
@@ -275,6 +275,7 @@ function machinePages(db: Db): Pick<
             ...toPage(data),
             kind: data.kind as PageKind | null,
             basis: data.basis as Basis | null,
+            score: data.score,
             ocr: data.ocr,
             selected: data.selected,
             selectedBy: data.selected_by as "rule" | "aksh" | null,

@@ -72,7 +72,7 @@ export const visionPage: StepHandler = async (ctx) => {
   }
 
   const saved = await saveExtraction(ctx, doc, page, {
-    extraction, pageNo, pageText: page.text.slice(0, PAGE_CHAR_LIMIT), model, promptVersion: IMAGE_PROMPT_VERSION, inputHash, tokens, have,
+    extraction, pageNo, pageText: page.text.slice(0, PAGE_CHAR_LIMIT), model, promptVersion: IMAGE_PROMPT_VERSION, inputHash, tokens, have, pass: ctx.step.pass,
   });
   return { kind: "done", result: { proposals: saved.built, flagged: saved.flagged, tokens, ...(cached ? { cached } : {}) } };
 };

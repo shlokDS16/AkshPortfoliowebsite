@@ -13,6 +13,8 @@ export type Step = {
   jobId: string;
   kind: StepKind;
   pageNo: number | null;
+  /** 1 for a first run; a re-read page is a later pass, a new row (migration 0008, R2). */
+  pass: number;
   args: Record<string, unknown>;
   status: StepStatus;
   schemaFailures: number;

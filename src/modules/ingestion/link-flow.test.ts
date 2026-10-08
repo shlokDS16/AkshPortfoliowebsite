@@ -197,7 +197,7 @@ describe("pasted text of a results table yields proposals with the fixture LLM",
       repos: { documents: machineDocuments(docs), usage: createMemoryUsageRepo(), proposals, research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
       now: () => new Date(T0), clock: () => T0,
     };
-    const full: Step = { id: "s", jobId: "j", kind: "text_pages", pageNo: 1, args: {}, status: "running", schemaFailures: 0, providerFailures: 0, leaseExpiries: 0, notBefore: "", leaseOwner: "o", lastError: null, ...step };
+    const full: Step = { id: "s", jobId: "j", kind: "text_pages", pageNo: 1, pass: 1, args: {}, status: "running", schemaFailures: 0, providerFailures: 0, leaseExpiries: 0, notBefore: "", leaseOwner: "o", lastError: null, ...step };
     return { step: full, documentId: ID, deadline: T0 + 240_000, deps };
   };
 

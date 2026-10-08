@@ -33,11 +33,11 @@ function fakeDb(results: { data: unknown; error: unknown }[]) {
 }
 
 const ROW = {
-  id: "s1", job_id: "j1", kind: "extract_page", page_no: 4, args: { a: 1 }, status: "running", schema_failures: 1,
+  id: "s1", job_id: "j1", kind: "extract_page", page_no: 4, pass: 2, args: { a: 1 }, status: "running", schema_failures: 1,
   provider_failures: 0, lease_expiries: 1, not_before: "2026-10-07T10:00:00Z", lease_owner: "o1", last_error: "bad row",
 };
 const STEP: Step = {
-  id: "s1", jobId: "j1", kind: "extract_page", pageNo: 4, args: {}, status: "running", schemaFailures: 0,
+  id: "s1", jobId: "j1", kind: "extract_page", pageNo: 4, pass: 1, args: {}, status: "running", schemaFailures: 0,
   providerFailures: 0, leaseExpiries: 0, notBefore: "2026-10-07T10:00:00Z", leaseOwner: "o1", lastError: null,
 };
 
@@ -48,7 +48,7 @@ describe("createQueueRepo", () => {
     expect(calls[0]).toMatchObject({ rpc: "claim_job_step", args: { p_owner: "o1", p_lease_seconds: LEASE_SECONDS } });
     expect(calls[1]).toMatchObject({ table: "jobs", ops: [["select", "document_id"], ["eq", "id", "j1"], ["single"]] });
     expect(claimed).toEqual({
-      id: "s1", jobId: "j1", kind: "extract_page", pageNo: 4, args: { a: 1 }, status: "running", schemaFailures: 1,
+      id: "s1", jobId: "j1", kind: "extract_page", pageNo: 4, pass: 2, args: { a: 1 }, status: "running", schemaFailures: 1,
       providerFailures: 0, leaseExpiries: 1, notBefore: "2026-10-07T10:00:00Z", leaseOwner: "o1", lastError: "bad row",
       documentId: "d1",
     });

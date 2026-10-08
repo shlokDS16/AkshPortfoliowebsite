@@ -1,5 +1,5 @@
 import { CASEFILE_LIMITS } from "@/modules/casefile/client";
-import type { StagedRow } from "@/modules/ingestion/client";
+import type { StagedReading, StagedRow } from "@/modules/ingestion/client";
 import { blankSource, draftIds, nextId, type Draft, type FactDraft } from "./draft";
 
 // Staged machine figures become ordinary rows of the Facts form (ADR-004 s4.7). Pure: the form opens with them
@@ -54,4 +54,37 @@ export function mergeStaged(draft: Draft, staged: StagedRow[], reserved: string[
     provenance.push({ factId: id, proposalId });
   }
   return { draft: { ...draft, sources, facts }, provenance, skipped, overflow };
+}
+
+export type MergedReadings = {
+  draft: Draft;
+  /** Each reading that went into a test, in the order applied (oldest first). Only these are named in the hidden field. */
+  applied: { testId: string; proposalId: string }[];
+  /** Left staged: its test is not in the file, its unit is not the test's, or the test already has a reading as new or newer. */
+  skipped: number;
+};
+
+const unitKey = (s: string) => s.trim().toLowerCase();
+
+/**
+ * Staged test readings (Plan 2b Task 8, R4) update a test's current value, its reading date and its prior, and nothing else: never the
+ * status, the threshold, the scale, the direction, the last-checked date or the condition in the body. Oldest first, so the newest
+ * ends up current; a reading that is not newer than what the test has stays staged. A page that gave no prior leaves the test's own.
+ */
+export function mergeReadings(draft: Draft, readings: StagedReading[]): MergedReadings {
+  const tests = [...draft.tests];
+  const applied: MergedReadings["applied"] = [];
+  let skipped = 0;
+  const ordered = [...readings].sort((a, b) => a.value.readingAsOf.localeCompare(b.value.readingAsOf));
+  for (const { proposalId, testId, value: v } of ordered) {
+    const at = tests.findIndex((t) => t.id === testId);
+    const test = tests[at];
+    if (!test || unitKey(test.unit) !== unitKey(v.unit) || (test.readingAsOf !== "" && v.readingAsOf <= test.readingAsOf)) {
+      skipped += 1;
+      continue;
+    }
+    tests[at] = { ...test, current: String(v.current), readingAsOf: v.readingAsOf, prior: v.prior === null ? test.prior : String(v.prior) };
+    applied.push({ testId, proposalId });
+  }
+  return { draft: { ...draft, tests }, applied, skipped };
 }

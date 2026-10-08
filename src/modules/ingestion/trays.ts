@@ -52,6 +52,8 @@ const PHOTO_COULD_NOT_BE_READ = "This photo could not be read.";
 const NO_FIGURES = "Read. No figures matched; open it beside your file.";
 const NO_FIGURES_AI_OFF = "Read. AI reading is off; open it beside your file to enter figures.";
 const CHOOSING = "Choosing the pages to read.";
+/** What the page-choosing step stores when its arguments cannot be read; the classifier step uses this same sentence. */
+export const CHOOSING_FAILED = "The desk could not choose the pages to read.";
 /** Pending Shlok approval, spec s16.12. */
 const COMMENTARY_READ = "Read. The commentary notes are in the document pane beside your file; there are no figures to check.";
 /** Pending Shlok approval, spec s16.9. */
@@ -106,7 +108,7 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
     const whole = stuck.find((s) => !isPageStep(s));
     let message: string;
     if (whole) {
-      message = whole.lastError ?? (whole.kind === "pdf_text" ? PDF_NOT_OPENED_TEXT : whole.kind === "transcribe" ? VOICE_COULD_NOT_BE_TYPED : "The desk could not choose the pages to read.");
+      message = whole.lastError ?? (whole.kind === "pdf_text" ? PDF_NOT_OPENED_TEXT : whole.kind === "transcribe" ? VOICE_COULD_NOT_BE_TYPED : CHOOSING_FAILED);
     }
     else {
       message = d.photo ? PHOTO_COULD_NOT_BE_READ : `${pages.length === 1 ? "Page" : "Pages"} ${pageList(pages)} could not be read.`;

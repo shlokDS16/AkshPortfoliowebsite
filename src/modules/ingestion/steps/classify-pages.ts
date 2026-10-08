@@ -5,6 +5,7 @@ import {
 import { llmTimeoutMs } from "../deadline";
 import { callWithinBudget, estimateTokens } from "../governor";
 import { stepsForPage } from "../page-steps";
+import { CHOOSING_FAILED } from "../trays";
 import {
   CLASSIFY_PROMPT_VERSION, CLASSIFY_SYSTEM_PROMPT, classifyRetryPrompt, classifySchema, classifyUserPrompt, type Classification,
 } from "../prompts";
@@ -20,8 +21,7 @@ import { DOCUMENT_GONE } from "./select-pages";
 // not sent to the model and is never ticked or unticked here. The call is budgeted in the classify model's own bucket and
 // never touches the document's page budget. A batch the model cannot answer is let go, not failed: the rules' choice stands.
 
-/** The same sentence the tray shows when the step that chooses pages cannot go on (its arguments are not readable). */
-export const CHOOSING_FAILED = "The desk could not choose the pages to read.";
+export { CHOOSING_FAILED };
 
 const attention = (error: string): StepOutcome => ({ kind: "attention", error });
 type Documents = StepContext["deps"]["repos"]["documents"];
@@ -76,8 +76,12 @@ export const classifyPagesStep: StepHandler = async (ctx) => {
   const batch = args.data.pages.slice(0, CLASSIFY_BATCH);
   const rest = args.data.pages.slice(CLASSIFY_BATCH);
   // Aksh's own ticks and unticks stand: those pages are not even sent. A page sorted before (a rerun) is not asked again.
-  const asked = (await Promise.all(batch.map((n) => documents.getPage(documentId, n)))).filter(
-    (p): p is Page => p !== null && !p.isScan && p.text.trim() !== "" && p.selectedBy !== "aksh" && (p.kind === null || p.kind === "other"),
+  const loaded = (await Promise.all(batch.map((n) => documents.getPage(documentId, n)))).filter((p): p is Page => p !== null);
+  const asked = loaded.filter((p) => !p.isScan && p.text.trim() !== "" && p.selectedBy !== "aksh" && (p.kind === null || p.kind === "other"));
+  // Every page of a batch was 'other' to the rules, so one that now has a kind got it from the model on an earlier try that stopped
+  // after storing the verdicts and before it finished: it still counts as found (Plan 2b Task 8 carry d).
+  const sortedBefore = loaded.flatMap((p): PageVerdict[] =>
+    p.selectedBy !== "aksh" && p.kind !== null && p.kind !== "other" ? [{ pageNo: p.pageNo, kind: p.kind, basis: p.basis, score: p.score }] : [],
   );
 
   let kept: PageVerdict[] = [];
@@ -114,7 +118,7 @@ export const classifyPagesStep: StepHandler = async (ctx) => {
     if (kept.length > 0) await documents.setVerdicts(documentId, kept);
   }
 
-  const found = [...args.data.accepted, ...kept];
+  const found = [...args.data.accepted, ...sortedBefore, ...kept];
   const result = { promptVersion: CLASSIFY_PROMPT_VERSION, asked: asked.length, kept: kept.length, tokens, ...(letGo ? { letGo } : {}) };
   if (rest.length > 0) return { kind: "done", result, enqueue: [nextClassifyStep(rest, found)] };
   const picked = await selectFound(ctx, doc, found);

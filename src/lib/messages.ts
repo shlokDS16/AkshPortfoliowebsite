@@ -55,6 +55,9 @@ const ERRORS = {
   "page-budget-reached": "This document is at its page limit. Raise the limit to read more pages.",
   "budget-range": "Choose a page limit from 1 to 40.",
   "ai-off": "AI reading is off, so figures cannot be read yet. Pages are still read and searchable.",
+  "reread-closed": "You marked this document done or skipped, so its pages are not read again.",
+  "reread-not-ready": "This page is not ready to be read again. Wait for its first reading to finish.",
+  "reread-limit": "This page has been read as many times as the desk allows.",
   // Review screen (= REVIEW_ERROR_TEXT in modules/ingestion/errors.ts; a test keeps them equal).
   "type-value-first": "Type the value from the page first.",
   "figure-incomplete": "Add the period, the as-of date and the unit.",
@@ -112,6 +115,9 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "page-budget-reached": "page-budget-reached",
   "budget-range": "budget-range",
   "ai-off": "ai-off",
+  "reread-closed": "reread-closed",
+  "reread-not-ready": "reread-not-ready",
+  "reread-limit": "reread-limit",
   // ReviewError likewise.
   "type-value-first": "type-value-first",
   "figure-incomplete": "figure-incomplete",

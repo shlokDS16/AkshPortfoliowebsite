@@ -132,16 +132,16 @@ describe("setBudget", () => {
 describe("retryAttention and skipAttention", () => {
   beforeEach(() => {
     inbox.steps.push(
-      { jobId: job, kind: "extract_page", pageNo: 4, status: "needs_attention", failures: 3, lastError: "x" },
-      { jobId: job, kind: "extract_page", pageNo: 5, status: "done", failures: 0, lastError: null },
+      { jobId: job, kind: "extract_page", pageNo: 4, pass: 1, status: "needs_attention", failures: 3, lastError: "x" },
+      { jobId: job, kind: "extract_page", pageNo: 5, pass: 1, status: "done", failures: 0, lastError: null },
     );
   });
 
   it("try again queues the stuck steps with their failures cleared and leaves the rest", async () => {
     await retryAttention(ports, DOC);
     expect(inbox.steps.filter((s) => s.kind === "extract_page")).toEqual([
-      { jobId: job, kind: "extract_page", pageNo: 4, status: "queued", failures: 0, lastError: null },
-      { jobId: job, kind: "extract_page", pageNo: 5, status: "done", failures: 0, lastError: null },
+      { jobId: job, kind: "extract_page", pageNo: 4, pass: 1, status: "queued", failures: 0, lastError: null },
+      { jobId: job, kind: "extract_page", pageNo: 5, pass: 1, status: "done", failures: 0, lastError: null },
     ]);
   });
 

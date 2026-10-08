@@ -9,17 +9,19 @@ export const SHEET_LEGEND = `// O | one line about the company
 // F1 | metric | value | unit | period | as of | source | page | prior period | prior value | quoted line
 // G | topic | F1 F2 (facts under one heading)
 // T1 | reading or - | unit | reading date or - | last checked | met / watching / not met / no data | min | max | threshold | above or below | prior
+// M | T1 | fact label (optional: the test reads its value from this fact)
 // X1 | exhibit title | unit | source | test or - | FY22=81 | FY23=95 | ...
 // R | learning-note-slug
 // SC | Slow | Base | Fast   then  A | input | values...   and  Y | output | unit | values...`;
 
 const STATUS: Record<string, TestStatus> = { met: "met", watching: "watching", "not met": "not_met", not_met: "not_met", "no data": "no_data", no_data: "no_data" };
-const ROW_KINDS = "Start a row with O, S1, F1, G, T1, X1, R, SC, A or Y.";
+const ROW_KINDS = "Start a row with O, S1, F1, G, T1, M, X1, R, SC, A or Y.";
 const date = (v: string | undefined) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 const dash = (v: string | undefined) => !v || v === "-" || v === "—";
 
 type Lines = { sources: number[]; facts: number[]; tests: number[]; exhibits: number[] };
 type TopicRow = { line: number; topic: string; ids: string[] };
+type MetricRow = { line: number; testId: string; metric: string };
 type ScenarioLines = { sc: number; assumptions: number[]; outputs: number[] };
 
 export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: SheetError[] } {
@@ -28,6 +30,7 @@ export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: She
   const at: Lines = { sources: [], facts: [], tests: [], exhibits: [] };
   const scenarioAt: ScenarioLines = { sc: 0, assumptions: [], outputs: [] };
   const topics: TopicRow[] = [];
+  const metrics: MetricRow[] = [];
   const pendingQuotes: { sourceId: string; factId: string; quote: string }[] = [];
   let scenario: CfScenario | null = null;
   text.replace(/\r\n/g, "\n").split("\n").forEach((raw, index) => {
@@ -67,8 +70,14 @@ export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: She
       cf.tests.push({
         id: key, current: dash(cells[1]) ? null : n(cells[1], "reading"), unit: cells[2] ?? "", readingAsOf: dash(cells[3]) ? null : date(cells[3]),
         lastChecked: date(cells[4]) ?? "", status, min: n(cells[6], "min"), max: n(cells[7], "max"), threshold: n(cells[8], "threshold"),
-        direction: cells[9] === "below" ? "below" : "above", prior: dash(cells[10]) ? null : n(cells[10], "prior"),
+        direction: cells[9] === "below" ? "below" : "above", prior: dash(cells[10]) ? null : n(cells[10], "prior"), metric: null,
       });
+    } else if (key === "M") {
+      // Same care as G: a | or a tab in the label would have split the row into more columns.
+      if (!/^T\d+$/.test(cells[1] ?? "")) return err("M: start with the test, for example M | T1 | Revenue from operations.");
+      if (!cells[2]) return err("M: name the metric to watch.");
+      if (cells.slice(3).some(Boolean) || cells[2].includes("|")) return err("M: a metric cannot hold a | or a tab; the sheet uses them to split columns.");
+      metrics.push({ line, testId: cells[1], metric: cells[2] });
     } else if (/^X\d+$/.test(key)) {
       const points = cells.slice(5).map((cell) => {
         const [period, value] = cell.split("=").map((s) => s.trim());
@@ -92,6 +101,7 @@ export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: She
     } else err(ROW_KINDS);
   });
   const topicLineByFact = assignTopics(cf, topics, errors);
+  const metricLineByTest = assignMetrics(cf, metrics, errors);
   for (const q of pendingQuotes) {
     const source = cf.sources.find((s) => s.id === q.sourceId);
     if (source) source.quote[q.factId] = q.quote;
@@ -105,6 +115,7 @@ export function parseFactsSheet(text: string): { caseFile: CaseFile; errors: She
     let lineNo = 0;
     if (group === "scenario") lineNo = (section === "assumptions" || section === "outputs") && typeof i === "number" ? (scenarioAt[section][i] ?? scenarioAt.sc) : scenarioAt.sc;
     else if (group === "facts" && typeof section === "number" && i === "topic") lineNo = topicLineByFact.get(cf.facts[section]?.id ?? "") ?? at.facts[section] ?? 0;
+    else if (group === "tests" && typeof section === "number" && i === "metric") lineNo = metricLineByTest.get(cf.tests[section]?.id ?? "") ?? at.tests[section] ?? 0;
     else if (typeof group === "string" && typeof section === "number" && group in at) lineNo = at[group as keyof Lines][section] ?? 0;
     errors.push({ line: lineNo, message: issue.message });
   }
@@ -130,6 +141,22 @@ function assignTopics(cf: CaseFile, topics: TopicRow[], errors: SheetError[]): M
   return lineByFact;
 }
 
+/** Applies the M rows to the tests (they may come before or after them); returns the M line each test's metric came from. */
+function assignMetrics(cf: CaseFile, rows: MetricRow[], errors: SheetError[]): Map<string, number> {
+  const lineByTest = new Map<string, number>();
+  for (const { line, testId, metric } of rows) {
+    const test = cf.tests.find((t) => t.id === testId);
+    const first = lineByTest.get(testId);
+    if (!test) errors.push({ line, message: `M: ${testId} is not a test in this sheet.` });
+    else if (first !== undefined) errors.push({ line, message: `${testId} already watches a metric (line ${first}).` });
+    else {
+      test.metric = metric;
+      lineByTest.set(testId, line);
+    }
+  }
+  return lineByTest;
+}
+
 const join = (cells: (string | number | null | undefined)[]) => cells.map((c) => (c === null || c === undefined ? "-" : String(c))).join(" | ");
 
 /** A case file whose number cells may still be the text being typed (the desk's Facts form writes cells verbatim). */
@@ -153,6 +180,7 @@ export function serializeFactsSheet(cf: SheetCaseFile): string {
     const word = { met: "met", watching: "watching", not_met: "not met", no_data: "no data" }[t.status];
     lines.push(join([t.id, t.current, t.unit, t.readingAsOf, t.lastChecked, word, t.min, t.max, t.threshold, t.direction, t.prior]));
   }
+  for (const t of cf.tests) if (t.metric) lines.push(join(["M", t.id, t.metric]));
   for (const x of cf.exhibits) lines.push(join([x.id, x.title, x.unit, x.sourceId, x.testId, ...x.points.map((p) => `${p.period}=${p.value ?? "-"}`)]));
   for (const slug of cf.readFirst) lines.push(join(["R", slug]));
   if (cf.scenario) {

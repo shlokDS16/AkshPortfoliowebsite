@@ -48,7 +48,7 @@ function ctx(s: { documents: MemoryDocumentsRepo; usage: MemoryUsageRepo | Usage
     now: () => new Date(T0), clock: opts.clock ?? (() => T0),
   };
   const full: Step = {
-    id: "step-1", jobId: "job-1", kind: "classify_pages", pageNo: 1, args: { pages: [1], accepted: [] }, status: "running", schemaFailures: 0, providerFailures: 0,
+    id: "step-1", jobId: "job-1", kind: "classify_pages", pageNo: 1, pass: 1, args: { pages: [1], accepted: [] }, status: "running", schemaFailures: 0, providerFailures: 0,
     leaseExpiries: 0, notBefore: new Date(T0).toISOString(), leaseOwner: "owner", lastError: null, ...step,
   };
   return { step: full, documentId: DOC, deadline: T0 + 240_000, deps };
@@ -235,5 +235,36 @@ describe("classify_pages: an answer that does not come", () => {
     const s = setup([1]);
     s.documents.docs.clear();
     expect(await classifyPagesStep(ctx(s, llm, stepFor([1])))).toMatchObject({ kind: "attention" });
+  });
+});
+
+describe("classify_pages: a rerun after the verdicts were stored (Plan 2b Task 8 carry d)", () => {
+  it("counts a page that already holds a model verdict as found and does not ask about it again", async () => {
+    const s = setup([1, 2, 3], { budget: 5 });
+    // The first try stored page 3's verdict and died before it returned: the page already has a kind and a score.
+    s.documents.pages.set(`${DOC}:3`, { ...s.documents.pages.get(`${DOC}:3`)!, kind: "bs", score: 38 });
+    const { llm, complete } = fake();
+    const out = done(await classifyPagesStep(ctx(s, llm, stepFor([1, 2, 3]))));
+    expect(complete).toHaveBeenCalledTimes(1); // pages 1 and 2 are still unsorted and are asked
+    expect(complete.mock.calls[0]![0].user).not.toMatch(/^Page 3:/m);
+    expect(out.enqueue).toEqual([{ kind: "extract_page", pageNo: 3 }]);
+    expect(s.documents.pages.get(`${DOC}:3`)).toMatchObject({ selected: true, selectedBy: "rule" });
+  });
+
+  it("makes no call at all when every page of the batch was sorted before", async () => {
+    const s = setup([3], { budget: 5 });
+    s.documents.pages.set(`${DOC}:3`, { ...s.documents.pages.get(`${DOC}:3`)!, kind: "pl", score: 36 });
+    const { llm, complete } = fake();
+    const out = done(await classifyPagesStep(ctx(s, llm, stepFor([3]))));
+    expect(complete).not.toHaveBeenCalled();
+    expect(out.enqueue).toEqual([{ kind: "extract_page", pageNo: 3 }]);
+  });
+
+  it("does not take a page for a model verdict when Aksh ticked or unticked it", async () => {
+    const s = setup([3], { budget: 5 });
+    s.documents.pages.set(`${DOC}:3`, { ...s.documents.pages.get(`${DOC}:3`)!, kind: "pl", score: 36, selectedBy: "aksh", selected: false });
+    const { llm } = fake();
+    const out = done(await classifyPagesStep(ctx(s, llm, stepFor([3]))));
+    expect(out.enqueue).toEqual([]);
   });
 });

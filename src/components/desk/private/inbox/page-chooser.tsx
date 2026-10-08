@@ -6,6 +6,7 @@ import { MAX_PAGE_BUDGET } from "@/modules/documents/client";
 import { setBudgetAction } from "@/modules/ingestion/actions";
 import { estimateReadyBy, formatReadyBy, GROQ_CAPS, TOKENS_PER_PAGE_DEFAULT, type InboxDoc } from "@/modules/ingestion/client";
 import { pageLabel } from "./page-label";
+import { RereadControl } from "./reread-control";
 import type { InboxActions } from "./types";
 import { useInboxAction } from "./use-inbox-action";
 
@@ -25,6 +26,9 @@ export function PageChooser({ doc, aiOn, pagesLeft, actions }: Props) {
   const { pending, error, run } = useInboxAction();
   const [raiseFor, setRaiseFor] = useState<number | null>(null);
   const [full, setFull] = useState(false);
+  // The Re-read buttons are mounted only while the list is open: a button inside a closed <details> is not rendered, so a colour-scheme
+  // change would start a transition on it that never finishes (and the accessibility scan, which waits for transitions, would hang).
+  const [open, setOpen] = useState(false);
   // The tick shows at once and settles (or springs back, on a refusal) when the server answers.
   const [pages, showTick] = useOptimistic(doc.pages, (all, change: { pageNo: number; selected: boolean }) =>
     all.map((p) => (p.pageNo === change.pageNo ? { ...p, selected: change.selected } : p)),
@@ -55,7 +59,7 @@ export function PageChooser({ doc, aiOn, pagesLeft, actions }: Props) {
   }
 
   return (
-    <details className="rounded-sm border border-rule">
+    <details className="rounded-sm border border-rule" onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-3 text-small text-ink">
         <span className="font-semibold">Pages to read</span>
         <span className="tabular-nums text-ink-muted">
@@ -81,6 +85,12 @@ export function PageChooser({ doc, aiOn, pagesLeft, actions }: Props) {
                 {page.firstLine ? <span className="block truncate text-caption text-ink-muted">{page.firstLine}</span> : null}
               </span>
             </label>
+            {/* Once a page's figures are read, Aksh may ask for it to be read again, harder; the price is shown first. */}
+            {open && page.read ? (
+              <div className="pb-2 pl-11 pr-3">
+                <RereadControl documentId={doc.id} pageNo={page.pageNo} />
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

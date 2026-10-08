@@ -32,7 +32,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
   if (!isItemId(id)) notFound();
   const data = await loadEditor(id);
   if (!data) notFound();
-  const { item, revisions, current, pending, latest, candidate, isFile, company, documents, staged, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure } = data;
+  const { item, revisions, current, pending, latest, candidate, isFile, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure } = data;
   const isPublic = item.visibility === "public";
   const errorMessage = errorText(error);
   const noticeMessage = noticeText(notice);
@@ -90,13 +90,14 @@ export default async function ItemPage({ params, searchParams }: Props) {
           {!isPublic ? <FiguresToHint latest={latestFigure} figuresTo={item.dataAsOf} action={setFiguresToAction.bind(null, item.id)} /> : null}
           <MetaForm item={item} />
           <RevisionEditor
-            key={`${latest?.id ?? "none"}:${staged.map((s) => s.proposalId).join(",")}`}
+            key={`${latest?.id ?? "none"}:${staged.map((s) => s.proposalId).join(",")}:${stagedReadings.map((s) => s.proposalId).join(",")}`}
             action={saveCaseFileRevisionAction.bind(null, item.id)}
             bodyMd={latest?.bodyMd ?? ""}
             sheet={sheet}
             isPublic={isPublic}
             figuresTo={item.dataAsOf}
             staged={staged}
+            stagedReadings={stagedReadings}
             provenance={provenance}
             sendBack={unstageAction.bind(null, item.id)}
           />

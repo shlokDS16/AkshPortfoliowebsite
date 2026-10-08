@@ -14,6 +14,14 @@
       { "label": "Revenue from operations", "current_text": "1,284.00", "prior_text": "1,102.00", "line": "Revenue from operations 1,284.00 1,102.00" },
       { "label": "Finance costs", "current_text": "41.70", "prior_text": "38.90", "line": "Finance costs 41.20 38.90" },
       { "label": "Profit for the year", "current_text": "152.60", "prior_text": "118.30", "line": "Profit for the year 152.60 118.30" }
+    ] },
+    "medium": {
+    "page_kind": "pl", "basis": "consolidated", "unit_header": "(Rs. in crore)",
+    "current_header": "Year ended March 31, 2026", "prior_header": "Year ended March 31, 2025",
+    "rows": [
+      { "label": "Revenue from operations", "current_text": "1,284.00", "prior_text": "1,102.00", "line": "Revenue from operations 1,284.00 1,102.00" },
+      { "label": "Finance costs", "current_text": "41.20", "prior_text": "38.90", "line": "Finance costs 41.20 38.90" },
+      { "label": "Profit for the year", "current_text": "152.60", "prior_text": "118.30", "line": "Profit for the year 152.60 118.30" }
     ] } },
   { "when": "Balance Sheet as at", "output": {
     "page_kind": "bs", "basis": "consolidated", "unit_header": "(Rs. in crore)",

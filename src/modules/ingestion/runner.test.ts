@@ -42,7 +42,7 @@ let seq = 0;
 function step(kind: StepKind, pageNo: number | null, extra: Partial<Step> = {}): Step {
   seq += 1;
   return {
-    id: `step-${seq}`, jobId: "job-1", kind, pageNo, args: {}, status: "queued", schemaFailures: 0, providerFailures: 0,
+    id: `step-${seq}`, jobId: "job-1", kind, pageNo, pass: 1, args: {}, status: "queued", schemaFailures: 0, providerFailures: 0,
     leaseExpiries: 0, notBefore: new Date(T0).toISOString(), leaseOwner: null, lastError: null, ...extra,
   };
 }
@@ -75,8 +75,8 @@ function memoryRepo(initial: Step[], opts: { loseLease?: boolean } = {}) {
     },
     async enqueue(jobId, news: NewStep[]) {
       for (const n of news) {
-        if (steps.some((s) => s.jobId === jobId && s.kind === n.kind && s.pageNo === n.pageNo)) continue;
-        steps.push(step(n.kind, n.pageNo, { jobId, args: n.args ?? {} }));
+        if (steps.some((s) => s.jobId === jobId && s.kind === n.kind && s.pageNo === n.pageNo && s.pass === (n.pass ?? 1))) continue;
+        steps.push(step(n.kind, n.pageNo, { jobId, pass: n.pass ?? 1, args: n.args ?? {} }));
       }
     },
     async createJob() {

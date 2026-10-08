@@ -34,6 +34,7 @@ function toStep(r: StepRow): Step {
     jobId: r.job_id,
     kind: r.kind as StepKind,
     pageNo: r.page_no,
+    pass: r.pass,
     args: r.args && typeof r.args === "object" && !Array.isArray(r.args) ? (r.args as Record<string, unknown>) : {},
     status: r.status as StepStatus,
     schemaFailures: r.schema_failures,
