@@ -383,5 +383,6 @@ Copy (plain second person; "pending Shlok approval" means the build chose the wo
 | Facts form did not take it | The Facts list could not take it. Fix the facts sheet first, or the list may be full. | pending Shlok approval |
 | Digest could not be read | The machine-read notes for this page could not be loaded. | pending Shlok approval |
 | Tray, digests being read | Reading commentary: 2 of 5 pages | pending Shlok approval |
-| Tray, only commentary read | Read. The commentary notes are in the document pane beside your file; there are no figures to check. | pending Shlok approval |
-| Section when the model gave none | No heading | pending Shlok approval |
+| Tray, only commentary read, and a claim was found | Read. The commentary notes are in the document pane beside your file; there are no figures to check. (With no claim found the card says the usual "Read. No figures matched; open it beside your file.") | pending Shlok approval |
+| Section when the model gave none | No heading | pending Shlok approval |
+- **Fix round 1 (2026-10-08).** A stored line is one line of single spaces (a line copied across a PDF wrap would otherwise break the facts sheet, which splits on newlines and tabs); a line containing `|` is kept as the model gave it but is never counted as on the page, so it stays under "could not confirm" and cannot reach "Use as a fact" (the sheet splits a row on `|`). The prompt's "8 claims" and "25 words" come from `DIGEST_MAX_CLAIMS` and `DIGEST_CLAIM_WORDS`. The highest page number (5,000) is one constant, `MAX_PAGE_NO` in `documents/limits.ts`.

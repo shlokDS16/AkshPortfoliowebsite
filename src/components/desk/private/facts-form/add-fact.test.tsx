@@ -6,7 +6,7 @@ import { CASEFILE_LIMITS, parseFactsSheet, serializeFactsSheet } from "@/modules
 import { KAVERI } from "@/test/fixtures/casefile";
 import { ADD_FACT_EVENT, type AddFactDetail } from "../add-source-event";
 import { RevisionEditor } from "../revision-editor";
-import { blankFact, blankSource, toDraft } from "./draft";
+import { blankFact, blankSource, draftToSheet, toDraft } from "./draft";
 import { withFact } from "./add-fact";
 
 const { bodyMd, sheet } = KAVERI.revisions[1];
@@ -72,6 +72,22 @@ describe("Facts form: the document pane's Use as a fact", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Text sheet" }));
     expect(fire()).toBe(false);
     expect(await screen.findByRole("alert")).toHaveTextContent(/cannot open as a form yet/);
+  });
+});
+
+describe("Use as a fact on a stored digest line", () => {
+  it("a stored digest line becomes a quote that survives the facts sheet: serialize, parse, same quote", () => {
+    // What digestRows stores for a wrapped line: one line, single spaces (digest.test.ts).
+    const quote = "Rising steel prices may reduce our operating margin by up to two percentage points in FY27.";
+    const base = toDraft(parseFactsSheet(canonical).caseFile);
+    const added = withFact(base, { ...DETAIL, quote }, [])!;
+    // Aksh then fills the label and value (the row is not saveable before), and the sheet round-trips.
+    const filled = { ...added.draft, facts: added.draft.facts.map((f) => (f.id === added.factId ? { ...f, label: "Steel margin hit", value: "2", unit: "pp", period: "FY27", asOf: "2026-03-31" } : f)) };
+    const sheetText = draftToSheet(filled);
+    const parsed = parseFactsSheet(sheetText);
+    expect(parsed.errors).toEqual([]);
+    const source = parsed.caseFile.sources.find((s) => s.id === added.sourceId)!;
+    expect(source.quote[added.factId]).toBe(quote);
   });
 });
 

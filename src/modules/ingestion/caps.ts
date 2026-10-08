@@ -111,6 +111,8 @@ export const CLASSIFY_MIN_CONFIDENCE = 0.6;
  */
 export const DIGEST_MAX_COMPLETION = 1_500;
 export const DIGEST_MAX_CLAIMS = 8;
+/** The words a claim may use; the prompt asks for it and says it to the model in these same words. */
+export const DIGEST_CLAIM_WORDS = 25;
 /** Stored lengths: migration 0008 allows section 1-300, claim 1-400 and line 1-600 characters. */
 export const DIGEST_SECTION_MAX = 300;
 export const DIGEST_CLAIM_MAX = 400;

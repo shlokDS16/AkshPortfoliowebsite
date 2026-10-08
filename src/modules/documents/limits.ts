@@ -14,6 +14,8 @@ export const DATABASE_BYTES = 524_288_000;
 export const DEFAULT_PAGE_BUDGET = 20;
 /** documents.llm_page_budget check: between 1 and 40. */
 export const MAX_PAGE_BUDGET = 40;
+/** The highest page number a document page can have (document_pages.page_no check, migration 0006). */
+export const MAX_PAGE_NO = 5_000;
 
 /**
  * A photo or screenshot after the browser has shrunk it: the free scan reader takes 1 MB (spec s9; ingestion's OCR_MAX_BYTES

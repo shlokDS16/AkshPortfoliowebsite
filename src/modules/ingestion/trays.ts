@@ -19,6 +19,8 @@ export type DocState = {
   photo?: boolean;
   /** A voice note whose transcript is typed out and waits for Aksh (transcript_status pending, page 1 has text). */
   transcript?: boolean;
+  /** Machine-read claims stored for the document (the pane shows them); 0 or absent when no digest found any. */
+  digestClaims?: number;
   /** Proposals waiting for Aksh's check, and how many of them are flagged. */
   pending: number;
   flagged: number;
@@ -152,7 +154,8 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
   if (d.pending > 0) return view("ready", `${figures(d.pending)} ready to check.${d.flagged > 0 ? ` ${d.flagged} ${d.flagged === 1 ? "needs" : "need"} a look.` : ""}`);
   if (d.decided > 0) return view("ready", ALL_CHECKED);
   // Only commentary pages were read: the notes wait in the document pane, there is nothing to review (ruling R13).
-  if (counts.extractTotal > 0 && [...byPage.values()].every((steps) => steps.every((s) => s.kind === "digest_page"))) return view("ready", COMMENTARY_READ);
+  // Only when a claim was found: with none the pane shows nothing, so the plain "No figures matched" line below is the honest one.
+  if ((d.digestClaims ?? 0) > 0 && counts.extractTotal > 0 && [...byPage.values()].every((steps) => steps.every((s) => s.kind === "digest_page"))) return view("ready", COMMENTARY_READ);
   if (!d.aiOn && counts.extractTotal === 0) return view("ready", NO_FIGURES_AI_OFF);
   // A scanned document too big to be read whole waits for Aksh's ticks (ruling R6; pending Shlok approval, spec s16.7).
   if (counts.extractTotal === 0 && isScanHeavy(d.scanPages, d.pageCount)) return view("ready", scansNotice(d.scanPages));

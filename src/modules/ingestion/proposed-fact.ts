@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PERIOD_RE } from "@/modules/casefile/client";
+import { MAX_PAGE_NO } from "@/modules/documents/client";
 
 // The shape of a proposal's value (browser-safe: the review screen validates Aksh's edits with it). Two schemas for
 // two jobs (ruling R22): `machineFactSchema` records what the machine read, honestly null where the page did not say;
@@ -16,7 +17,7 @@ const common = {
   label: z.string().trim().min(1).max(80),
   value: num,
   valueText: z.string().trim().min(1).max(60),
-  page: z.number().int().min(1).max(5000),
+  page: z.number().int().min(1).max(MAX_PAGE_NO),
   locator: z.string().trim().min(1).max(40),
   quote: z.string().trim().max(600),
   basis: z.enum(["consolidated", "standalone"]).nullable(),

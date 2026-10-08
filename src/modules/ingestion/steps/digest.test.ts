@@ -93,6 +93,21 @@ describe("digestRows", () => {
     expect(rows.map((r) => r.ord)).toEqual([0, 1]);
   });
 
+  it("stores a line copied across a page wrap as one line of single spaces, and it is still confirmed", () => {
+    const wrapped = "Rising steel prices may reduce our operating margin\nby up to two percentage points in FY27,\t as we flagged\r\nto the board.";
+    const [row] = digestRows({ claims: [{ section: "Risks", claim: "Steel.", line: wrapped }] }, DOC, 4, "e", PAGE);
+    expect(row.line).toBe(STEEL);
+    expect(row.line).not.toMatch(/[\n\r\t]| {2}/);
+    expect(row.onPage).toBe(true);
+  });
+
+  it("keeps a line with a | as the model gave it but never confirms it: the facts sheet would cut the quote at the |", () => {
+    const piped = "Margins stay near 31% | 32% in FY27, as we flagged to the board.";
+    const [row] = digestRows({ claims: [{ section: "Outlook", claim: "Margins.", line: piped }] }, DOC, 4, "e", `Outlook\n${piped}`);
+    expect(row.line).toBe(piped);
+    expect(row.onPage).toBe(false);
+  });
+
   it("never confirms a line too short to be a quote, and stores at most 8 claims", () => {
     expect(digestRows({ claims: [{ section: "x", claim: "Growth", line: "growth" }] }, DOC, 4, "e", "Growth is strong. growth")[0].onPage).toBe(false);
     const many = { claims: Array.from({ length: 12 }, (_, i) => ({ section: "x", claim: `c${i}`, line: CAPACITY })) };

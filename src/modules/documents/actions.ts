@@ -3,6 +3,7 @@
 import { isUuid } from "@/lib/ids";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
+import { MAX_PAGE_NO } from "./limits";
 import { pageTexts, readPage, searchPageText, snippetAround } from "./read";
 import type { PageKind } from "./types";
 import { onPage, valueOnPage } from "./verbatim";
@@ -10,12 +11,11 @@ import { onPage, valueOnPage } from "./verbatim";
 // The document pane's reads. Read-only: the pane never writes a fact or a revision (the Facts form is the only save path).
 // Every action checks the admin first and reads on the admin's own cookie session, so RLS applies.
 
-const MAX_PAGE = 5000; // document_pages.page_no check
 const MAX_QUERY = 200;
 const MAX_CHECKS = 100;
 const MAX_QUOTE = 2000;
 
-const validPage = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MAX_PAGE;
+const validPage = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= MAX_PAGE_NO;
 
 export type ReadPageResult = { ok: true; text: string; pageCount: number; kind: PageKind | null } | { ok: false; message: string };
 export type PageHit = { pageNo: number; snippet: string };

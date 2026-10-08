@@ -8,7 +8,7 @@ type StepState = DocState["steps"][number];
 const step = (over: Partial<StepState> = {}): StepState => ({
   kind: "digest_page", status: "queued", notBefore: "2026-10-07T05:00:00.000Z", waitReason: null, pageNo: 4, lastError: null, everClaimed: true, ...over,
 });
-const doc = (steps: StepState[]): DocState => ({ status: "active", pageCount: 40, pagesRead: 40, scanPages: 0, aiOn: true, pending: 0, flagged: 0, decided: 0, steps });
+const doc = (steps: StepState[], digestClaims = 0): DocState => ({ status: "active", pageCount: 40, pagesRead: 40, scanPages: 0, aiOn: true, pending: 0, flagged: 0, decided: 0, digestClaims, steps });
 
 describe("commentary pages in the trays", () => {
   it("reads 'Reading commentary: 1 of 3 pages' while only digests are left", () => {
@@ -27,11 +27,15 @@ describe("commentary pages in the trays", () => {
   });
 
   it("a document of only commentary pages says where the notes are", () => {
-    expect(trayFor(doc([step({ status: "done" })]), NOW, null)).toMatchObject({
+    expect(trayFor(doc([step({ status: "done" })], 2), NOW, null)).toMatchObject({
       tray: "ready",
       message: "Read. The commentary notes are in the document pane beside your file; there are no figures to check.",
     });
     expect(trayFor(doc([step({ status: "done" }), step({ kind: "extract_page", pageNo: 5, status: "done" })]), NOW, null).message).toBe("Read. No figures matched; open it beside your file.");
+  });
+
+  it("does not point at the pane when the digest found no claims", () => {
+    expect(trayFor(doc([step({ status: "done" })], 0), NOW, null)).toMatchObject({ tray: "ready", message: "Read. No figures matched; open it beside your file." });
   });
 
   it("pauses like any page step", () => {

@@ -27,11 +27,14 @@ export function digestRows(digest: Digest, documentId: string, pageNo: number, e
   const rows: DigestRow[] = [];
   for (const c of digest.claims) {
     const claim = c.claim.trim().slice(0, DIGEST_CLAIM_MAX).trim();
-    const line = c.line.trim().slice(0, DIGEST_LINE_MAX).trim();
+    // One line of plain words: a line copied across a PDF line wrap keeps no newline or tab, so it can sit in one cell of the facts sheet.
+    const line = c.line.replace(/\s+/g, " ").trim().slice(0, DIGEST_LINE_MAX).trim();
     if (claim === "" || line === "") continue;
     const section = c.section.trim().slice(0, DIGEST_SECTION_MAX).trim() || NO_SECTION;
     // A line too short to be a quote is on almost any page: it is kept, but never counted as confirmed.
-    const confirmed = line.length >= DIGEST_MIN_LINE_CHARS && onPage(line, pageText);
+    // A line with a | is never confirmed: the facts sheet splits a row on it, so "Use as a fact" would cut the quote short. The line is
+    // kept as the model gave it and stays under "could not confirm" (replacing the | would make it no longer a copy of the page).
+    const confirmed = line.length >= DIGEST_MIN_LINE_CHARS && !line.includes("|") && onPage(line, pageText);
     rows.push({ documentId, pageNo, extractionId, ord: rows.length, section, claim, line, onPage: confirmed });
     if (rows.length >= DIGEST_MAX_CLAIMS) break;
   }
