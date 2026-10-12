@@ -18,6 +18,8 @@ export type SourceCard = {
   source: SourceRef;
   asOf: ISODate;
   withheldUntil: ISODate | null;
+  /** Public file only: the page this figure was filed from after a check (R19 line). Absent on the desk and on a withheld card. */
+  checkedPage?: number | null;
 };
 export type SourceChipData = { chipId: string; label: string; card: SourceCard }; // label "S1 p. 131"
 export type ViewInline = string | { chip: SourceChipData };

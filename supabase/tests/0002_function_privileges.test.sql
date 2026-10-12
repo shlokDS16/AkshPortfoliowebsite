@@ -34,8 +34,8 @@ select ok(has_function_privilege('anon', 'public.heartbeat_ages()', 'execute')
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
-     and p.proname not in ('heartbeat_ages', 'capture_days', 'queue_age')
-$$, 'anon can execute no function in public except heartbeat_ages, capture_days and queue_age');
+     and p.proname not in ('heartbeat_ages', 'capture_days', 'queue_age', 'public_fact_checks')
+$$, 'anon can execute no function in public except heartbeat_ages, capture_days, queue_age and public_fact_checks');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')

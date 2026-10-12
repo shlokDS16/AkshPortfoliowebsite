@@ -3,7 +3,7 @@ import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 import { isIsoDate } from "@/modules/casefile";
 import { HOLDS_POSITIONS, ITEM_KINDS } from "@/modules/research";
-import type { ItemKind, PublicCompanyRow, PublicItemRow, PublicRevisionRow, PublicSnapshot, ShowcaseRepo } from "./types";
+import type { ItemKind, PublicCompanyRow, PublicFactCheck, PublicItemRow, PublicRevisionRow, PublicSnapshot, ShowcaseRepo } from "./types";
 
 // Explicit column lists (rule 9): anon holds column-level grants, and select=* returns 42501 (SDD ledger, Task 3).
 export const ITEM_COLUMNS =
@@ -54,6 +54,14 @@ export function createSupabaseShowcaseRepo(db: Db): ShowcaseRepo {
         c.id && c.slug && c.name ? [{ id: c.id, slug: c.slug, name: c.name, symbol: c.nse_symbol, sector: c.sector }] : [],
       );
     },
+    async factChecks() {
+      // public_fact_checks is granted to anon only (migration 0009): this must be the cookie-less public client (rule 10).
+      const { data, error } = await db.rpc("public_fact_checks", {});
+      if (error) throw dbError("showcase.factChecks", error);
+      return (data ?? []).flatMap((r): PublicFactCheck[] =>
+        r.item_id && r.fact_id && Number.isInteger(r.page_no) && (r.page_no as number) >= 1 ? [{ itemId: r.item_id, factId: r.fact_id, pageNo: r.page_no as number }] : [],
+      );
+    },
     async captureDays(days) {
       // capture_days is granted to anon only: this must be the cookie-less public client (rule 10).
       const { data, error } = await db.rpc("capture_days", { p_days: days });
@@ -64,6 +72,8 @@ export function createSupabaseShowcaseRepo(db: Db): ShowcaseRepo {
 }
 
 export async function loadSnapshot(repo: ShowcaseRepo, today: string): Promise<PublicSnapshot> {
-  const [items, revisions, companies, captureDays] = await Promise.all([repo.listItems(), repo.listRevisions(), repo.listCompanies(), repo.captureDays(30)]);
-  return { items, revisions, companies, captureDays, today };
+  const [items, revisions, companies, captureDays, factChecks] = await Promise.all([
+    repo.listItems(), repo.listRevisions(), repo.listCompanies(), repo.captureDays(30), repo.factChecks(),
+  ]);
+  return { items, revisions, companies, captureDays, factChecks, today };
 }

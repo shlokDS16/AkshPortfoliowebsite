@@ -37,6 +37,14 @@ export function buildSeedSnapshot(today = "2026-10-06"): PublicSnapshot {
       { id: "c2", slug: "sahcold", name: SAHYADRI.name, symbol: SAHYADRI.symbol, sector: SAHYADRI.sector },
     ],
     captureDays: ["2026-10-05", "2026-10-04", "2026-10-01", "2026-09-20"],
+    // File 01: F1 was checked on the page its locator names (p. 131); F2 on p. 99 while its locator says p. 140 (moved
+    // since); F3 on a page its locator matches; F4 never filed from a document. File 02's F1 must not leak to file 01.
+    factChecks: [
+      { itemId: "i1", factId: "F1", pageNo: 131 },
+      { itemId: "i1", factId: "F2", pageNo: 99 },
+      { itemId: "i1", factId: "F3", pageNo: 152 },
+      { itemId: "i2", factId: "F1", pageNo: 44 },
+    ],
     today,
   };
 }

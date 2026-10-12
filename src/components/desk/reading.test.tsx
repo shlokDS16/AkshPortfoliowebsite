@@ -55,6 +55,20 @@ describe("ViewBlock", () => {
     expectTokenOnly(container);
   });
 
+  it("R19: a checked card says what happened, in fixed words with the page and the document; an unchecked card says nothing", async () => {
+    mockMatchMedia();
+    const checked: ViewBlockData[] = [{ kind: "p", inline: ["Revenue ", { chip: { ...CHIP_F1, card: { ...CHIP_F1.card, checkedPage: 131 } } }, "."] }];
+    const { unmount } = renderWithMotion(<ViewBlock blocks={checked} />);
+    await userEvent.click(screen.getByRole("button", { name: "S1 p. 131" }));
+    expect(screen.getByRole("region", { name: "Source for ₹1,284 cr" })).toHaveTextContent(
+      "Printed on p. 131 of Annual report 2025-26 (fictional seed data); matched by the desk and accepted by the analyst.",
+    );
+    unmount();
+    renderWithMotion(<ViewBlock blocks={VIEW_BLOCKS} />);
+    await userEvent.click(screen.getByRole("button", { name: "S1 p. 131" }));
+    expect(screen.getByRole("region", { name: "Source for ₹1,284 cr" })).not.toHaveTextContent("matched by the desk");
+  });
+
   it("a withheld card never prints the figure, the prior or the quote, in the DOM or the accessible name (rule 3)", async () => {
     mockMatchMedia();
     const withheld: ViewBlockData[] = [

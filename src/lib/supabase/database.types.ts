@@ -1415,6 +1415,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      public_fact_checks: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          fact_id: string
+          item_id: string
+          page_no: number
+        }[]
+      }
       publish_revision: {
         Args: {
           p_actor: string

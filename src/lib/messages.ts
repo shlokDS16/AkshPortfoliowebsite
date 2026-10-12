@@ -184,3 +184,13 @@ export type ItemNoticeCode = keyof typeof NOTICES;
 export function noticeText(code: string | undefined): string | null {
   return code !== undefined && Object.hasOwn(NOTICES, code) ? NOTICES[code as ItemNoticeCode] : null;
 }
+
+/**
+ * Public file, source card (Plan 2b Task 9, R19): says what happened and no more. Verified rows are pre-ticked, so it
+ * does not claim a person read the figure. `doc` is the source's own name from the case file (the text the card already
+ * prints), never a private document's title. Wording is the controller's pick, pending Shlok's approval (spec s16.14).
+ */
+export const CHECKED_SOURCE_FALLBACK = "the filing";
+export function checkedAgainstPageText(page: number, doc: string): string {
+  return `Printed on p. ${page} of ${doc.trim() === "" || doc === "Source not listed" ? CHECKED_SOURCE_FALLBACK : doc}; matched by the desk and accepted by the analyst.`;
+}

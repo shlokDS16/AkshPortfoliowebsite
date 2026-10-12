@@ -6,6 +6,7 @@ import {
   splitThesisBody,
 } from "@/modules/casefile";
 import { readingMinutes } from "./notes";
+import { withFactChecks } from "./provenance";
 import { ordinal, revisionsOf, servedFiles } from "./site";
 import type { FileView, PublicSnapshot, ShareCardModel } from "./types";
 
@@ -46,7 +47,7 @@ export function buildFileView(s: PublicSnapshot, companySlug: string): FileView 
       const note = s.items.find((i) => i.kind === "learning" && i.slug === slug);
       return note ? [{ title: note.title, href: `/notes/${slug}`, minutes: readingMinutes(note.bodyMd) }] : [];
     }),
-    view: buildViewBlocks(viewMd, cf, s.today),
+    view: withFactChecks(buildViewBlocks(viewMd, cf, s.today), item.id, s.factChecks),
     tests,
     factGroups: buildFactGroups(cf, s.today),
     factCount: cf.facts.length,

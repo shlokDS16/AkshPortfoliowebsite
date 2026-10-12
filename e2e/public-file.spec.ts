@@ -10,6 +10,8 @@ test("the file reads in B+ order with its strip, dateline, view, tests, facts, h
   await expect(page.getByText("R2 of 2")).toBeVisible();
   await page.getByRole("button", { name: "S1 p. 131" }).click();
   await expect(page.getByRole("region", { name: "Source for ₹1,284 cr" })).toContainText("Revenue from operations rose to ₹1,284 crore.");
+  // The seeded file was typed by hand, so no figure was checked against a filed page: the card claims nothing (Task 9, R19).
+  await expect(page.getByTestId("checked-line")).toHaveCount(0);
   await expect(page.getByLabel("0 met, 1 watching, 1 not met, 1 no data")).toBeVisible();
   await expect(page.getByRole("img", { name: /Receivable days, FY22 to FY26: from 81 days in FY22 to 142 days in FY26/ })).toBeAttached();
   await expect(page.locator("#disclosure")).toContainText("Position in the security discussed: No.");

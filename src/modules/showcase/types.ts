@@ -14,13 +14,18 @@ export type PublicItemRow = {
 };
 export type PublicRevisionRow = { id: string; itemId: string; revNo: number; bodyMd: string; structured: unknown; changeReason: string | null; createdAt: string };
 export type PublicCompanyRow = { id: string; slug: string; name: string; symbol: string | null; sector: string | null };
-export type PublicSnapshot = { items: PublicItemRow[]; revisions: PublicRevisionRow[]; companies: PublicCompanyRow[]; captureDays: ISODate[]; today: ISODate };
+/** Task 9: the page a filed fact was checked against (public_fact_checks). Page number only; never a machine value. */
+export type PublicFactCheck = { itemId: string; factId: string; pageNo: number };
+export type PublicSnapshot = {
+  items: PublicItemRow[]; revisions: PublicRevisionRow[]; companies: PublicCompanyRow[]; captureDays: ISODate[]; factChecks: PublicFactCheck[]; today: ISODate;
+};
 
 export interface ShowcaseRepo {
   listItems(): Promise<PublicItemRow[]>;
   listRevisions(): Promise<PublicRevisionRow[]>;
   listCompanies(): Promise<PublicCompanyRow[]>;
   captureDays(days: number): Promise<ISODate[]>;
+  factChecks(): Promise<PublicFactCheck[]>;
 }
 
 export type FileView = {
