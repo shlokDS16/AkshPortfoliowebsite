@@ -1,10 +1,11 @@
 -- 20261008000009_public_provenance.sql: public.public_fact_checks(), the one anon read path for "checked against
 -- page N" (Plan 2b Task 9, controller ruling R5). Item id, fact id and page number only; never a machine value,
--- the edited flag, a proposal, an extraction or a document.
+-- the edited flag, a proposal, an extraction or a document. A row comes back only for a figure the desk really matched
+-- and the current public revision still prints exactly so (fix wave: not edited, not flagged, value and page unchanged).
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(23);
 
 -- Stand-ins for the compliance server action (ADR-003), as in 0005: they reach the gate as the function owner.
 create function public.test_publish(p_item uuid, p_rev uuid) returns text
@@ -50,26 +51,47 @@ insert into public.extractions (document_id, page_no, model, prompt_version, inp
     from unnest(array[2, 3, 4, 5, 7, 9, 99]) as n;
 
 -- Files one fact: a pending proposal, decided and filed under the revision, plus its provenance row (as the owner).
-create function pg_temp.file_fact(p_item uuid, p_rev uuid, p_fact text, p_page integer, p_edited boolean default false)
+-- p_prop_item / p_prop_rev file the PROPOSAL under another item's revision; p_status 'accepted' leaves it unfiled.
+create function pg_temp.file_fact(p_item uuid, p_rev uuid, p_fact text, p_page integer, p_edited boolean default false,
+  p_flags text[] default '{}', p_prop_item uuid default null, p_prop_rev uuid default null, p_status text default 'filed')
 returns void language plpgsql as $$
 declare v_prop uuid;
 begin
-  insert into public.proposals (document_id, page_no, extraction_id, dedupe_key, machine_value, reason)
-    select e.document_id, e.page_no, e.id, p_rev::text || '|' || p_fact, '{"value":"MACHINE-1,234"}', 'core'
+  insert into public.proposals (document_id, page_no, extraction_id, dedupe_key, machine_value, flags, reason)
+    select e.document_id, e.page_no, e.id, p_rev::text || '|' || p_fact,
+           jsonb_build_object('value', 1234, 'page', p_page, 'locator', 'p. ' || p_page), p_flags, 'core'
       from public.extractions e
      where e.document_id = 'd1000000-0000-4000-8000-000000000001' and e.page_no = p_page
     returning id into v_prop;
-  update public.proposals
-     set status = 'filed', accepted_value = machine_value, item_id = p_item, revision_id = p_rev, decided_at = now()
-   where id = v_prop;
+  if p_status = 'filed' then
+    update public.proposals
+       set status = 'filed', accepted_value = machine_value, item_id = coalesce(p_prop_item, p_item),
+           revision_id = coalesce(p_prop_rev, p_rev), decided_at = now()
+     where id = v_prop;
+  else
+    update public.proposals set status = p_status, accepted_value = machine_value, item_id = p_item, decided_at = now()
+     where id = v_prop;
+  end if;
   insert into public.fact_provenance (revision_id, fact_id, proposal_id, edited) values (p_rev, p_fact, v_prop, p_edited);
 end;
 $$;
 
--- P: R1 checked F1 on p. 5 and F2 on p. 7; it is published. R2 re-checks F1 on p. 9 and is published (latest wins).
--- R3 is a later, unpublished draft that "checks" F1 on p. 99 and F3 on p. 99: neither may surface.
+-- P: R1 files F1 (p. 5), F2 (p. 7) and the cases below; it is published. R2 re-files F1 on p. 9 and F13 (edited) and is
+-- published (latest wins). R2's structured facts are what the public page prints: every fact is value 1234 at the
+-- machine's page, except F8 (retyped 4321) and F9 (moved to p. 8). R3 is a later draft, R4 a later revision with a
+-- recorded fail verdict: neither may surface.
 select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F1', 5);
-select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F2', 7, true);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F2', 7);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F4', 3, true);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F5', 4, false, array['value_not_on_page']);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F6', 5, false, array['quote_not_on_page']);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F7', 2, false, array['period_unknown']);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F8', 4);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F9', 4);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F10', 5, false, '{}',
+  'a4000000-0000-4000-8000-000000000004', 'b4000000-0000-4000-8000-000000000001');
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F11', 3, false, '{}', null, null, 'accepted');
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000001', 'F13', 5);
 select pg_temp.file_fact('a2000000-0000-4000-8000-000000000002', 'b2000000-0000-4000-8000-000000000001', 'F1', 3);
 select pg_temp.file_fact('a3000000-0000-4000-8000-000000000003', 'b3000000-0000-4000-8000-000000000001', 'F1', 4);
 select pg_temp.file_fact('a4000000-0000-4000-8000-000000000004', 'b4000000-0000-4000-8000-000000000001', 'F1', 2);
@@ -83,16 +105,33 @@ select lives_ok($$ select public.test_unpublish('a3000000-0000-4000-8000-0000000
 reset role;
 
 insert into public.item_revisions (id, item_id, body_md, structured) values
-  ('b1000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000001', 'R2', '{}');
+  ('b1000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000001', 'R2', jsonb_build_object('facts', jsonb_build_array(
+    jsonb_build_object('id', 'F1', 'value', 1234, 'locator', 'p. 9'),
+    jsonb_build_object('id', 'F2', 'value', 1234.0, 'locator', 'p. 7'),
+    jsonb_build_object('id', 'F4', 'value', 1234, 'locator', 'p. 3'),
+    jsonb_build_object('id', 'F5', 'value', 1234, 'locator', 'p. 4'),
+    jsonb_build_object('id', 'F6', 'value', 1234, 'locator', 'p. 5'),
+    jsonb_build_object('id', 'F7', 'value', 1234, 'locator', 'p. 2'),
+    jsonb_build_object('id', 'F8', 'value', 4321, 'locator', 'p. 4'),
+    jsonb_build_object('id', 'F9', 'value', 1234, 'locator', 'p. 8'),
+    jsonb_build_object('id', 'F10', 'value', 1234, 'locator', 'p. 5'),
+    jsonb_build_object('id', 'F11', 'value', 1234, 'locator', 'p. 3'),
+    jsonb_build_object('id', 'F12', 'value', 1234, 'locator', 'p. 99'),
+    jsonb_build_object('id', 'F13', 'value', 1234, 'locator', 'p. 5'))));
 select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000002', 'F1', 9);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000002', 'F13', 5, true);
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select is(public.test_publish('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000002'), 'pass', 'setup: R2 of P passes');
 reset role;
 insert into public.item_revisions (id, item_id, body_md, structured) values
-  ('b1000000-0000-4000-8000-000000000003', 'a1000000-0000-4000-8000-000000000001', 'R3 draft', '{}');
+  ('b1000000-0000-4000-8000-000000000003', 'a1000000-0000-4000-8000-000000000001', 'R3 draft', '{}'),
+  ('b1000000-0000-4000-8000-000000000004', 'a1000000-0000-4000-8000-000000000001', 'R4 failed', '{}');
 select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000003', 'F1', 99);
 select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000003', 'F3', 99);
+select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000004', 'F12', 99);
+insert into public.gate_decisions (item_id, revision_id, policy_version, verdict)
+  values ('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000004', 'sebi-unreg-2026-07', 'fail');
 
 -- Structure and privileges: anon only (the capture_days precedent), definer, empty search_path, three columns.
 select ok(has_function_privilege('anon', 'public.public_fact_checks()', 'execute')
@@ -110,8 +149,24 @@ select is((select pg_get_function_result(p.oid) from pg_proc p where p.oid = 'pu
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select results_eq($$ select item_id, fact_id, page_no from public.public_fact_checks() order by fact_id $$,
-  $$ values ('a1000000-0000-4000-8000-000000000001'::uuid, 'F1', 9), ('a1000000-0000-4000-8000-000000000001'::uuid, 'F2', 7) $$,
-  'a public, lagged item: the latest passed revision''s page per fact; the draft R3 (F1 p. 99, F3) is ignored');
+  $$ values ('a1000000-0000-4000-8000-000000000001'::uuid, 'F1', 9), ('a1000000-0000-4000-8000-000000000001'::uuid, 'F2', 7),
+            ('a1000000-0000-4000-8000-000000000001'::uuid, 'F7', 2) $$,
+  'a public, lagged item: only unedited, unflagged figures the current public revision prints as the machine read them');
+select is((select count(*) from public.public_fact_checks() where fact_id = 'F4'), 0::bigint, 'an edited filing returns no row');
+select is((select count(*) from public.public_fact_checks() where fact_id in ('F5', 'F6')), 0::bigint,
+  'a filing flagged value_not_on_page or quote_not_on_page returns no row');
+select is((select count(*) from public.public_fact_checks() where fact_id = 'F8'), 0::bigint,
+  'a value retyped on the same page in a later public revision returns no row');
+select is((select count(*) from public.public_fact_checks() where fact_id = 'F9'), 0::bigint,
+  'a fact whose public locator moved to another page returns no row');
+select is((select count(*) from public.public_fact_checks() where fact_id = 'F10'), 0::bigint,
+  'a provenance row whose proposal belongs to another item returns no row');
+select is((select count(*) from public.public_fact_checks() where fact_id = 'F11'), 0::bigint,
+  'a proposal that is not filed returns no row');
+select is((select count(*) from public.public_fact_checks() where fact_id = 'F12'), 0::bigint,
+  'a revision with only a fail verdict returns no row');
+select is((select count(*) from public.public_fact_checks() where fact_id = 'F13'), 0::bigint,
+  'a clean filing followed by an edited filing of the same fact in a later public revision returns no row');
 select is((select count(*) from public.public_fact_checks() where item_id = 'a2000000-0000-4000-8000-000000000002'), 0::bigint,
   'nothing for a published item still inside the 30-day lag');
 select is((select count(*) from public.public_fact_checks() where item_id = 'a3000000-0000-4000-8000-000000000003'), 0::bigint,

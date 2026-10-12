@@ -206,6 +206,14 @@ describe("checked-against-page line (Plan 2b Task 9, R5 and R19)", () => {
     expect(withheld.every((c) => (c.card.checkedPage ?? null) === null)).toBe(true);
   });
 
+  it("a snapshot cached before factChecks existed (field missing) builds the file with no line and does not throw", () => {
+    const old: Partial<PublicSnapshot> = { ...s };
+    delete old.factChecks;
+    const file = buildFileView(old as PublicSnapshot, "kavpump")!;
+    expect(chipsOf(file.view).length).toBeGreaterThan(0);
+    expect(chipsOf(file.view).every((c) => (c.card.checkedPage ?? null) === null)).toBe(true);
+  });
+
   it("the view model carries a page number and nothing else from the checks (no machine value, no edited flag)", () => {
     const json = JSON.stringify(live());
     expect(json).not.toContain("machine");

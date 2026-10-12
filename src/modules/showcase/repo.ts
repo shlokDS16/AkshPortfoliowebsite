@@ -56,8 +56,13 @@ export function createSupabaseShowcaseRepo(db: Db): ShowcaseRepo {
     },
     async factChecks() {
       // public_fact_checks is granted to anon only (migration 0009): this must be the cookie-less public client (rule 10).
+      // Optional: the line is a caption, so any failure (function not yet migrated, stale schema cache, timeout) means no
+      // line, never a failed public page. Only the code is logged (rule: no provider text in logs).
       const { data, error } = await db.rpc("public_fact_checks", {});
-      if (error) throw dbError("showcase.factChecks", error);
+      if (error) {
+        console.error("showcase: fact checks unavailable", error.code ?? "no code");
+        return [];
+      }
       return (data ?? []).flatMap((r): PublicFactCheck[] =>
         r.item_id && r.fact_id && Number.isInteger(r.page_no) && (r.page_no as number) >= 1 ? [{ itemId: r.item_id, factId: r.fact_id, pageNo: r.page_no as number }] : [],
       );

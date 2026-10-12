@@ -12,8 +12,9 @@ export function pageOfLocator(locator: string): number | null {
  * the page the fact's locator names today. A moved or re-sourced fact therefore shows no line, a withheld card shows
  * none, and nothing but a page number ever comes from the check.
  */
-export function withFactChecks(blocks: ViewBlockData[], itemId: string, checks: PublicFactCheck[]): ViewBlockData[] {
-  const pages = new Map(checks.filter((c) => c.itemId === itemId).map((c) => [c.factId, c.pageNo]));
+export function withFactChecks(blocks: ViewBlockData[], itemId: string, checks: PublicFactCheck[] | undefined): ViewBlockData[] {
+  // `?? []`: a snapshot cached by an earlier deployment has no factChecks field.
+  const pages = new Map((checks ?? []).filter((c) => c.itemId === itemId).map((c) => [c.factId, c.pageNo]));
   if (pages.size === 0) return blocks;
   const mark = (x: ViewInline): ViewInline => {
     if (typeof x === "string") return x;

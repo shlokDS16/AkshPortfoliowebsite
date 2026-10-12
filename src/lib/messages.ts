@@ -187,8 +187,10 @@ export function noticeText(code: string | undefined): string | null {
 
 /**
  * Public file, source card (Plan 2b Task 9, R19): says what happened and no more. Verified rows are pre-ticked, so it
- * does not claim a person read the figure. `doc` is the source's own name from the case file (the text the card already
- * prints), never a private document's title. Wording is the controller's pick, pending Shlok's approval (spec s16.14).
+ * does not claim a person read the figure. `doc` is the already-public source name of the published fact (the text the
+ * card already prints, gated at publish); nothing is read from `documents`. The facts form may have filled that name from
+ * the uploaded document's title (facts-form/staged.ts), which Aksh then saved and published. Wording is the controller's
+ * pick, pending Shlok's approval (spec s16.14).
  */
 export const CHECKED_SOURCE_FALLBACK = "the filing";
 export function checkedAgainstPageText(page: number, doc: string): string {
