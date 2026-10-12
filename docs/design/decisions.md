@@ -45,3 +45,9 @@ Each entry: segment, options shown, choice, reason, date. Never redo a decided s
 - **Status:** DECIDED 2026-10-05 (Shlok).
 
 ## All six segments decided (2026-10-05). Next: `design-dna.md` tokens + component inventory, then Plan 1B.
+
+## Task 9 (Plan 2b): "checked against page" line on the public source card
+- **Options:** A one line in the source card only; B a small mark in the facts table plus the card line.
+- **DECIDED (controller pick under Shlok's delegation, 2026-10-12, pending Shlok's approval): A.** One line at the foot of the source card, no facts-table mark, so the table stays a pure reference and the claim sits beside the quote it is about. No visual options round was run.
+- **Wording (R19, pending Shlok's approval):** "Printed on p. N of <source name>; matched by the desk and accepted by the analyst." It says what happened, not that a person read every figure (verified rows are pre-ticked). The source name is the case file's own source name already on the card; with none, "the filing".
+- **Status:** controller pick 2026-10-12; Shlok to approve or reword (open question Q23).

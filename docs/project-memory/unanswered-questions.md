@@ -36,3 +36,6 @@ Format: **[date]** - the question, why it matters, what would answer it.
 - **Q13, Q14, Q15, Q19, Q20:** accepted as built ("go with what you have recommended"): the wording stands; the strip keeps spec s10's "The uptime monitor has emailed Shlok and Aksh."; the home "Ready to review" card stays limited to documents with figures to check; no "Read again" for closed documents; the fix-wave copy stands.
 - **Trial:** Shlok treats Aksh's 3-day trial as ended ("he wants a finished product"); phase-2a may merge after Shlok tries Plan 2a locally with a sample PDF.
 - **Q22 (privacy, Shlok):** When Aksh discards a voice note, the recording is deleted and the transcript is hidden everywhere, but the transcript text stays in the private database (document_pages has no delete path). Should Discard also erase that text? Needs a small migration. Default: hidden only.
+
+## Open (2026-10-12, Plan 2b Task 9)
+- **Q23 (copy, Shlok):** approve or reword the public line under a filed figure: "Printed on p. 131 of <source name>; matched by the desk and accepted by the analyst." (spec s16.14, `checkedAgainstPageText` in `src/lib/messages.ts`). It is deliberately modest because verified rows are pre-ticked. Default: stands as built. Also: the check is by page, not by value (a figure retyped on the same page in a later revision keeps the line).

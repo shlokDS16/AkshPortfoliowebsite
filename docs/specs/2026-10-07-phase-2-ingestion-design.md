@@ -427,3 +427,16 @@ Copy (plain second person; "pending Shlok approval" means the build chose the wo
 | Saved, readings could not be marked filed | Saved. The test readings could not be marked as filed; they stay staged, and are left out next time because the tests already have them. | pending Shlok approval |
 | Reading row, basis | FY26 · consolidated · as of 31 Mar 2026 · prior 131 | pending Shlok approval |
 | The price (changed) | This uses about 2,500 of today's 150,000 AI tokens. Figures from this page that you have not checked yet are replaced by the new reading. (The number is the call's reservation for this page.) | pending Shlok approval |
+
+### 16.14 Plan 2b Task 9: the "checked against page" line on a public file (2026-10-12, append-only)
+- **One anon read path, and only that one (ruling R5).** Migration `20261008000009_public_provenance.sql` adds `public.public_fact_checks()`: `SECURITY DEFINER`, `set search_path = ''`, executable by `anon` only (the `capture_days` precedent; the showcase repo reads through the cookie-less public client). It returns `(item_id uuid, fact_id text, page_no integer)` and nothing else: no machine value, no edited flag, no proposal, extraction or document, no title. There is no view, and `fact_provenance`, `proposals` and `extractions` stay closed to anon.
+- **Which rows.** For each item that passes `private.is_public_item` (public, published, past the 30-day lag), the page of the latest filing of each fact among that item's revisions that passed the publish gate (`private.revision_passed`); a later unpublished draft cannot change it, and a private, unlagged or retracted item returns nothing. Provenance rows belong to the filing revision, so "latest per fact" keeps the line after a routine later save.
+- **When the line shows.** Only when the fact's own locator is exactly `p. N` and N equals the checked page (`src/modules/showcase/provenance.ts`). A fact whose source moved, was re-typed, or has a locator such as `slide 7` shows no line; a withheld card shows none; the facts table shows no mark (controller pick, treatment A).
+- **Where.** One line at the foot of the source card (`source-fact-card.tsx`), after the source and as-of line. The share card does not show it, so rule 8's lint input is unchanged. The document name is the source's own name already printed in the card (from the case file), never the private document's title; with no source name the line says "the filing".
+- **Known limit.** The check is by page, not by value: if Aksh retypes a figure by hand on the same page in a later revision, the line still says the page was matched. The line claims that a figure on that page was matched and accepted, not that the displayed number equals the machine's reading.
+
+Copy. Controller pick under Shlok's delegation, pending his approval.
+| Where | Text | Status |
+|---|---|---|
+| Public source card, checked figure | Printed on p. 131 of Annual report 2025-26; matched by the desk and accepted by the analyst. | pending Shlok approval |
+| Same, no source name | Printed on p. 131 of the filing; matched by the desk and accepted by the analyst. | pending Shlok approval |

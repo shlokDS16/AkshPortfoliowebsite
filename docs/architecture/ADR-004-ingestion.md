@@ -163,3 +163,6 @@ Paid burst adapter (decision 2) when Aksh outgrows two reports a day; Groq Devel
 
 ## Why this impresses an allocator
 Every figure on a public file traces to one line on one page of a named filing, that line is proven verbatim on the page by code, and the private record shows that a person accepted or corrected every machine reading before it entered a dated, append-only revision. It is the four-eyes control of an institutional research desk, built by a student on free tiers, with the machine kept visibly out of the analyst's voice.
+
+## Amendment 2026-10-12 (Plan 2b Task 9): the allocator note, reworded (ruling R19)
+"A person accepted or corrected every machine reading" overclaims: verified rows are pre-ticked (s5), so a figure can be filed having been accepted without a keystroke. The public line therefore says what happened: "Printed on p. N of <source>; matched by the desk and accepted by the analyst." The four-eyes reading of "Why this impresses an allocator" above stands as the intent, not as a claim the site makes in those words. The public path is `public.public_fact_checks()` (migration 0009, anon only, item id + fact id + page number), not a view; see spec s16.14.
