@@ -20,12 +20,18 @@ export async function documentOf(p: InboxPorts, documentId: string, statuses: Do
   return doc;
 }
 
+/** A voice note or a photo has no pages for Aksh to choose (inbox-pages offers none): a crafted call is "no such row". */
+function assertPaged(doc: DocumentRow): void {
+  if (doc.kind === "audio" || doc.kind === "image") throw new InvalidInputError();
+}
+
 /**
  * Ticks or unticks a page as Aksh's own choice. Ticking past the document's page budget is refused (raise the budget
  * first); with AI on, a ticked page gets its extract step and an unticked one loses a step that has not started.
  */
 export async function setPageSelected(p: InboxPorts, documentId: string, pageNo: number, selected: boolean, aiOn: boolean): Promise<void> {
   const doc = await documentOf(p, documentId, ["active"]);
+  assertPaged(doc);
   if (!Number.isInteger(pageNo) || pageNo < 1 || pageNo > MAX_PDF_PAGES) throw new InvalidInputError();
   const page = await p.inbox.page(doc.id, pageNo);
   if (!page) throw new InvalidInputError();
@@ -99,6 +105,7 @@ export async function markDone(p: InboxPorts, documentId: string): Promise<void>
 /** Documents read while AI was off: queue the reading step of every ticked page that has none (a scan gets the scan reader). */
 export async function readSelected(p: InboxPorts, documentId: string, aiOn: boolean): Promise<void> {
   const doc = await documentOf(p, documentId, ["active"]);
+  assertPaged(doc);
   if (!aiOn) throw new InboxError("ai-off");
   const job = await p.inbox.liveJob(doc.id);
   if (!job) throw new InvalidInputError();

@@ -37,6 +37,32 @@ const code = async (promise: Promise<unknown>): Promise<string> => {
 };
 const extractSteps = () => inbox.steps.filter((s) => s.kind === "extract_page").map((s) => [s.pageNo, s.status]);
 
+describe("voice notes and photos have no pages to choose (Task 4 and 3 carry, final review M-3)", () => {
+  const OTHER = "1c0a8f2e-5b63-4d17-8a9e-3d7b6c5a4e21";
+  async function nonPdf(kind: "audio" | "image") {
+    await docs.insertUploading({ id: OTHER, title: "Note", kind, storagePath: `${OTHER}.bin`, sha256: "b".repeat(64), bytes: 10, companyId: null, filedOn: null, sourceUrl: null });
+    await docs.update(OTHER, { status: "active" });
+    inbox.pages.set(`${OTHER}:1`, { selected: false, selectedBy: null });
+    await inbox.queue.createJob(OTHER, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
+  }
+  const refused = async (promise: Promise<unknown>) => expect(await promise.then(() => null, (e: unknown) => e)).toBeInstanceOf(InvalidInputError);
+
+  it.each(["audio", "image"] as const)("setPageSelected refuses %s documents and writes nothing", async (kind) => {
+    await nonPdf(kind);
+    const before = inbox.steps.length;
+    await refused(setPageSelected(ports, OTHER, 1, true, true));
+    expect(inbox.pages.get(`${OTHER}:1`)?.selected).toBe(false);
+    expect(inbox.steps).toHaveLength(before);
+  });
+
+  it.each(["audio", "image"] as const)("readSelected refuses %s documents and queues nothing", async (kind) => {
+    await nonPdf(kind);
+    const before = inbox.steps.length;
+    await refused(readSelected(ports, OTHER, true));
+    expect(inbox.steps).toHaveLength(before);
+  });
+});
+
 describe("setPageSelected", () => {
   it("ticks a page as Aksh's choice and, with AI on, queues its extract step", async () => {
     pages([4, 5]);

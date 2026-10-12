@@ -31,6 +31,8 @@ export const extractPage: StepHandler = async (ctx) => {
 
   const [doc, page] = await Promise.all([documents.get(documentId), documents.getPage(documentId, pageNo)]);
   if (!doc || !page) return attention(PAGE_NOT_STORED);
+  // A voice note's words are Aksh's own, never read for figures (Task 4; the same guard as digest_page).
+  if (doc.kind === "audio") return { kind: "done", result: { skipped: "audio" } };
   if (page.isScan || page.text.trim() === "") {
     // Read by the scan reader already and nothing there; or no reader; else this step was queued before the page was routed.
     if (page.ocr) return attention(OCR_NOTHING_READ);

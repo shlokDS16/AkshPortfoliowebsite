@@ -36,10 +36,10 @@ const USAGE = { promptTokens: 2500, completionTokens: 500, totalTokens: 3000 };
 
 type Setup = { documents: MemoryDocumentsRepo; proposals: MemoryProposalsRepo; usage: ReturnType<typeof createMemoryUsageRepo> };
 
-function setup(pageText = PL_TEXT, opts: { isScan?: boolean; companyId?: string | null } = {}): Setup {
+function setup(pageText = PL_TEXT, opts: { isScan?: boolean; companyId?: string | null; kind?: "pdf" | "audio" } = {}): Setup {
   const documents = createMemoryDocumentsRepo();
   documents.docs.set(DOC, {
-    id: DOC, companyId: opts.companyId === undefined ? null : opts.companyId, title: "Kaveri annual report", kind: "pdf", storagePath: `${DOC}.pdf`,
+    id: DOC, companyId: opts.companyId === undefined ? null : opts.companyId, title: "Kaveri annual report", kind: opts.kind ?? "pdf", storagePath: `${DOC}.pdf`,
     sha256: "a".repeat(64), bytes: 10, pageCount: 6, status: "active", llmPageBudget: 20, basis: "consolidated", sourceType: "Annual report",
     filedOn: null, sourceUrl: null, originalDeletedAt: null, transcriptStatus: null, createdAt: new Date(T0).toISOString(),
   });
@@ -82,6 +82,14 @@ describe("extract_page: before the call", () => {
     const s = setup();
     const out = await extractPage(ctx(s, null));
     expect(out).toEqual({ kind: "defer", notBefore: new Date(T0 + 6 * 3_600_000), reason: "ai_off" });
+  });
+
+  it("never reads a voice note for figures: done at once, no call, nothing proposed (Aksh's own words)", async () => {
+    const s = setup(PL_TEXT, { kind: "audio" });
+    const { llm, complete } = fake({ kind: "ok", data: EXTRACTION, usage: USAGE, rate: NO_RATE });
+    expect(await extractPage(ctx(s, llm))).toEqual({ kind: "done", result: { skipped: "audio" } });
+    expect(complete).not.toHaveBeenCalled();
+    expect(await s.proposals.countForDocument(DOC)).toBe(0);
   });
 
   it("sends a scan page to Needs attention with the plain sentence when scan reading is off, without calling the AI", async () => {

@@ -30,6 +30,16 @@ export const extractionSchema = z.strictObject({
 
 export type Extraction = z.infer<typeof extractionSchema>;
 
+/**
+ * Removes the fence tag from page text until none is left. One pass is not enough: `</T` + `T` + `>` loses its inner tag
+ * and the rest rebuilds a real closing tag. Every pass shortens the text, so the loop ends; the cap is only a guard.
+ */
+export function stripFence(text: string, tag: string): string {
+  let out = text;
+  for (let i = 0, max = Math.ceil(text.length / tag.length) + 1; i < max && out.includes(tag); i += 1) out = out.replaceAll(tag, "");
+  return out;
+}
+
 /** Not a delimiter a page is likely to print; userPrompt also removes it from the page text, so a page cannot close it early. */
 const PAGE_TAG = "page_text_7f3a91";
 
@@ -47,7 +57,7 @@ export const SYSTEM_PROMPT = [
 ].join("\n");
 
 export const userPrompt = (pageNo: number, text: string): string =>
-  `Page ${pageNo}:\n<${PAGE_TAG}>\n${text.replaceAll(PAGE_TAG, "")}\n</${PAGE_TAG}>`;
+  `Page ${pageNo}:\n<${PAGE_TAG}>\n${stripFence(text, PAGE_TAG)}\n</${PAGE_TAG}>`;
 
 /** The system prompt for a schema retry: the model is shown what was wrong with its last answer (ADR-004 s4.5). */
 export const retryPrompt = (issues: string): string => `${SYSTEM_PROMPT}\nYour previous answer was rejected: ${issues}. Follow the schema exactly.`;
@@ -101,7 +111,7 @@ export const CLASSIFY_SYSTEM_PROMPT = [
 ].join("\n");
 
 export const classifyUserPrompt = (pages: { pageNo: number; text: string }[]): string =>
-  pages.map((p) => `Page ${p.pageNo}:\n<${OPENING_TAG}>\n${p.text.replaceAll(OPENING_TAG, "")}\n</${OPENING_TAG}>`).join("\n\n");
+  pages.map((p) => `Page ${p.pageNo}:\n<${OPENING_TAG}>\n${stripFence(p.text, OPENING_TAG)}\n</${OPENING_TAG}>`).join("\n\n");
 
 export const classifyRetryPrompt = (issues: string): string =>
   `${CLASSIFY_SYSTEM_PROMPT}\nYour previous answer was rejected: ${issues}. Follow the schema exactly.`;
@@ -132,6 +142,6 @@ export const DIGEST_SYSTEM_PROMPT = [
 ].join("\n");
 
 export const digestUserPrompt = (pageNo: number, text: string): string =>
-  `Page ${pageNo}:\n<${DIGEST_TAG}>\n${text.replaceAll(DIGEST_TAG, "")}\n</${DIGEST_TAG}>`;
+  `Page ${pageNo}:\n<${DIGEST_TAG}>\n${stripFence(text, DIGEST_TAG)}\n</${DIGEST_TAG}>`;
 
 export const digestRetryPrompt = (issues: string): string => `${DIGEST_SYSTEM_PROMPT}\nYour previous answer was rejected: ${issues}. Follow the schema exactly.`;
