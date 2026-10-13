@@ -3,7 +3,7 @@
 -- hash-chained idea_events, the only two writers, and chain verification.
 -- Spec: docs/specs/2026-10-13-phase-3-track-record-design.md s5.1-s5.3. ADR: ADR-005 s3.1, s3.2, s3.5, s4.
 -- Never edit this file after it reaches the hosted project; add a later migration instead.
--- (Fix round 1, 2026-10-13: amended in place; it had not left the local stack.)
+-- (Fix rounds 1 and 2, 2026-10-13: amended in place; it had not left the local stack.)
 --
 -- Nothing here is public: anon gets no grant, policy, view or function. service_role holds nothing on the two
 -- tables; it reaches the chain only through verify_ledger_chain(). No API role can INSERT, UPDATE or DELETE an
@@ -175,11 +175,13 @@ $$;
 -- 4. The seal (ADR-005 s3.1, s3.2). Sequence, time and hash are taken under one advisory lock so they agree. The
 -- time never steps back against the previous seq, even if the wall clock does. The company id is sealed with the
 -- symbol, ISIN and name, so an idea re-pointed at another company shows in the replay (sealed text, version 1).
+-- A void is sealed only inside its window, measured from the sealed open event (round 2, N-2).
 create function private.seal_idea_event()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
 declare
-  v_co record;
+  v_co      record;
+  v_open_at timestamptz;
 begin
   perform pg_advisory_xact_lock(hashtext('idea_events:chain'));
   perform private.validate_idea_stance(new.kind, new.stance);
@@ -188,6 +190,15 @@ begin
   new.recorded_at := greatest(clock_timestamp(),
                               coalesce((select e.recorded_at from public.idea_events e where e.seq = new.seq - 1),
                                        '-infinity'::timestamptz));
+  -- The void deadline is enforced HERE, from the sealed times: the time of this event (taken under the chain lock) against
+  -- the sealed time of the idea's open event. Nothing about ideas.opened_at is read, so moving that column opens no window.
+  if new.kind = 'void' then
+    select e.recorded_at into v_open_at from public.idea_events e
+     where e.idea_id = new.idea_id and e.kind = 'open' order by e.seq limit 1;
+    if v_open_at is null or new.recorded_at > private.idea_void_deadline(v_open_at) then
+      perform private.ledger_fail('void_too_late');
+    end if;
+  end if;
   new.nonce := gen_random_uuid();
   select c.id, c.nse_symbol, c.isin, c.name into v_co
     from public.ideas i join public.companies c on c.id = i.company_id where i.id = new.idea_id;
@@ -319,9 +330,7 @@ begin
   elsif p_kind <> 'note' and v_idea.status <> 'open' then
     perform private.ledger_fail('not_open');
   end if;
-  if p_kind = 'void' and clock_timestamp() > private.idea_void_deadline(v_idea.opened_at) then
-    perform private.ledger_fail('void_too_late');
-  end if;
+  -- (A void's deadline is checked by the seal trigger, from the sealed open time; see private.seal_idea_event.)
   if not private.words_ok(p_body_md) then
     perform private.ledger_fail('words_required');
   end if;
@@ -357,7 +366,8 @@ $$;
 -- canonical), or a row whose columns no longer agree with the sealed text. Every comparison is fail-closed (a NULL
 -- or a missing key is a failure), and the sealed text must hold exactly the version 1 keys.
 -- Part two replays each idea's events and returns the first idea whose row (status, times, direction, horizon,
--- held, close reason, process call, company) differs from what its sealed events say.
+-- held, close reason, process call, company) differs from what its sealed events say, or whose void was sealed after
+-- the deadline counted from its sealed open time.
 -- See the header: neither part detects a rewrite that re-hashes the suffix, nor a removed tail.
 create function private.ledger_chain_check()
 returns table (ok boolean, events bigint, first_bad_seq bigint, bad_idea uuid)
@@ -417,6 +427,7 @@ begin
              count(*) filter (where (e.canonical::jsonb ->> 'company_id') is distinct from i.company_id::text) as other_company,
              max(e.recorded_at) filter (where e.kind = 'open')  as opened,
              max(e.recorded_at) filter (where e.kind = 'close') as closed,
+             max(e.recorded_at) filter (where e.kind = 'void')  as voided,
              max(e.stance ->> 'expects') filter (where e.kind = 'open') as expects,
              max(e.stance ->> 'reason')  filter (where e.kind = 'close') as reason,
              (array_agg((case e.kind when 'upsize' then true when 'close' then false
@@ -428,6 +439,7 @@ begin
         from public.idea_events e where e.idea_id = i.id) s on true
    where (s.opens = 1 and s.open_seq = s.first_seq
           and s.closes + s.voids <= 1
+          and (s.voids = 0 or s.voided <= private.idea_void_deadline(s.opened))
           and s.other_company = 0
           and i.opened_at = s.opened and i.expects = s.expects
           and i.horizon_days = s.horizon and i.held = s.held

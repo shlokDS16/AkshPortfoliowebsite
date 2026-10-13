@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(223);
+select plan(231);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -382,7 +382,15 @@ select throws_ok($$ update public.ideas set company_id = 'cccccccc-0000-4000-800
 select throws_ok($$ update public.ideas set status = 'closed', closed_at = null where id = (select v from ctx where k = 'i1') $$,
   '23514', null, 'a closed idea must carry its close time and reason (check constraint)');
 
--- void: within 24 hours only; a void idea takes nothing
+-- void: inside the window only; a void idea takes nothing. The window is measured from the SEALED time of the open event
+-- (round 2, N-2): the fixtures below move that sealed time with the owner's hand (trigger off) and put it back afterwards.
+create temp table open_times as select e.idea_id, e.recorded_at from public.idea_events e where e.kind = 'open';
+create function pg_temp.set_open(p_idea uuid, p_at timestamptz) returns void language plpgsql as $f$
+begin
+  alter table public.idea_events disable trigger idea_events_append_only;
+  update public.idea_events set recorded_at = p_at where idea_id = p_idea and kind = 'open';
+  alter table public.idea_events enable trigger idea_events_append_only;
+end $f$;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select lives_ok($$ insert into ctx select 'i3', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 180, true, 'Typo idea.') $$,
@@ -390,13 +398,35 @@ select lives_ok($$ insert into ctx select 'i3', public.open_idea('cccccccc-0000-
 select lives_ok($$ insert into ctx select 'i4', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 180, true, 'Old idea.') $$,
   'a fourth idea opens');
 reset role;
-update public.ideas set opened_at = opened_at - interval '25 hours' where id = (select v from ctx where k = 'i4');
+insert into open_times select e.idea_id, e.recorded_at from public.idea_events e
+ where e.kind = 'open' and e.idea_id in (select v from ctx where k in ('i3', 'i4'));
+select pg_temp.set_open((select v from ctx where k = 'i4'),
+  (select o.recorded_at - interval '25 hours' from open_times o where o.idea_id = (select v from ctx where k = 'i4')));
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i4'), 'void', 'Too late.') $$,
   'P0001', 'ledger:void_too_late', 'void after 24 hours fails');
 select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i4'), 'note', 'Still an open idea.') $$,
   'an idea past 24 hours still takes notes');
+reset role;
+-- N-2: moving the projection column opens no window. The deadline never reads ideas.opened_at.
+update public.ideas set opened_at = clock_timestamp() where id = (select v from ctx where k = 'i4');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i4'), 'void', 'Too late, with opened_at moved.') $$,
+  'P0001', 'ledger:void_too_late', 'N-2: a void is still refused after ideas.opened_at was moved to now (the sealed open decides)');
+reset role;
+select throws_ok($$ insert into public.idea_events (idea_id, kind, stance, body_md)
+    values ((select v from ctx where k = 'i4'), 'void', '{}', 'Written straight into the table.') $$,
+  'P0001', 'ledger:void_too_late', 'N-2: the seal trigger itself refuses a late void, whoever inserts it');
+select throws_ok($$ insert into public.idea_events (idea_id, kind, stance, body_md)
+    values (gen_random_uuid(), 'void', '{}', 'A void for an idea with no sealed open event.') $$,
+  'P0001', 'ledger:void_too_late', 'a void with no sealed open event to measure from is refused (fail closed)');
+-- put the fixture back: the sealed open event and the projection agree again
+select pg_temp.set_open((select v from ctx where k = 'i4'), (select o.recorded_at from open_times o where o.idea_id = (select v from ctx where k = 'i4')));
+update public.ideas i set opened_at = (select o.recorded_at from open_times o where o.idea_id = i.id) where i.id = (select v from ctx where k = 'i4');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i3'), 'void', 'Wrong company.') $$,
   'void within 24 hours passes');
 select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i3'), 'note', 'x') $$,
@@ -413,11 +443,8 @@ select is((select count(*) from public.idea_events e where e.idea_id = (select v
   'a void idea stays in the chain (open and void events)');
 select throws_ok($$ update public.ideas set status = 'open' where id = (select v from ctx where k = 'i3') $$, 'P0001', null,
   'a void idea cannot be re-opened');
--- the "too late" fixture moved opened_at as the owner; the replay reports it, and then it is put back
-select is((select count(*) from public.verify_ledger_chain() where not ok and bad_idea = (select v from ctx where k = 'i4')), 1::bigint,
-  'the replay reports the idea whose opened_at was moved away from its sealed open event');
-update public.ideas i set opened_at = (select e.recorded_at from public.idea_events e where e.idea_id = i.id and e.kind = 'open')
- where i.id = (select v from ctx where k = 'i4');
+select is((select count(*) from public.verify_ledger_chain() where ok), 1::bigint,
+  'with the fixture put back, the sealed open event and the ideas row agree and the chain verifies');
 
 -- Void window (spec D5, amended): until the EARLIER of 24 hours and the next 15:00 IST after opening.
 select is(private.idea_void_deadline('2026-03-02 14:59:59+05:30'), '2026-03-02 15:00:00+05:30'::timestamptz,
@@ -432,6 +459,10 @@ select is(private.idea_void_deadline('2026-03-02 09:30:00+00'), '2026-03-03 15:0
   'the zone of the input does not matter: 09:30Z is 15:00 IST sharp, so the window runs to the next day');
 select is(private.idea_void_deadline('2026-03-02 23:50:00+05:30'), '2026-03-03 15:00:00+05:30'::timestamptz,
   'opened late evening IST: the window closes at 15:00 IST the next day');
+-- Entry-close cut-off, independent of the hour the suite runs: b is the latest 15:00 IST that is at least a second old.
+-- The sealed open of i5 is dated one second before it (14:59:59 IST), so its window ended at b; the void below is sealed
+-- after b (always) and less than 24 hours after the open (always, except within two seconds of 15:00 IST), which is exactly
+-- what the old 24-hour rule would have allowed.
 create temp table cutoff as
   select case when b0 > now() - interval '1 second' then b0 - interval '1 day' else b0 end as b
     from (select (date_trunc('day', (now() - interval '1 second') at time zone 'Asia/Kolkata') + interval '15 hours')
@@ -441,15 +472,15 @@ select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-0000000
 select lives_ok($$ insert into ctx select 'i5', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 90, true, 'Opened, then the close came.') $$,
   'a fifth idea opens');
 reset role;
--- opened five hours before the last 15:00 IST: the entry close has formed, even though 24 hours have not passed
-update public.ideas set opened_at = (select b - interval '5 hours' from cutoff) where id = (select v from ctx where k = 'i5');
+insert into open_times select e.idea_id, e.recorded_at from public.idea_events e
+ where e.kind = 'open' and e.idea_id = (select v from ctx where k = 'i5');
+select pg_temp.set_open((select v from ctx where k = 'i5'), (select b - interval '1 second' from cutoff));
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i5'), 'void', 'Too late for the entry close.') $$,
   'P0001', 'ledger:void_too_late', 'void is refused once the 15:00 IST entry close has passed, inside the 24 hours');
 reset role;
-update public.ideas i set opened_at = (select e.recorded_at from public.idea_events e where e.idea_id = i.id and e.kind = 'open')
- where i.id = (select v from ctx where k = 'i5');
+select pg_temp.set_open((select v from ctx where k = 'i5'), (select o.recorded_at from open_times o where o.idea_id = (select v from ctx where k = 'i5')));
 
 -- One direction at a time per company.
 set local role authenticated;
@@ -725,6 +756,33 @@ select throws_ok($$ update public.idea_events set body_md = 'edited' where seq =
   'the append-only trigger works again');
 select is((select count(*) from public.verify_ledger_chain() where ok and events = (select count(*) from public.idea_events)), 1::bigint,
   'the final chain verifies end to end');
+
+-- N-2, the replay: a void sealed after the deadline counted from the sealed open time is reported even when every hash agrees.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select lives_ok($$ insert into ctx select 'i6', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 90, true, 'Typo, to be withdrawn at once.') $$,
+  'a sixth idea opens');
+select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i6'), 'void', 'Withdrawn straight away.') $$,
+  'and is withdrawn inside its window');
+reset role;
+select is((select count(*) from public.verify_ledger_chain() where ok), 1::bigint, 'a void sealed inside its window verifies');
+create function pg_temp.shift_last(p_by interval) returns void language plpgsql as $f$
+declare v_seq bigint := (select max(x.seq) from public.idea_events x);
+begin
+  update public.idea_events e
+     set recorded_at = e.recorded_at + p_by,
+         canonical = replace(e.canonical, e.canonical::jsonb ->> 'at',
+                             to_char((e.recorded_at + p_by) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))
+   where e.seq = v_seq;
+  perform pg_temp.rehash_from(v_seq);
+end $f$;
+alter table public.idea_events disable trigger user;
+select pg_temp.shift_last(interval '3 days');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i6'),
+  'N-2: a void dated three days after its sealed open (sealed text and every hash re-agreeing) is reported by the replay');
+select pg_temp.shift_last(interval '-3 days');
+alter table public.idea_events enable trigger user;
+select is((select count(*) from public.verify_ledger_chain() where ok), 1::bigint, 'put back: the chain verifies again');
 
 -- The seal never lets a time step back: even if the previous event is dated ahead of the clock (a clock correction).
 alter table public.idea_events disable trigger user;

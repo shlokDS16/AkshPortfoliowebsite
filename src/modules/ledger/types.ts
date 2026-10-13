@@ -10,7 +10,7 @@ export type ProcessCall = "sound" | "flawed";
 export type MistakeTag = "thesis" | "valuation" | "timing" | "sizing" | "process" | "behaviour" | "luck" | "none";
 
 /** Flags the scorer can raise (spec s6 and s18). Anything else the database sends is treated as "needs a check". */
-export type ScoreFlag = "entry_pending" | "exit_pending" | "hand_price" | "jump" | "isin_changed" | "implausible" | "stale";
+export type ScoreFlag = "entry_pending" | "exit_pending" | "hand_price" | "attested" | "jump" | "isin_changed" | "implausible" | "stale";
 
 /** One idea: identity plus the state the events produced. Dates are ISO timestamps, not values Aksh typed. */
 export type Idea = {
@@ -98,7 +98,7 @@ export type Summary = {
   waiting: string[];
   /** Closed, exit not fixed yet: counted in `all` only. */
   exitPending: string[];
-  /** Counted, but the score rests on a close that is not the official file's. */
+  /** Counted, but the score rests on a close that is not the official file's, or on a "no action" note Aksh wrote (hand_price or attested). */
   handEntered: string[];
   /** Counted, but the latest close is three or more weekdays old. */
   stale: string[];

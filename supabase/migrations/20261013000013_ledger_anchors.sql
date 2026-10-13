@@ -3,6 +3,7 @@
 -- every sealed day with the events as they stand now.
 -- Spec: docs/specs/2026-10-13-phase-3-track-record-design.md s5.5, s9, s17 (the s12 correction). ADR-005 s3.3.
 -- Never edit this file after it reaches the hosted project; add a later migration instead.
+-- (Fix round 2, 2026-10-13: amended in place; it had not left the local stack.)
 --
 -- WHY THE COMPARISON. The chain check (0010) proves the events are consistent with themselves. An owner who rewrites
 -- an old event and re-hashes every event after it, or who drops the last events of a day, still passes it. The anchor
@@ -10,6 +11,18 @@
 -- every sealed day from the events now and reports the FIRST day that differs. seal_ledger_days() runs it before it
 -- seals anything and refuses to go on over a mismatch. The anchors themselves are only as good as the place that holds
 -- a second copy: the public gist (Task 8/9) is what makes a rewritten anchor row detectable too.
+--
+-- THE CHEAPEST RESIDUAL (known, tested as KNOWN LIMIT in 0013_ledger_anchors.test.sql, spec s20). An owner needs no
+-- forgery at all: with the guards switched off, delete the NEWEST anchor rows (or all of them: with no anchor the
+-- comparison answers ok over 0 days), rewrite the events and re-hash them. The next seal writes well-formed rows from the
+-- altered events. While the public gist is off (the default, spec D8) nothing outside this database disagrees, so in that
+-- state the comparison proves only "matches the days sealed in this same database". Only a published copy of the
+-- fingerprints that this database is compared with, position by position (Task 9), closes it.
+--
+-- THE GUARDS ARE ALWAYS-ON TRIGGERS. ledger_anchors_guard and ledger_anchors_no_truncate fire in every replication role
+-- (ENABLE ALWAYS), so `session_replication_role = replica`, the setting a restore uses, does not switch them off. The
+-- owner can still act deliberately: ALTER TABLE ... DISABLE TRIGGER <name> by name. The restore runbook says when and how,
+-- and how to put them back and verify (docs/runbooks/backup-and-restore.md, "Restoring the ledger").
 --
 -- WHAT A LINE HOLDS (it is what leaves the database, once the owner switches the gist on): v, date, count, first_seq,
 -- last_seq, hashes (the day's event hashes in seq order) and head. A hash commits to the sealed text and to everything
@@ -69,10 +82,14 @@ create trigger ledger_anchors_guard
 create trigger ledger_anchors_no_truncate
   before truncate on public.ledger_anchors
   for each statement execute function private.guard_ledger_anchor();
+alter table public.ledger_anchors enable always trigger ledger_anchors_guard;
+alter table public.ledger_anchors enable always trigger ledger_anchors_no_truncate;
 
 -- 3. The line, built by hand so the text is compact and the same on every server (json_build_object spaces its output).
--- Hashes are hex, so quoting them directly is safe.
-create function private.anchor_line(p_date date, p_count integer, p_first bigint, p_last bigint, p_hashes text[], p_head text)
+-- Hashes are hex, so quoting them directly is safe. VERSIONING: this is the builder for lines with "v":1 and it is NEVER
+-- replaced (a stored v1 line must keep rebuilding to the same text). A format v2 adds private.anchor_line_v2 and one more
+-- branch in private.ledger_anchor_check, which picks the builder by line::jsonb ->> 'v'; an unknown version is a mismatch.
+create function private.anchor_line_v1(p_date date, p_count integer, p_first bigint, p_last bigint, p_hashes text[], p_head text)
 returns text language sql immutable set search_path = ''
 as $$
   select format('{"v":1,"date":"%s","count":%s,"first_seq":%s,"last_seq":%s,"hashes":[%s],"head":"%s"}',
@@ -130,7 +147,9 @@ begin
       when r.event_count is distinct from v_count then 'count'
       when r.first_seq is distinct from r.f or r.last_seq is distinct from r.l then 'seq'
       when r.head_hash is distinct from v_head then 'head'
-      when r.line is distinct from private.anchor_line(r.anchor_date, v_count, r.f, r.l, r.hashes, v_head) then 'line'
+      when r.line is distinct from (case r.line::jsonb ->> 'v'
+                                      when '1' then private.anchor_line_v1(r.anchor_date, v_count, r.f, r.l, r.hashes, v_head)
+                                    end) then 'line'
     end;
     if v_reason is not null then
       return query select false, v_total, r.anchor_date, v_reason;
@@ -165,9 +184,10 @@ end;
 $$;
 
 -- 5. Sealing. p_today is the IST date that counts as "today": days before it are closed, it and later are not. The
--- public door passes the real one; the tests pass a fixed one. The advisory lock is the seal trigger's own, so an event
--- being written at midnight is either committed before the seal reads or dated after the day it seals; the IST date is
--- taken after the lock for the same reason.
+-- public door passes the real one; the tests pass a fixed one, but never a later one than the real one: the date is
+-- clamped to the real IST date, so no caller (an owner's mistake, a later migration) can seal the day in progress. The
+-- advisory lock is the seal trigger's own, so an event being written at midnight is either committed before the seal reads
+-- or dated after the day it seals; the IST date is taken after the lock for the same reason.
 create function private.seal_ledger_days_to(p_today date)
 returns integer language plpgsql volatile security definer set search_path = ''
 as $$
@@ -179,8 +199,10 @@ declare
   v_head   text;
   v_n      integer := 0;
   r        record;
+  v_today  date;
 begin
   perform pg_advisory_xact_lock(hashtext('idea_events:chain'));
+  v_today := least(p_today, (clock_timestamp() at time zone 'Asia/Kolkata')::date);
 
   select c.ok, c.first_bad_seq, c.bad_idea into v_chain from private.ledger_chain_check() c;
   if v_chain.ok is not true then
@@ -204,13 +226,13 @@ begin
     end if;
     v_head := repeat('0', 64);
   end if;
-  if v_start >= p_today then
+  if v_start >= v_today then
     return 0;
   end if;
 
   for r in
     select v_start + s.i as d, coalesce(g.n, 0) as n, g.f, g.l, g.hashes
-      from generate_series(0, p_today - 1 - v_start) s(i)
+      from generate_series(0, v_today - 1 - v_start) s(i)
       left join (select (e.recorded_at at time zone 'Asia/Kolkata')::date as d, count(*)::integer as n,
                         min(e.seq) as f, max(e.seq) as l, array_agg(e.hash order by e.seq) as hashes
                    from public.idea_events e
@@ -220,7 +242,7 @@ begin
   loop
     v_head := coalesce(r.hashes[cardinality(r.hashes)], v_head);
     insert into public.ledger_anchors (anchor_date, event_count, first_seq, last_seq, head_hash, line)
-    values (r.d, r.n, r.f, r.l, v_head, private.anchor_line(r.d, r.n, r.f, r.l, r.hashes, v_head));
+    values (r.d, r.n, r.f, r.l, v_head, private.anchor_line_v1(r.d, r.n, r.f, r.l, r.hashes, v_head));
     v_n := v_n + 1;
   end loop;
   return v_n;
@@ -248,7 +270,7 @@ grant select on public.ledger_anchors to authenticated, service_role;
 grant update (published_at, anchor_version) on public.ledger_anchors to service_role;
 
 revoke execute on function private.guard_ledger_anchor()                                          from public, anon, authenticated, service_role;
-revoke execute on function private.anchor_line(date, integer, bigint, bigint, text[], text)       from public, anon, authenticated, service_role;
+revoke execute on function private.anchor_line_v1(date, integer, bigint, bigint, text[], text)    from public, anon, authenticated, service_role;
 revoke execute on function private.ledger_anchor_check()                                          from public, anon, authenticated, service_role;
 revoke execute on function private.seal_ledger_days_to(date)                                      from public, anon, authenticated, service_role;
 revoke execute on function public.verify_ledger_anchors()                                         from public, anon, authenticated, service_role;

@@ -25,4 +25,4 @@ export const HORIZON_CHOICES = [
 export const MIN_CLOSED_FOR_PERCENT = 5;
 
 /** Flags that need no action from Aksh. Any other flag, including one this build has not heard of, means "needs a check". */
-export const BENIGN_FLAGS: readonly ScoreFlag[] = ["entry_pending", "exit_pending", "hand_price", "stale"];
+export const BENIGN_FLAGS: readonly ScoreFlag[] = ["entry_pending", "exit_pending", "hand_price", "attested", "stale"];

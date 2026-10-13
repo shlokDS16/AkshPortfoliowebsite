@@ -27,7 +27,7 @@ function pastHorizon(idea: Idea, score: IdeaScore | undefined, today: string): b
  * - an idea with no score, or whose entry close is not in yet, is `waiting` and in no figure;
  * - an idea whose score is flagged for a check is `needsCheck` and in no figure;
  * - a closed idea whose exit is not fixed is `exitPending` and counts in `all` (marked to the latest close), not in `closed`;
- * - hand-entered and stale marks are counted and named.
+ * - hand-entered marks (flags hand_price and attested, treated alike) and stale marks are counted and named.
  * `changes` is the restatement log: every idea with an entry in it is listed in `restated`.
  */
 export function summarise(ideas: readonly Idea[], scores: readonly IdeaScore[], today: string, changes: readonly ScoreChange[] = []): Summary {
@@ -75,7 +75,7 @@ export function summarise(ideas: readonly Idea[], scores: readonly IdeaScore[], 
       out.waiting.push(idea.id);
       continue;
     }
-    if (score.flags.includes("hand_price")) out.handEntered.push(idea.id);
+    if (score.flags.includes("hand_price") || score.flags.includes("attested")) out.handEntered.push(idea.id);
     if (score.flags.includes("stale")) out.stale.push(idea.id);
 
     out.all.total += 1;

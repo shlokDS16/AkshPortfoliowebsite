@@ -6,7 +6,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(310);
+select plan(338);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -18,10 +18,12 @@ select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-0000000
 
 -- Fixture helpers (the owner only).
 create temp table ids (sym text primary key, id uuid);
+-- Every fixture company has a real-shaped ISIN (twelve capitals or digits), because a typed ISIN of any other shape is dropped.
+create function pg_temp.isin(p_sym text) returns text language sql as $$ select 'INE' || upper(substr(md5(p_sym), 1, 9)) $$;
 create function pg_temp.mk(p_sym text, p_exp text, p_at text default null) returns uuid language plpgsql as $$
 declare v_c uuid := gen_random_uuid(); v_i uuid;
 begin
-  insert into public.companies (id, slug, name, nse_symbol, isin) values (v_c, lower(p_sym), p_sym || ' Ltd', p_sym, 'INE000' || p_sym);
+  insert into public.companies (id, slug, name, nse_symbol, isin) values (v_c, lower(p_sym), p_sym || ' Ltd', p_sym, pg_temp.isin(p_sym));
   v_i := public.open_idea(v_c, p_exp, 365, true, 'Because ' || p_sym);
   if p_at is not null then
     perform pg_temp.move(v_i, 'open', (p_at::timestamp at time zone 'Asia/Kolkata'));
@@ -285,6 +287,16 @@ select throws_ok($$ delete from public.corporate_actions $$, 'P0001', 'corporate
   'corporate_actions cannot be deleted from, not even by the owner');
 select throws_ok($$ truncate public.corporate_actions $$, 'P0001', 'corporate_actions is append-only: TRUNCATE is not allowed',
   'corporate_actions cannot be truncated, not even by the owner');
+-- Round 2, N-8: the note is bounded (500 characters) because no role can ever delete a row of this table.
+select lives_ok($$ insert into public.corporate_actions (company_id, ex_date, factor, kind, note) values
+    ('cccccccc-0000-4000-8000-000000000001', '2026-01-20', 2, 'other', repeat('n', 500)) $$, 'a note of exactly 500 characters is accepted');
+select throws_ok($$ insert into public.corporate_actions (company_id, ex_date, factor, kind, note) values
+    ('cccccccc-0000-4000-8000-000000000001', '2026-01-21', 2, 'other', repeat('n', 501)) $$, '23514', null, 'a note of 501 characters is refused');
+-- Round 2, N-9: the duplicate check and the insert run under one per-company lock, so a double submit cannot make two live
+-- actions. (Two sessions cannot be opened from pgTAP; the lock is checked in the function body, and a two-session race was run by hand: see the fix-round-2 report.)
+select ok((select p.prosrc ~ 'pg_advisory_xact_lock\(hashtext\(''corporate_actions:'' \|\| new\.company_id::text\)\)'
+             from pg_proc p where p.oid = 'private.guard_corporate_action()'::regprocedure),
+  'N-9: the corporate-action guard takes a per-company advisory lock before it checks for a live duplicate');
 delete from public.prices_daily;
 
 -- 3. Fixtures: 34 ideas, each on its own company. Times are Asia/Kolkata and set by the owner; the chain is then re-sealed.
@@ -385,12 +397,12 @@ select is(pg_temp.sc('SIERRA'), null, 'the row of an idea that became void is re
 
 -- 5. Stage B: 3 to 6 March.
 select public.store_fetched_closes('2026-03-03', jsonb_build_array(pg_temp.r('ALPHA', 110), pg_temp.r('INDIA', 1100), pg_temp.r('JULIET', 520),
-  pg_temp.r('KILO', 420), pg_temp.r('LIMA', 90), pg_temp.r('MIKE', 410), pg_temp.r('NOVEM', 51, 'INE000NOVEM'), pg_temp.r('TANGO', 70),
+  pg_temp.r('KILO', 420), pg_temp.r('LIMA', 90), pg_temp.r('MIKE', 410), pg_temp.r('NOVEM', 51, pg_temp.isin('NOVEM')), pg_temp.r('TANGO', 70),
   pg_temp.r('UNIF', 69.99)), 20200);
 select public.store_fetched_closes('2026-03-04', jsonb_build_array(pg_temp.r('ALPHA', 105), pg_temp.r('INDIA', 230), pg_temp.r('JULIET', 262),
-  pg_temp.r('KILO', 430), pg_temp.r('LIMA', 95), pg_temp.r('MIKE', 420), pg_temp.r('NOVEM', 52, 'INE000NOVEM'), pg_temp.r('XRAY', 50)), 20100);
+  pg_temp.r('KILO', 430), pg_temp.r('LIMA', 95), pg_temp.r('MIKE', 420), pg_temp.r('NOVEM', 52, pg_temp.isin('NOVEM')), pg_temp.r('XRAY', 50)), 20100);
 select public.store_fetched_closes('2026-03-05', jsonb_build_array(pg_temp.r('ALPHA', 108), pg_temp.r('INDIA', 240), pg_temp.r('JULIET', 270),
-  pg_temp.r('KILO', 225), pg_temp.r('LIMA', 110), pg_temp.r('MIKE', 430), pg_temp.r('NOVEM', 53, 'INE000NOVEM'), pg_temp.r('XRAY', 55),
+  pg_temp.r('KILO', 225), pg_temp.r('LIMA', 110), pg_temp.r('MIKE', 430), pg_temp.r('NOVEM', 53, pg_temp.isin('NOVEM')), pg_temp.r('XRAY', 55),
   pg_temp.r('CHARLIE', 108), pg_temp.r('YANKEE', 120)), 20400);
 select public.store_fetched_closes('2026-03-06', jsonb_build_array(pg_temp.r('ALPHA', 120), pg_temp.r('GAMMA', 180), pg_temp.r('LIMA', 50),
   pg_temp.r('MIKE', 440), pg_temp.r('NOVEM', 54, 'INE222B01022'), pg_temp.r('TANGO', 75), pg_temp.r('UNIF', 75), pg_temp.r('FOXA', 300),
@@ -485,22 +497,25 @@ select is(pg_temp.sc('WOLF'), '2026-03-02|100|20000|2026-03-06|65|20500|1|-0.35|
 insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
   select c.id, '2026-03-05', 1, 'none', 'checked: the fall is real' from public.companies c where c.nse_symbol = 'WOLF';
 select private.score_ideas_now('2026-03-06');
-select is(pg_temp.sc('WOLF'), '2026-03-02|100|20000|2026-03-06|65|20500|1|-0.35|0.025|-0.375|4|f|{}',
-  'with a "no action" row the 35% fall is scored at -35% and is no longer flagged');
+select is(pg_temp.sc('WOLF'), '2026-03-02|100|20000|2026-03-06|65|20500|1|-0.35|0.025|-0.375|4|f|{attested}',
+  'N-1: with a "no action" row the 35% fall is scored at -35%, jump is cleared, and the score says a hand attestation did it');
 -- NOVEM: the ISIN changes between 5 and 6 March. An action on 5 March is outside (5 Mar, 6 Mar]; one on 6 March is inside.
 insert into public.corporate_actions (company_id, ex_date, factor, kind)
   select c.id, '2026-03-05', 1, 'none' from public.companies c where c.nse_symbol = 'NOVEM';
 select private.score_ideas_now('2026-03-06');
-select is(pg_temp.sc('NOVEM'), '2026-03-02|50|20000|2026-03-06|54|20500|1|0.08|0.025|0.055|4|f|{isin_changed}', 'an action dated before the change does not clear isin_changed');
+select is(pg_temp.sc('NOVEM'), '2026-03-02|50|20000|2026-03-06|54|20500|1|0.08|0.025|0.055|4|f|{attested,isin_changed}',
+  'an action dated before the change does not clear isin_changed (and, being a "no action" row, it marks the score attested)');
 insert into public.corporate_actions (company_id, ex_date, factor, kind)
   select c.id, '2026-03-06', 1, 'none' from public.companies c where c.nse_symbol = 'NOVEM';
 select private.score_ideas_now('2026-03-06');
-select is(pg_temp.sc('NOVEM'), '2026-03-02|50|20000|2026-03-06|54|20500|1|0.08|0.025|0.055|4|f|{}', 'an action dated in the step where the ISIN changed clears it');
+select is(pg_temp.sc('NOVEM'), '2026-03-02|50|20000|2026-03-06|54|20500|1|0.08|0.025|0.055|4|f|{attested}',
+  'an action dated in the step where the ISIN changed clears it, and the score is marked attested');
 -- ZEBRA: the closes carry another symbol from the entry row on; an action dated in (open day - 1, entry day] acknowledges it.
 insert into public.corporate_actions (company_id, ex_date, factor, kind)
   select c.id, '2026-03-02', 1, 'none' from public.companies c where c.nse_symbol = 'ZEBRA';
 select private.score_ideas_now('2026-03-06');
-select is(pg_temp.sc('ZEBRA'), '2026-03-02|100|20000|2026-03-06|110|20500|1|0.1|0.025|0.075|4|f|{}', 'a recorded re-point clears the flag');
+select is(pg_temp.sc('ZEBRA'), '2026-03-02|100|20000|2026-03-06|110|20500|1|0.1|0.025|0.075|4|f|{attested}',
+  'N-1: a recorded re-point clears isin_changed but the score is marked attested (scenario A of the re-review: nothing is cleared silently)');
 -- I-6: three large factors (1000 each: factor 10^9) cannot fail the run. KAPPA stores no figure; every other idea is still scored.
 insert into public.corporate_actions (company_id, ex_date, factor, kind)
   select c.id, v.d::date, v.f, v.k from public.companies c join (values
@@ -535,7 +550,8 @@ select lives_ok($$ insert into public.corporate_actions (company_id, ex_date, fa
   'the admin corrects it with a superseding row');
 reset role;
 select private.score_ideas_now('2026-03-06');
-select is(pg_temp.sc('CHARLIE'), '2026-03-02|100|20000|2026-03-05|108|20400|1|0.08|0.02|0.06|3|t|{}', 'the superseded action no longer counts');
+select is(pg_temp.sc('CHARLIE'), '2026-03-02|100|20000|2026-03-05|108|20400|1|0.08|0.02|0.06|3|t|{attested}',
+  'the superseded action no longer counts (the correcting "no action" row marks the score attested)');
 select is(pg_temp.chg('CHARLIE'), 2::bigint, 'the correction is logged too');
 select is((select count(*) from public.corporate_actions a join public.companies c on c.id = a.company_id where c.nse_symbol = 'CHARLIE'), 2::bigint,
   'both rows of the correction are kept');
@@ -585,6 +601,70 @@ select is((select count(*) from public.idea_score_changes), (select n from chg0)
 select throws_ok($$ update public.idea_score_changes set was = '{}' $$, 'P0001', 'idea_score_changes is append-only: UPDATE is not allowed', 'the restatement log cannot be updated');
 select throws_ok($$ delete from public.idea_score_changes $$, 'P0001', 'idea_score_changes is append-only: DELETE is not allowed', 'the restatement log cannot be deleted from');
 select throws_ok($$ truncate public.idea_score_changes $$, 'P0001', 'idea_score_changes is append-only: TRUNCATE is not allowed', 'the restatement log cannot be truncated');
+
+-- 6e. Round 2, N-1: a hand-typed "no action" row never clears jump or isin_changed silently. Any live `none` dated in
+-- [day of opening, mark date] marks the score `attested`, which is treated like hand_price. (No score below is final and no
+-- entry moves, so none of this writes a restatement row.)
+-- Scenario B of the re-review: a made-up factor 1.5 and a `none` on the same date. FOXT is 100 -> 142.85 (+42.85%) over
+-- 2 to 6 March; with the factor the step is 142.85 * 1.5 / 100 = 2.14275 (+114.275%), excess 1.14275 - 0.025 = 1.11775.
+select is(pg_temp.sc('FOXT'), '2026-03-02|100|20000|2026-03-06|142.85|20500|1|0.4285|0.025|0.4035|4|f|{}', 'FOXT before any action');
+insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
+  select c.id, '2026-03-04', 1.5, 'other', 'made up' from public.companies c where c.nse_symbol = 'FOXT';
+select private.score_ideas_now('2026-03-06');
+select is(pg_temp.sc('FOXT'), '2026-03-02|100|20000|2026-03-06|142.85|20500|1.5|1.14275|0.025|1.11775|4|f|{jump}', 'the made-up factor moves the return and is flagged jump');
+insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
+  select c.id, '2026-03-04', 1, 'none', 'checked' from public.companies c where c.nse_symbol = 'FOXT';
+select private.score_ideas_now('2026-03-06');
+select is(pg_temp.sc('FOXT'), '2026-03-02|100|20000|2026-03-06|142.85|20500|1.5|1.14275|0.025|1.11775|4|f|{attested}',
+  'N-1: a factor plus a `none` on the same date multiplies the return, jump is cleared, and the score is marked attested (never unflagged)');
+-- Boundaries of "dated in the span". TANGO opened 2 March 10:00 and is marked 6 March: a `none` on 1 March (before the opening day)
+-- or on 9 March (after the mark) is outside; one on the mark date is inside.
+insert into public.corporate_actions (company_id, ex_date, factor, kind)
+  select c.id, v.d::date, 1, 'none' from public.companies c join (values ('2026-03-01'), ('2026-03-09')) v(d) on c.nse_symbol = 'TANGO';
+select private.score_ideas_now('2026-03-06');
+select is(pg_temp.sc('TANGO'), '2026-03-02|100|20000|2026-03-06|75|20500|1|-0.25|0.025|-0.275|4|f|{}',
+  'a `none` dated before the opening day or after the mark date is not part of the score: no attested flag');
+insert into public.corporate_actions (company_id, ex_date, factor, kind)
+  select c.id, '2026-03-06', 1, 'none' from public.companies c where c.nse_symbol = 'TANGO';
+select private.score_ideas_now('2026-03-06');
+select is(pg_temp.sc('TANGO'), '2026-03-02|100|20000|2026-03-06|75|20500|1|-0.25|0.025|-0.275|4|f|{attested}', 'a `none` dated on the mark date is inside');
+-- The opening day itself is inside (UNIF opened 2 March; its jump is in the step (2 Mar, 3 Mar], which a `none` dated 2 March does not clear).
+insert into public.corporate_actions (company_id, ex_date, factor, kind)
+  select c.id, '2026-03-02', 1, 'none' from public.companies c where c.nse_symbol = 'UNIF';
+select private.score_ideas_now('2026-03-06');
+select is(pg_temp.sc('UNIF'), '2026-03-02|100|20000|2026-03-06|75|20500|1|-0.25|0.025|-0.275|4|f|{attested,jump}',
+  'a `none` dated on the opening day is inside the span (attested), and does not clear a jump in a later step');
+
+-- N-3: the hand_price flag looks at every close inside the scored span, not only the entry and the mark. GAMMA is
+-- 200 -> 180 with fetched closes on 2 and 6 March; a typed close for 4 March lies strictly between them.
+select is(pg_temp.sc('GAMMA'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{}', 'GAMMA before the typed close');
+select is(public.enter_closes('2026-03-04', jsonb_build_array(pg_temp.r('GAMMA', 150)), null), 1::integer, 'a close is typed for a day between the entry and the mark');
+select private.score_ideas_now('2026-03-06');
+select is(pg_temp.sc('GAMMA'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{hand_price}',
+  'N-3: the entry and the mark are official, yet a typed close inside the span marks the score hand_price');
+-- N-3: only open trading days are steps. JPCO: 100 on Mon 6 April, a typed 75 on Tue 7 April which is no market day, 55 on Wed 8 April.
+-- Read as three steps the fall looks like -25% and -26.7% (no jump); read as the two open days it is -45%.
+insert into public.companies (id, slug, name, nse_symbol, isin) values ('cccccccc-0000-4000-8000-0000000000a1', 'jpco', 'JPCO Ltd', 'JPCO', 'INE0JPCO0001');
+insert into public.market_days (trade_date, status, source) values ('2026-04-06', 'open', 'nse_fetch'), ('2026-04-08', 'open', 'nse_fetch');
+insert into public.prices_daily (company_id, trade_date, close, source, symbol, series, isin) values
+  ('cccccccc-0000-4000-8000-0000000000a1', '2026-04-06', 100, 'nse_fetch', 'JPCO', 'EQ', 'INE0JPCO0001'),
+  ('cccccccc-0000-4000-8000-0000000000a1', '2026-04-07', 75, 'manual', 'JPCO', 'EQ', 'INE0JPCO0001'),
+  ('cccccccc-0000-4000-8000-0000000000a1', '2026-04-08', 55, 'nse_fetch', 'JPCO', 'EQ', 'INE0JPCO0001');
+select is(private.has_jump('cccccccc-0000-4000-8000-0000000000a1', '2026-04-06', '2026-04-08'), true,
+  'N-3: a typed close on a day that is not an open market day cannot split a 45% fall into two smaller steps');
+insert into public.market_days (trade_date, status, source) values ('2026-04-07', 'open', 'nse_fetch');
+select is(private.has_jump('cccccccc-0000-4000-8000-0000000000a1', '2026-04-06', '2026-04-08'), false,
+  'and when 7 April is an open day the same rows are two steps under the threshold (so the open-day join is what decides)');
+-- N-3: a typed close that carries another symbol or ISIN on a non-open day is not read by the identity scan either.
+delete from public.market_days where trade_date = '2026-04-07';
+update public.prices_daily set symbol = 'OTHER', isin = 'INE0OTHER001' where company_id = 'cccccccc-0000-4000-8000-0000000000a1' and trade_date = '2026-04-07';
+select is(private.has_identity_break('cccccccc-0000-4000-8000-0000000000a1', '2026-04-06', '2026-04-08', 'JPCO', 'INE0JPCO0001', '2026-04-06'), false,
+  'N-3: a row on a day that is not an open market day is not read by the identity scan');
+insert into public.market_days (trade_date, status, source) values ('2026-04-07', 'open', 'nse_fetch');
+select is(private.has_identity_break('cccccccc-0000-4000-8000-0000000000a1', '2026-04-06', '2026-04-08', 'JPCO', 'INE0JPCO0001', '2026-04-06'), true,
+  'and on an open day it is');
+delete from public.market_days where trade_date in ('2026-04-06', '2026-04-07', '2026-04-08');
+delete from public.prices_daily where company_id = 'cccccccc-0000-4000-8000-0000000000a1';
 
 -- 7. Stage C1: Mon 9 to Thu 12 March, with Wednesday 11 shut although both closes exist.
 select public.store_fetched_closes('2026-03-09', jsonb_build_array(pg_temp.r('FOXA', 330), pg_temp.r('FOXB', 220), pg_temp.r('DELTA', 320),
@@ -644,6 +724,19 @@ select is(private.score_ideas_now('2026-03-13'), pg_temp.nv(), 'stage C3 scoring
 select is(pg_temp.sc('QUEBEC'), '2026-03-13|80|22000|2026-03-13|80|22000|1|0|0|0|0|f|{}', 'the entry arrives with the index');
 -- HOTEL: 756 / 720 - 1 = 0.05; Nifty 22000 / 21850 - 1 = 0.0068649...; excess 0.0431350...
 select is(pg_temp.sc('HOTEL'), '2026-03-12|720|21850|2026-03-13|756|22000|1|0.05|0.006865|0.043135|1|f|{}', 'HOTEL, Nifty 50 over the same two dates');
+-- N-4: a small, legitimate-looking factor that moves the step the wrong way is flagged (the test is deliberately strict) until a
+-- `none` sits beside it; the `none` then marks the score attested. HOTEL 720 -> 756 (+5%) on 13 March with a factor 1.02 ex that day:
+-- 756 * 1.02 / 720 - 1 = 0.071 (the adjusted step, +7.1%, is bigger than the raw +5%); excess 0.071 - 0.006865 = 0.064135.
+insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
+  select c.id, '2026-03-13', 1.02, 'other', 'small' from public.companies c where c.nse_symbol = 'HOTEL';
+select private.score_ideas_now('2026-03-13');
+select is(pg_temp.sc('HOTEL'), '2026-03-12|720|21850|2026-03-13|756|22000|1.02|0.071|0.006865|0.064135|1|f|{jump}',
+  'N-4: factor 1.02 on a +5% step makes the step bigger (+7.1%) and is flagged jump');
+insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
+  select c.id, '2026-03-13', 1, 'none', 'checked: 1.02 is right' from public.companies c where c.nse_symbol = 'HOTEL';
+select private.score_ideas_now('2026-03-13');
+select is(pg_temp.sc('HOTEL'), '2026-03-12|720|21850|2026-03-13|756|22000|1.02|0.071|0.006865|0.064135|1|f|{attested}',
+  'N-4: with a `none` beside it the flag is cleared and the score is marked attested');
 -- WHISKEY: closed 13 March 16:00, no later close: 66 / 60 - 1 = 0.1; Nifty +10%; excess 0; 11 days.
 select is(pg_temp.sc('WHISKEY'), '2026-03-02|60|20000|2026-03-13|66|22000|1|0.1|0.1|0|11|f|{exit_pending}', 'closed after the last close: exit_pending');
 
@@ -709,16 +802,20 @@ select is(public.store_fetched_closes('2026-02-05', jsonb_build_array(pg_temp.r(
 select is(public.enter_closes('2026-02-06', jsonb_build_array(jsonb_build_object('symbol', 'ROMEO', 'close', 'abc')), null), 0::integer,
   'a close that is not a number is dropped');
 -- C-1: nothing before the close of the day, and a typed close never on a weekend.
-create function pg_temp.try_today() returns text language plpgsql as $$
-begin
-  perform public.enter_closes((now() at time zone 'Asia/Kolkata')::date, '[]'::jsonb, 5);
-  raise exception 'ok';
-exception when others then return sqlerrm;
-end $$;
-select is(pg_temp.try_today(),
-  case when (now() at time zone 'Asia/Kolkata')::time < time '15:30' then 'ledger:future_date'
-       when extract(isodow from (now() at time zone 'Asia/Kolkata')::date) > 5 then 'ledger:weekend' else 'ok' end,
-  'a typed close for today is refused until 15:30 IST (and on a weekend)');
+-- The rule is exercised end to end with a clock argument that no API role can reach (private.put_hand_closes(.., p_now)), so
+-- the result does not depend on the hour the suite runs (round 2, N-7). 2026-02-12 is a Thursday, 2026-02-14 a Saturday.
+select throws_ok($$ select private.put_hand_closes('2026-02-12', '[]'::jsonb, 5, 'manual', '2026-02-12 15:29:59+05:30') $$, 'P0001', 'ledger:future_date',
+  'a typed close for a day is refused one second before 15:30 IST of that day');
+select is(pg_temp.md('2026-02-12'), null, 'and nothing was stored');
+select lives_ok($$ select private.put_hand_closes('2026-02-12', '[]'::jsonb, 5, 'manual', '2026-02-12 15:30:00+05:30') $$,
+  'and accepted at 15:30:00 IST sharp');
+select is(pg_temp.ix('2026-02-12'), '5/manual', 'the typed index close was stored');
+select throws_ok($$ select private.put_hand_closes('2026-02-14', '[]'::jsonb, 5, 'manual', '2026-02-14 16:00:00+05:30') $$, 'P0001', 'ledger:weekend',
+  'a typed close on a Saturday is refused even after the close');
+select lives_ok($$ select private.put_hand_closes('2026-02-14', '[]'::jsonb, 5, 'nse_upload', '2026-02-14 16:00:00+05:30') $$,
+  'while the trusted upload door accepts a special Saturday session');
+select throws_ok($$ select private.put_hand_closes('2026-02-14', '[]'::jsonb, 5, 'nse_upload', '2026-02-14 15:29:59+05:30') $$, 'P0001', 'ledger:future_date',
+  'and not before its close either');
 select ok(not private.market_closed('2026-03-06', '2026-03-06 15:29:59+05:30') and private.market_closed('2026-03-06', '2026-03-06 15:30:00+05:30')
       and not private.market_closed('2026-03-06', '2026-03-06 09:59:59+00') and private.market_closed('2026-03-06', '2026-03-06 10:00:00+00')
       and not private.market_closed(null, '2026-03-06 15:30:00+05:30'),
@@ -733,6 +830,14 @@ select is(public.store_fetched_closes('2026-02-10', jsonb_build_array(pg_temp.r(
 select is(public.store_fetched_closes('2026-02-10', jsonb_build_array(pg_temp.r('PAPA', 8), pg_temp.r('PAPA', 7)), null), 1::integer, 'two EQ rows of one symbol store one close');
 select is(public.store_fetched_closes('2026-02-11', jsonb_build_array(pg_temp.r('PAPA', 7), pg_temp.r('PAPA', 8)), null), 1::integer, 'in the other order too');
 select is(pg_temp.px('PAPA', '2026-02-10') || ' ' || pg_temp.px('PAPA', '2026-02-11'), '7/nse_fetch 7/nse_fetch', 'the same input stores the same close');
+-- Round 2, N-8: a typed ISIN is kept only in its real shape (twelve capitals or digits); anything else is stored as none.
+select public.store_fetched_closes('2026-02-13', jsonb_build_array(pg_temp.r('ROMEO', 5, 'INE123456789')), null);
+select public.store_fetched_closes('2026-02-16', jsonb_build_array(pg_temp.r('ROMEO', 5, repeat('A', 5000))), null);
+select public.store_fetched_closes('2026-02-17', jsonb_build_array(pg_temp.r('ROMEO', 5, 'ine123456789')), null);
+select public.store_fetched_closes('2026-02-18', jsonb_build_array(pg_temp.r('ROMEO', 5, 'INE12345678')), null);
+select is((select string_agg(coalesce(p.isin, '-'), ',' order by p.trade_date) from public.prices_daily p join public.companies c on c.id = p.company_id
+            where c.nse_symbol = 'ROMEO' and p.trade_date between '2026-02-13' and '2026-02-18'),
+  'INE123456789,-,-,-', 'N-8: a real-shaped ISIN is kept; a 5,000-character one, a lower-case one and an eleven-character one are stored as none');
 
 -- 9. mark_market_day_shut, on dates relative to today (the rule is about the 7-day fetch window).
 select set_config('ledger_probe.today', ((now() at time zone 'Asia/Kolkata')::date)::text, true);
@@ -791,6 +896,32 @@ select is((select count(*) from public.idea_scores s join public.ideas i on i.id
             where s.excess is not null and s.excess <> case i.expects when 'outperform' then s.idea_return - s.index_return
                                                                        else -(s.idea_return - s.index_return) end), 0::bigint,
   'M-2: on every score the excess is exactly the difference of the shown returns');
+-- Round 2, N-7: the per-idea exception branch of the scorer. No stored figure can overflow a column, so the fixture narrows
+-- one (idea_return to numeric(3,2), at most 9.99) inside a block that is rolled back, and gives ALPHA a mark of 1500 (+1400%,
+-- below the 1000x plausibility limit, so the figure is not withheld before it is stored). The assignment overflows, the handler
+-- stores ALPHA with no figures and the flag implausible, and the run still scores every other idea.
+create function pg_temp.overflow_probe() returns text language plpgsql as $$
+declare v_msg text; v_n integer; v_row text; v_other text;
+begin
+  begin
+    update public.prices_daily p set close = 1500 from public.companies c
+     where c.id = p.company_id and c.nse_symbol = 'ALPHA' and p.trade_date = '2026-03-06';
+    alter table public.idea_scores alter column idea_return type numeric(3, 2);
+    v_n := private.score_ideas_now('2026-03-16');
+    select s.flags::text || '/' || (s.entry_date is null) || '/' || (s.idea_return is null) into v_row
+      from public.idea_scores s join public.ideas i on i.id = s.idea_id join public.companies c on c.id = i.company_id where c.nse_symbol = 'ALPHA';
+    select (s.idea_return is not null)::text into v_other
+      from public.idea_scores s join public.ideas i on i.id = s.idea_id join public.companies c on c.id = i.company_id where c.nse_symbol = 'GAMMA';
+    raise exception 'probe|%|%|%', v_n, v_row, v_other;
+  exception when others then
+    v_msg := sqlerrm;
+  end;
+  return v_msg;
+end $$;
+select is(pg_temp.overflow_probe(), 'probe|' || pg_temp.nv() || '|{implausible}/true/true|true',
+  'N-7: a numeric overflow inside one idea''s block stores that idea with no figures and implausible, and the run still scores every idea');
+select is(pg_temp.sc('ALPHA'), '2026-03-02|100|20000|2026-03-06|120|20500|1|0.2|0.025|0.175|4|f|{stale}', 'and the probe left no trace (ALPHA is as before)');
+
 -- Session time zone must not matter (the 15:00 cut-off is an explicit IST rule).
 select set_config('ledger_probe.tz', current_setting('timezone'), true);
 set local timezone = 'America/New_York';
@@ -823,6 +954,13 @@ begin
     perform pg_temp.move(v_a, 'open', v_t);
   elsif p_kind = 'held' then
     update public.ideas set held = not held where id = v_a;
+  elsif p_kind = 'garbage' then
+    -- N-5: an open event whose sealed text cannot be parsed, with its hash recomputed so that the hash walk itself passes
+    alter table public.idea_events disable trigger idea_events_append_only;
+    update public.idea_events e set canonical = 'not json at all',
+           hash = encode(sha256(convert_to(e.prev_hash || E'
+' || 'not json at all', 'UTF8')), 'hex')
+     where e.idea_id = v_a and e.kind = 'open';
   end if;
   perform private.score_ideas_now('2026-03-16');
 end $$;
@@ -836,11 +974,15 @@ exception when others then
   return sqlerrm || ' / ' || coalesce(v_d, '');
 end $$;
 select is(pg_temp.why('none'), 'no error', 'the scorer runs on the untouched ledger');
-select is(pg_temp.why('expects'), 'ledger:projection_mismatch / idea ' || (select id::text from pg_temp.ids where sym = 'ALPHA'),
+-- N-5: the chain check runs before the projection check, and its replay covers direction, status and company too, so these
+-- are reported as chain_broken (the projection check stays as the second line and is not reachable while the replay holds).
+select ok(pg_temp.why('expects') like 'ledger:chain_broken / first_bad_seq=% bad_idea=' || (select id::text from pg_temp.ids where sym = 'ALPHA'),
   'a flipped direction on the ideas row stops the run and names the idea');
-select throws_ok($$ select pg_temp.tamper('void') $$, 'P0001', 'ledger:projection_mismatch', 'an idea marked void with no void event stops the run (its loss cannot be withdrawn by the projection)');
-select throws_ok($$ select pg_temp.tamper('company') $$, 'P0001', 'ledger:projection_mismatch', 'an idea re-pointed at another company stops the run');
-select throws_ok($$ select pg_temp.tamper('unclosed') $$, 'P0001', 'ledger:projection_mismatch', 'an idea with a close event but status open stops the run');
+select throws_ok($$ select pg_temp.tamper('void') $$, 'P0001', 'ledger:chain_broken', 'an idea marked void with no void event stops the run (its loss cannot be withdrawn by the projection)');
+select throws_ok($$ select pg_temp.tamper('company') $$, 'P0001', 'ledger:chain_broken', 'an idea re-pointed at another company stops the run');
+select throws_ok($$ select pg_temp.tamper('unclosed') $$, 'P0001', 'ledger:chain_broken', 'an idea with a close event but status open stops the run');
+select throws_ok($$ select pg_temp.tamper('garbage') $$, 'P0001', 'ledger:chain_broken',
+  'N-5: a sealed text that cannot be parsed is chain_broken, not a raw cast error (the chain check runs before any sealed text is parsed)');
 select ok(pg_temp.why('held') like 'ledger:chain_broken / first_bad_seq=% bad_idea=' || (select id::text from pg_temp.ids where sym = 'ALPHA'),
   'a projection field the replay check covers (held) stops the run and names the idea');
 select ok(pg_temp.why('time') like 'ledger:chain_broken / first_bad_seq=%', 'an event time moved without a re-seal stops the run and names the first bad seq');

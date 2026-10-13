@@ -7,7 +7,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(110);
+select plan(135);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -62,7 +62,7 @@ select ok(has_function_privilege('service_role', 'public.seal_ledger_days()', 'e
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'private'
-     and p.proname in ('anchor_line', 'ledger_anchor_check', 'seal_ledger_days_to', 'guard_ledger_anchor')
+     and p.proname in ('anchor_line_v1', 'ledger_anchor_check', 'seal_ledger_days_to', 'guard_ledger_anchor')
      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
           or has_function_privilege('service_role', p.oid, 'execute'))
 $$, 'the private anchor helpers are executable by no API role');
@@ -70,9 +70,9 @@ select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname in ('public', 'private')
      and p.proname in ('seal_ledger_days', 'verify_ledger_anchors', 'check_ledger_anchors', 'ledger_anchor_check',
-                       'seal_ledger_days_to', 'anchor_line', 'guard_ledger_anchor')
+                       'seal_ledger_days_to', 'anchor_line_v1', 'guard_ledger_anchor')
      and (not ('search_path=""' = any (coalesce(p.proconfig, '{}'::text[])))
-          or (not p.prosecdef and p.proname not in ('anchor_line', 'guard_ledger_anchor')))
+          or (not p.prosecdef and p.proname not in ('anchor_line_v1', 'guard_ledger_anchor')))
 $$, 'every anchor function pins an empty search_path and the callable ones are SECURITY DEFINER');
 
 -- 2. Nothing sealed yet and no event yet: the comparison is ok over zero days and sealing writes nothing.
@@ -262,6 +262,17 @@ select throws_ok($$ insert into public.ledger_anchors (anchor_date, event_count,
 -- 7. Tamper scenarios, as a database owner would do them: triggers off, rewrite, re-seal the whole chain.
 create temp table sv_ev as select * from public.idea_events;
 create temp table sv_an as select * from public.ledger_anchors;
+-- `enable trigger user` would put the anchor guards back in origin mode and silently downgrade them; they must be ALWAYS.
+create function pg_temp.anchor_guards_on() returns void language plpgsql as $$
+begin
+  alter table public.ledger_anchors enable always trigger ledger_anchors_guard;
+  alter table public.ledger_anchors enable always trigger ledger_anchors_no_truncate;
+end $$;
+create function pg_temp.guard_modes() returns text language sql as $$
+  select string_agg(t.tgname || '=' || t.tgenabled::text, ',' order by t.tgname) from pg_trigger t
+   where t.tgrelid = 'public.ledger_anchors'::regclass and not t.tgisinternal $$;
+select is(pg_temp.guard_modes(), 'ledger_anchors_guard=A,ledger_anchors_no_truncate=A',
+  'the two anchor guards are enabled ALWAYS (they fire in every replication role)');
 create function pg_temp.restore() returns void language plpgsql as $$
 begin
   alter table public.idea_events disable trigger user;
@@ -271,7 +282,7 @@ begin
   delete from public.ledger_anchors;
   insert into public.ledger_anchors select * from pg_temp.sv_an;
   alter table public.idea_events enable trigger user;
-  alter table public.ledger_anchors enable trigger user;
+  perform pg_temp.anchor_guards_on();
 end $$;
 create function pg_temp.bad() returns text language sql as $$
   select coalesce(first_bad_date::text, '-') || ' ' || coalesce(reason, '-') || ' ' || ok::text from public.verify_ledger_anchors() $$;
@@ -335,17 +346,97 @@ select pg_temp.restore();
 -- 7g. Delete a middle anchor row (the owner, triggers off): the missing day is named.
 alter table public.ledger_anchors disable trigger user;
 delete from public.ledger_anchors where anchor_date = '2026-03-04';
-alter table public.ledger_anchors enable trigger user;
+select pg_temp.anchor_guards_on();
 select is(pg_temp.bad(), '2026-03-04 gap false', '7g: a missing anchor day is named');
 select pg_temp.restore();
 
 -- 7h. Rewrite an anchor row (head and line together, so the row agrees with itself).
 alter table public.ledger_anchors disable trigger user;
 update public.ledger_anchors set head_hash = repeat('f', 64), line = replace(line, head_hash, repeat('f', 64)) where anchor_date = '2026-03-05';
-alter table public.ledger_anchors enable trigger user;
+select pg_temp.anchor_guards_on();
 select is(pg_temp.bad(), '2026-03-05 head false', '7h: an edited anchor row is named');
 select pg_temp.restore();
 select is(pg_temp.bad(), '- - true', 'after the restore: nothing is reported again');
+
+-- 7l. The reasons seq and line (round 2). Each is an edit of the anchor row alone, made with the guard off, as an owner would.
+alter table public.ledger_anchors disable trigger user;
+update public.ledger_anchors set first_seq = 3 where anchor_date = '2026-03-05';
+select pg_temp.anchor_guards_on();
+select is(pg_temp.bad(), '2026-03-05 seq false', '7l: a changed first_seq is named, with the reason seq');
+select pg_temp.restore();
+alter table public.ledger_anchors disable trigger user;
+update public.ledger_anchors set last_seq = 9 where anchor_date = '2026-03-05';
+select pg_temp.anchor_guards_on();
+select is(pg_temp.bad(), '2026-03-05 seq false', '7l: a changed last_seq is named, with the reason seq');
+select pg_temp.restore();
+-- Only the middle hashes of the published text are edited: the table constraint checks date, count and head, not the hashes,
+-- and the head still agrees, so only the rebuilt line can notice.
+alter table public.ledger_anchors disable trigger user;
+update public.ledger_anchors set line = replace(line, (select hash from public.idea_events where seq = 4), repeat('e', 64))
+ where anchor_date = '2026-03-05';
+select pg_temp.anchor_guards_on();
+select is((select line like '%' || repeat('e', 64) || '%' and head_hash = (select hash from public.idea_events where seq = 5)
+             from public.ledger_anchors where anchor_date = '2026-03-05'), true, '7l: the edited row still agrees with itself (date, count and head are untouched)');
+select is(pg_temp.bad(), '2026-03-05 line false', '7l: an edit of the published hashes alone is named, with the reason line');
+select pg_temp.restore();
+
+-- 7m. Events reordered inside a sealed day: the two Mar 5 notes (seq 4 and 5) swap their times. Count and the seq range
+-- are unchanged; the day's last hash is another event's.
+select pg_temp.at('Note delta',   '2026-03-05 18:00');
+select pg_temp.at('Note epsilon', '2026-03-05 12:00');
+select pg_temp.reseal();
+select is((select ok from public.verify_ledger_chain()), true, '7m: the chain check passes with two events swapped inside a day');
+select is(pg_temp.bad(), '2026-03-05 head false', '7m: the reordered day is named');
+select pg_temp.restore();
+
+-- 7n. An event moved across IST midnight: the day it left (or the day it joined) no longer has the sealed count.
+select pg_temp.at('Note beta', '2026-03-03 00:00:30');
+select pg_temp.reseal();
+select is((select ok from public.verify_ledger_chain()), true, '7n: the chain check passes with an event moved past IST midnight');
+select is(pg_temp.bad(), '2026-03-02 count false', '7n: an event moved from Mar 2 23:59 to Mar 3 00:00:30 names Mar 2 (one event fewer)');
+select pg_temp.restore();
+select pg_temp.at('Note gamma', '2026-03-02 23:59:30');
+select pg_temp.reseal();
+select is((select ok from public.verify_ledger_chain()), true, '7n: the chain check passes with an event moved back before IST midnight');
+select is(pg_temp.bad(), '2026-03-02 count false', '7n: an event moved from Mar 3 00:01 to Mar 2 23:59:30 names Mar 2 (one event more)');
+select pg_temp.restore();
+
+-- 7o. The guards fire in every replication role (m-1): `session_replication_role = replica` is what a restore sets, and it
+-- must not switch the anchor guards off.
+select pg_temp.restore();
+set local session_replication_role = replica;
+select throws_ok($$ delete from public.ledger_anchors where anchor_date = '2026-03-03' $$, 'P0001', null, '7o: in replica mode a delete is still refused');
+select throws_ok($$ update public.ledger_anchors set line = '{}' where anchor_date = '2026-03-03' $$, 'P0001', null, '7o: in replica mode an update of a line is still refused');
+select throws_ok($$ truncate public.ledger_anchors $$, 'P0001', null, '7o: in replica mode a truncate is still refused');
+reset session_replication_role;
+select is(pg_temp.guard_modes(), 'ledger_anchors_guard=A,ledger_anchors_no_truncate=A', '7o: the guards are still ALWAYS after all the helpers');
+-- ... and the one deliberate way through: the owner names the trigger (the restore runbook), then puts it back.
+alter table public.ledger_anchors disable trigger ledger_anchors_guard;
+select lives_ok($$ delete from public.ledger_anchors where anchor_date = '2026-03-03' $$, '7o: by name, the owner can disable the guard (this is what the runbook allows)');
+select pg_temp.restore();
+select is(pg_temp.guard_modes(), 'ledger_anchors_guard=A,ledger_anchors_no_truncate=A', '7o: and after the runbook''s verification step they read A again');
+
+-- 7p. KNOWN LIMIT (round 2, review m-3): the newest anchor rows deleted, the events rewritten and re-hashed. Nothing inside this
+-- database can tell: the comparison has no anchor left to compare for those days, the next seal writes well-formed rows from the
+-- ALTERED events, and the comparison then agrees. Only a published copy compared with the database (Task 9) closes it. Pinned so
+-- nobody claims the comparison proves more than "matches the days sealed in this same database".
+alter table public.ledger_anchors disable trigger user;
+delete from public.ledger_anchors where anchor_date = '2026-03-05';
+select pg_temp.anchor_guards_on();
+alter table public.idea_events disable trigger user;
+update public.idea_events set body_md = 'Note epsilon, rewritten after the fact' where seq = 5;
+alter table public.idea_events enable trigger user;
+select pg_temp.reseal();
+select is((select count(*) from public.verify_ledger_anchors() where ok and days = 3), 1::bigint,
+  'KNOWN LIMIT: with the newest anchor row deleted and its day rewritten, the comparison is ok over the three days that remain');
+select is(private.seal_ledger_days_to(date '2026-03-06'), 1, 'KNOWN LIMIT: and the next seal re-creates the missing day from the rewritten events');
+select is((select head_hash from public.ledger_anchors where anchor_date = '2026-03-05'), (select hash from public.idea_events where seq = 5),
+  'KNOWN LIMIT: the new row carries the hash of the rewritten event');
+select isnt((select head_hash from public.ledger_anchors where anchor_date = '2026-03-05'), (select head_hash from pg_temp.sv_an where anchor_date = '2026-03-05'),
+  'KNOWN LIMIT: which is not the hash that was sealed (only a published copy would show it)');
+select is(pg_temp.bad(), '- - true', 'KNOWN LIMIT: and the whole comparison agrees again');
+select pg_temp.restore();
+select is(pg_temp.bad(), '- - true', 'restored: the original rows and events are back');
 
 -- 7i. Sealing refuses to go on over a mismatch, and writes nothing.
 alter table public.idea_events disable trigger user;
@@ -401,6 +492,22 @@ select is(private.seal_ledger_days_to(date '2026-03-10'), 0, '8: sealing again s
 select public.add_idea_event((select v from ctx where k = 'i1'), 'note', 'Another note, truly today');
 create temp table today_ist as select (clock_timestamp() at time zone 'Asia/Kolkata')::date as d;
 grant select on today_ist to service_role;
+-- Round 2 (m-2): the date the seam is given is clamped to the real IST date; "tomorrow" or a year ahead never seals the day in
+-- progress. Run in a block that is rolled back, so the door below still has its days to seal.
+create function pg_temp.future_probe(p_ahead integer) returns text language plpgsql as $$
+declare v_n integer; v_max date; v_today_rows bigint;
+begin
+  begin
+    v_n := private.seal_ledger_days_to((clock_timestamp() at time zone 'Asia/Kolkata')::date + p_ahead);
+    select max(anchor_date) into v_max from public.ledger_anchors;
+    select count(*) into v_today_rows from public.ledger_anchors where anchor_date >= (clock_timestamp() at time zone 'Asia/Kolkata')::date;
+    raise exception 'probe|%|%|%', v_n, v_max, v_today_rows;
+  exception when others then return sqlerrm;
+  end;
+end $$;
+select is(pg_temp.future_probe(1), 'probe|' || (select d - date '2026-03-10' from today_ist) || '|' || (select d - 1 from today_ist) || '|0',
+  '9: a "today" one day in the future is clamped: the same days are sealed as with the real date, and nothing for today');
+select is(pg_temp.future_probe(400), pg_temp.future_probe(1), '9: and a "today" more than a year ahead is clamped the same way');
 set local role service_role;
 select is(public.seal_ledger_days(), (select d - date '2026-03-10' from today_ist), '9: the door seals every day from Mar 10 up to yesterday');
 reset role;

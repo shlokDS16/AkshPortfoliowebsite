@@ -186,6 +186,35 @@ describe("summarise: hand-entered and stale marks are counted but named", () => 
   });
 });
 
+describe("summarise: an attested score is treated exactly like a hand-entered one", () => {
+  it("counts it in the figures and names it with the hand-entered marks, not as needing a check", () => {
+    const s = summarise(
+      [idea({ id: "h" }), idea({ id: "a" }), idea({ id: "ab" })],
+      [
+        score({ ideaId: "h", excess: 0.1, flags: ["hand_price"] }),
+        score({ ideaId: "a", excess: 0.2, flags: ["attested"] }),
+        score({ ideaId: "ab", excess: -0.1, flags: ["attested", "hand_price"] }),
+      ],
+      TODAY,
+    );
+    expect(s.handEntered).toEqual(["h", "a", "ab"]);
+    expect(s.needsCheck).toEqual([]);
+    expect(s.all).toEqual({ ahead: 2, total: 3 });
+  });
+
+  it("still sends an attested score to needs-a-check when a real alarm rides with it", () => {
+    const s = summarise([idea({ id: "x" })], [score({ ideaId: "x", excess: 0.1, flags: ["attested", "jump"] })], TODAY);
+    expect(s.needsCheck).toEqual(["x"]);
+    expect(s.handEntered).toEqual([]);
+    expect(s.all.total).toBe(0);
+  });
+
+  it("has a plain label (the screens read LEDGER_FLAG_TEXT)", async () => {
+    const { LEDGER_FLAG_TEXT } = await import("@/lib/messages-ledger");
+    expect(LEDGER_FLAG_TEXT.attested).toBe("Includes a price move or code change that you marked as needing no action.");
+  });
+});
+
 describe("summarise: ideas past their horizon", () => {
   const horizon30 = (over: Parameters<typeof idea>[0]) => idea({ horizonDays: 30, ...over });
   it("an open idea is past its horizon the day after entry plus horizon", () => {

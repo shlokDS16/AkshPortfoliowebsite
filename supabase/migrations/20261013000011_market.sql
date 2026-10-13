@@ -3,6 +3,7 @@
 -- corporate actions, the score table and its restatement log. Part 2 (20261013000012_scores.sql) holds the scorer.
 -- Spec: docs/specs/2026-10-13-phase-3-track-record-design.md s5.4, s18. ADR: ADR-005 s3.4, s3.5.
 -- Never edit this file after it reaches the hosted project; add a later migration instead.
+-- (Fix rounds 1 and 2, 2026-10-13: amended in place; it had not left the local stack.)
 --
 -- Nothing here is public: anon gets no grant, policy, view or function. No API role writes prices_daily, market_days,
 -- idea_scores or idea_score_changes. The source of a price is never a caller's word: the admin's browser session can only
@@ -42,7 +43,7 @@ create table public.corporate_actions (
   ex_date    date not null,
   factor     numeric(12, 6) not null check (factor between 0.001 and 1000),
   kind       text not null check (kind in ('split', 'bonus', 'other', 'none')),
-  note       text,
+  note       text check (char_length(note) <= 500),   -- append-only for every role, so the size is bounded up front
   supersedes uuid references public.corporate_actions (id) on delete restrict,
   created_at timestamptz not null default now(),
   constraint corporate_actions_none_is_one check ((kind = 'none') = (factor = 1))
@@ -69,7 +70,7 @@ create table public.idea_scores (
   exit_skipped_days  integer,
   flags              text[] not null default '{}',
   computed_at        timestamptz not null default now(),
-  constraint idea_scores_flags_known check (flags <@ array['entry_pending', 'exit_pending', 'hand_price', 'jump',
+  constraint idea_scores_flags_known check (flags <@ array['entry_pending', 'exit_pending', 'hand_price', 'attested', 'jump',
                                                            'isin_changed', 'implausible', 'stale']::text[])
 );
 
@@ -93,11 +94,13 @@ create trigger idea_score_changes_append_only before update or delete on public.
 create trigger idea_score_changes_no_truncate before truncate on public.idea_score_changes
   for each statement execute function private.reject_mutation();
 
--- A correction supersedes an action of the same company; an action that is still live cannot be entered twice.
+-- A correction supersedes an action of the same company; an action that is still live cannot be entered twice. The check
+-- and the insert are one step under a per-company lock, so a double submit cannot create two live actions (round 2, N-9).
 create function private.guard_corporate_action()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
 begin
+  perform pg_advisory_xact_lock(hashtext('corporate_actions:' || new.company_id::text));
   if new.supersedes is not null and not exists (
        select 1 from public.corporate_actions o where o.id = new.supersedes and o.company_id = new.company_id) then
     raise exception 'corporate_actions: a correction must supersede an action of the same company' using errcode = 'P0001';
@@ -165,9 +168,10 @@ begin
 end;
 $$;
 
--- A date becomes open once its Nifty 50 close is stored, and remembers the weakest source that opened it (a date opened
--- by hand is not "decided": the daily fetch still asks for it). The calendar follows the ladder: a shut day is reopened
--- only by a source at least as strong as the one that shut it, so a typed close never reopens a shut day.
+-- A date becomes open once its Nifty 50 close is stored, and keeps the STRONGEST source that has opened it so far (a date
+-- opened only by hand is not "decided": the daily fetch still asks for it, and an official file upgrades it). The calendar
+-- follows the ladder: a shut day is reopened only by a source at least as strong as the one that shut it, so a typed close
+-- never reopens a shut day.
 create function private.mark_day_open(p_trade_date date, p_source text)
 returns void language plpgsql security definer set search_path = ''
 as $$
@@ -196,7 +200,8 @@ $$;
 
 -- Stores company rows for one date. p_scope 'tracked' is the fetched path; 'ideas' is the hand path (any non-void idea).
 -- A row is {symbol, series, isin, close}. A row with no usable close is dropped (a missing price is never a wrong one),
--- and so is a series that is not an equity series. EQ is preferred; a tie is broken by the lower close so the same
+-- and so is a series that is not an equity series, and an ISIN that is not twelve capital letters or digits (stored as
+-- none). EQ is preferred; a tie is broken by the lower close so the same
 -- input always stores the same row. Returns the number of companies matched.
 create function private.put_company_rows(p_trade_date date, p_rows jsonb, p_source text, p_scope text)
 returns integer
@@ -210,7 +215,9 @@ begin
     perform private.ledger_fail('bad_rows');
   end if;
   for r in
-    select distinct on (c.id) c.id as company_id, x.symbol, x.series, x.isin, x.close::numeric as close
+    select distinct on (c.id) c.id as company_id, x.symbol, x.series,
+           case when x.isin ~ '^[A-Z0-9]{12}$' then x.isin end as isin,   -- a typed ISIN is kept only in its real shape
+           x.close::numeric as close
       from jsonb_to_recordset(p_rows) as x(symbol text, series text, isin text, close text)
       join public.companies c on c.nse_symbol = x.symbol
      where case when x.close ~ '^[0-9]{1,10}(\.[0-9]+)?$' then x.close::numeric > 0 else false end
@@ -241,15 +248,17 @@ begin
 end;
 $$;
 
--- The hand paths share one body: nothing before the close of the day, and a typed close never on a weekend.
-create function private.put_hand_closes(p_trade_date date, p_rows jsonb, p_index_close numeric, p_source text)
+-- The hand paths share one body: nothing before the close of the day, and a typed close never on a weekend. p_now is a
+-- clock argument for the tests only: private functions are executable by no API role, and both public callers leave it out.
+create function private.put_hand_closes(p_trade_date date, p_rows jsonb, p_index_close numeric, p_source text,
+                                        p_now timestamptz default clock_timestamp())
 returns integer
 language plpgsql security definer set search_path = ''
 as $$
 declare
   v_n integer;
 begin
-  if p_trade_date is null or not private.market_closed(p_trade_date) then
+  if p_trade_date is null or not private.market_closed(p_trade_date, p_now) then
     perform private.ledger_fail('future_date');
   end if;
   if p_source = 'manual' and extract(isodow from p_trade_date) > 5 then
@@ -362,7 +371,7 @@ revoke execute on function private.mark_day_open(date, text)                    
 revoke execute on function private.tracked_companies()                                                 from public, anon, authenticated, service_role;
 revoke execute on function private.put_company_rows(date, jsonb, text, text)                           from public, anon, authenticated, service_role;
 revoke execute on function private.put_index_close(date, numeric, text)                               from public, anon, authenticated, service_role;
-revoke execute on function private.put_hand_closes(date, jsonb, numeric, text)                         from public, anon, authenticated, service_role;
+revoke execute on function private.put_hand_closes(date, jsonb, numeric, text, timestamptz)           from public, anon, authenticated, service_role;
 revoke execute on function public.store_fetched_closes(date, jsonb, numeric)                           from public, anon, authenticated, service_role;
 revoke execute on function public.store_uploaded_closes(date, jsonb, numeric)                          from public, anon, authenticated, service_role;
 revoke execute on function public.mark_market_day_shut(date)                                           from public, anon, authenticated, service_role;

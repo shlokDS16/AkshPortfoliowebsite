@@ -2,12 +2,17 @@
 -- 20261013000012_scores.sql - Plan 3a Task 2 (part 2 of 2): the one function that scores ideas against the Nifty 50.
 -- Spec: docs/specs/2026-10-13-phase-3-track-record-design.md s6, s18. ADR: ADR-005 s3.5.
 -- Never edit this file after it reaches the hosted project; add a later migration instead.
+-- (Fix rounds 1 and 2, 2026-10-13: amended in place; it had not left the local stack.)
 --
 -- private.score_ideas_now() is the only code that writes idea_scores and idea_score_changes. It recomputes every
 -- non-void idea from the SEALED events (direction, void, company, open and close time), prices_daily, market_days and
 -- corporate_actions, so a score is a pure function of stored facts and re-running it is harmless. It refuses to run
--- while the projection (ideas) disagrees with the events or the ledger check fails. No price or return is ever
--- written into idea_events.
+-- while the ledger check fails (it runs FIRST, so no sealed text is parsed before it has been verified) or the projection
+-- (ideas) disagrees with the events. No price or return is ever written into idea_events.
+--
+-- A hand-typed 'none' action (Aksh's "I looked, the move is real") clears jump and isin_changed for its step, but it
+-- never does so silently: any live 'none' dated inside the scored span sets the flag 'attested' on the score, which is
+-- treated everywhere exactly like 'hand_price' (a figure resting on a hand entry, never for a public number).
 -- =============================================================================
 
 -- 1. Facts from the sealed events. agrees = the ideas row (company, direction, status) says what the events say.
@@ -73,8 +78,11 @@ $$;
 
 -- True when a step between two consecutive stored closes inside the window is implausible after adjusting for the
 -- actions in force: a fall below 70%, a rise above 1/0.7 of the previous close, or a factor that makes the step bigger.
--- A live 'none' action in the step ("I looked, the move is real") clears it. An ex-date on a holiday counts for the
--- first trading day after it (the step is (previous close, this close]).
+-- A live 'none' action in the step ("I looked, the move is real") clears it (the score then carries 'attested'). An
+-- ex-date on a holiday counts for the first trading day after it (the step is (previous close, this close]). Only rows on
+-- open trading days are steps: a typed close on a shut day or a weekend can neither split a big move into two small ones
+-- nor stand in for a price. The "factor makes the step bigger" test is deliberately strict: a small legitimate factor
+-- that moves the step the wrong way is flagged until Aksh records a 'none' beside it (spec s20).
 create function private.has_jump(p_company_id uuid, p_from date, p_to date)
 returns boolean language sql stable security definer set search_path = ''
 as $$
@@ -83,6 +91,7 @@ as $$
       from (select p.trade_date as d, p.close as c,
                    lag(p.trade_date) over w as pd, lag(p.close) over w as pc
               from public.prices_daily p
+              join public.market_days md on md.trade_date = p.trade_date and md.status = 'open'
              where p.company_id = p_company_id and p.trade_date between p_from and p_to
             window w as (order by p.trade_date)) q
      cross join lateral (select private.action_factor(p_company_id, q.pd, q.d) as f) a
@@ -95,8 +104,9 @@ as $$
 $$;
 
 -- True when the security printed on the closes is not the one sealed with the idea: the symbol or the ISIN changes
--- (from the sealed value, or between two stored closes) with no action of any kind dated in the step. Each of the two
--- identifiers is followed on its own, so a typed close that carries no ISIN cannot hide a change.
+-- (from the sealed value, or between two stored closes) with no action of any kind dated in the step (the score then
+-- carries 'attested'). Each of the two identifiers is followed on its own, so a typed close that carries no ISIN cannot
+-- hide a change. Only rows on open trading days are read.
 create function private.has_identity_break(p_company_id uuid, p_from date, p_to date,
                                            p_symbol text, p_isin text, p_opened date)
 returns boolean language sql stable security definer set search_path = ''
@@ -109,9 +119,11 @@ as $$
                     select 'isin', p_opened - 1, p_isin where p_isin is not null
                     union all
                     select 'sym', p.trade_date, p.symbol from public.prices_daily p
+                      join public.market_days md on md.trade_date = p.trade_date and md.status = 'open'
                      where p.company_id = p_company_id and p.trade_date between p_from and p_to and p.symbol is not null
                     union all
                     select 'isin', p.trade_date, p.isin from public.prices_daily p
+                      join public.market_days md on md.trade_date = p.trade_date and md.status = 'open'
                      where p.company_id = p_company_id and p.trade_date between p_from and p_to and p.isin is not null) u
             window w as (partition by u.k order by u.d)) q
      where q.pv is not null and q.v <> q.pv
@@ -146,16 +158,17 @@ declare
 begin
   perform pg_advisory_xact_lock(hashtext('idea_scores:compute'));
 
-  -- Refuse to score on facts that do not agree: the projection against the sealed events, then the chain itself.
-  -- Nothing is written; the scores already stored stay as they are and the job reports why.
-  select f.idea_id into v_bad from private.idea_facts() f where f.agrees is not true limit 1;
-  if found then
-    raise exception 'ledger:projection_mismatch' using errcode = 'P0001', detail = 'idea ' || v_bad.idea_id;
-  end if;
+  -- Refuse to score on facts that do not agree. The chain check goes first: it verifies every sealed text (and replays the
+  -- ideas against the events) before idea_facts() parses any of them, so a malformed text is chain_broken, not a cast
+  -- error. The projection check is the second line. Nothing is written; the scores already stored stay as they are.
   select c.first_bad_seq, c.bad_idea into v_bad from private.ledger_chain_check() c where c.ok is not true;
   if found then
     raise exception 'ledger:chain_broken' using errcode = 'P0001',
       detail = format('first_bad_seq=%s bad_idea=%s', v_bad.first_bad_seq, v_bad.bad_idea);
+  end if;
+  select f.idea_id into v_bad from private.idea_facts() f where f.agrees is not true limit 1;
+  if found then
+    raise exception 'ledger:projection_mismatch' using errcode = 'P0001', detail = 'idea ' || v_bad.idea_id;
   end if;
 
   -- A withdrawn idea has no score (a withdrawal is only possible before its entry close, so none is fixed). If a row
@@ -231,7 +244,16 @@ begin
         v_row.exit_skipped_days := case when v_exit is not null then private.skipped_days(i.closed, v_exit) end;
         v_row.flags := array_remove(array[
           case when v_pending then 'exit_pending' end,
-          case when private.close_rank(v_es) < 3 or private.close_rank(v_ms) < 3 then 'hand_price' end,
+          -- hand_price: the entry or the mark is not an official close, or ANY close on an open day inside the scored span is not
+          case when private.close_rank(v_es) < 3 or private.close_rank(v_ms) < 3
+                      or exists (select 1 from public.prices_daily p
+                                   join public.market_days md on md.trade_date = p.trade_date and md.status = 'open'
+                                  where p.company_id = i.company_id and p.trade_date between v_entry and v_mark
+                                    and p.source <> 'nse_fetch') then 'hand_price' end,
+          -- attested: a hand-typed 'none' lies in (day of opening - 1, mark date]; it may have cleared jump or isin_changed
+          case when exists (select 1 from private.live_actions(i.company_id) ca
+                             where ca.kind = 'none' and ca.ex_date >= (i.opened at time zone 'Asia/Kolkata')::date
+                               and ca.ex_date <= v_mark) then 'attested' end,
           case when private.has_jump(i.company_id, v_entry, v_mark) then 'jump' end,
           case when private.has_identity_break(i.company_id, v_entry, v_mark, i.sealed_symbol, i.sealed_isin,
                                                 (i.opened at time zone 'Asia/Kolkata')::date) then 'isin_changed' end,
