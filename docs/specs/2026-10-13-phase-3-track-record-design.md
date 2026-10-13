@@ -324,3 +324,23 @@ Most personal track records are a spreadsheet that could have been written yeste
 - **s6 open point (b).** Every change to a fixed entry (date or prices) or to a final score is written to the append-only `idea_score_changes` (idea, time, names of the changed fields, old and new row); only the scorer writes it. The score is still a recomputation.
 - **s6 open point (c).** One block per idea. A return of 1000 (100,000%) or more, or a factor outside 0.000001 to 1e12, stores no returns and the flag `implausible`; a numeric overflow does the same. The stored `excess` is the difference of the stored (rounded) returns. Score flags are now: `entry_pending, exit_pending, hand_price, jump, isin_changed, implausible, stale`; `stale` also applies to a closed idea waiting for its exit.
 - **Rows.** Only equity series (`EQ, BE, BZ, SM, ST`) are stored; of two rows of one symbol and series the lower close is stored.
+
+## 19. Copy added by Plan 3a Task 4 (2026-10-13; append-only; every string is pending Shlok's approval)
+Plain words, none of the publish gate's lexicon. Error texts are in `src/lib/messages.ts` (and equal `LEDGER_ERROR_TEXT` in `src/modules/ledger/errors.ts`); labels and integrity-check wording are in `src/lib/messages-ledger.ts`.
+- `ledger-no-symbol`: "This company has no NSE symbol yet. Add it under Names first." (the sentence of s5.1)
+- `ledger-not-open`: "This idea is not open, so that entry cannot be added."
+- `ledger-not-closed`: "This idea is still open. Close it before writing what you learned."
+- `ledger-void-too-late`: "This idea can no longer be withdrawn, because its entry price is about to be fixed. Close it instead."
+- `ledger-words-required`: "Write your own words first. An entry cannot be empty."
+- `ledger-body-too-long`: "That is over 10,000 characters. Shorten it."
+- `ledger-bad-horizon`: "Choose a horizon from 30 days to 10 years."
+- `ledger-bad-input`: "Check this idea's fields and try again."
+- `ledger-is-void`: "This idea was withdrawn, so nothing more can be added to it."
+- `ledger-opposite-open`: "An open idea on this company expects the opposite. Close or withdraw it first."
+- `ledger-not-found`: "This idea or company could not be found."
+- Integrity check, passing: "Consistent with itself: N entries, M sealed days." with the standing note "This checks that the entries and the sealed days agree with each other. It does not show that nothing could have been changed." (s17: never "unaltered", "cannot be altered" or "tamper-proof".)
+- Integrity check, failing: "The ledger chain is broken at entry N." (the chain check); "The sealed days and the entries disagree from D (reason). Nothing was changed. Tell Shlok." (the sealed-day comparison; reasons: an entry is dated before the first sealed day / a sealed day is missing / the number of entries differs / the entry numbers differ / the fingerprint differs / the stored line differs).
+- Labels: "Expects to do better than the Nifty 50" / "Expects to do worse than the Nifty 50"; entry kinds "Idea recorded, Note, Revised, Bought more, Sold some, Closed, What I learned, Withdrawn"; close reasons "Played out, Thesis broken, Horizon reached, Better use of the money, Other"; "Process was sound" / "Process was flawed"; mistake tags "Thesis, Valuation, Timing, Sizing, Process, Behaviour, Luck, No mistake"; grid cells "Earned (sound process, ended ahead), Lucky (flawed, ahead), Unlucky (sound, behind), Deserved (flawed, behind)".
+- Score flag lines: "Entry will be set at the next close." / "Exit will be set at the next close." / "Includes a close that was entered by hand." / "The latest close is three or more weekdays old." / "Needs a check: the price moved sharply. Was there a split or bonus?" / "Needs a check: the share's identity code changed." / "Needs a check: the return is too large to be believed." / "Needs a check." (a flag this build does not know).
+
+Summary rules fixed by Task 4 where s6 is silent (`src/modules/ledger/summary.ts`): an excess of exactly zero is not "ahead"; the holding-period figure is over the closed ideas counted in "closed"; a closed idea whose exit is not yet fixed counts in "all" only; a score flag other than entry_pending, exit_pending, hand_price and stale (including an unknown one) sends the idea to "needs a check"; hand-entered and stale marks are counted and named; ideas with a restated score are listed.

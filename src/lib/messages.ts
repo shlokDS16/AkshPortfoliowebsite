@@ -70,6 +70,18 @@ const ERRORS = {
   "nothing-to-file": "Tick at least one figure to file.",
   "company-locked": "Some of this document's figures are already in its company's file, so the company cannot be changed.",
   "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
+  // Ledger (= LEDGER_ERROR_TEXT in modules/ledger/errors.ts; a test keeps them equal). Pending Shlok's approval, spec s19.
+  "ledger-no-symbol": "This company has no NSE symbol yet. Add it under Names first.",
+  "ledger-not-open": "This idea is not open, so that entry cannot be added.",
+  "ledger-not-closed": "This idea is still open. Close it before writing what you learned.",
+  "ledger-void-too-late": "This idea can no longer be withdrawn, because its entry price is about to be fixed. Close it instead.",
+  "ledger-words-required": "Write your own words first. An entry cannot be empty.",
+  "ledger-body-too-long": "That is over 10,000 characters. Shorten it.",
+  "ledger-bad-horizon": "Choose a horizon from 30 days to 10 years.",
+  "ledger-bad-input": "Check this idea's fields and try again.",
+  "ledger-is-void": "This idea was withdrawn, so nothing more can be added to it.",
+  "ledger-opposite-open": "An open idea on this company expects the opposite. Close or withdraw it first.",
+  "ledger-not-found": "This idea or company could not be found.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -130,6 +142,18 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "nothing-to-file": "nothing-to-file",
   "document-closed": "document-closed",
   "company-locked": "company-locked",
+  // LedgerError likewise.
+  "ledger-no-symbol": "ledger-no-symbol",
+  "ledger-not-open": "ledger-not-open",
+  "ledger-not-closed": "ledger-not-closed",
+  "ledger-void-too-late": "ledger-void-too-late",
+  "ledger-words-required": "ledger-words-required",
+  "ledger-body-too-long": "ledger-body-too-long",
+  "ledger-bad-horizon": "ledger-bad-horizon",
+  "ledger-bad-input": "ledger-bad-input",
+  "ledger-is-void": "ledger-is-void",
+  "ledger-opposite-open": "ledger-opposite-open",
+  "ledger-not-found": "ledger-not-found",
 };
 
 /**
