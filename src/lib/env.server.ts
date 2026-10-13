@@ -1,12 +1,30 @@
 import "server-only";
 import { z } from "zod";
 import { type EnvSource, parseEnv, publicSchema } from "./env";
+import {
+  BHAVCOPY_PLACEHOLDER,
+  DEFAULT_NSE_BHAVCOPY_TEMPLATE,
+  DEFAULT_NSE_INDEX_TEMPLATE,
+  INDEX_PLACEHOLDER,
+  type NsePlaceholder,
+  nseTemplateProblem,
+} from "./providers/nse-template";
 
 // Server-only environment (secrets). `server-only` makes a client import a build error.
 
 /** The template's empty values (`KEY=`) mean unset, never a crash. */
 const blank = (v: unknown) => (v === "" ? undefined : v);
 const optional = <T extends z.ZodType>(schema: T) => z.preprocess(blank, schema.optional());
+
+/** An NSE address template with its default; it must be https on the NSE archive host and carry its date placeholder (Plan 3a Task 6). */
+const nseTemplate = (placeholder: NsePlaceholder, fallback: string) =>
+  z.preprocess(
+    blank,
+    z.string().trim().default(fallback).superRefine((value, ctx) => {
+      const problem = nseTemplateProblem(value, placeholder);
+      if (problem) ctx.addIssue({ code: "custom", message: problem });
+    }),
+  );
 
 const serverSchema = publicSchema.extend({
   SUPABASE_SECRET_KEY: z.string().startsWith("sb_secret_", "must be a secret key (sb_secret_...)"),
@@ -30,6 +48,9 @@ const serverSchema = publicSchema.extend({
   LLM_ADAPTER: optional(z.enum(["groq", "fixture"])),
   // Scanned pages (spec s9, Plan 2b Task 2). No key means "Scan reading is off"; the app still runs.
   OCRSPACE_API_KEY: optional(z.string().trim().min(8, "must be an OCR.space API key")),
+  // Market data (Plan 3a Task 6; ADR-005 s2). No key: NSE's public archive. The host is fixed in code; these change the path only.
+  NSE_BHAVCOPY_URL_TEMPLATE: nseTemplate(BHAVCOPY_PLACEHOLDER, DEFAULT_NSE_BHAVCOPY_TEMPLATE),
+  NSE_INDEX_URL_TEMPLATE: nseTemplate(INDEX_PLACEHOLDER, DEFAULT_NSE_INDEX_TEMPLATE),
   /** Set by Vercel (development | preview | production); unset locally and in CI. */
   VERCEL_ENV: optional(z.string().trim()),
 });

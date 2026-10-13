@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createFixtureLlm } from "./fixture-llm";
-import { createLlmPort, createOcrPort } from "./index";
+import { createLlmPort, createMarketDataPort, createOcrPort } from "./index";
 import type { LlmRequest } from "./llm";
 
 const KEY = `gsk_${"k".repeat(40)}`;
@@ -109,5 +109,38 @@ describe("createOcrPort (the fixture wins; else OCR.space when a key is set; els
     expect(out?.kind === "ok" && out.text).toContain("Statement of Profit and Loss");
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+});
+
+describe("createMarketDataPort (the fixture off Vercel when asked; else NSE; never null)", () => {
+  it("is NSE by default, with the default templates", () => {
+    expect(createMarketDataPort({}).name).toBe("nse");
+    expect(createMarketDataPort({ LLM_ADAPTER: "groq", VERCEL_ENV: "production" }).name).toBe("nse");
+  });
+
+  it("is the fixture when LLM_ADAPTER=fixture off Vercel, and never calls the network", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const port = createMarketDataPort({ LLM_ADAPTER: "fixture" });
+    expect(port.name).toBe("fixture");
+    expect(createMarketDataPort({ LLM_ADAPTER: "fixture", VERCEL_ENV: "development" }).name).toBe("fixture");
+    expect(await port.indexClose("2026-10-12")).toMatchObject({ kind: "ok" });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("refuses the fixture on Vercel preview and production (ruling R27) and uses NSE there", () => {
+    const warn = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const VERCEL_ENV of ["preview", "production"]) {
+      expect(createMarketDataPort({ LLM_ADAPTER: "fixture", VERCEL_ENV }).name).toBe("nse");
+    }
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("takes the templates from the environment, and refuses one that points at another host", () => {
+    const ok = "https://nsearchives.nseindia.com/content/cm/x_{YYYYMMDD}.zip";
+    expect(createMarketDataPort({ NSE_BHAVCOPY_URL_TEMPLATE: ok }).name).toBe("nse");
+    expect(() => createMarketDataPort({ NSE_BHAVCOPY_URL_TEMPLATE: "https://evil.example/{YYYYMMDD}.zip" })).toThrow(/NSE_BHAVCOPY_URL_TEMPLATE/);
+    expect(() => createMarketDataPort({ NSE_INDEX_URL_TEMPLATE: "https://evil.example/{DDMMYYYY}.csv" })).toThrow(/NSE_INDEX_URL_TEMPLATE/);
   });
 });

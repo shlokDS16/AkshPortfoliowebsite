@@ -110,4 +110,29 @@ describe("parseServerEnv: the LLM settings (optional; unset means AI reading is 
     expect(parseServerEnv({ ...valid, VERCEL_ENV: "preview" }).VERCEL_ENV).toBe("preview");
     expect(parseServerEnv(valid).VERCEL_ENV).toBeUndefined();
   });
+  it("defaults the two NSE templates to the verified archive patterns, also when the template leaves them empty", () => {
+    const env = parseServerEnv(valid);
+    expect(env.NSE_BHAVCOPY_URL_TEMPLATE).toBe("https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_{YYYYMMDD}_F_0000.csv.zip");
+    expect(env.NSE_INDEX_URL_TEMPLATE).toBe("https://nsearchives.nseindia.com/content/indices/ind_close_all_{DDMMYYYY}.csv");
+    expect(parseServerEnv({ ...valid, NSE_BHAVCOPY_URL_TEMPLATE: "", NSE_INDEX_URL_TEMPLATE: "" }).NSE_INDEX_URL_TEMPLATE).toBe(env.NSE_INDEX_URL_TEMPLATE);
+  });
+
+  it("accepts a changed path on the NSE archive host", () => {
+    const template = "https://nsearchives.nseindia.com/content/cm/new_{YYYYMMDD}.zip";
+    expect(parseServerEnv({ ...valid, NSE_BHAVCOPY_URL_TEMPLATE: template }).NSE_BHAVCOPY_URL_TEMPLATE).toBe(template);
+  });
+
+  it("refuses, at parse time, a template for another host, http, a missing or swapped placeholder", () => {
+    for (const NSE_BHAVCOPY_URL_TEMPLATE of [
+      "https://evil.example/{YYYYMMDD}.zip",
+      "http://nsearchives.nseindia.com/{YYYYMMDD}.zip",
+      "https://nsearchives.nseindia.com@evil.example/{YYYYMMDD}.zip",
+      "https://nsearchives.nseindia.com/no-date.zip",
+      "https://nsearchives.nseindia.com/{DDMMYYYY}.zip",
+    ]) {
+      expect(() => parseServerEnv({ ...valid, NSE_BHAVCOPY_URL_TEMPLATE })).toThrow(/NSE_BHAVCOPY_URL_TEMPLATE/);
+    }
+    expect(() => parseServerEnv({ ...valid, NSE_INDEX_URL_TEMPLATE: "https://evil.example/{DDMMYYYY}.csv" })).toThrow(/NSE_INDEX_URL_TEMPLATE/);
+    expect(() => parseServerEnv({ ...valid, NSE_INDEX_URL_TEMPLATE: "https://evil.example/{DDMMYYYY}.csv" })).not.toThrow(/evil\.example/);
+  });
 });

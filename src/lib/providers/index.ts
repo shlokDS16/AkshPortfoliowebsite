@@ -1,15 +1,20 @@
 import "server-only";
 import { createFixtureLlm } from "./fixture-llm";
+import { createFixtureMarketData } from "./fixture-market-data";
 import { createGroqLlm } from "./groq";
 import { createFixtureOcr } from "./fixture-ocr";
 import { createFixtureTranscriber } from "./fixture-transcriber";
 import { createGroqWhisper } from "./groq-whisper";
 import type { LlmPort } from "./llm";
+import type { MarketDataPort } from "./market-data";
+import { createNseMarketData } from "./nse-bhavcopy";
+import { DEFAULT_NSE_BHAVCOPY_TEMPLATE, DEFAULT_NSE_INDEX_TEMPLATE } from "./nse-template";
 import type { OcrPort } from "./ocr";
 import { createOcrSpace } from "./ocrspace";
 import type { TranscriberPort } from "./transcriber";
 
 export type { LlmPort, LlmRequest, LlmResult, LlmUsage, RateHeaders } from "./llm";
+export type { Close, EquityDay, IndexDay, MarketDataPort, Miss } from "./market-data";
 export type { OcrFiletype, OcrPort, OcrResult } from "./ocr";
 export type { TranscriberPort, TranscriberResult } from "./transcriber";
 
@@ -70,4 +75,31 @@ export function createTranscriberPort(env: TranscriberEnv, opts: { model: string
     return createFixtureTranscriber();
   }
   return env.GROQ_API_KEY ? createGroqWhisper({ apiKey: env.GROQ_API_KEY, model: opts.model }) : null;
+}
+
+/** The slice of the server env that picks the market-data adapter (passed in; this file never reads process.env). */
+export type MarketDataEnv = {
+  NSE_BHAVCOPY_URL_TEMPLATE?: string;
+  NSE_INDEX_URL_TEMPLATE?: string;
+  LLM_ADAPTER?: "groq" | "fixture";
+  VERCEL_ENV?: string;
+};
+
+/**
+ * The fixture when LLM_ADAPTER=fixture (and not on Vercel, ruling R27: made-up closes would reach the track record);
+ * otherwise the NSE adapter, which needs no key. Never null. A template that does not point at the NSE archive host
+ * throws here, at start-up, rather than at the first fetch.
+ */
+export function createMarketDataPort(env: MarketDataEnv): MarketDataPort {
+  if (env.LLM_ADAPTER === "fixture") {
+    if (env.VERCEL_ENV && DEPLOYED.has(env.VERCEL_ENV)) {
+      console.error("market data: LLM_ADAPTER=fixture is refused on a Vercel deployment; the real NSE files are used");
+    } else {
+      return createFixtureMarketData();
+    }
+  }
+  return createNseMarketData({
+    bhavcopyTemplate: env.NSE_BHAVCOPY_URL_TEMPLATE ?? DEFAULT_NSE_BHAVCOPY_TEMPLATE,
+    indexTemplate: env.NSE_INDEX_URL_TEMPLATE ?? DEFAULT_NSE_INDEX_TEMPLATE,
+  });
 }
