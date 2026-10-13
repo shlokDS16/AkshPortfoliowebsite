@@ -65,3 +65,23 @@ export function weekdaysBehind(days: readonly MarketDayRow[], today: string): nu
   }
   return behind;
 }
+
+/**
+ * Holes in the calendar: weekdays inside the fetch window that are older than the newest open day and are neither open (by
+ * any source, a typed close included) nor shut. A real holiday is shut as soon as a later day opens, so a hole is a day whose
+ * files could not be read or could not be confirmed missing. `weekdaysOld` counts the weekdays from the date up to, and not
+ * including, today: the number of daily runs that have had a look at it. Oldest first.
+ */
+export function unsettledWeekdays(days: readonly MarketDayRow[], today: string): { date: string; weekdaysOld: number }[] {
+  const known = byDate(days);
+  const last = lastOpenDate(days, today);
+  if (last === null) return [];
+  const holes: { date: string; weekdaysOld: number }[] = [];
+  for (let d = addDays(today, -FETCH_WINDOW_DAYS); d < last; d = addDays(d, 1)) {
+    if (!isWeekday(d) || known.has(d)) continue;
+    let weekdaysOld = 0;
+    for (let x = d; x < today; x = addDays(x, 1)) if (isWeekday(x)) weekdaysOld += 1;
+    holes.push({ date: d, weekdaysOld });
+  }
+  return holes;
+}

@@ -6,7 +6,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(349);
+select plan(359);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -720,8 +720,9 @@ select is((select count(*) from public.prices_daily p join public.companies c on
 select private.put_close(c.id, null, '2026-03-11', 700, 'nse_fetch', 'HOTEL', 'EQ', null) from public.companies c where c.nse_symbol = 'HOTEL';
 select private.put_close(null, 'NIFTY50', '2026-03-11', 21700, 'nse_fetch', 'NIFTY 50', null, null);
 insert into public.market_days (trade_date, status, source) values ('2026-03-11', 'shut', 'nse_fetch');
--- C-1: a typed index close does not reopen a shut day (the calendar follows the ladder).
-select public.enter_closes('2026-03-11', '[]'::jsonb, 22222);
+-- C-1: a typed index close does not reopen a shut day (the calendar follows the ladder). Task 7 fix round 1 (I-4, N-6): and it
+-- is REFUSED, not reported as stored.
+select throws_ok($$ select public.enter_closes('2026-03-11', '[]'::jsonb, 22222) $$, 'P0001', 'ledger:day_shut', 'a typed index close on a shut day is refused');
 select is(pg_temp.md('2026-03-11'), 'shut/nse_fetch', 'a typed index close does not reopen a shut day');
 select is(pg_temp.ix('2026-03-11'), '21700/nse_fetch', 'and does not replace the official index close');
 select public.store_fetched_closes('2026-03-12', jsonb_build_array(pg_temp.r('HOTEL', 720)), 21850);
@@ -912,9 +913,25 @@ select is(pg_temp.md(current_setting('ledger_probe.today')::date - 4), 'shut/nse
 select private.put_index_close(current_setting('ledger_probe.today')::date - 4, 124, 'manual');
 select is(pg_temp.md(current_setting('ledger_probe.today')::date - 4), 'shut/nse_fetch', 'and a typed close cannot reopen it');
 select private.put_index_close(current_setting('ledger_probe.today')::date - 4, 125, 'nse_upload');
-select is(pg_temp.md(current_setting('ledger_probe.today')::date - 4), 'shut/nse_fetch', 'nor can an uploaded one (only a fetch outranks a fetch)');
+select is(pg_temp.md(current_setting('ledger_probe.today')::date - 4), 'open/nse_upload', 'I-4: an official uploaded file CAN reopen a day the job shut (it is the repair for a wrong shut)');
+update public.market_days set status = 'shut', source = 'nse_fetch' where trade_date = current_setting('ledger_probe.today')::date - 4;
 select private.put_index_close(current_setting('ledger_probe.today')::date - 4, 126, 'nse_fetch');
 select is(pg_temp.md(current_setting('ledger_probe.today')::date - 4), 'open/nse_fetch', 'the official fetch can reopen a day that was shut');
+
+-- Task 7 fix round 1, I-4 (N-6), through the public doors. 2026-01-14 is a Wednesday the job shut.
+insert into public.market_days (trade_date, status, source) values ('2026-01-14', 'shut', 'nse_fetch');
+select throws_ok($$ select public.enter_closes('2026-01-14', '[]'::jsonb, 100) $$, 'P0001', 'ledger:day_shut', 'I-4: a typed Nifty 50 close on a shut day is refused');
+select throws_ok($$ select public.enter_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 9)), null) $$, 'P0001', 'ledger:day_shut',
+  'I-4: typed company closes on a shut day are refused');
+select throws_ok($$ select public.store_uploaded_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 9)), null) $$, 'P0001', 'ledger:day_shut',
+  'I-4: an uploaded file without the Nifty 50 close cannot reopen the day, so it is refused rather than reported as stored');
+select is(pg_temp.md('2026-01-14'), 'shut/nse_fetch', 'I-4: the day is still shut after the refusals');
+select is((select count(*) from public.prices_daily where trade_date = '2026-01-14'), 0::bigint, 'I-4: and the refused calls stored nothing at all');
+select is(public.store_uploaded_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 9)), 100), 1::integer, 'I-4: an official file with the Nifty 50 close is stored');
+select is(pg_temp.md('2026-01-14'), 'open/nse_upload', 'I-4: and reopens the shut day, under the upload source (so the daily fetch still asks for it)');
+select is(pg_temp.px('ROMEO', '2026-01-14') || ' ' || pg_temp.ix('2026-01-14'), '9/nse_upload 100/nse_upload', 'I-4: the uploaded closes are the ones in force');
+select public.store_fetched_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 10)), 101);
+select is(pg_temp.md('2026-01-14') || ' ' || pg_temp.px('ROMEO', '2026-01-14'), 'open/nse_fetch 10/nse_fetch', 'I-4: the daily fetch still outranks the upload');
 
 -- 10. tracked_symbols: open ideas, and closed ones until their score rests on fetched closes; not void.
 select is((select array_agg(s order by s) from public.tracked_symbols() s),

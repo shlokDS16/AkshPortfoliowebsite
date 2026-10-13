@@ -19,9 +19,11 @@ vi.mock("@/modules/ops/job-deps", () => ({
 // The ingestion drain (Phase 2) claims through the secret-key client: an empty queue here.
 vi.mock("@/lib/supabase/service", () => ({
   createSupabaseServiceClient: () => ({
-    rpc: async (name: string) => {
+    // awaitable like a supabase-js builder, and with abortSignal() (ledger:score is run under a time budget)
+    rpc: (name: string) => {
       if (name === "claim_job_step") fake.claims += 1;
-      return { data: [], error: null };
+      const result = { data: [], error: null };
+      return Object.assign(Promise.resolve(result), { abortSignal: () => Promise.resolve(result) });
     },
   }),
 }));
@@ -121,6 +123,7 @@ describe("GET /api/health", () => {
         { job: "heartbeat:pump", ageSeconds: 600, ok: true },
         { job: "heartbeat:daily", ageSeconds: 36_000, ok: true },
         { job: "ledger:prices", ageSeconds: null, ok: true },
+        { job: "ledger:score", ageSeconds: null, ok: true },
         { job: "ledger:anchor", ageSeconds: null, ok: true },
         { job: "queue", ageSeconds: null, ok: true },
       ],
@@ -134,6 +137,15 @@ describe("GET /api/health", () => {
     const text = JSON.stringify(await response.json());
     expect(text).toContain('{"job":"ledger:prices","ageSeconds":1800,"ok":false}');
     expect(text).not.toMatch(/NSE|closes to|2026/);
+  });
+
+  it("is 500 when the scoring job's latest run failed, with the same three keys and no reason", async () => {
+    fake.ages = [fresh("heartbeat:pump", 10), fresh("heartbeat:daily", 600), { ...fresh("ledger:score", 20, false), detail: "the ledger failed its own check (chain_broken)" } as never];
+    const response = await health();
+    expect(response.status).toBe(500);
+    const text = JSON.stringify(await response.json());
+    expect(text).toContain('{"job":"ledger:score","ageSeconds":1200,"ok":false}');
+    expect(text).not.toMatch(/chain_broken|ledger failed/);
   });
 
   it("is 500 when the pump is stale", async () => {

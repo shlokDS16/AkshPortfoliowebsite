@@ -87,6 +87,21 @@ describe("LivenessStrip", () => {
     expect(alert.textContent?.match(/safe/g)).toHaveLength(1);
   });
 
+  it("shows a note about a good run quietly: not an alert, nothing about the monitor", () => {
+    render(<LivenessStrip state={{ status: "ok", notes: ["The latest closing-prices run found no row for 1 of 3 companies in NSE's file."] }} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    const note = screen.getByTestId("health-note");
+    expect(note).toHaveAttribute("role", "status");
+    expect(note).toHaveTextContent("The latest closing-prices run found no row for 1 of 3 companies in NSE's file.");
+    expect(note.textContent).not.toMatch(/monitor/);
+  });
+
+  it("puts the note after the red sentence when a clock is late", () => {
+    render(<LivenessStrip state={{ status: "late", problems: ["the scores' last run failed 5 min ago: scoring did not finish within its time limit"], notes: ["A note."] }} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Background jobs are late: the scores' last run failed 5 min ago: scoring did not finish within its time limit.");
+    expect(screen.getByTestId("health-note")).toHaveTextContent("A note.");
+  });
+
   it("says plainly when the database cannot be reached, with a fixed text", () => {
     render(<LivenessStrip state={{ status: "unreachable" }} />);
     const alert = screen.getByRole("alert");

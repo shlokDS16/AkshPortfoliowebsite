@@ -51,14 +51,33 @@ export function fakeLedgerDb(opts: {
   today: string;
   symbols?: string[];
   days?: MarketDayRow[];
-  score?: { data: number } | { error: { message: string; code?: string } };
+  score?: { data: number } | { error: { message: string; code?: string } } | "hang";
   storeError?: { message: string; code?: string };
   marketDaysError?: { message: string; code?: string };
+  shutError?: { message: string; code?: string };
 }) {
+  let today = opts.today;
   const days = new Map<string, MarketDayRow>((opts.days ?? []).map((d) => [d.tradeDate, { ...d }]));
   // Dates with an official (non-typed) price row. Test rows given as nse_fetch or nse_upload count as priced.
   const priced = new Set([...days.values()].filter((d) => d.source !== "manual").map((d) => d.tradeDate));
   const rpcCalls: RpcCall[] = [];
+  /** What supabase-js gives back from rpc(): awaitable, with abortSignal(). A hung call settles only when its signal aborts. */
+  const answer = (result: unknown, hang = false) => {
+    let signal: AbortSignal | undefined;
+    const run = () =>
+      hang
+        ? new Promise((resolve) => {
+            const settle = () => resolve({ data: null, error: { message: "AbortError: The operation was aborted", code: "" } });
+            if (signal?.aborted) settle();
+            else signal?.addEventListener("abort", settle);
+          })
+        : Promise.resolve(result);
+    const builder = {
+      abortSignal: (s: AbortSignal) => ((signal = s), builder),
+      then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) => run().then(resolve, reject),
+    };
+    return builder;
+  };
   const db = {
     from: (table: string) => {
       if (table !== "market_days") throw new Error(`unexpected table ${table}`);
@@ -71,26 +90,27 @@ export function fakeLedgerDb(opts: {
     },
     rpc: (name: string, args?: Record<string, unknown>) => {
       rpcCalls.push({ name, args });
-      if (name === "tracked_symbols") return Promise.resolve({ data: opts.symbols ?? [], error: null });
+      if (name === "tracked_symbols") return answer({ data: opts.symbols ?? [], error: null });
       if (name === "store_fetched_closes") {
-        if (opts.storeError) return Promise.resolve({ data: null, error: opts.storeError });
+        if (opts.storeError) return answer({ data: null, error: opts.storeError });
         const date = args?.p_trade_date as string;
         const rows = args?.p_rows as unknown[];
         priced.add(date);
         if (args?.p_index_close !== null && args?.p_index_close !== undefined) days.set(date, { tradeDate: date, status: "open", source: "nse_fetch" });
-        return Promise.resolve({ data: rows.length, error: null });
+        return answer({ data: rows.length, error: null });
       }
       if (name === "mark_market_day_shut") {
+        if (opts.shutError) return answer({ data: null, error: opts.shutError });
         const date = args?.p_trade_date as string;
         const laterOpen = [...days.values()].some((d) => d.tradeDate > date && d.status === "open" && d.source !== "manual");
-        if (date >= addDays(opts.today, -7) && date <= opts.today && !priced.has(date) && laterOpen) {
+        if (date >= addDays(today, -7) && date <= today && !priced.has(date) && laterOpen) {
           days.set(date, { tradeDate: date, status: "shut", source: "nse_fetch" });
         }
-        return Promise.resolve({ data: null, error: null });
+        return answer({ data: null, error: null });
       }
-      if (name === "score_ideas") return Promise.resolve({ data: null, error: null, ...(opts.score ?? { data: 0 }) });
+      if (name === "score_ideas") return opts.score === "hang" ? answer(null, true) : answer({ data: null, error: null, ...(opts.score ?? { data: 0 }) });
       throw new Error(`unexpected rpc ${name}`);
     },
   } as unknown as Db;
-  return { db, days, rpcCalls, names: () => rpcCalls.map((c) => c.name) };
+  return { db, days, rpcCalls, names: () => rpcCalls.map((c) => c.name), setToday: (d: string) => void (today = d) };
 }

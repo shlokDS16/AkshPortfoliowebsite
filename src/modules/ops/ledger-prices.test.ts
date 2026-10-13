@@ -23,9 +23,10 @@ function setup(opts: {
   port?: Parameters<typeof fakePort>[0];
   clock?: () => number;
   storeError?: { message: string; code?: string };
+  shutError?: { message: string; code?: string };
 }) {
-  const today = opts.today ?? TODAY;
-  const dbk = fakeLedgerDb({ today, symbols: opts.symbols ?? SYMBOLS, days: opts.days ?? EARLIER, storeError: opts.storeError });
+  let today = opts.today ?? TODAY;
+  const dbk = fakeLedgerDb({ today, symbols: opts.symbols ?? SYMBOLS, days: opts.days ?? EARLIER, storeError: opts.storeError, shutError: opts.shutError });
   const port: FakePort = fakePort(opts.port ?? { equity: (d) => equityOk(d, SYMBOLS), index: (d) => indexOk(d) });
   const made: { count: number } = { count: 0 };
   const deps: LedgerJobDeps = {
@@ -34,7 +35,12 @@ function setup(opts: {
     today: () => today,
     clock: opts.clock ?? (() => 0),
   };
-  return { ...dbk, port, deps, made };
+  /** Moves the India date for the next run (the database double and the step both follow). */
+  const goTo = (date: string) => {
+    today = date;
+    dbk.setToday(date);
+  };
+  return { ...dbk, port, deps, made, goTo };
 }
 
 describe("fetchCloses: the ordinary day", () => {
@@ -154,9 +160,94 @@ describe("fetchCloses: a holiday", () => {
   it("an open day opened only by a typed close is not a canary", async () => {
     const days = [open("2026-10-14", "manual")];
     const t = setup({ days, today: "2026-10-15", port: { equity: { kind: "no_file" }, index: { kind: "no_file" } } });
-    const detail = await fetchCloses(t.deps);
-    expect(detail).toContain("no open day to check against");
+    // the typed day is the newest open day, so the earlier weekdays with nothing are holes: the run is red, and says why
+    await expect(fetchCloses(t.deps)).rejects.toThrow(/no open day to check against/);
     expect(t.names()).not.toContain("mark_market_day_shut");
+  });
+});
+
+describe("fetchCloses: the per-run cap counts stored dates (review I-1)", () => {
+  const holidays = (d: string) => (["2026-10-15", "2026-10-16"].includes(d) ? { kind: "no_file" as const } : equityOk(d, SYMBOLS));
+  const holidaysIndex = (d: string) => (["2026-10-15", "2026-10-16"].includes(d) ? { kind: "no_file" as const } : indexOk(d));
+
+  it("a Thursday and Friday holiday do not starve Monday: one run stores Monday and shuts both", async () => {
+    const t = setup({ days: run("2026-10-07", "2026-10-14"), today: "2026-10-20", port: { equity: holidays, index: holidaysIndex } });
+    expect(await fetchCloses(t.deps)).toBe("stored 1 date, 2 closes, 2 dates marked shut");
+    expect(t.days.get("2026-10-19")).toMatchObject({ status: "open", source: "nse_fetch" });
+    expect(t.days.get("2026-10-15")?.status).toBe("shut");
+    expect(t.days.get("2026-10-16")?.status).toBe("shut");
+    // the canary is the date fetched in this very run: no extra call for it
+    expect(t.port.calls.filter((c) => c.symbols?.length === 0)).toEqual([]);
+  });
+
+  it("two dates that keep failing never use up the run: the next day is still stored", async () => {
+    const broken = (d: string) =>
+      ["2026-10-15", "2026-10-16"].includes(d) ? { kind: "provider_error" as const, message: "the equity file could not be read (bad_number)" } : equityOk(d, SYMBOLS);
+    const t = setup({ days: run("2026-10-07", "2026-10-14"), today: "2026-10-20", port: { equity: broken, index: (d) => indexOk(d) } });
+    // Monday is stored; the 15th has now waited 3 weekdays, so the run is red and names it (review I-2)
+    const error = (await fetchCloses(t.deps).catch((e: Error) => e)) as Error;
+    expect(error.message).toMatch(/^stored 1 date, 2 closes.*1 weekday in the last week still has no close \(2026-10-15\)/);
+    expect(t.days.get("2026-10-19")?.status).toBe("open");
+    expect(t.days.has("2026-10-15")).toBe(false);
+  });
+
+  it("still stores at most two dates a run, and says how many are left", async () => {
+    const t = setup({ days: [], today: "2026-10-21" });
+    expect(await fetchCloses(t.deps)).toBe("stored 2 dates, 4 closes, 3 dates left");
+  });
+
+  it("a date opened by an uploaded file whose files are missing is asked, is not shut (the database refuses), and holds nothing back", async () => {
+    const gone = (d: string) => d === "2026-10-13";
+    const t = setup({
+      days: [...EARLIER, open("2026-10-13", "nse_upload")],
+      today: "2026-10-15",
+      port: { equity: (d) => (gone(d) ? { kind: "no_file" } : equityOk(d, SYMBOLS)), index: (d) => (gone(d) ? { kind: "no_file" } : indexOk(d)) },
+    });
+    expect(await fetchCloses(t.deps)).toBe("stored 1 date, 2 closes");
+    expect(t.names()).toContain("mark_market_day_shut");
+    expect(t.days.get("2026-10-13")).toMatchObject({ status: "open", source: "nse_upload" });
+    expect(t.days.get("2026-10-14")?.source).toBe("nse_fetch");
+  });
+});
+
+describe("fetchCloses: a day is shut only behind a later open day (review I-3)", () => {
+  const gone = { kind: "no_file" as const };
+
+  it("yesterday's possible holiday stays undecided while the only later open day is today's uploaded file", async () => {
+    // Tue 13 has no files at the new address; the newest official open day before today is Mon 12 (old address still answers);
+    // Aksh uploaded today's file. The canary (12th) is OLDER than the 13th, so the 13th must not be shut.
+    const t = setup({ days: [...EARLIER, open("2026-10-14", "nse_upload")], today: "2026-10-14", port: { equity: gone, index: gone } });
+    const detail = await fetchCloses(t.deps);
+    expect(t.names()).not.toContain("mark_market_day_shut");
+    expect(t.days.has("2026-10-13")).toBe(false);
+    expect(detail).toContain("waiting for a later open day");
+  });
+
+  it("an ordinary morning after a holiday (yesterday): nothing is shut, and the run is quiet and green", async () => {
+    const t = setup({ days: EARLIER, today: "2026-10-14", port: { equity: gone, index: gone } });
+    await expect(fetchCloses(t.deps)).resolves.toContain("waiting for a later open day");
+    expect(t.names()).not.toContain("mark_market_day_shut");
+  });
+
+  it("two possible holidays, both newer than the newest open day: nothing is shut", async () => {
+    const t = setup({ days: EARLIER, today: "2026-10-15", port: { equity: gone, index: gone } });
+    await fetchCloses(t.deps);
+    expect(t.names()).not.toContain("mark_market_day_shut");
+  });
+});
+
+describe("fetchCloses: a date that keeps failing turns the step red after three weekdays (review I-2)", () => {
+  const bad = (d: string) => (d === "2026-10-13" ? { kind: "provider_error" as const, message: "the equity file could not be read (bad_number)" } : equityOk(d, SYMBOLS));
+
+  it("goes red on the third run, with the date, and a typed close for it clears the alarm", async () => {
+    const t = setup({ days: EARLIER, today: "2026-10-14", port: { equity: bad, index: (d) => indexOk(d) } });
+    await expect(fetchCloses(t.deps)).resolves.toContain("could not be read (bad_number)"); // Wed 14: nothing newer is open yet
+    t.goTo("2026-10-15");
+    await expect(fetchCloses(t.deps)).resolves.toContain("stored 1 date"); // Thu 15: the 14th is stored, the 13th has waited 2 weekdays
+    t.goTo("2026-10-16");
+    await expect(fetchCloses(t.deps)).rejects.toThrow(/1 weekday in the last week still has no close \(2026-10-13\)/); // Fri 16: 3 weekdays
+    t.days.set("2026-10-13", { tradeDate: "2026-10-13", status: "open", source: "manual" });
+    await expect(fetchCloses(t.deps)).resolves.toBeTypeOf("string");
   });
 });
 
@@ -235,6 +326,58 @@ describe("fetchCloses: files that disagree, and files that fail", () => {
   });
 });
 
+describe("fetchCloses: defence in depth and reporting", () => {
+  it("a file for another date than the one asked is a provider error, never stored under the asked date", async () => {
+    const t = setup({ port: { equity: equityOk("2026-10-09", SYMBOLS), index: (d) => indexOk(d) } });
+    expect(await fetchCloses(t.deps)).toContain("another date");
+    expect(t.names()).not.toContain("store_fetched_closes");
+    const t2 = setup({ port: { equity: (d) => equityOk(d, SYMBOLS), index: indexOk("2026-10-09") } });
+    expect(await fetchCloses(t2.deps)).toContain("another date");
+    expect(t2.names()).not.toContain("store_fetched_closes");
+  });
+
+  it("a tracked company with no row in a good file is counted in the result, not hidden", async () => {
+    const t = setup({ port: { equity: (d) => equityOk(d, ["TCS"]), index: (d) => indexOk(d) } });
+    expect(await fetchCloses(t.deps)).toBe("stored 1 date, 1 close, 1 of 2 companies had no row");
+    expect(t.days.get("2026-10-13")?.status).toBe("open");
+  });
+
+  it("no canary is started with under a second of the budget left: nothing is shut and the reason is out of time", async () => {
+    let now = 0;
+    const t = setup({
+      days: [...EARLIER, open("2026-10-14")],
+      today: "2026-10-15",
+      clock: () => now,
+      port: { equity: (d) => (d === "2026-10-13" ? { kind: "no_file" } : equityOk(d, SYMBOLS)), index: (d) => (d === "2026-10-13" ? { kind: "no_file" } : indexOk(d)), onCall: () => (now += 12_250) },
+    });
+    const detail = await fetchCloses(t.deps);
+    expect(detail).toContain("could not confirm 1 possible holiday (out of time)");
+    expect(t.port.calls).toHaveLength(2);
+    expect(t.names()).not.toContain("mark_market_day_shut");
+  });
+
+  it("a database failure while shutting a day fails the step with the operation and code only", async () => {
+    const t = setup({
+      days: [...EARLIER, open("2026-10-14")],
+      today: "2026-10-15",
+      shutError: { message: "permission denied for table market_days (RELIANCE)", code: "42501" },
+      port: { equity: (d) => (d === "2026-10-13" ? { kind: "no_file" } : equityOk(d, SYMBOLS)), index: (d) => (d === "2026-10-13" ? { kind: "no_file" } : indexOk(d)) },
+    });
+    const error = (await fetchCloses(t.deps).catch((e: Error) => e)) as Error;
+    expect(error.message).toMatch(/ledger\.markShut \(42501\)/);
+    expect(error.message).not.toContain("RELIANCE");
+  });
+
+  it.each([
+    ["blocked", { kind: "blocked" as const, message: "NSE refused the request (403)" }],
+    ["a provider error", { kind: "provider_error" as const, message: "the index file could not be read (bad_number)" }],
+  ])("an equity 404 beside an index file that is %s is never a candidate for a holiday", async (_label, indexAnswer) => {
+    const t = setup({ days: [...EARLIER, open("2026-10-14")], today: "2026-10-15", port: { equity: { kind: "no_file" }, index: indexAnswer } });
+    await fetchCloses(t.deps);
+    expect(t.names()).not.toContain("mark_market_day_shut");
+  });
+});
+
 describe("fetchCloses: the market-data factory", () => {
   it("a configuration error from the factory fails the step with a plain reason, before anything else is called", async () => {
     const t = setup({});
@@ -258,6 +401,12 @@ describe("scoreIdeas", () => {
     const error = (await scoreIdeas({ ...setup({}).deps, db }).catch((e: Error) => e)) as Error;
     expect(error.message).toContain(code);
     expect(error.message).toMatch(/nothing was scored/);
+  });
+
+  it("has its own time budget: a call that does not come back in time fails the step with a plain reason", async () => {
+    const db = fakeLedgerDb({ today: TODAY, score: "hang" }).db;
+    const error = (await scoreIdeas({ ...setup({}).deps, db }, 20).catch((e: Error) => e)) as Error;
+    expect(error.message).toBe("scoring did not finish within its time limit");
   });
 
   it("any other database failure is the operation and code only", async () => {

@@ -2,7 +2,8 @@ import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 
 /** The most recent run of a job, whatever its outcome: a fresh failure is not a healthy clock. */
-export type LatestRun = { ranAt: string; ok: boolean };
+/** `detail` is read only by the admin's session (RLS); the public monitor never has it. */
+export type LatestRun = { ranAt: string; ok: boolean; detail?: string };
 
 export interface HeartbeatRepo {
   record(beat: { job: string; ok: boolean; detail: string }): Promise<void>;
@@ -21,13 +22,13 @@ export function createSupabaseHeartbeatRepo(db: Db): HeartbeatRepo {
         jobs.map(async (job) => {
           const { data, error } = await db
             .from("heartbeats")
-            .select("ran_at, ok")
+            .select("ran_at, ok, detail")
             .eq("job", job)
             .order("ran_at", { ascending: false })
             .limit(1)
             .maybeSingle();
           if (error) throw dbError("ops.latestRuns", error);
-          return [job, data ? { ranAt: data.ran_at, ok: data.ok } : null] as const;
+          return [job, data ? { ranAt: data.ran_at, ok: data.ok, detail: data.detail ?? undefined } : null] as const;
         }),
       );
       return Object.fromEntries(entries);

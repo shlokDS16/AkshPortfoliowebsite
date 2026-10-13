@@ -18,7 +18,7 @@ export function clearHeartbeats(): void {
   runSql("delete from public.heartbeats");
 }
 
-type Beat = { job: "heartbeat:pump" | "heartbeat:daily" | "ledger:prices" | "ledger:anchor"; minutesAgo: number; ok?: boolean };
+type Beat = { job: "heartbeat:pump" | "heartbeat:daily" | "ledger:prices" | "ledger:score" | "ledger:anchor"; minutesAgo: number; ok?: boolean };
 
 export async function seedHeartbeats(stack: LocalStack, beats: Beat[]): Promise<void> {
   const client = createClient(stack.apiUrl, stack.secretKey, { auth: { autoRefreshToken: false, persistSession: false } });

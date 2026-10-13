@@ -46,6 +46,31 @@ describe("liveness for the red strip (spec s8)", () => {
     expect(livenessFromReport(report({ "heartbeat:pump": ago(10), "heartbeat:daily": ago(600) }, 5 * 3600))).toEqual({ status: "ok" });
   });
 
+  it("names a failed ledger step with its own plain reason", () => {
+    const failed = { ranAt: ago(10).ranAt, ok: false, detail: "the ledger failed its own check (chain_broken); nothing was scored" };
+    expect(livenessFromReport(report({ "heartbeat:pump": ago(10), "heartbeat:daily": ago(600), "ledger:score": failed }))).toEqual({
+      status: "late",
+      problems: ["the scores' last run failed 10 min ago: the ledger failed its own check (chain_broken); nothing was scored"],
+    });
+  });
+
+  it("passes on a note about a good closing-prices run (a company with no row) without calling anything late", () => {
+    const good = { ranAt: ago(60).ranAt, ok: true, detail: "stored 1 date, 1 close, 1 of 3 companies had no row" };
+    expect(livenessFromReport(report({ "heartbeat:pump": ago(10), "heartbeat:daily": ago(600), "ledger:prices": good }))).toEqual({
+      status: "ok",
+      notes: ["The latest closing-prices run found no row for 1 of 3 companies in NSE's file."],
+    });
+  });
+
+  it("keeps a note beside a late clock", () => {
+    const good = { ranAt: ago(60).ranAt, ok: true, detail: "1 of 2 companies had no row" };
+    expect(livenessFromReport(report({ "heartbeat:pump": ago(300), "heartbeat:daily": ago(600), "ledger:prices": good }))).toEqual({
+      status: "late",
+      problems: ["the 15-minute pump last ran 5 h ago"],
+      notes: ["The latest closing-prices run found no row for 1 of 2 companies in NSE's file."],
+    });
+  });
+
   it("reports the database as unreachable instead of throwing", async () => {
     const down = {
       from: () => {

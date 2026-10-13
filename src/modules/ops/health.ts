@@ -2,18 +2,22 @@ import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 import { QUEUE_STALE_SECONDS } from "@/modules/ingestion/client";
 import type { HeartbeatRepo, LatestRun } from "./heartbeat";
+import { noRowNote } from "./ledger-detail";
 
 // Public entry (@/modules/ops/health): everything here may run without the secret-key client.
 // Spec s8: the pump is unhealthy after 2 h, the daily job after 36 h, and either when its latest run failed.
-// The ledger's two steps (Plan 3a) follow the same 36 h rule but are `optional`: a job that has never run is healthy (so a
-// deploy does not turn production red before the first daily run, and an empty ledger looks like any other), while a
-// failed or stale latest run is not. The public contract grows by these two rows and nothing else.
-type Rule = { job: string; maxAgeSeconds: number; label: string; optional?: boolean };
+// The ledger's three steps (Plan 3a: prices, score, anchor) follow the same 36 h rule but are `optional`: a job that has never
+// run is healthy (so a deploy does not turn production red before the first daily run, and an empty ledger looks like any
+// other), while a failed or stale latest run is not. The public contract grows by these rows and nothing else: job, age, boolean.
+// `showReason` rules also give the PRIVATE desk strip the heartbeat's own plain reason for a failed run (the admin reads the
+// detail column through RLS; the public path never selects it).
+type Rule = { job: string; maxAgeSeconds: number; label: string; optional?: boolean; showReason?: boolean };
 export const HEALTH_RULES: readonly Rule[] = [
   { job: "heartbeat:pump", maxAgeSeconds: 120 * 60, label: "the 15-minute pump" },
   { job: "heartbeat:daily", maxAgeSeconds: 36 * 60 * 60, label: "the daily job" },
-  { job: "ledger:prices", maxAgeSeconds: 36 * 60 * 60, label: "the closing prices", optional: true },
-  { job: "ledger:anchor", maxAgeSeconds: 36 * 60 * 60, label: "the public proof", optional: true },
+  { job: "ledger:prices", maxAgeSeconds: 36 * 60 * 60, label: "the closing prices", optional: true, showReason: true },
+  { job: "ledger:score", maxAgeSeconds: 36 * 60 * 60, label: "the scores", optional: true, showReason: true },
+  { job: "ledger:anchor", maxAgeSeconds: 36 * 60 * 60, label: "the public proof", optional: true, showReason: true },
 ];
 
 /** The one verdict for a clock, in whole seconds. Both the desk strip and the public monitor use it. */
@@ -24,20 +28,30 @@ export type ClockCheck = {
   ageSeconds: number | null;
   ok: boolean;
   lastRunFailed: boolean;
+  /** Private only: the failed run's own plain reason (a ledger step), or null. Never on the public path. */
+  reason: string | null;
+  /** Private only: a sentence about the latest good run that is worth a look but is not a failure, or null. */
+  note: string | null;
 };
 /** The job queue: age in whole seconds of the oldest runnable step, or null when nothing is runnable (plan E7). */
 export type QueueCheck = { ageSeconds: number | null; ok: boolean };
 export type HealthReport = { ok: boolean; checkedAt: string; checks: ClockCheck[]; queue: QueueCheck };
 
-function checkClock(rule: Rule, run: { ageSeconds: number; ok: boolean } | null): ClockCheck {
-  if (!run) return { job: rule.job, label: rule.label, ageSeconds: null, ok: rule.optional === true, lastRunFailed: false };
+const REASON_LIMIT = 200;
+
+function checkClock(rule: Rule, run: { ageSeconds: number; ok: boolean; detail?: string } | null): ClockCheck {
+  if (!run) return { job: rule.job, label: rule.label, ageSeconds: null, ok: rule.optional === true, lastRunFailed: false, reason: null, note: null };
   const ageSeconds = Math.max(0, Math.floor(run.ageSeconds));
+  const ok = run.ok && ageSeconds <= rule.maxAgeSeconds;
+  const detail = run.detail?.trim() ?? "";
   return {
     job: rule.job,
     label: rule.label,
     ageSeconds,
-    ok: run.ok && ageSeconds <= rule.maxAgeSeconds,
+    ok,
     lastRunFailed: !run.ok,
+    reason: !run.ok && rule.showReason && detail ? detail.slice(0, REASON_LIMIT) : null,
+    note: ok && rule.job === "ledger:prices" ? noRowNote(run.detail) : null,
   };
 }
 
@@ -52,7 +66,7 @@ function checkQueue(ageSeconds: number | null): QueueCheck {
 export function evaluateHealth(latest: Record<string, LatestRun | null>, now: Date, queueAgeSeconds: number | null): HealthReport {
   const checks = HEALTH_RULES.map((rule) => {
     const run = latest[rule.job] ?? null;
-    return checkClock(rule, run && { ageSeconds: (now.getTime() - new Date(run.ranAt).getTime()) / 1000, ok: run.ok });
+    return checkClock(rule, run && { ageSeconds: (now.getTime() - new Date(run.ranAt).getTime()) / 1000, ok: run.ok, detail: run.detail });
   });
   const queue = checkQueue(queueAgeSeconds);
   return { ok: checks.every((c) => c.ok) && queue.ok, checkedAt: now.toISOString(), checks, queue };
@@ -69,9 +83,17 @@ export function describeStale(report: HealthReport): string[] {
     .filter((c) => !c.ok)
     .map((c) => {
       if (c.ageSeconds === null) return `${c.label} has never run`;
-      if (c.lastRunFailed) return `${c.label}${c.label.endsWith("s") ? "'" : "'s"} last run failed ${formatAge(c.ageSeconds)} ago`;
+      if (c.lastRunFailed) {
+        const failed = `${c.label}${c.label.endsWith("s") ? "'" : "'s"} last run failed ${formatAge(c.ageSeconds)} ago`;
+        return c.reason ? `${failed}: ${c.reason}` : failed;
+      }
       return `${c.label} last ran ${formatAge(c.ageSeconds)} ago`;
     });
+}
+
+/** Things worth a look that are not failures (a tracked company with no row in a good file). Private; shown quietly on the strip. */
+export function describeNotes(report: HealthReport): string[] {
+  return report.checks.flatMap((c) => (c.note ? [c.note] : []));
 }
 
 /** The queue's own clause for the strip (rendered in Task 15), or null while documents are moving. */

@@ -169,16 +169,17 @@ end;
 $$;
 
 -- A date becomes open once its Nifty 50 close is stored, and keeps the STRONGEST source that has opened it so far (a date
--- opened only by hand is not "decided": the daily fetch still asks for it, and an official file upgrades it). The calendar
--- follows the ladder: a shut day is reopened only by a source at least as strong as the one that shut it, so a typed close
--- never reopens a shut day.
+-- opened only by hand is not "decided": the daily fetch still asks for it, and an official file upgrades it). A shut day is
+-- reopened by a source at least as strong as the one that shut it (the daily fetch), AND by an official uploaded file
+-- (nse_upload), the repair for a wrong shut: the day then carries the source nse_upload, so the daily fetch still asks for it
+-- and upgrades it. A typed close never reopens a shut day (put_hand_closes refuses it).
 create function private.mark_day_open(p_trade_date date, p_source text)
 returns void language plpgsql security definer set search_path = ''
 as $$
 begin
   insert into public.market_days as d (trade_date, status, source) values (p_trade_date, 'open', p_source)
   on conflict (trade_date) do update set status = 'open', source = excluded.source, decided_at = clock_timestamp()
-    where (d.status <> 'open' and private.close_rank(excluded.source) >= private.close_rank(d.source))
+    where (d.status <> 'open' and (private.close_rank(excluded.source) >= private.close_rank(d.source) or excluded.source = 'nse_upload'))
        or (d.status = 'open' and private.close_rank(excluded.source) > private.close_rank(d.source));
 end;
 $$;
@@ -248,7 +249,9 @@ begin
 end;
 $$;
 
--- The hand paths share one body: nothing before the close of the day, and a typed close never on a weekend. p_now is a
+-- The hand paths share one body: nothing before the close of the day, and a typed close never on a weekend. A day the job
+-- shut cannot take a typed close (the day stays shut, so it would be stored and never used), and an upload can take it only
+-- with the Nifty 50 close that reopens it: either refusal is ledger:day_shut, so nothing appears to succeed. p_now is a
 -- clock argument for the tests only: private functions are executable by no API role, and both public callers leave it out.
 create function private.put_hand_closes(p_trade_date date, p_rows jsonb, p_index_close numeric, p_source text,
                                         p_now timestamptz default clock_timestamp())
@@ -263,6 +266,10 @@ begin
   end if;
   if p_source = 'manual' and extract(isodow from p_trade_date) > 5 then
     perform private.ledger_fail('weekend');
+  end if;
+  if (p_source = 'manual' or p_index_close is null)
+     and exists (select 1 from public.market_days d where d.trade_date = p_trade_date and d.status = 'shut') then
+    perform private.ledger_fail('day_shut');
   end if;
   v_n := private.put_company_rows(p_trade_date, p_rows, p_source, 'ideas');
   perform private.put_index_close(p_trade_date, p_index_close, p_source);

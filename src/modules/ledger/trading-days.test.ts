@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "@/lib/dates";
-import { datesToFetch, FETCH_WINDOW_DAYS, isWeekday, lastOpenDate, weekdaysBehind, type MarketDayRow } from "./trading-days";
+import { datesToFetch, FETCH_WINDOW_DAYS, isWeekday, lastOpenDate, unsettledWeekdays, weekdaysBehind, type MarketDayRow } from "./trading-days";
 
 // 2026-10-12 is a Monday. Rows: a date is "decided" only when its source is nse_fetch (spec s18).
 const open = (tradeDate: string, source = "nse_fetch"): MarketDayRow => ({ tradeDate, status: "open", source });
@@ -87,5 +87,25 @@ describe("lastOpenDate", () => {
     expect(lastOpenDate([open("2026-10-09"), shut("2026-10-12"), open("2026-10-13")], "2026-10-14")).toBe("2026-10-13");
     expect(lastOpenDate([open("2026-10-14")], "2026-10-14")).toBeNull();
     expect(lastOpenDate([], "2026-10-14")).toBeNull();
+  });
+});
+
+describe("unsettledWeekdays (a hole in the calendar: older than the newest open day, neither open nor shut)", () => {
+  it("lists a weekday of the window that is neither open nor shut once a later day is open, with the weekdays it has waited", () => {
+    // Tue 13 has no row; Wed 14 is open; today Fri 16: the 13th has waited 3 weekdays (13, 14, 15).
+    const days = [...run("2026-10-07", "2026-10-12"), open("2026-10-14"), open("2026-10-15")];
+    expect(unsettledWeekdays(days, "2026-10-16")).toEqual([{ date: "2026-10-13", weekdaysOld: 3 }]);
+    expect(unsettledWeekdays(days, "2026-10-15")).toEqual([{ date: "2026-10-13", weekdaysOld: 2 }]);
+  });
+
+  it("is empty for a shut day, a day opened by a typed close, a weekend, and a weekday newer than the newest open day", () => {
+    const days = [...run("2026-10-07", "2026-10-09"), shut("2026-10-12"), open("2026-10-13", "manual"), open("2026-10-14")];
+    expect(unsettledWeekdays(days, "2026-10-16")).toEqual([]);
+    // Thursday 15 is newer than the newest open day: not a hole yet (it may be a holiday still waiting for a later day).
+    expect(unsettledWeekdays([...run("2026-10-07", "2026-10-14")], "2026-10-16")).toEqual([]);
+  });
+
+  it("only looks inside the fetch window", () => {
+    expect(unsettledWeekdays([open("2026-10-14")], "2026-10-16").map((u) => u.date)).toEqual(["2026-10-09", "2026-10-12", "2026-10-13"]);
   });
 });

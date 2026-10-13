@@ -72,6 +72,7 @@ test.describe("/api/health", () => {
       ["heartbeat:daily", true, "job,ageSeconds,ok"],
       // the ledger's clocks are optional: never run is healthy, and still reports only a job, an age and a boolean
       ["ledger:prices", true, "job,ageSeconds,ok"],
+      ["ledger:score", true, "job,ageSeconds,ok"],
       ["ledger:anchor", true, "job,ageSeconds,ok"],
       ["queue", true, "job,ageSeconds,ok"],
     ]);
@@ -84,6 +85,7 @@ test.describe("/api/health", () => {
     expect(JSON.stringify(body)).not.toContain("e2e seed");
     expect(body.checks[2].ageSeconds).toBeNull();
     expect(body.checks[3].ageSeconds).toBeNull();
+    expect(body.checks[4].ageSeconds).toBeNull();
   });
 
   test("is 500 when the pump's latest run failed, even though it is fresh", async ({ request }) => {
@@ -94,7 +96,7 @@ test.describe("/api/health", () => {
     ]);
     const response = await request.get("/api/health");
     expect(response.status()).toBe(500);
-    expect(((await response.json()) as { checks: { ok: boolean }[] }).checks.map((c) => c.ok)).toEqual([false, true, true, true, true]);
+    expect(((await response.json()) as { checks: { ok: boolean }[] }).checks.map((c) => c.ok)).toEqual([false, true, true, true, true, true]);
   });
 
   test("is 500 when the pump has been silent for more than 2 hours", async ({ request }) => {
@@ -105,7 +107,7 @@ test.describe("/api/health", () => {
     ]);
     const response = await request.get("/api/health");
     expect(response.status()).toBe(500);
-    expect(((await response.json()) as { checks: { ok: boolean }[] }).checks.map((c) => c.ok)).toEqual([false, true, true, true, true]);
+    expect(((await response.json()) as { checks: { ok: boolean }[] }).checks.map((c) => c.ok)).toEqual([false, true, true, true, true, true]);
   });
 });
 
@@ -126,9 +128,24 @@ test.describe("/api/health and the ledger's clocks (Plan 3a Task 7)", () => {
       ["heartbeat:pump", true, "job,ageSeconds,ok"],
       ["heartbeat:daily", true, "job,ageSeconds,ok"],
       ["ledger:prices", false, "job,ageSeconds,ok"],
+      ["ledger:score", true, "job,ageSeconds,ok"],
       ["ledger:anchor", true, "job,ageSeconds,ok"],
       ["queue", true, "job,ageSeconds,ok"],
     ]);
+    expect(JSON.stringify(body)).not.toContain("e2e seed");
+  });
+
+  test("a failed ledger:score run turns the monitor red too, with the same three keys", async ({ request }) => {
+    clearHeartbeats();
+    await seedHeartbeats(requireStack(), [
+      { job: "heartbeat:pump", minutesAgo: 5 },
+      { job: "heartbeat:daily", minutesAgo: 60 },
+      { job: "ledger:score", minutesAgo: 10, ok: false },
+    ]);
+    const response = await request.get("/api/health");
+    expect(response.status()).toBe(500);
+    const body = (await response.json()) as { ok: boolean; checks: Check[] };
+    expect(body.checks.map((c) => [c.job, c.ok, Object.keys(c).join()])).toContainEqual(["ledger:score", false, "job,ageSeconds,ok"]);
     expect(JSON.stringify(body)).not.toContain("e2e seed");
   });
 
@@ -141,19 +158,20 @@ test.describe("/api/health and the ledger's clocks (Plan 3a Task 7)", () => {
     ]);
     const stale = await request.get("/api/health");
     expect(stale.status()).toBe(500);
-    expect(((await stale.json()) as { checks: Check[] }).checks.map((c) => c.ok)).toEqual([true, true, true, false, true]);
+    expect(((await stale.json()) as { checks: Check[] }).checks.map((c) => c.ok)).toEqual([true, true, true, true, false, true]);
 
     clearHeartbeats();
     await seedHeartbeats(requireStack(), [
       { job: "heartbeat:pump", minutesAgo: 5 },
       { job: "heartbeat:daily", minutesAgo: 60 },
       { job: "ledger:prices", minutesAgo: 120 },
+      { job: "ledger:score", minutesAgo: 120 },
       { job: "ledger:anchor", minutesAgo: 120 },
     ]);
     const fresh = await request.get("/api/health");
     expect(fresh.status()).toBe(200);
     const checks = ((await fresh.json()) as { checks: Check[] }).checks;
-    expect(checks.map((c) => c.ok)).toEqual([true, true, true, true, true]);
+    expect(checks.map((c) => c.ok)).toEqual([true, true, true, true, true, true]);
     expect(checks[2].ageSeconds).toBeGreaterThanOrEqual(7200);
   });
 });
