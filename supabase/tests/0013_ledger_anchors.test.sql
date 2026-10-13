@@ -418,7 +418,7 @@ select is(pg_temp.guard_modes(), 'ledger_anchors_guard=A,ledger_anchors_no_trunc
 
 -- 7p. KNOWN LIMIT (round 2, review m-3): the newest anchor rows deleted, the events rewritten and re-hashed. Nothing inside this
 -- database can tell: the comparison has no anchor left to compare for those days, the next seal writes well-formed rows from the
--- ALTERED events, and the comparison then agrees. Only a published copy compared with the database (Task 9) closes it. Pinned so
+-- ALTERED events, and the comparison then agrees. A published copy lets a reader who kept an earlier copy detect it (Task 9). Pinned so
 -- nobody claims the comparison proves more than "matches the days sealed in this same database".
 alter table public.ledger_anchors disable trigger user;
 delete from public.ledger_anchors where anchor_date = '2026-03-05';
@@ -433,7 +433,7 @@ select is(private.seal_ledger_days_to(date '2026-03-06'), 1, 'KNOWN LIMIT: and t
 select is((select head_hash from public.ledger_anchors where anchor_date = '2026-03-05'), (select hash from public.idea_events where seq = 5),
   'KNOWN LIMIT: the new row carries the hash of the rewritten event');
 select isnt((select head_hash from public.ledger_anchors where anchor_date = '2026-03-05'), (select head_hash from pg_temp.sv_an where anchor_date = '2026-03-05'),
-  'KNOWN LIMIT: which is not the hash that was sealed (only a published copy would show it)');
+  'KNOWN LIMIT: which is not the hash that was sealed (a reader who kept an earlier copy would see it)');
 select is(pg_temp.bad(), '- - true', 'KNOWN LIMIT: and the whole comparison agrees again');
 select pg_temp.restore();
 select is(pg_temp.bad(), '- - true', 'restored: the original rows and events are back');

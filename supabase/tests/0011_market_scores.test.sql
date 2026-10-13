@@ -6,7 +6,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(338);
+select plan(349);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -296,7 +296,15 @@ select throws_ok($$ insert into public.corporate_actions (company_id, ex_date, f
 -- actions. (Two sessions cannot be opened from pgTAP; the lock is checked in the function body, and a two-session race was run by hand: see the fix-round-2 report.)
 select ok((select p.prosrc ~ 'pg_advisory_xact_lock\(hashtext\(''corporate_actions:'' \|\| new\.company_id::text\)\)'
              from pg_proc p where p.oid = 'private.guard_corporate_action()'::regprocedure),
-  'N-9: the corporate-action guard takes a per-company advisory lock before it checks for a live duplicate');
+  'N-9: the corporate-action guard takes a per-company advisory lock');
+-- Round 3 (re-review M-4a): the lock is taken BEFORE the duplicate check (and before the supersedes check), by source order: the lock
+-- call is the first statement of the body, ahead of every `exists` and every raise. (A behavioural test needs a second session.)
+select ok((select position('pg_advisory_xact_lock' in p.prosrc) > 0
+              and position('pg_advisory_xact_lock' in p.prosrc) < position('exists' in p.prosrc)
+              and position('pg_advisory_xact_lock' in p.prosrc) < position('raise exception' in p.prosrc)
+              and position('pg_advisory_xact_lock' in p.prosrc) < position('select' in p.prosrc)
+             from pg_proc p where p.oid = 'private.guard_corporate_action()'::regprocedure),
+  'N-9: and it is taken before the duplicate check, the supersedes check and any raise (source order)');
 delete from public.prices_daily;
 
 -- 3. Fixtures: 34 ideas, each on its own company. Times are Asia/Kolkata and set by the owner; the chain is then re-sealed.
@@ -484,11 +492,11 @@ insert into public.corporate_actions (company_id, ex_date, factor, kind)
     ('KILO', '2026-03-02', 3, 'other'), ('KILO', '2026-03-09', 7, 'split')) v(s, d, f, k) on c.nse_symbol = v.s;
 select is(private.score_ideas_now('2026-03-06'), pg_temp.nv(), 'rescored after the actions');
 -- INDIA: 240 * 5 / 1000 - 1 = 0.2; Nifty +2%; excess 0.18.
-select is(pg_temp.sc('INDIA'), '2026-03-02|1000|20000|2026-03-05|240|20400|5|0.2|0.02|0.18|3|f|{}', 'a 1:5 split with factor 5: the return is unchanged by the split, no jump');
+select is(pg_temp.sc('INDIA'), '2026-03-02|1000|20000|2026-03-05|240|20400|5|0.2|0.02|0.18|3|f|{attested}', 'a 1:5 split with factor 5: the return is unchanged by the split, no jump');
 -- JULIET: 270 * 2 / 500 - 1 = 0.08; excess 0.06.
-select is(pg_temp.sc('JULIET'), '2026-03-02|500|20000|2026-03-05|270|20400|2|0.08|0.02|0.06|3|f|{}', 'a 1:1 bonus with factor 2');
+select is(pg_temp.sc('JULIET'), '2026-03-02|500|20000|2026-03-05|270|20400|2|0.08|0.02|0.06|3|f|{attested}', 'a 1:1 bonus with factor 2');
 -- KILO: factor 5 * 2 = 10 (the entry-day and after-mark actions are outside); 225 * 10 / 2000 - 1 = 0.125; excess 0.105.
-select is(pg_temp.sc('KILO'), '2026-03-02|2000|20000|2026-03-05|225|20400|10|0.125|0.02|0.105|3|f|{}',
+select is(pg_temp.sc('KILO'), '2026-03-02|2000|20000|2026-03-05|225|20400|10|0.125|0.02|0.105|3|f|{attested}',
   'a split then a bonus multiply (factor 10); actions on the entry day or after the mark are left out; both drops are covered, no jump');
 
 -- 6b. I-3: "I looked, the move is real" records a none action; the loser stays in the record at its real figure.
@@ -521,7 +529,7 @@ insert into public.corporate_actions (company_id, ex_date, factor, kind)
   select c.id, v.d::date, v.f, v.k from public.companies c join (values
     ('KAPPA', '2026-03-03', 1000, 'split'), ('KAPPA', '2026-03-04', 1000, 'bonus'), ('KAPPA', '2026-03-05', 1000, 'other')) v(s, d, f, k) on c.nse_symbol = v.s;
 select is(private.score_ideas_now('2026-03-06'), pg_temp.nv(), 'a factor product of 10^9 does not fail the scoring run');
-select is(pg_temp.sc('KAPPA'), '2026-03-02|100|20000|2026-03-06|110|20500|1000000000|-|-|-|4|f|{jump,implausible}',
+select is(pg_temp.sc('KAPPA'), '2026-03-02|100|20000|2026-03-06|110|20500|1000000000|-|-|-|4|f|{attested,jump,implausible}',
   'KAPPA stores its factor, no returns, and the flags jump and implausible');
 select is(pg_temp.sc('ALPHA'), '2026-03-02|100|20000|2026-03-06|120|20500|1|0.2|0.025|0.175|4|f|{}', 'the other ideas were scored in the same run');
 
@@ -534,7 +542,7 @@ select lives_ok($$ insert into public.corporate_actions (company_id, ex_date, fa
                      from public.companies c where c.nse_symbol = 'CHARLIE' $$, 'the admin enters a late action');
 reset role;
 select private.score_ideas_now('2026-03-06');
-select is(pg_temp.sc('CHARLIE'), '2026-03-02|100|20000|2026-03-05|108|20400|1.5|0.62|0.02|0.6|3|t|{jump}', 'a factor with no matching fall moves the return and is flagged');
+select is(pg_temp.sc('CHARLIE'), '2026-03-02|100|20000|2026-03-05|108|20400|1.5|0.62|0.02|0.6|3|t|{attested,jump}', 'a factor with no matching fall moves the return and is flagged');
 select is(pg_temp.chg('CHARLIE'), 1::bigint, 'I-5: the change to a final score is logged');
 select is((select x.changed from public.idea_score_changes x join public.ideas i on i.id = x.idea_id join public.companies c on c.id = i.company_id
             where c.nse_symbol = 'CHARLIE' order by x.id limit 1), array['excess', 'factor', 'flags', 'idea_return'],
@@ -611,7 +619,7 @@ select is(pg_temp.sc('FOXT'), '2026-03-02|100|20000|2026-03-06|142.85|20500|1|0.
 insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
   select c.id, '2026-03-04', 1.5, 'other', 'made up' from public.companies c where c.nse_symbol = 'FOXT';
 select private.score_ideas_now('2026-03-06');
-select is(pg_temp.sc('FOXT'), '2026-03-02|100|20000|2026-03-06|142.85|20500|1.5|1.14275|0.025|1.11775|4|f|{jump}', 'the made-up factor moves the return and is flagged jump');
+select is(pg_temp.sc('FOXT'), '2026-03-02|100|20000|2026-03-06|142.85|20500|1.5|1.14275|0.025|1.11775|4|f|{attested,jump}', 'the made-up factor moves the return and is flagged jump');
 insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
   select c.id, '2026-03-04', 1, 'none', 'checked' from public.companies c where c.nse_symbol = 'FOXT';
 select private.score_ideas_now('2026-03-06');
@@ -634,6 +642,43 @@ insert into public.corporate_actions (company_id, ex_date, factor, kind)
 select private.score_ideas_now('2026-03-06');
 select is(pg_temp.sc('UNIF'), '2026-03-02|100|20000|2026-03-06|75|20500|1|-0.25|0.025|-0.275|4|f|{attested,jump}',
   'a `none` dated on the opening day is inside the span (attested), and does not clear a jump in a later step');
+
+-- Round 3 (re-review I-1): EVERY corporate action is typed by hand, so an action of ANY kind dated in [opening day, mark date] marks the
+-- score `attested` (before, only `none` did, and a live `other` could clear isin_changed or move the return with no trace but the
+-- factor column). Each probe below inserts actions for one company, scores, reads the line, and rolls everything back (the block always
+-- raises), so no fixture changes. GAMMA: underperform, opened 2 March, 200 -> 180 (a -10% fall) to the mark on 6 March, flags {}.
+create function pg_temp.probe(p_sym text, p_actions text) returns text language plpgsql as $$
+declare v text; a text; parts text[];
+begin
+  begin
+    foreach a in array string_to_array(p_actions, ';') loop
+      parts := string_to_array(a, ':');
+      insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
+        select c.id, parts[2]::date, parts[3]::numeric, parts[4], 'probe' from public.companies c where c.nse_symbol = parts[1];
+    end loop;
+    perform private.score_ideas_now('2026-03-06');
+    v := pg_temp.sc(p_sym);
+    raise exception 'probe' using detail = v;
+  exception when raise_exception then
+    get stacked diagnostics v = pg_exception_detail;
+  end;
+  return v;
+end $$;
+select is(pg_temp.probe('GAMMA', 'GAMMA:2026-03-04:1:none'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{attested}',
+  'I-1 control: a `none` in the span marks the score (as before)');
+select is(pg_temp.probe('GAMMA', 'GAMMA:2026-03-04:1.000001:other'), '2026-03-02|200|20000|2026-03-06|180|20500|1.000001|-0.099999|0.025|0.124999|4|f|{attested}',
+  'I-1: an `other` action with factor 1.000001 (moves the return a hair, clears nothing, trips no jump test) marks the score');
+select is(pg_temp.probe('GAMMA', 'GAMMA:2026-03-03:1.25:other;GAMMA:2026-03-04:0.8:other'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{attested}',
+  'I-1: a made-up offsetting pair (1.25 then 0.8, product exactly 1) changes no figure and still marks the score');
+select is(pg_temp.probe('GAMMA', 'GAMMA:2026-03-04:5:split'), '2026-03-02|200|20000|2026-03-06|180|20500|5|3.5|0.025|-3.475|4|f|{attested,jump}',
+  'I-1: a made-up split (no matching fall) carries the mark AND the jump flag; a real one is marked too (the 1:5 split above)');
+select is(pg_temp.probe('GAMMA', 'GAMMA:2026-02-27:5:split;GAMMA:2026-03-09:2:bonus'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{}',
+  'I-1: actions dated before the opening day or after the mark date are outside the span: no flag, no factor');
+select is(pg_temp.probe('GAMMA', 'ALPHA:2026-03-04:5:split;ALPHA:2026-03-04:1:none'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{}',
+  'I-1: actions on ANOTHER company never mark this one');
+select is(pg_temp.probe('GAMMA', 'GAMMA:2026-03-02:1.1:other'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{attested}',
+  'I-1: an action dated on the opening day marks the score (the day itself is inside the span) while its factor, dated on the entry day, is left out');
+select is(pg_temp.sc('GAMMA'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{}', 'the probes left no trace: GAMMA is as it was');
 
 -- N-3: the hand_price flag looks at every close inside the scored span, not only the entry and the mark. GAMMA is
 -- 200 -> 180 with fetched closes on 2 and 6 March; a typed close for 4 March lies strictly between them.
@@ -706,7 +751,7 @@ insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
   select c.id, '2026-03-07', 5, 'split', 'ex-date on a Saturday' from public.companies c where c.nse_symbol = 'NECTAR';
 select private.score_ideas_now('2026-03-11');
 -- With factor 5 dated Saturday 7 March the step (6 Mar, 9 Mar] contains it: 200 * 5 / 1000 - 1 = 0; excess 0 - 0.014634 = -0.014634.
-select is(pg_temp.sc('NECTAR'), '2026-03-06|1000|20500|2026-03-09|200|20800|5|0|0.014634|-0.014634|3|f|{}', 'an ex-date on a non-trading day counts for the next trading day');
+select is(pg_temp.sc('NECTAR'), '2026-03-06|1000|20500|2026-03-09|200|20800|5|0|0.014634|-0.014634|3|f|{attested}', 'an ex-date on a non-trading day counts for the next trading day');
 
 -- Stage C2: the equity file for 13 March arrives, the index file does not.
 select is(public.store_fetched_closes('2026-03-13', jsonb_build_array(pg_temp.r('QUEBEC', 80), pg_temp.r('HOTEL', 756), pg_temp.r('WHISKEY', 66)), null),
@@ -730,7 +775,7 @@ select is(pg_temp.sc('HOTEL'), '2026-03-12|720|21850|2026-03-13|756|22000|1|0.05
 insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
   select c.id, '2026-03-13', 1.02, 'other', 'small' from public.companies c where c.nse_symbol = 'HOTEL';
 select private.score_ideas_now('2026-03-13');
-select is(pg_temp.sc('HOTEL'), '2026-03-12|720|21850|2026-03-13|756|22000|1.02|0.071|0.006865|0.064135|1|f|{jump}',
+select is(pg_temp.sc('HOTEL'), '2026-03-12|720|21850|2026-03-13|756|22000|1.02|0.071|0.006865|0.064135|1|f|{attested,jump}',
   'N-4: factor 1.02 on a +5% step makes the step bigger (+7.1%) and is flagged jump');
 insert into public.corporate_actions (company_id, ex_date, factor, kind, note)
   select c.id, '2026-03-13', 1, 'none', 'checked: 1.02 is right' from public.companies c where c.nse_symbol = 'HOTEL';
@@ -986,6 +1031,15 @@ select throws_ok($$ select pg_temp.tamper('garbage') $$, 'P0001', 'ledger:chain_
 select ok(pg_temp.why('held') like 'ledger:chain_broken / first_bad_seq=% bad_idea=' || (select id::text from pg_temp.ids where sym = 'ALPHA'),
   'a projection field the replay check covers (held) stops the run and names the idea');
 select ok(pg_temp.why('time') like 'ledger:chain_broken / first_bad_seq=%', 'an event time moved without a re-seal stops the run and names the first bad seq');
+-- Round 3 (re-review M-4c): the second line is kept and tested. With the chain check replaced by one that says ok (so the replay
+-- cannot catch it), a flipped direction on the ideas row is still refused, by the projection check, with its own code.
+create temp table saved_chain_def as select pg_get_functiondef('private.ledger_chain_check()'::regprocedure) as def;
+create or replace function private.ledger_chain_check() returns table (ok boolean, events bigint, first_bad_seq bigint, bad_idea uuid)
+  language sql stable security definer set search_path = '' as $$ select true, 0::bigint, null::bigint, null::uuid $$;
+select ok(pg_temp.why('expects') like 'ledger:projection_mismatch / idea %',
+  'M-4c: with the replay out of the way, the projection check is the second line and names its own code (ledger:projection_mismatch)');
+do $$ begin execute (select def from saved_chain_def); end $$;
+select ok((select ok from private.ledger_chain_check()), 'M-4c: the real chain check is put back and verifies');
 select is((select count(*) from public.idea_scores s join snap on snap.idea_id = s.idea_id
             where to_jsonb(s) - 'computed_at' = snap.j), pg_temp.nv()::bigint, 'the stored scores are left exactly as they were');
 select ok((select ok from private.ledger_chain_check()), 'the chain still verifies after all of it (the tampering was undone)');

@@ -62,7 +62,7 @@ export const LEDGER_FLAG_TEXT = {
   entry_pending: "Entry will be set at the next close.",
   exit_pending: "Exit will be set at the next close.",
   hand_price: "Includes a close that was entered by hand.",
-  attested: "Includes a price move or code change that you marked as needing no action.",
+  attested: "Includes a split, bonus or note about a price move that you entered by hand.",
   stale: "The latest close is three or more weekdays old.",
   jump: "Needs a check: the price moved sharply. Was there a split or bonus?",
   isin_changed: "Needs a check: the share's identity code changed.",

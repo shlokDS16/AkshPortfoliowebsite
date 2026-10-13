@@ -212,7 +212,7 @@ describe("summarise: an attested score is treated exactly like a hand-entered on
 
   it("has a plain label (the screens read LEDGER_FLAG_TEXT)", async () => {
     const { LEDGER_FLAG_TEXT } = await import("@/lib/messages-ledger");
-    expect(LEDGER_FLAG_TEXT.attested).toBe("Includes a price move or code change that you marked as needing no action.");
+    expect(LEDGER_FLAG_TEXT.attested).toBe("Includes a split, bonus or note about a price move that you entered by hand.");
   });
 });
 

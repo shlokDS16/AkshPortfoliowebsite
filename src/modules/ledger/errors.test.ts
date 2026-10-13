@@ -9,6 +9,7 @@ const sql = (message: string, code = "P0001") => ledgerErrorFromDb("ledger.test"
 describe("each database code becomes a desk message", () => {
   it.each([
     ["ledger:no_symbol", "ledger-no-symbol"],
+    ["ledger:company_not_ready", "ledger-company-not-ready"],
     ["ledger:not_open", "ledger-not-open"],
     ["ledger:not_closed", "ledger-not-closed"],
     ["ledger:void_too_late", "ledger-void-too-late"],

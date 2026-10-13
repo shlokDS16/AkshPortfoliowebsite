@@ -73,6 +73,7 @@ const ERRORS = {
   "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
   // Ledger (= LEDGER_ERROR_TEXT in modules/ledger/errors.ts; a test keeps them equal). Pending Shlok's approval, spec s19.
   "ledger-no-symbol": "This company has no NSE symbol yet. Add it under Names first.",
+  "ledger-company-not-ready": "This company is still waiting for review, or has been merged into another. Settle it under Names, then record the idea on the company it became.",
   "ledger-not-open": "This idea is not open, so that entry cannot be added.",
   "ledger-not-closed": "This idea is still open. Close it before writing what you learned.",
   "ledger-void-too-late": "This idea can no longer be withdrawn, because its entry price is about to be fixed. Close it instead.",
@@ -146,6 +147,7 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "company-locked": "company-locked",
   // LedgerError likewise.
   "ledger-no-symbol": "ledger-no-symbol",
+  "ledger-company-not-ready": "ledger-company-not-ready",
   "ledger-not-open": "ledger-not-open",
   "ledger-not-closed": "ledger-not-closed",
   "ledger-void-too-late": "ledger-void-too-late",

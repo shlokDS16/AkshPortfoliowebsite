@@ -16,8 +16,9 @@
 -- forgery at all: with the guards switched off, delete the NEWEST anchor rows (or all of them: with no anchor the
 -- comparison answers ok over 0 days), rewrite the events and re-hash them. The next seal writes well-formed rows from the
 -- altered events. While the public gist is off (the default, spec D8) nothing outside this database disagrees, so in that
--- state the comparison proves only "matches the days sealed in this same database". Only a published copy of the
--- fingerprints that this database is compared with, position by position (Task 9), closes it.
+-- state the comparison proves only "matches the days sealed in this same database". A published copy of the
+-- fingerprints lets a reader who kept an earlier copy detect the change, and a comparison of that copy with this
+-- database position by position (Task 9) shows it; the owner controls the gist too, so it detects, it does not prevent.
 --
 -- THE GUARDS ARE ALWAYS-ON TRIGGERS. ledger_anchors_guard and ledger_anchors_no_truncate fire in every replication role
 -- (ENABLE ALWAYS), so `session_replication_role = replica`, the setting a restore uses, does not switch them off. The

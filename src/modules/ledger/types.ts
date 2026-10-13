@@ -108,7 +108,7 @@ export type Summary = {
   waiting: string[];
   /** Closed, exit not fixed yet: counted in `all` only. */
   exitPending: string[];
-  /** Counted, but the score rests on a close that is not the official file's, or on a "no action" note Aksh wrote (hand_price or attested). */
+  /** Counted, but the score rests on a close that is not the official file's, or on a corporate action Aksh entered by hand, of any kind (hand_price or attested). */
   handEntered: string[];
   /** Counted, but the latest close is three or more weekdays old. */
   stale: string[];

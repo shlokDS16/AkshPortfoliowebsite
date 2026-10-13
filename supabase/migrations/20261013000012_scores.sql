@@ -10,9 +10,11 @@
 -- while the ledger check fails (it runs FIRST, so no sealed text is parsed before it has been verified) or the projection
 -- (ideas) disagrees with the events. No price or return is ever written into idea_events.
 --
--- A hand-typed 'none' action (Aksh's "I looked, the move is real") clears jump and isin_changed for its step, but it
--- never does so silently: any live 'none' dated inside the scored span sets the flag 'attested' on the score, which is
--- treated everywhere exactly like 'hand_price' (a figure resting on a hand entry, never for a public number).
+-- Every corporate action is typed by hand (there is no automatic source). An action of any kind clears isin_changed for
+-- its step, a 'none' ("I looked, the move is real") also clears jump, and a factor multiplies the return; so a score that
+-- depends on one never says nothing: any live action of ANY kind dated inside the scored span (opening day to mark date)
+-- sets the flag 'attested' on the score, which is treated everywhere exactly like 'hand_price' (a figure resting on a
+-- hand entry, counted and named, never for a public number). Round 3 (re-review I-1): this was 'none' only.
 -- =============================================================================
 
 -- 1. Facts from the sealed events. agrees = the ideas row (company, direction, status) says what the events say.
@@ -250,9 +252,10 @@ begin
                                    join public.market_days md on md.trade_date = p.trade_date and md.status = 'open'
                                   where p.company_id = i.company_id and p.trade_date between v_entry and v_mark
                                     and p.source <> 'nse_fetch') then 'hand_price' end,
-          -- attested: a hand-typed 'none' lies in (day of opening - 1, mark date]; it may have cleared jump or isin_changed
+          -- attested: a hand-entered action of ANY kind lies in [day of opening, mark date]; it may have multiplied the return
+          -- or cleared jump or isin_changed. The range is the union of every range an action can clear or multiply over.
           case when exists (select 1 from private.live_actions(i.company_id) ca
-                             where ca.kind = 'none' and ca.ex_date >= (i.opened at time zone 'Asia/Kolkata')::date
+                             where ca.ex_date >= (i.opened at time zone 'Asia/Kolkata')::date
                                and ca.ex_date <= v_mark) then 'attested' end,
           case when private.has_jump(i.company_id, v_entry, v_mark) then 'jump' end,
           case when private.has_identity_break(i.company_id, v_entry, v_mark, i.sealed_symbol, i.sealed_isin,

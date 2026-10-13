@@ -7,6 +7,7 @@ import { dbError } from "@/lib/supabase/errors";
  */
 export const LEDGER_ERROR_TEXT = {
   "ledger-no-symbol": "This company has no NSE symbol yet. Add it under Names first.",
+  "ledger-company-not-ready": "This company is still waiting for review, or has been merged into another. Settle it under Names, then record the idea on the company it became.",
   "ledger-not-open": "This idea is not open, so that entry cannot be added.",
   "ledger-not-closed": "This idea is still open. Close it before writing what you learned.",
   "ledger-void-too-late": "This idea can no longer be withdrawn, because its entry price is about to be fixed. Close it instead.",
@@ -34,6 +35,7 @@ export class LedgerError extends DeskError {
 /** The `ledger:<code>` messages open_idea() and add_idea_event() raise (SQLSTATE P0001), by code. */
 const SQL_CODES: Record<string, LedgerErrorCode> = {
   no_symbol: "ledger-no-symbol",
+  company_not_ready: "ledger-company-not-ready",
   not_open: "ledger-not-open",
   not_closed: "ledger-not-closed",
   void_too_late: "ledger-void-too-late",

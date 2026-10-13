@@ -255,15 +255,24 @@ language plpgsql security definer set search_path = ''
 as $$
 declare
   v_symbol text;
+  v_review boolean;
+  v_gone   timestamptz;
   v_idea   uuid;
   v_at     timestamptz;
 begin
   if not private.is_admin() then
     raise exception 'ledger: not allowed' using errcode = '42501';
   end if;
-  select c.nse_symbol into v_symbol from public.companies c where c.id = p_company_id for update;
+  select c.nse_symbol, c.needs_review, c.archived_at into v_symbol, v_review, v_gone
+    from public.companies c where c.id = p_company_id for update;
   if not found then
     raise exception 'ledger: company not found' using errcode = 'P0002';
+  end if;
+  -- Round 3 (task 5 review I-1): an idea is never opened on a stub still waiting for review or on a row already merged away.
+  -- A merge re-points items but not ideas (and ideas.company_id never changes), so such an idea would sit on a record the
+  -- publish gate can no longer reach by company. The gate also follows company_aliases (0014), so this is the second line.
+  if v_review is true or v_gone is not null then
+    perform private.ledger_fail('company_not_ready');
   end if;
   if v_symbol is null or btrim(v_symbol) = '' then
     perform private.ledger_fail('no_symbol');
@@ -363,7 +372,7 @@ $$;
 -- service_role only; the admin's checks private.is_admin() and goes to authenticated only (spec s5.3).
 -- Part one walks the chain in seq order and returns the first seq that is out of line: a gap or wrong seq, a time
 -- that steps back, a prev_hash that is not the previous hash, a hash that is not sha256(prev_hash || newline ||
--- canonical), or a row whose columns no longer agree with the sealed text. Every comparison is fail-closed (a NULL
+-- canonical), a row whose columns no longer agree with the sealed text, or a stance that validate_idea_stance refuses. Every comparison is fail-closed (a NULL
 -- or a missing key is a failure), and the sealed text must hold exactly the version 1 keys.
 -- Part two replays each idea's events and returns the first idea whose row (status, times, direction, horizon,
 -- held, close reason, process call, company) differs from what its sealed events say, or whose void was sealed after
@@ -392,6 +401,9 @@ begin
               and r.recorded_at >= v_prev_at) is not true;
     if not v_bad then
       begin
+        -- Round 3 (re-review M-3): the stance must still be one the writer could have sealed (shape, keys, ranges), so
+        -- part two can cast its values without a cast error. A bad stance with every hash re-agreeing is chain_broken.
+        perform private.validate_idea_stance(r.kind, r.stance);
         v_c := r.canonical::jsonb;
         v_bad := (jsonb_typeof(v_c) = 'object'
                   and (select array_agg(k order by k collate "C") from jsonb_object_keys(v_c) k)

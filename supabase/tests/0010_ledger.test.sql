@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(231);
+select plan(250);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -14,6 +14,10 @@ insert into public.companies (id, slug, name, nse_symbol, isin) values
   ('cccccccc-0000-4000-8000-000000000001', 'kav', 'Kaveri Seed', 'KSCL', 'INE455F01025'),
   ('cccccccc-0000-4000-8000-000000000002', 'nosym', 'No Symbol Ltd', null, null),
   ('cccccccc-0000-4000-8000-000000000003', 'beta', 'Beta Ltd', 'BETA', 'INE000B01011');
+-- Round 3 (task 5 review I-1): a stub waiting for review and a row merged away. No idea may be opened on either.
+insert into public.companies (id, slug, name, nse_symbol, isin, needs_review, archived_at) values
+  ('cccccccc-0000-4000-8000-000000000004', 'stub', 'Stub Ltd', 'STUBX', null, true, null),
+  ('cccccccc-0000-4000-8000-000000000005', 'merged', 'Merged Ltd', 'MERGEDX', null, false, now());
 insert into public.items (id, kind, title, company_id, learning_objective) values
   ('a1000000-0000-4000-8000-000000000001', 'thesis', 'Kaveri file', 'cccccccc-0000-4000-8000-000000000001', 'Learn.');
 
@@ -259,6 +263,10 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000002', 'outperform', 365, true, 'x') $$,
   'P0001', 'ledger:no_symbol', 'a company with no NSE symbol is refused');
+select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000004', 'outperform', 365, true, 'x') $$,
+  'P0001', 'ledger:company_not_ready', 'a stub still waiting for review is refused (a merge would leave the idea behind)');
+select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000005', 'outperform', 365, true, 'x') $$,
+  'P0001', 'ledger:company_not_ready', 'a company already merged away (archived) is refused');
 select throws_ok($$ select public.open_idea(gen_random_uuid(), 'outperform', 365, true, 'x') $$,
   'P0002', null, 'an unknown company is P0002');
 select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000001', 'sideways', 365, true, 'x') $$,
@@ -385,6 +393,16 @@ select throws_ok($$ update public.ideas set status = 'closed', closed_at = null 
 -- void: inside the window only; a void idea takes nothing. The window is measured from the SEALED time of the open event
 -- (round 2, N-2): the fixtures below move that sealed time with the owner's hand (trigger off) and put it back afterwards.
 create temp table open_times as select e.idea_id, e.recorded_at from public.idea_events e where e.kind = 'open';
+-- Round 3 (re-review M-1): a void is sealed a few milliseconds after its open, and both must fall on the same side of the 15:00:00 IST
+-- cut-off. If the clock stands in the minute before it, wait it out (a 62-second wait at most, and only on a run in that minute).
+create function pg_temp.clear_cutoff() returns void language plpgsql as $f$
+declare v_t time := (clock_timestamp() at time zone 'Asia/Kolkata')::time;
+begin
+  if v_t >= time '14:59:00' and v_t < time '15:00:02' then
+    perform pg_sleep(extract(epoch from (time '15:00:02' - v_t))::float8);
+  end if;
+end $f$;
+select pg_temp.clear_cutoff();
 create function pg_temp.set_open(p_idea uuid, p_at timestamptz) returns void language plpgsql as $f$
 begin
   alter table public.idea_events disable trigger idea_events_append_only;
@@ -649,6 +667,26 @@ update public.idea_events set canonical = jsonb_set(canonical::jsonb, '{company_
 select pg_temp.rehash_from(2);
 select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a sealed text with a null company id is caught');
 select pg_temp.restore_all();
+-- Round 3 (re-review M-3): a stance no writer could have sealed (held is a string), with the sealed text and every hash re-agreeing.
+-- It is chain_broken at its seq from verify_ledger_chain() and from the scorer, never a raw cast error from the replay.
+select ok((select kind = 'open' from public.idea_events where seq = 1), 'M-3 fixture: seq 1 is an open event');
+update public.idea_events
+   set stance = stance || '{"held":"yes"}',
+       canonical = (canonical::jsonb || jsonb_build_object('stance', stance || '{"held":"yes"}'::jsonb))::text
+ where seq = 1;
+select pg_temp.rehash_from(1);
+select is((select first_bad_seq from public.verify_ledger_chain()), 1::bigint, 'M-3: an open whose held is a string is reported at its seq (ok = false), not a cast error');
+select throws_ok($$ select private.score_ideas_now(date '2026-03-16') $$, 'P0001', 'ledger:chain_broken', 'M-3: and the scorer refuses it as chain_broken');
+select pg_temp.restore_all();
+update public.idea_events
+   set stance = stance || '{"horizon_days":"soon"}',
+       canonical = (canonical::jsonb || jsonb_build_object('stance', stance || '{"horizon_days":"soon"}'::jsonb))::text
+ where seq = 1;
+select pg_temp.rehash_from(1);
+select is((select first_bad_seq from public.verify_ledger_chain()), 1::bigint, 'M-3: an open whose horizon is not a number is reported at its seq too');
+select throws_ok($$ select private.score_ideas_now(date '2026-03-16') $$, 'P0001', 'ledger:chain_broken', 'M-3: and the scorer refuses it as chain_broken');
+select pg_temp.restore_all();
+select is((select ok from public.verify_ledger_chain()), true, 'M-3: restored from the snapshot: the chain verifies');
 select is((select ok from public.verify_ledger_chain()), true, 'restored from the snapshot: the chain verifies');
 
 -- a NULL column must fail the check, not slip through it
@@ -758,6 +796,7 @@ select is((select count(*) from public.verify_ledger_chain() where ok and events
   'the final chain verifies end to end');
 
 -- N-2, the replay: a void sealed after the deadline counted from the sealed open time is reported even when every hash agrees.
+select pg_temp.clear_cutoff();
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select lives_ok($$ insert into ctx select 'i6', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 90, true, 'Typo, to be withdrawn at once.') $$,
@@ -781,8 +820,68 @@ select pg_temp.shift_last(interval '3 days');
 select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i6'),
   'N-2: a void dated three days after its sealed open (sealed text and every hash re-agreeing) is reported by the replay');
 select pg_temp.shift_last(interval '-3 days');
+-- Round 3 (re-review M-4b): the replay at the boundary. A void dated EXACTLY at the deadline verifies; one microsecond later is reported.
+create temp table gap6 as
+  select private.idea_void_deadline(o.recorded_at) - v.recorded_at as gap
+    from public.idea_events o join public.idea_events v on v.idea_id = o.idea_id and v.kind = 'void'
+   where o.idea_id = (select c.v from ctx c where c.k = 'i6') and o.kind = 'open';
+select pg_temp.shift_last((select gap from gap6));
+select is((select count(*) from public.verify_ledger_chain() where ok), 1::bigint,
+  'M-4b: the replay accepts a void dated exactly at idea_void_deadline(open)');
+select pg_temp.shift_last(interval '1 microsecond');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i6'),
+  'M-4b: and reports a void dated one microsecond after the deadline');
+select pg_temp.shift_last(-((select gap from gap6) + interval '1 microsecond'));
 alter table public.idea_events enable trigger user;
 select is((select count(*) from public.verify_ledger_chain() where ok), 1::bigint, 'put back: the chain verifies again');
+
+-- Round 3 (re-review M-4b): the seal trigger at the boundary. The seal never dates an event before the one ahead of it, so an event
+-- placed at exactly the deadline (a note on i1, dated by the owner) makes the next void be sealed at exactly that instant.
+create function pg_temp.set_time(p_seq bigint, p_at timestamptz) returns void language plpgsql as $f$
+begin
+  alter table public.idea_events disable trigger idea_events_append_only;
+  update public.idea_events set recorded_at = p_at where seq = p_seq;
+  alter table public.idea_events enable trigger idea_events_append_only;
+end $f$;
+create temp table edge (k text primary key, note_seq bigint, note_at timestamptz, dl timestamptz);
+select pg_temp.clear_cutoff();
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select lives_ok($$ insert into ctx select 'i7', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 90, true, 'Withdrawn exactly at the deadline.') $$,
+  'M-4b: a seventh idea opens');
+select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', 'Placeholder, dated at the deadline.') $$, 'M-4b: a placeholder note follows it');
+reset role;
+insert into edge select 'i7', n.seq, n.recorded_at, private.idea_void_deadline(o.recorded_at)
+  from public.idea_events n, public.idea_events o
+ where n.seq = (select max(x.seq) from public.idea_events x) and o.idea_id = (select v from ctx where k = 'i7') and o.kind = 'open';
+select pg_temp.set_time((select note_seq from edge where k = 'i7'), (select dl from edge where k = 'i7'));
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i7'), 'void', 'Withdrawn at the very last instant.') $$,
+  'M-4b: the trigger accepts a void sealed at exactly the deadline (the comparison is strictly greater)');
+reset role;
+select is((select e.recorded_at from public.idea_events e where e.idea_id = (select v from ctx where k = 'i7') and e.kind = 'void'),
+  (select dl from edge where k = 'i7'), 'M-4b: and it was sealed at exactly that instant');
+select pg_temp.set_time((select note_seq from edge where k = 'i7'), (select note_at from edge where k = 'i7'));
+select is((select count(*) from public.verify_ledger_chain() where ok), 1::bigint, 'M-4b: with the placeholder put back, the chain verifies with a void at its deadline');
+select pg_temp.clear_cutoff();
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select lives_ok($$ insert into ctx select 'i8', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 90, true, 'Withdrawn one microsecond too late.') $$,
+  'M-4b: an eighth idea opens');
+select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', 'Placeholder, dated just after the deadline.') $$, 'M-4b: another placeholder note follows it');
+reset role;
+insert into edge select 'i8', n.seq, n.recorded_at, private.idea_void_deadline(o.recorded_at) + interval '1 microsecond'
+  from public.idea_events n, public.idea_events o
+ where n.seq = (select max(x.seq) from public.idea_events x) and o.idea_id = (select v from ctx where k = 'i8') and o.kind = 'open';
+select pg_temp.set_time((select note_seq from edge where k = 'i8'), (select dl from edge where k = 'i8'));
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i8'), 'void', 'One microsecond too late.') $$,
+  'P0001', 'ledger:void_too_late', 'M-4b: one microsecond past the deadline is refused');
+reset role;
+select pg_temp.set_time((select note_seq from edge where k = 'i8'), (select note_at from edge where k = 'i8'));
+select is((select count(*) from public.verify_ledger_chain() where ok), 1::bigint, 'M-4b: put back: the chain verifies');
 
 -- The seal never lets a time step back: even if the previous event is dated ahead of the clock (a clock correction).
 alter table public.idea_events disable trigger user;

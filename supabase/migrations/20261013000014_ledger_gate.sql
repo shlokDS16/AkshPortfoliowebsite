@@ -27,6 +27,21 @@
 -- ledger_check_failed): it cannot trust the facts, so it does not guess. A tampered projection therefore can only turn a
 -- decision towards a refusal, never towards a pass.
 --
+-- Which companies count (round 3, task 5 review I-1). The company of the item, PLUS every stub merged into it: the catalog
+-- merge re-points items and captures to the target and records company_aliases(symbol -> target), but an idea stays on its
+-- sealed company (ideas.company_id never changes), so the facts for a company include the sealed events of every company row
+-- whose nse_symbol is aliased into it. An item is also checked against the company of every idea linked to it through
+-- ideas.item_id (the link is read from the projection only to FIND a company; ideas.company_id is verified against the sealed
+-- text by the chain check, so a moved link can only add a refusal). An item that names no company and is linked to no idea is
+-- outside rule 4 and the position check in the database: nothing can be compared with the ledger; the lint and the hand tick
+-- are what apply to it.
+--
+-- Recorded, never raised (round 3, review M-2, M-3, M-6). The ledger half runs in its own block: any error inside it records
+-- a ledger_check_failed refusal instead of aborting publish_revision with no decision. It takes the chain's advisory lock
+-- first (the lock the event seal takes; the gate holds only the item row before it and locks nothing after it), so an
+-- open_idea sealed before the gate reads is committed before it reads and one that comes after waits behind the decision.
+-- Every decision records reasons.ledger.checked (true when the ledger was consulted), an admin-only field of gate_decisions.
+--
 -- Public paths are untouched: anon gets nothing new, no view or function changes, and a refusal is visible only in
 -- gate_decisions (admin read only). Policy version is NOT bumped: spec s11 ("no change to POLICY_VERSION in 3a").
 -- =============================================================================
@@ -51,10 +66,16 @@ begin
   end if;
   -- The ledger verified, so every sealed text parses and holds exactly the version 1 keys.
   return query
-  with ev as (
+  with cos as (
+    -- the company, and every company row merged into it (its symbol is aliased to this company)
+    select p_company_id::text as id
+    union
+    select s.id::text from public.company_aliases a join public.companies s on s.nse_symbol = a.symbol
+     where a.company_id = p_company_id
+  ), ev as (
     select e.idea_id, e.seq, e.kind, e.recorded_at, e.stance
       from public.idea_events e
-     where e.canonical::jsonb ->> 'company_id' = p_company_id::text
+     where e.canonical::jsonb ->> 'company_id' in (select c.id from cos c)
   ), live as (
     select distinct x.idea_id from ev x
      where not exists (select 1 from public.idea_events v where v.idea_id = x.idea_id and v.kind = 'void')
@@ -102,6 +123,40 @@ begin
 end;
 $$;
 
+-- 2b. The ledger half of publish_revision for ONE item: the item's own company and the company of every idea linked to it.
+-- It takes the chain lock first and never raises: any error becomes a ledger_check_failed refusal (fail closed, recorded).
+-- Duplicate failures (the same text from two companies) are recorded once. The position check applies only to the item's
+-- own company, because the disclosure is about that company.
+create function private.ledger_gate_item_failures(p_item_id uuid, p_company_id uuid, p_holds_position text, p_today date)
+returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_co  uuid;
+  v_out jsonb := '[]'::jsonb;
+  f     jsonb;
+begin
+  perform pg_advisory_xact_lock(hashtext('idea_events:chain'));
+  for v_co in
+    select x.c from (select p_company_id as c
+                      union
+                      select i.company_id from public.ideas i where i.item_id = p_item_id) x
+     where x.c is not null order by x.c
+  loop
+    for f in select x.value from jsonb_array_elements(
+               private.ledger_gate_failures(v_co, case when v_co = p_company_id then p_holds_position end, p_today)) x loop
+      if not v_out @> jsonb_build_array(f) then
+        v_out := v_out || jsonb_build_array(f);
+      end if;
+    end loop;
+  end loop;
+  return v_out;
+exception when others then
+  return jsonb_build_array(jsonb_build_object('rule', '4', 'code', 'ledger_check_failed', 'message',
+    'The ledger failed its own check, so nothing about this company can be published until it is looked at. Run the integrity check on the Ledger page.'));
+end;
+$$;
+
 -- 3. The admin's door to the same facts, for the checklist the publish panel shows (one source: the screen cannot disagree
 -- with the gate). clear_from is the India date rule 4 passes from, or null when it is clear today.
 create function public.ledger_gate_facts(p_company_id uuid)
@@ -142,6 +197,7 @@ declare
   v_slug     text;
   v_failures jsonb := '[]'::jsonb;
   v_decision public.gate_decisions;
+  v_ledger   boolean;
 begin
   if not private.is_admin_user(p_actor) then
     raise exception 'publish_revision: admin only' using errcode = '42501';
@@ -203,10 +259,13 @@ begin
       'rule', '3', 'message', 'A file needs a figures-to date (data_as_of).'));
   end if;
   -- NEW (Plan 3a Task 5): rule 4 (named-security recency) and the position check, read from the sealed ledger events.
-  -- Every item that names a company, every revision. Recorded, never raised; no allowance and no screen lifts it.
-  if v_item.company_id is not null then
-    v_failures := v_failures || private.ledger_gate_failures(
-      v_item.company_id, v_item.holds_position, (now() at time zone 'Asia/Kolkata')::date);
+  -- Every item that names a company or is linked to an idea, every revision. Recorded, never raised; no allowance and no
+  -- screen lifts it. (Round 3: the helper takes the chain lock, follows merged companies and linked ideas, and turns any
+  -- error into a recorded ledger_check_failed.)
+  v_ledger := v_item.company_id is not null or exists (select 1 from public.ideas i where i.item_id = p_item_id);
+  if v_ledger then
+    v_failures := v_failures || private.ledger_gate_item_failures(
+      p_item_id, v_item.company_id, v_item.holds_position, (now() at time zone 'Asia/Kolkata')::date);
   end if;
   if exists (select 1 from public.companies c
              where c.id = v_item.company_id and c.visibility <> 'public') then
@@ -233,7 +292,8 @@ begin
   values (
     p_item_id, p_revision_id, coalesce(p_policy_version, ''),
     case when jsonb_array_length(v_failures) = 0 then 'pass' else 'fail' end,
-    jsonb_build_object('failures', v_failures, 'lint', coalesce(p_lint_result, '{}'::jsonb))
+    jsonb_build_object('failures', v_failures, 'lint', coalesce(p_lint_result, '{}'::jsonb),
+                       'ledger', jsonb_build_object('checked', v_ledger))
   )
   returning * into v_decision;
 
@@ -261,6 +321,7 @@ $$;
 -- security-definer code. publish_revision keeps the ADR-003 confinement: service_role only.
 revoke execute on function private.ledger_gate_facts(uuid)                  from public, anon, authenticated, service_role;
 revoke execute on function private.ledger_gate_failures(uuid, text, date)   from public, anon, authenticated, service_role;
+revoke execute on function private.ledger_gate_item_failures(uuid, uuid, text, date) from public, anon, authenticated, service_role;
 revoke execute on function public.ledger_gate_facts(uuid)                   from public, anon, authenticated, service_role;
 grant execute on function public.ledger_gate_facts(uuid) to authenticated;
 revoke execute on function public.publish_revision(uuid, uuid, uuid, text, jsonb) from public, anon, authenticated, service_role;
