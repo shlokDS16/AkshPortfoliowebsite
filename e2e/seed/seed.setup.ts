@@ -1,5 +1,6 @@
 import { expect, test as setup, type Page } from "@playwright/test";
 import { requireStack } from "../support/auth";
+import { seedCheckedFact } from "../support/checked-fact";
 import { adminDb, itemIdOf } from "../support/desk";
 import { KAVERI, NOTES, PROCESS_NOTE, SAHYADRI, type SeedFile, type SeedNote } from "../../src/test/fixtures/casefile";
 
@@ -116,6 +117,14 @@ setup("seed two fictional files and three notes through the desk UI", async ({ p
   for (const note of [...NOTES, PROCESS_NOTE]) await seedNote(page, note);
   for (const file of [KAVERI, SAHYADRI]) await seedFile(page, file);
   const db = await adminDb();
+  // One provenance-backed fact for the public "Printed on p. N" line (public-file.spec.ts). The public pages read a cached snapshot
+  // that only a gate pass or an unpublish refreshes, so after a write one throw-away note is published and withdrawn: the cache is
+  // purged and no seeded file or its revision changes.
+  if (await seedCheckedFact(db, KAVERI.title)) {
+    await seedNote(page, { ...NOTES[0], title: `Cache refresh ${Date.now()}`, slug: "cache-refresh" });
+    await page.locator("#gate").getByRole("button", { name: "Unpublish" }).click();
+    await expect(status(page, /private again/)).toBeVisible();
+  }
   for (const title of [KAVERI.title, SAHYADRI.title, ...NOTES.map((n) => n.title), PROCESS_NOTE.title]) {
     const { data, error } = await db.from("items").select("visibility").eq("title", title).order("created_at").limit(1).single();
     expect(error).toBeNull();
