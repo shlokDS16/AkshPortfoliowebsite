@@ -88,3 +88,12 @@ With the local stack running (`pnpm db:start`): `bash scripts/backup/restore-dri
 - Storage buckets are not covered. None are used yet; revisit in Phase 2 when PDFs land in Storage.
 - GitHub disables scheduled workflows after 60 days without repository activity; a manual run or any commit re-enables them.
 - A backup is only as fresh as the last green run: check the Actions tab if you receive a failure email.
+
+## Restoring the ledger (events must not be re-sealed)
+
+The private ledger (`public.ideas`, `public.idea_events`, from migration 0010) is a hash chain. Each event's time, number, random nonce, sealed text and hash are set by a trigger on every INSERT. A restore that lets that trigger fire (a plain `INSERT`, or `COPY` with triggers on) does not bring the old history back: it writes a NEW, internally valid chain with today's times and new hashes, and the chain check says "ok". The published fingerprints would then disagree with the database, and the original record is gone.
+
+- Restore the ledger only from a full backup, in the order of the section above: roles, schema, then `SET session_replication_role = replica` and the data. The line keeps the trigger switched off, so every row goes in exactly as it was. Never replay events through `open_idea()` or `add_idea_event()`.
+- Restore `ideas` and `idea_events` together, from the same backup. Do not restore only one of them.
+- After the restore, as the project owner, run `select * from public.verify_ledger_chain();`. The first column (`ok`) must be `true`, `events` must equal the `public.idea_events` count in `manifest.txt`, and `first_bad_seq` and `bad_idea` must be empty. A `bad_idea` means the `ideas` table does not match its events (a mixed restore).
+- The chain check alone cannot tell a faithful restore from a re-sealed one or from a backup that is older than the last published day. Also compare the hashes of the sealed days (`ledger_anchors`, once the anchors migration and its comparison are in) and the public gist with the restored database. If the gist holds days the restored database lacks, the backup is older than the record: do not publish anything, and tell Shlok.

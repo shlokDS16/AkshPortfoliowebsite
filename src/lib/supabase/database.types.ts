@@ -1698,6 +1698,7 @@ export type Database = {
       check_ledger_chain: {
         Args: Record<PropertyKey, never>
         Returns: {
+          bad_idea: string
           events: number
           first_bad_seq: number
           ok: boolean
@@ -1860,6 +1861,7 @@ export type Database = {
       verify_ledger_chain: {
         Args: Record<PropertyKey, never>
         Returns: {
+          bad_idea: string
           events: number
           first_bad_seq: number
           ok: boolean

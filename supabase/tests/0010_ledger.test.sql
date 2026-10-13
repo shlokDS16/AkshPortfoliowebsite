@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(157);
+select plan(223);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -12,7 +12,8 @@ insert into auth.users (id, email) values
   ('bbbbbbbb-0000-4000-8000-000000000002', 'client@pgtap.test');
 insert into public.companies (id, slug, name, nse_symbol, isin) values
   ('cccccccc-0000-4000-8000-000000000001', 'kav', 'Kaveri Seed', 'KSCL', 'INE455F01025'),
-  ('cccccccc-0000-4000-8000-000000000002', 'nosym', 'No Symbol Ltd', null, null);
+  ('cccccccc-0000-4000-8000-000000000002', 'nosym', 'No Symbol Ltd', null, null),
+  ('cccccccc-0000-4000-8000-000000000003', 'beta', 'Beta Ltd', 'BETA', 'INE000B01011');
 insert into public.items (id, kind, title, company_id, learning_objective) values
   ('a1000000-0000-4000-8000-000000000001', 'thesis', 'Kaveri file', 'cccccccc-0000-4000-8000-000000000001', 'Learn.');
 
@@ -54,6 +55,9 @@ select ok(has_table_privilege('authenticated', 'public.ideas', 'select')
       and not has_column_privilege('authenticated', 'public.ideas', 'horizon_days', 'update')
       and not has_column_privilege('authenticated', 'public.ideas', 'company_id', 'update'),
   'authenticated reads both tables, writes neither, and may update ideas.item_id only');
+select ok(not has_table_privilege('authenticated', 'public.ideas', 'trigger,references,truncate,delete,insert')
+      and not has_table_privilege('authenticated', 'public.idea_events', 'trigger,references,truncate,delete,insert,update'),
+  'authenticated holds no TRIGGER, REFERENCES, TRUNCATE, INSERT or DELETE on either table');
 select is_empty($$
   select p.polname from pg_policy p
    where p.polrelid in ('public.ideas'::regclass, 'public.idea_events'::regclass)
@@ -76,7 +80,8 @@ select ok(has_function_privilege('authenticated', 'public.open_idea(uuid, text, 
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'private'
-     and p.proname in ('seal_idea_event', 'ledger_chain_check', 'ledger_fail', 'validate_idea_stance', 'guard_idea_update')
+     and p.proname in ('seal_idea_event', 'ledger_chain_check', 'ledger_fail', 'validate_idea_stance', 'guard_idea_update',
+                       'words_ok', 'idea_void_deadline')
      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
           or has_function_privilege('service_role', p.oid, 'execute'))
 $$, 'the private ledger helpers are executable by no API role');
@@ -84,8 +89,9 @@ select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname in ('public', 'private')
      and p.proname in ('open_idea', 'add_idea_event', 'check_ledger_chain', 'verify_ledger_chain', 'seal_idea_event',
-                       'ledger_chain_check', 'ledger_fail', 'validate_idea_stance', 'guard_idea_update')
-     and (not p.prosecdef and p.proname <> 'ledger_fail' and p.proname <> 'guard_idea_update'
+                       'ledger_chain_check', 'ledger_fail', 'validate_idea_stance', 'guard_idea_update', 'words_ok',
+                       'idea_void_deadline')
+     and (not p.prosecdef and p.proname not in ('ledger_fail', 'guard_idea_update', 'words_ok', 'idea_void_deadline')
           or not ('search_path=""' = any (coalesce(p.proconfig, '{}'::text[]))))
 $$, 'every ledger function pins an empty search_path and the callable ones are SECURITY DEFINER');
 
@@ -122,8 +128,19 @@ select is((select (e.canonical::jsonb ->> 'at') = to_char(e.recorded_at at time 
 select is((select i.status || '/' || i.held || '/' || i.horizon_days || '/' || (i.opened_at = e.recorded_at)
              from public.ideas i join public.idea_events e on e.idea_id = i.id and e.seq = 1),
   'open/true/365/true', 'the idea projection starts open, held, 365 days, opened_at = the open event time');
-select is((select count(*) from public.idea_events e where e.canonical ~* '(price|return|close_px|[0-9]+\.[0-9]{2}%)'),
-  0::bigint, 'no sealed text carries a price or a return field');
+select is((select array_agg(k order by k collate "C") from public.idea_events e, jsonb_object_keys(e.canonical::jsonb) k where e.seq = 1),
+  array['at', 'company', 'company_id', 'id', 'idea', 'isin', 'kind', 'nonce', 'seq', 'stance', 'symbol', 'v', 'words'],
+  'the sealed text holds exactly the version 1 keys: no price, return or score among them');
+select is((select e.canonical from public.idea_events e where e.seq = 1),
+  (select '{"v" : 1, "seq" : 1, "id" : "' || e.id || '", "idea" : "' || e.idea_id || '", "kind" : "open", "at" : "'
+          || to_char(e.recorded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+          || '", "company_id" : "cccccccc-0000-4000-8000-000000000001", "symbol" : "KSCL", "isin" : "INE455F01025", '
+          || '"company" : "Kaveri Seed", "stance" : ' || e.stance::text
+          || ', "words" : "Seed pricing power. I expect it to beat the Nifty 50.", "nonce" : "' || e.nonce || '"}'
+     from public.idea_events e where e.seq = 1),
+  'the sealed text of version 1 is exactly this literal shape (key order, spacing, escaping)');
+select is((select e.canonical::jsonb ->> 'company_id' from public.idea_events e where e.seq = 1), 'cccccccc-0000-4000-8000-000000000001',
+  'the company id is sealed with the event');
 select is((select count(*) from public.verify_ledger_chain() where ok and events = 2 and first_bad_seq is null), 1::bigint,
   'verify_ledger_chain is ok on the clean two-event chain');
 
@@ -150,6 +167,20 @@ select ok((select bool_and(e.recorded_at >= prev.recorded_at)
   'recorded_at never goes backwards as seq grows');
 select is((select count(*) from public.verify_ledger_chain() where ok and events = 3), 1::bigint,
   'the chain is still clean after the owner-written probe');
+select throws_ok($$ insert into public.idea_events (idea_id, kind, stance, body_md)
+    values ((select v from ctx where k = 'i1'), 'note', '{"price": 101.5}', 'A number the machine wrote') $$,
+  'P0001', 'ledger:bad_stance', 'the table itself refuses a number in a note stance, whoever inserts');
+select throws_ok($$ insert into public.idea_events (idea_id, kind, stance, body_md)
+    values ((select v from ctx where k = 'i1'), 'open', '{"expects":"outperform","horizon_days":365,"held":true,"benchmark":"NIFTY 50","target":900}', 'x') $$,
+  'P0001', 'ledger:bad_stance', 'the table refuses an unknown key in an open stance');
+select throws_ok($$ insert into public.idea_events (idea_id, kind, stance, body_md)
+    values ((select v from ctx where k = 'i1'), 'open', '{"expects":"outperform","horizon_days":5,"held":true,"benchmark":"NIFTY 50"}', 'x') $$,
+  'P0001', 'ledger:bad_horizon', 'the table refuses an open stance with a horizon outside 30 to 3650');
+select throws_ok($$ insert into public.idea_events (idea_id, kind, stance, body_md)
+    values ((select v from ctx where k = 'i1'), 'open', '{"expects":"outperform","horizon_days":365,"held":true,"benchmark":"SENSEX"}', 'x') $$,
+  'P0001', 'ledger:bad_stance', 'the table refuses a benchmark other than NIFTY 50');
+select throws_ok($$ truncate public.ideas cascade $$, 'P0001', null, 'the owner''s TRUNCATE ... CASCADE of ideas reaches the append-only trigger');
+select throws_ok($$ delete from public.ideas $$, '23503', null, 'the owner cannot delete an idea that has events (restrict)');
 
 -- 5. Append-only: nobody updates, deletes or truncates an event, and nobody inserts one directly.
 set local role authenticated;
@@ -295,7 +326,7 @@ select is((select i.horizon_days || '/' || i.held from public.ideas i where i.id
 -- 9. State rules.
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
-select lives_ok($$ insert into ctx select 'i2', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'underperform', 90, false, 'Short idea.') $$,
+select lives_ok($$ insert into ctx select 'i2', public.open_idea('cccccccc-0000-4000-8000-000000000003', 'underperform', 90, false, 'Short idea.') $$,
   'a second idea opens');
 select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i2'), 'review', 'x', '{"process":"sound","tags":["none"]}') $$,
   'P0001', 'ledger:not_closed', 'review on an open idea fails');
@@ -382,6 +413,92 @@ select is((select count(*) from public.idea_events e where e.idea_id = (select v
   'a void idea stays in the chain (open and void events)');
 select throws_ok($$ update public.ideas set status = 'open' where id = (select v from ctx where k = 'i3') $$, 'P0001', null,
   'a void idea cannot be re-opened');
+-- the "too late" fixture moved opened_at as the owner; the replay reports it, and then it is put back
+select is((select count(*) from public.verify_ledger_chain() where not ok and bad_idea = (select v from ctx where k = 'i4')), 1::bigint,
+  'the replay reports the idea whose opened_at was moved away from its sealed open event');
+update public.ideas i set opened_at = (select e.recorded_at from public.idea_events e where e.idea_id = i.id and e.kind = 'open')
+ where i.id = (select v from ctx where k = 'i4');
+
+-- Void window (spec D5, amended): until the EARLIER of 24 hours and the next 15:00 IST after opening.
+select is(private.idea_void_deadline('2026-03-02 14:59:59+05:30'), '2026-03-02 15:00:00+05:30'::timestamptz,
+  'opened one second before 15:00 IST: the window closes at 15:00 the same day');
+select is(private.idea_void_deadline('2026-03-02 15:00:00+05:30'), '2026-03-03 15:00:00+05:30'::timestamptz,
+  'opened at 15:00:00 IST sharp: that close is already gone, so the window runs to 15:00 the next day (24 hours)');
+select is(private.idea_void_deadline('2026-03-02 15:00:01+05:30'), '2026-03-03 15:00:00+05:30'::timestamptz,
+  'opened one second after 15:00 IST: the window closes at 15:00 the next day (under 24 hours)');
+select is(private.idea_void_deadline('2026-03-02 00:00:00+05:30'), '2026-03-02 15:00:00+05:30'::timestamptz,
+  'opened at midnight IST: 15 hours, not 24');
+select is(private.idea_void_deadline('2026-03-02 09:30:00+00'), '2026-03-03 15:00:00+05:30'::timestamptz,
+  'the zone of the input does not matter: 09:30Z is 15:00 IST sharp, so the window runs to the next day');
+select is(private.idea_void_deadline('2026-03-02 23:50:00+05:30'), '2026-03-03 15:00:00+05:30'::timestamptz,
+  'opened late evening IST: the window closes at 15:00 IST the next day');
+create temp table cutoff as
+  select case when b0 > now() - interval '1 second' then b0 - interval '1 day' else b0 end as b
+    from (select (date_trunc('day', (now() - interval '1 second') at time zone 'Asia/Kolkata') + interval '15 hours')
+                   at time zone 'Asia/Kolkata' as b0) t;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select lives_ok($$ insert into ctx select 'i5', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 90, true, 'Opened, then the close came.') $$,
+  'a fifth idea opens');
+reset role;
+-- opened five hours before the last 15:00 IST: the entry close has formed, even though 24 hours have not passed
+update public.ideas set opened_at = (select b - interval '5 hours' from cutoff) where id = (select v from ctx where k = 'i5');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i5'), 'void', 'Too late for the entry close.') $$,
+  'P0001', 'ledger:void_too_late', 'void is refused once the 15:00 IST entry close has passed, inside the 24 hours');
+reset role;
+update public.ideas i set opened_at = (select e.recorded_at from public.idea_events e where e.idea_id = i.id and e.kind = 'open')
+ where i.id = (select v from ctx where k = 'i5');
+
+-- One direction at a time per company.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000001', 'underperform', 90, false, 'The other side.') $$,
+  'P0001', 'ledger:opposite_open', 'an opposite idea cannot be opened while an open idea on the company exists');
+select lives_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 90, true, 'Same side again.') $$,
+  'the same direction can be opened again');
+select lives_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000003', 'outperform', 90, true, 'Beta: the earlier underperform idea is closed.') $$,
+  'a closed idea does not block the opposite direction (Beta)');
+select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000003', 'underperform', 90, false, 'Now it is open on the other side.') $$,
+  'P0001', 'ledger:opposite_open', 'but the new open idea now blocks the first direction (Beta)');
+
+-- Words: all whitespace counts as nothing, and the cap is on the text as typed.
+select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', E'\n') $$, 'P0001', 'ledger:words_required', 'a lone newline is not words');
+select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', E'\t') $$, 'P0001', 'ledger:words_required', 'a lone tab is not words');
+select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', E' \r\n\f\v ') $$, 'P0001', 'ledger:words_required', 'mixed ASCII whitespace is not words');
+select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', chr(160) || chr(8203) || chr(65279)) $$,
+  'P0001', 'ledger:words_required', 'no-break space, zero-width space and byte-order mark are not words');
+select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', repeat(' ', 10000) || 'x') $$,
+  'P0001', 'ledger:words_required', 'one letter padded to 10,001 characters is refused (the cap is on the raw text)');
+select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', repeat(chr(233), 10000)) $$,
+  'exactly 10,000 characters is accepted');
+select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note',
+    'q"uote \ back' || E'\n\t' || 'ünï 日本語 ' || chr(128512) || '", "nonce" : "00000000-0000-0000-0000-000000000000"}' || E'\r') $$,
+  'hostile words (quotes, backslash, newline, tab, non-ASCII, emoji, a fake JSON tail) are accepted');
+reset role;
+select is((select e.canonical::jsonb ->> 'words' = e.body_md and left(e.body_md, 13) = 'q"uote \ back'
+             and e.canonical::jsonb ->> 'nonce' = e.nonce::text and e.nonce <> '00000000-0000-0000-0000-000000000000'
+             from public.idea_events e order by e.seq desc limit 1),
+  true, 'the hostile words are sealed byte for byte and cannot forge the nonce');
+
+-- Time zone and date style of the session do not change what is sealed or how it is checked.
+set local timezone = 'Asia/Kolkata';
+set local datestyle = 'SQL, DMY';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', 'Written from a session set to IST.') $$,
+  'an event is sealed from a session set to Asia/Kolkata with DMY dates');
+reset role;
+select ok((select (e.canonical::jsonb ->> 'at') ~ 'Z$'
+             and (e.canonical::jsonb ->> 'at')::timestamptz = e.recorded_at
+             and (e.canonical::jsonb ->> 'at') = to_char(e.recorded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+             from public.idea_events e order by e.seq desc limit 1),
+  'under an IST session the sealed time is still UTC, ends in Z, and is the same instant as recorded_at');
+select is((select count(*) from public.verify_ledger_chain() where ok), 1::bigint, 'the chain verifies under an IST session');
+reset timezone;
+reset datestyle;
+select is((select count(*) from public.verify_ledger_chain() where ok), 1::bigint, 'and again under the default session');
 
 -- 10. The check functions through the right roles, then the attacks on the chain.
 select is((select count(*) from public.verify_ledger_chain() where ok and first_bad_seq is null and events = (select count(*) from public.idea_events)),
@@ -459,6 +576,148 @@ select is((select first_bad_seq from public.verify_ledger_chain()), (select max(
 delete from public.idea_events where hash = repeat('f', 64);
 select is((select ok from public.verify_ledger_chain()), true, 'restored: the forged row is gone and the chain verifies');
 
+-- Fail-closed (review I-2) and the self-consistency limits (review I-1). From here the helpers re-hash from a seq
+-- (what a rewriter with the triggers off would do) and put the whole table back from a snapshot.
+create temp table saved_all as select * from public.idea_events;
+create function pg_temp.rehash_from(p_seq bigint) returns void language plpgsql as $f$
+declare r record; v_prev text;
+begin
+  select e.hash into v_prev from public.idea_events e where e.seq = p_seq - 1;
+  v_prev := coalesce(v_prev, repeat('0', 64));
+  for r in select * from public.idea_events where seq >= p_seq order by seq loop
+    update public.idea_events
+       set prev_hash = v_prev, hash = encode(sha256(convert_to(v_prev || E'\n' || r.canonical, 'UTF8')), 'hex')
+     where seq = r.seq returning hash into v_prev;
+  end loop;
+end $f$;
+create function pg_temp.restore_all() returns void language plpgsql as $f$
+begin
+  delete from public.idea_events;
+  insert into public.idea_events (id, seq, idea_id, kind, recorded_at, stance, body_md, nonce, canonical, prev_hash, hash)
+    select id, seq, idea_id, kind, recorded_at, stance, body_md, nonce, canonical, prev_hash, hash from pg_temp.saved_all order by seq;
+end $f$;
+
+-- a sealed text that lost, gained, renamed or changed a key, with every hash recomputed to agree
+update public.idea_events set canonical = (canonical::jsonb - 'nonce')::text where seq = 2;
+select pg_temp.rehash_from(2);
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a sealed text missing a key is caught even though every hash agrees');
+select pg_temp.restore_all();
+update public.idea_events set canonical = (canonical::jsonb || '{"price": 101.5}')::text where seq = 2;
+select pg_temp.rehash_from(2);
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a sealed text with an extra key (a price) is caught');
+select pg_temp.restore_all();
+update public.idea_events set canonical = replace(canonical, '"words"', '"wurds"') where seq = 2;
+select pg_temp.rehash_from(2);
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a sealed text with a renamed key is caught');
+select pg_temp.restore_all();
+update public.idea_events set canonical = jsonb_set(canonical::jsonb, '{v}', '2')::text where seq = 2;
+select pg_temp.rehash_from(2);
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a sealed text claiming another version is caught');
+select pg_temp.restore_all();
+update public.idea_events set canonical = jsonb_set(canonical::jsonb, '{company_id}', 'null')::text where seq = 2;
+select pg_temp.rehash_from(2);
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a sealed text with a null company id is caught');
+select pg_temp.restore_all();
+select is((select ok from public.verify_ledger_chain()), true, 'restored from the snapshot: the chain verifies');
+
+-- a NULL column must fail the check, not slip through it
+alter table public.idea_events alter column nonce drop not null;
+update public.idea_events set nonce = null where seq = 2;
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a NULL column (nonce) is caught: the comparison fails closed');
+select pg_temp.restore_all();
+alter table public.idea_events alter column nonce set not null;
+select is((select ok from public.verify_ledger_chain()), true, 'restored: nonce is NOT NULL again and the chain verifies');
+
+-- one column at a time, with the sealed text left alone
+update public.idea_events set idea_id = (select v from ctx where k = 'i2') where seq = 2;
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'an event moved onto another idea (idea_id) is caught');
+select pg_temp.restore_all();
+update public.idea_events set kind = 'revise' where seq = 2;
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a changed kind is caught');
+select pg_temp.restore_all();
+update public.idea_events set nonce = gen_random_uuid() where seq = 2;
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a changed nonce is caught');
+select pg_temp.restore_all();
+update public.idea_events set id = gen_random_uuid() where seq = 2;
+select is((select first_bad_seq from public.verify_ledger_chain()), 2::bigint, 'a changed event id is caught');
+select pg_temp.restore_all();
+
+-- a time that steps back against the previous seq, hashes and sealed text re-agreeing
+update public.idea_events e
+   set recorded_at = n.t, canonical = replace(e.canonical, e.canonical::jsonb ->> 'at', to_char(n.t at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))
+  from (select x.recorded_at - interval '1 second' as t from public.idea_events x where x.seq = 2) n
+ where e.seq = 3;
+select pg_temp.rehash_from(3);
+select is((select first_bad_seq from public.verify_ledger_chain()), 3::bigint, 'an event dated before the one ahead of it is caught');
+select pg_temp.restore_all();
+
+-- KNOWN LIMITS (review I-1). These pass the chain check, because nothing inside the table can tell them from the truth.
+-- Only a comparison with the days already sealed and published (Task 3, Task 8) can. Pinned so nobody claims otherwise.
+update public.idea_events set body_md = 'Monsoon failed.', canonical = replace(canonical, 'Monsoon is on track.', 'Monsoon failed.') where seq = 2;
+select pg_temp.rehash_from(2);
+select is((select ok from public.verify_ledger_chain()), true,
+  'KNOWN LIMIT: a rewritten event whose hash and every later hash are recomputed still verifies (the chain is consistent with itself, not proof of no change)');
+select pg_temp.restore_all();
+delete from public.idea_events where seq = (select max(seq) from pg_temp.saved_all);
+select is((select ok from public.verify_ledger_chain()), true,
+  'KNOWN LIMIT: a removed last event (a note) still verifies; only the sealed days can witness it');
+select pg_temp.restore_all();
+select is((select ok from public.verify_ledger_chain()), true, 'restored from the snapshot: the chain verifies');
+
+-- The replay: the ideas table against what the sealed events say (review I-3). Hashes are untouched in all of these.
+alter table public.ideas disable trigger ideas_guard_update;
+create temp table saved_ideas as select * from public.ideas;
+create function pg_temp.restore_ideas() returns void language sql as $f$
+  update public.ideas i
+     set company_id = s.company_id, item_id = s.item_id, expects = s.expects, horizon_days = s.horizon_days, held = s.held,
+         status = s.status, opened_at = s.opened_at, closed_at = s.closed_at, close_reason = s.close_reason,
+         process_call = s.process_call
+    from pg_temp.saved_ideas s where s.id = i.id
+$f$;
+select is((select ok from public.verify_ledger_chain()), true, 'before the replay attacks the ideas agree with their events');
+
+update public.ideas set status = 'open', closed_at = null, close_reason = null where id = (select v from ctx where k = 'i2');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i2'),
+  'a closed idea turned back to open is reported by id');
+select is((select first_bad_seq from public.verify_ledger_chain()), (select min(seq) from public.idea_events where idea_id = (select v from ctx where k = 'i2')),
+  'and by the first seq of its events');
+select pg_temp.restore_ideas();
+update public.ideas set company_id = 'cccccccc-0000-4000-8000-000000000001' where id = (select v from ctx where k = 'i2');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i2'),
+  'an idea re-pointed at another company is reported (the company id is sealed)');
+select pg_temp.restore_ideas();
+update public.ideas set opened_at = opened_at + interval '1 hour' where id = (select v from ctx where k = 'i1');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i1'), 'a moved opened_at is reported');
+select pg_temp.restore_ideas();
+update public.ideas set closed_at = closed_at + interval '1 hour' where id = (select v from ctx where k = 'i2');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i2'), 'a moved closed_at is reported');
+select pg_temp.restore_ideas();
+update public.ideas set expects = 'underperform' where id = (select v from ctx where k = 'i1');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i1'), 'a flipped direction is reported');
+select pg_temp.restore_ideas();
+update public.ideas set horizon_days = 60 where id = (select v from ctx where k = 'i1');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i1'), 'a changed horizon is reported');
+select pg_temp.restore_ideas();
+update public.ideas set held = not held where id = (select v from ctx where k = 'i1');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i1'), 'a flipped held flag is reported');
+select pg_temp.restore_ideas();
+update public.ideas set process_call = 'sound' where id = (select v from ctx where k = 'i2');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i2'), 'a changed process call is reported');
+select pg_temp.restore_ideas();
+update public.ideas set close_reason = 'other' where id = (select v from ctx where k = 'i2');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i2'), 'a changed close reason is reported');
+select pg_temp.restore_ideas();
+update public.ideas set status = 'open' where id = (select v from ctx where k = 'i3');
+select is((select bad_idea from public.verify_ledger_chain()), (select v from ctx where k = 'i3'), 'a void idea shown as open is reported');
+select pg_temp.restore_ideas();
+insert into public.ideas (id, company_id, expects, horizon_days, held)
+  values ('dddddddd-0000-4000-8000-000000000001', 'cccccccc-0000-4000-8000-000000000001', 'outperform', 365, true);
+select is((select bad_idea from public.verify_ledger_chain()), 'dddddddd-0000-4000-8000-000000000001'::uuid,
+  'an idea with no sealed open event is reported');
+delete from public.ideas where id = 'dddddddd-0000-4000-8000-000000000001';
+select is((select ok from public.verify_ledger_chain()), true, 'restored: ideas and events agree again');
+alter table public.ideas enable trigger ideas_guard_update;
+
 alter table public.idea_events enable trigger user;
 select is((select count(*) from pg_trigger t where t.tgrelid = 'public.idea_events'::regclass and not t.tgisinternal and t.tgenabled <> 'O'),
   0::bigint, 'every idea_events trigger is enabled again');
@@ -466,6 +725,19 @@ select throws_ok($$ update public.idea_events set body_md = 'edited' where seq =
   'the append-only trigger works again');
 select is((select count(*) from public.verify_ledger_chain() where ok and events = (select count(*) from public.idea_events)), 1::bigint,
   'the final chain verifies end to end');
+
+-- The seal never lets a time step back: even if the previous event is dated ahead of the clock (a clock correction).
+alter table public.idea_events disable trigger user;
+update public.idea_events set recorded_at = recorded_at + interval '2 days' where seq = (select max(seq) from public.idea_events);
+alter table public.idea_events enable trigger user;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select lives_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', 'Sealed after the clock stepped back.') $$,
+  'an event is sealed while the previous one is dated in the future');
+reset role;
+select ok((select e.recorded_at >= p.recorded_at from public.idea_events e join public.idea_events p on p.seq = e.seq - 1
+            where e.seq = (select max(seq) from public.idea_events)),
+  'the new event is dated no earlier than the one before it');
 
 select * from finish();
 rollback;
