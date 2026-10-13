@@ -200,6 +200,7 @@ export type Database = {
           id: string
           kind: string
           note: string | null
+          supersedes: string | null
         }
         Insert: {
           company_id: string
@@ -209,6 +210,7 @@ export type Database = {
           id?: string
           kind: string
           note?: string | null
+          supersedes?: string | null
         }
         Update: {
           company_id?: string
@@ -218,6 +220,7 @@ export type Database = {
           id?: string
           kind?: string
           note?: string | null
+          supersedes?: string | null
         }
         Relationships: [
           {
@@ -232,6 +235,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corporate_actions_supersedes_fkey"
+            columns: ["supersedes"]
+            isOneToOne: false
+            referencedRelation: "corporate_actions"
             referencedColumns: ["id"]
           },
         ]
@@ -676,14 +686,51 @@ export type Database = {
           },
         ]
       }
+      idea_score_changes: {
+        Row: {
+          became: NonNullable<Json>
+          changed: string[]
+          changed_at: string
+          id: number
+          idea_id: string
+          was: NonNullable<Json>
+        }
+        Insert: {
+          became: NonNullable<Json>
+          changed: string[]
+          changed_at?: string
+          id?: never
+          idea_id: string
+          was: NonNullable<Json>
+        }
+        Update: {
+          became?: NonNullable<Json>
+          changed?: string[]
+          changed_at?: string
+          id?: never
+          idea_id?: string
+          was?: NonNullable<Json>
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_score_changes_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       idea_scores: {
         Row: {
           computed_at: string
           entry_close: number | null
           entry_date: string | null
           entry_index: number | null
+          entry_skipped_days: number | null
           entry_source: string | null
           excess: number | null
+          exit_skipped_days: number | null
           factor: number | null
           flags: string[]
           holding_days: number | null
@@ -701,8 +748,10 @@ export type Database = {
           entry_close?: number | null
           entry_date?: string | null
           entry_index?: number | null
+          entry_skipped_days?: number | null
           entry_source?: string | null
           excess?: number | null
+          exit_skipped_days?: number | null
           factor?: number | null
           flags?: string[]
           holding_days?: number | null
@@ -720,8 +769,10 @@ export type Database = {
           entry_close?: number | null
           entry_date?: string | null
           entry_index?: number | null
+          entry_skipped_days?: number | null
           entry_source?: string | null
           excess?: number | null
+          exit_skipped_days?: number | null
           factor?: number | null
           flags?: string[]
           holding_days?: number | null
@@ -1734,12 +1785,7 @@ export type Database = {
         }
       }
       enter_closes: {
-        Args: {
-          p_index_close: number
-          p_rows: Json
-          p_source: string
-          p_trade_date: string
-        }
+        Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
         Returns: number
       }
       heartbeat_ages: {
@@ -1850,6 +1896,10 @@ export type Database = {
         }[]
       }
       store_fetched_closes: {
+        Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
+        Returns: number
+      }
+      store_uploaded_closes: {
         Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
         Returns: number
       }
