@@ -67,7 +67,7 @@ Goal: Aksh captures a thought in < 5 s; companies/theses/learnings exist; public
 
 ## Phase 3 - Two-tier track record
 Spec `docs/specs/2026-10-13-phase-3-track-record-design.md`, ADR-005 (`docs/architecture/ADR-005-ledger-integrity-and-price-source.md`), Plan 3a `docs/plans/2026-10-13-phase-3a-ledger.md` (12 tasks, private ledger; not started); Plan 3b (public case studies) is headings only; 3.6 is cut from the build (Q1). Open: Q26-Q29.
-- [ ] 3.1 `ledger` migrations (ideas, idea_events append-only + hash chain, prices_daily, idea_scores)
+- [~] 3.1 `ledger` migrations (ideas, idea_events append-only + hash chain, prices_daily, idea_scores) - Plan 3a Task 1 done: migration 0010 (ideas, sealed idea_events, open_idea/add_idea_event, chain check), 941 pgTAP green on a clean database, LOCAL only; 0011-0013 pending
 - [ ] 3.2 `MarketDataPort`: NSE bhavcopy adapter + manual entry (Upstox dropped 2026-10-06, ADR-001 s9.2)
 - [ ] 3.3 Cron: closes, scoring vs Nifty 50, hash anchor to public Gist
 - [ ] 3.4 Private ledger UI (hit rate, excess return, holding period, mistakes journal)

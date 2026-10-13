@@ -40,14 +40,14 @@ $$, 'anon can execute no function in public except heartbeat_ages, capture_days,
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
-     and p.proname not in ('queue_age', 'storage_usage')
-$$, 'authenticated can execute no function in public except queue_age and storage_usage (numbers only)');
+     and p.proname not in ('queue_age', 'storage_usage', 'open_idea', 'add_idea_event', 'check_ledger_chain')
+$$, 'authenticated can execute no function in public except queue_age and storage_usage (numbers only) and the ledger trio (0010: open_idea, add_idea_event, check_ledger_chain; each checks the admin)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('service_role', p.oid, 'execute')
      and p.proname not in ('publish_revision', 'unpublish_item', 'add_lint_allowance', 'remove_lint_allowance', 'claim_job_step',
-                           'reserve_usage', 'prune_provider_usage', 'reserve_units')
-$$, 'service_role can execute no function in public except the four gate functions, claim_job_step and the usage ledger trio');
+                           'reserve_usage', 'prune_provider_usage', 'reserve_units', 'verify_ledger_chain')
+$$, 'service_role can execute no function in public except the four gate functions, claim_job_step, the usage ledger trio and verify_ledger_chain (0010)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'

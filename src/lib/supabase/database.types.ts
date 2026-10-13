@@ -581,6 +581,130 @@ export type Database = {
         }
         Relationships: []
       }
+      idea_events: {
+        Row: {
+          body_md: string
+          canonical: string
+          hash: string
+          id: string
+          idea_id: string
+          kind: string
+          nonce: string
+          prev_hash: string
+          recorded_at: string
+          seq: number
+          stance: NonNullable<Json>
+        }
+        Insert: {
+          body_md: string
+          canonical: string
+          hash: string
+          id?: string
+          idea_id: string
+          kind: string
+          nonce: string
+          prev_hash: string
+          recorded_at: string
+          seq: number
+          stance?: NonNullable<Json>
+        }
+        Update: {
+          body_md?: string
+          canonical?: string
+          hash?: string
+          id?: string
+          idea_id?: string
+          kind?: string
+          nonce?: string
+          prev_hash?: string
+          recorded_at?: string
+          seq?: number
+          stance?: NonNullable<Json>
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_events_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ideas: {
+        Row: {
+          close_reason: string | null
+          closed_at: string | null
+          company_id: string
+          created_at: string
+          expects: string
+          held: boolean
+          horizon_days: number
+          id: string
+          item_id: string | null
+          opened_at: string
+          process_call: string | null
+          status: string
+        }
+        Insert: {
+          close_reason?: string | null
+          closed_at?: string | null
+          company_id: string
+          created_at?: string
+          expects: string
+          held: boolean
+          horizon_days: number
+          id?: string
+          item_id?: string | null
+          opened_at?: string
+          process_call?: string | null
+          status?: string
+        }
+        Update: {
+          close_reason?: string | null
+          closed_at?: string | null
+          company_id?: string
+          created_at?: string
+          expects?: string
+          held?: boolean
+          horizon_days?: number
+          id?: string
+          item_id?: string | null
+          opened_at?: string
+          process_call?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ideas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ideas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ideas_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ideas_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ignored_tokens: {
         Row: {
           created_at: string
@@ -1359,6 +1483,15 @@ export type Database = {
       }
     }
     Functions: {
+      add_idea_event: {
+        Args: {
+          p_body_md: string
+          p_idea_id: string
+          p_kind: string
+          p_stance?: Json
+        }
+        Returns: string
+      }
       add_lint_allowance: {
         Args: {
           p_actor: string
@@ -1372,6 +1505,14 @@ export type Database = {
         Args: { p_days?: number }
         Returns: {
           day: string
+        }[]
+      }
+      check_ledger_chain: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          events: number
+          first_bad_seq: number
+          ok: boolean
         }[]
       }
       claim_job_step: {
@@ -1410,6 +1551,17 @@ export type Database = {
           job: string
           ok: boolean
         }[]
+      }
+      open_idea: {
+        Args: {
+          p_body_md: string
+          p_company_id: string
+          p_expects: string
+          p_held: boolean
+          p_horizon_days: number
+          p_item_id?: string
+        }
+        Returns: string
       }
       prune_provider_usage: {
         Args: Record<PropertyKey, never>
@@ -1496,6 +1648,14 @@ export type Database = {
       unpublish_item: {
         Args: { p_actor: string; p_item_id: string }
         Returns: string
+      }
+      verify_ledger_chain: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          events: number
+          first_bad_seq: number
+          ok: boolean
+        }[]
       }
     }
     Enums: {
