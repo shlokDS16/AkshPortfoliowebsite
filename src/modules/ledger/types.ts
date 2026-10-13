@@ -141,6 +141,9 @@ export type ChainCheckRows = {
   anchors: { ok: boolean; days: number; firstBadDate: string | null; reason: string | null };
 };
 
+/** A row of the company picker on the new-idea form. */
+export type PickCompany = { id: string; name: string; symbol: string | null; needsReview: boolean };
+
 export type ClosesStatus = {
   /** Latest trading day with closes stored (official or not). */
   latestOpenDay: string | null;
@@ -171,6 +174,8 @@ export interface LedgerRepo {
   listScores(): Promise<IdeaScore[]>;
   /** The restatement log; all ideas when no id is given. */
   listScoreChanges(ideaId?: string): Promise<ScoreChange[]>;
+  /** Companies an idea can be recorded on, or is refused on and why (no symbol, waiting for review). Archived ones are left out. */
+  listPickable(): Promise<PickCompany[]>;
   closesStatus(): Promise<ClosesStatus>;
   anchorStatus(): Promise<AnchorStatus>;
   /** Calls `check_ledger_chain()` and `check_ledger_anchors()`. */

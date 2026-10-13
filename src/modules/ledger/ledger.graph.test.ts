@@ -20,7 +20,7 @@ function moduleFiles(dir: string): string[] {
 const strip = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 /** Every file reachable from `entries` through runtime imports, relative or "@/" (type-only imports are erased). */
-function reachable(entries: string[]): Map<string, string> {
+function reachable(entries: string[], opaque: string[] = []): Map<string, string> {
   const files = new Map<string, string>();
   const queue = [...entries];
   while (queue.length > 0) {
@@ -31,7 +31,7 @@ function reachable(entries: string[]): Map<string, string> {
     for (const match of source.matchAll(/^(?:import|export)\s+(?!type\b)[^;]*?from\s+"([^"]+)"/gms)) {
       const spec = match[1] as string;
       if (spec.startsWith("./") || spec.startsWith("../")) queue.push(asFile(resolve(dirname(file), spec)));
-      else if (spec.startsWith("@/")) queue.push(asFile(resolve(SRC, spec.slice(2))));
+      else if (spec.startsWith("@/") && !opaque.some((o) => spec === o || spec.startsWith(`${o}/`))) queue.push(asFile(resolve(SRC, spec.slice(2))));
     }
   }
   return files;
@@ -59,11 +59,20 @@ describe("the ledger module's boundaries", () => {
   });
 
   it("nothing the module can reach at run time is the service client, the server env, or a provider", () => {
-    const reached = reachable(files.filter((f) => !/fake-/.test(f) && !/test-fixtures/.test(f)));
+    // The two server actions (actions.ts) sign the owner in through `@/modules/identity`, whose own check reads the admin's
+    // email from the server env. That is identity's business and is not followed; everything else the actions import is.
+    const reached = reachable(files.filter((f) => !/fake-/.test(f) && !/test-fixtures/.test(f)), ["@/modules/identity"]);
     const paths = [...reached.keys()].map((p) => p.replaceAll("\\", "/"));
     expect(paths.some((p) => p.endsWith("lib/supabase/service.ts"))).toBe(false);
     expect(paths.some((p) => p.endsWith("lib/env.server.ts"))).toBe(false);
     expect(paths.some((p) => p.includes("lib/providers/"))).toBe(false);
+  });
+
+  it("only the actions file imports the identity module, and only to check the admin", () => {
+    const importers = sources.filter(([, source]) => /@\/modules\/identity/.test(source)).map(([f]) => rel(f));
+    expect(importers).toEqual(["actions.ts"]);
+    const actions = sources.find(([f]) => rel(f) === "actions.ts")?.[1] ?? "";
+    expect(actions).toMatch(/import \{ requireAdmin \} from "@\/modules\/identity";/);
   });
 
   it("the module writes nothing but through the two event doors, the item link and the rescore", () => {

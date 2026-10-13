@@ -14,13 +14,47 @@ test.beforeAll(async () => {
 
 // Every signed-out redirect check lives here, so it runs once (in `anon`) and not once per desk viewport.
 test.describe("signed out", () => {
-  for (const path of ["/desk", "/desk/items", "/desk/items/00000000-0000-4000-8000-000000000000", "/desk/names", "/desk/companies"]) {
+  for (const path of [
+    "/desk",
+    "/desk/items",
+    "/desk/items/00000000-0000-4000-8000-000000000000",
+    "/desk/names",
+    "/desk/companies",
+    // The Ledger (Plan 3a Task 10): the list, the new-idea form, and an idea page.
+    "/desk/ledger",
+    "/desk/ledger/new",
+    "/desk/ledger/00000000-0000-4000-8000-000000000000",
+  ]) {
     test(`${path} sends the visitor to the sign-in page`, async ({ page }) => {
       await page.goto(path);
       await expect(page).toHaveURL(/\/login$/);
       await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
     });
   }
+});
+
+// Nothing about the ledger is reachable from a public address: the sitemap and the public pages name no Ledger address, and
+// the private pages answer a signed-out visitor with the sign-in page and not with a word of the ledger.
+test.describe("the ledger is not public", () => {
+  test("a signed-out visitor to a Ledger page sees the sign-in page and nothing of the ledger", async ({ page }) => {
+    await page.goto("/desk/ledger");
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(/ledger|consistent with itself|sealed day/i);
+  });
+
+  test("the public pages and the sitemap name no Ledger address", async ({ request }) => {
+    for (const path of ["/", "/sitemap.xml", "/robots.txt"]) {
+      const response = await request.get(path);
+      if (response.status() !== 200) continue; // an address the site does not serve names nothing
+      expect(await response.text(), path).not.toMatch(/\/desk\/ledger|\/ledger/i);
+    }
+  });
+
+  test("the health route exposes a job, an age and a boolean and no ledger content", async ({ request }) => {
+    const body = JSON.stringify(await (await request.get("/api/health")).json());
+    expect(body).not.toMatch(/idea|entry|entries|sealed|fingerprint/i);
+  });
 });
 
 test("a server action called with no session is refused and changes nothing", async ({ browser, baseURL, request }) => {

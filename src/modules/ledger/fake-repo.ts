@@ -1,5 +1,5 @@
 import type {
-  AddEventCall, AnchorStatus, ChainCheckRows, ClosesStatus, Idea, IdeaEvent, IdeaScore, LedgerRepo, OpenIdeaCall, ScoreChange,
+  AddEventCall, AnchorStatus, ChainCheckRows, ClosesStatus, Idea, IdeaEvent, IdeaScore, LedgerRepo, OpenIdeaCall, PickCompany, ScoreChange,
 } from "./types";
 
 export type FakeSeed = {
@@ -9,6 +9,7 @@ export type FakeSeed = {
   changes?: ScoreChange[];
   chain?: ChainCheckRows["chain"];
   anchors?: ChainCheckRows["anchors"];
+  companies?: PickCompany[];
   closes?: ClosesStatus;
   anchorStatus?: AnchorStatus;
   /** Every call that reaches the database throws this. */
@@ -36,6 +37,7 @@ export function createFakeLedgerRepo(seed: FakeSeed = {}): LedgerRepo & { calls:
     listLessons: () => run("listLessons", [], () => (seed.events ?? []).filter((e) => e.kind === "review")),
     listScores: () => run("listScores", [], () => seed.scores ?? []),
     listScoreChanges: (ideaId) => run("listScoreChanges", [ideaId], () => (seed.changes ?? []).filter((c) => ideaId === undefined || c.ideaId === ideaId)),
+    listPickable: () => run("listPickable", [], () => seed.companies ?? []),
     closesStatus: () => run("closesStatus", [], () => seed.closes ?? { latestOpenDay: null, latestOfficialDay: null, handEnteredDays: 0 }),
     anchorStatus: () =>
       run("anchorStatus", [], () => seed.anchorStatus ?? { sealedDays: 0, latestSealedDate: null, publishedDays: 0, waitingDays: 0, latestPublishedDate: null }),

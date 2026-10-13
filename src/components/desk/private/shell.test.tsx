@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("DeskShell", () => {
-  it("marks the surface private, shows Capture · Inbox · Items · Names with the inbox and names counts, and the current tab", () => {
+  it("marks the surface private, shows Capture · Inbox · Items · Ledger · Names with the inbox and names counts, and the current tab", () => {
     renderWithMotion(
       <DeskShell names={3} inbox={2} liveness={{ status: "ok" }} signOut={async () => {}}>
         <p>body</p>
@@ -25,7 +25,7 @@ describe("DeskShell", () => {
     );
     expect(screen.getByText("private")).toHaveClass("font-mono");
     const tabs = screen.getAllByRole("navigation", { name: "Desk sections" })[0];
-    expect(within(tabs).getAllByRole("link").map((l) => l.textContent)).toEqual(["Capture", "Inbox 2", "Items", "Names 3"]);
+    expect(within(tabs).getAllByRole("link").map((l) => l.textContent)).toEqual(["Capture", "Inbox 2", "Items", "Ledger", "Names 3"]);
     expect(within(tabs).getByRole("link", { name: /Names/ })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("main")).toHaveTextContent("body");
     expectTokenOnly(document.body);

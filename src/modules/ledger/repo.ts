@@ -90,6 +90,7 @@ function toChange(row: Tables<"idea_score_changes">): ScoreChange {
 // PostgREST cuts a response at its max rows (supabase/config.toml: 1000) without saying so, so the lists that grow with the
 // ledger are read a page at a time until a page comes back short. Each needs a total order that is unique per row.
 const PAGE_ROWS = 1_000;
+const COMPANY_GROUP = 100;
 
 async function readAll<R>(op: string, page: (from: number, to: number) => PromiseLike<{ data: R[] | null; error: { message: string; code?: string } | null }>): Promise<R[]> {
   const out: R[] = [];
@@ -106,11 +107,16 @@ function check<T>(op: string, result: { data: T; error: { message: string; code?
 }
 
 export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
+  // The company names are read in small groups: an `in (...)` of every id would make the request address too long.
   async function withCompanies(rows: IdeaRow[]): Promise<Idea[]> {
     if (rows.length === 0) return [];
     const ids = [...new Set(rows.map((r) => r.company_id))];
-    const companies = check("ledger.companies", await db.from("companies").select("id, name, nse_symbol").in("id", ids)) as CompanyRow[] | null;
-    const byId = new Map((companies ?? []).map((c) => [c.id, c] as const));
+    const byId = new Map<string, CompanyRow>();
+    for (let at = 0; at < ids.length; at += COMPANY_GROUP) {
+      const group = ids.slice(at, at + COMPANY_GROUP);
+      const companies = check("ledger.companies", await db.from("companies").select("id, name, nse_symbol").in("id", group)) as CompanyRow[] | null;
+      for (const c of companies ?? []) byId.set(c.id, c);
+    }
     return rows.map((r) => toIdea(r, byId.get(r.company_id)));
   }
 
@@ -139,8 +145,10 @@ export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
     },
 
     async listIdeas() {
-      const rows = check("ledger.listIdeas", await db.from("ideas").select(IDEA_COLUMNS).order("opened_at", { ascending: false })) as IdeaRow[] | null;
-      return withCompanies(rows ?? []);
+      const rows = await readAll("ledger.listIdeas", (from, to) =>
+        db.from("ideas").select(IDEA_COLUMNS).order("opened_at", { ascending: false }).order("id", { ascending: false }).range(from, to),
+      );
+      return withCompanies(rows as IdeaRow[]);
     },
 
     async getIdea(id) {
@@ -150,8 +158,10 @@ export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
     },
 
     async listEvents(ideaId) {
-      const rows = check("ledger.listEvents", await db.from("idea_events").select(EVENT_COLUMNS).eq("idea_id", ideaId).order("seq", { ascending: true }));
-      return (rows ?? []).map(toEvent);
+      const rows = await readAll("ledger.listEvents", (from, to) =>
+        db.from("idea_events").select(EVENT_COLUMNS).eq("idea_id", ideaId).order("seq", { ascending: true }).range(from, to),
+      );
+      return rows.map(toEvent);
     },
 
     async listLessons() {
@@ -172,6 +182,13 @@ export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
         return (ideaId === undefined ? base : base.eq("idea_id", ideaId)).order("id", { ascending: false }).range(from, to);
       });
       return rows.map(toChange);
+    },
+
+    async listPickable() {
+      const rows = await readAll("ledger.listPickable", (from, to) =>
+        db.from("companies").select("id, name, nse_symbol, needs_review").is("archived_at", null).order("name").order("id").range(from, to),
+      );
+      return rows.map((c) => ({ id: c.id, name: c.name, symbol: c.nse_symbol, needsReview: c.needs_review }));
     },
 
     async closesStatus(): Promise<ClosesStatus> {

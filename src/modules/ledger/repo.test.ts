@@ -127,6 +127,22 @@ describe("reads: named columns, camelCase, the company name from its own table",
   });
 });
 
+describe("listPickable: the companies the new-idea form offers", () => {
+  it("reads live companies by name, pages them, and maps the columns", async () => {
+    const row = (n: number) => ({ id: `c${n}`, name: `Co ${n}`, nse_symbol: n % 2 ? null : `S${n}`, needs_review: n === 3 });
+    const { db, calls } = createFakeDb([{ data: Array.from({ length: 1000 }, (_, i) => row(i)) }, { data: [row(1000)] }]);
+    const list = await createSupabaseLedgerRepo(db).listPickable();
+    expect(list).toHaveLength(1001);
+    expect(list[3]).toEqual({ id: "c3", name: "Co 3", symbol: null, needsReview: true });
+    expect(list[2]).toEqual({ id: "c2", name: "Co 2", symbol: "S2", needsReview: false });
+    expect(calls[0]!.target).toBe("companies");
+    expect(calls[0]!.ops).toContainEqual(["is", "archived_at", null]);
+    expect(calls[0]!.ops).toContainEqual(["order", "name"]);
+    expect(calls[0]!.ops).toContainEqual(["order", "id"]);
+    expect(calls[1]!.ops.find((o) => o[0] === "range")?.slice(1)).toEqual([1000, 1999]);
+  });
+});
+
 describe("checkChain calls both checks", () => {
   const chainRow = { ok: true, events: 42, first_bad_seq: null, bad_idea: null };
   const anchorRow = { ok: true, days: 12, first_bad_date: null, reason: null };
@@ -249,6 +265,38 @@ describe("long lists are read page by page until they run out (PostgREST stops a
     expect(changes).toHaveLength(1002);
     expect(ranges(calls)).toEqual([[0, 999], [1000, 1999]]);
     for (const call of calls) expect(call.ops).toContainEqual(["eq", "idea_id", "i1"]);
+  });
+
+  const ideaRowN = (n: number) => ({
+    id: `i${n}`, company_id: `c${n}`, item_id: null, expects: "outperform", horizon_days: 365, held: true, status: "open",
+    opened_at: "2026-10-13T08:00:00+00:00", closed_at: null, close_reason: null, process_call: null, created_at: "2026-10-13T08:00:00+00:00",
+  });
+
+  it("listIdeas pages, newest first with the id as a tie-break, and then reads the companies in small groups", async () => {
+    const companies = (from: number, n: number) => ({ data: rows(n, (i) => ({ id: `c${i}`, name: `Co ${i}`, nse_symbol: null }), from) });
+    const { db, calls } = createFakeDb([{ data: rows(1000, ideaRowN) }, { data: rows(5, ideaRowN, 1000) }, companies(0, 100), companies(100, 100), ...Array.from({ length: 8 }, (_, k) => companies(200 + k * 100, 100)), companies(1000, 5)]);
+    const ideas = await createSupabaseLedgerRepo(db).listIdeas();
+    expect(ideas).toHaveLength(1005);
+    expect(ideas[1004]!.companyName).toBe("Co 1004");
+    expect(ranges(calls.slice(0, 2))).toEqual([[0, 999], [1000, 1999]]);
+    for (const call of calls.slice(0, 2)) {
+      expect(call.ops).toContainEqual(["order", "opened_at", { ascending: false }]);
+      expect(call.ops).toContainEqual(["order", "id", { ascending: false }]);
+    }
+    const lookups = calls.slice(2).filter((c) => c.target === "companies");
+    expect(lookups).toHaveLength(11);
+    for (const c of lookups) expect((c.ops.find((o) => o[0] === "in")?.[2] as string[]).length).toBeLessThanOrEqual(100);
+  });
+
+  it("listEvents pages in sequence order and keeps its idea filter on every page", async () => {
+    const { db, calls } = createFakeDb([{ data: rows(1000, eventRow) }, { data: rows(2, eventRow, 1000) }]);
+    const events = await createSupabaseLedgerRepo(db).listEvents("i1");
+    expect(events).toHaveLength(1002);
+    expect(ranges(calls)).toEqual([[0, 999], [1000, 1999]]);
+    for (const call of calls) {
+      expect(call.ops).toContainEqual(["eq", "idea_id", "i1"]);
+      expect(call.ops).toContainEqual(["order", "seq", { ascending: true }]);
+    }
   });
 
   it("an error on a later page is thrown, not swallowed into a short list", async () => {
