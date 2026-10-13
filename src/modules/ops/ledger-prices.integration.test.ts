@@ -11,7 +11,10 @@ import { equityOk, fakePort, indexOk } from "./ledger-test-kit";
 // Integration: the holiday path of ledger:prices against the REAL store_fetched_closes and mark_market_day_shut on the LOCAL
 // database, as service_role (the secret key), with a fixture market-data port. Skipped, with the reason printed, when no local
 // stack answers (`pnpm supabase start`). Never reads hosted credentials and makes no network call beyond the local stack.
-// It owns the calendar and Nifty 50 closes of the last 10 days of the local database: it clears them before and after.
+// It owns the calendar and EVERY close (Nifty 50 and companies) of the last 10 days of the local database: it clears them before
+// and after. The company closes must go too: mark_market_day_shut refuses a date for which any official close exists (the
+// e2e daily run leaves such closes for the real tracked company), so a leftover close would make the holiday path depend on
+// what ran before this file.
 function localStack(): { url: string; secretKey: string } | null {
   try {
     const out = execSync("pnpm supabase status -o env", { encoding: "utf8", timeout: 20_000, stdio: ["ignore", "pipe", "ignore"] });
@@ -48,7 +51,7 @@ describe.skipIf(!stack)("ledger:prices holiday path against the real SQL on the 
     const from = addDays(today, -10);
     // one statement per call: the CLI prepares each query
     runSql(`delete from public.market_days where trade_date >= '${from}'`);
-    runSql(`delete from public.prices_daily where benchmark is not null and trade_date >= '${from}'`);
+    runSql(`delete from public.prices_daily where trade_date >= '${from}'`);
   };
   // The fetch window is the 7 days before today: exactly five weekdays.
   const weekdays: string[] = [];
