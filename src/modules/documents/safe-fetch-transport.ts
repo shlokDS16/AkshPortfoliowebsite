@@ -3,7 +3,7 @@ import https from "node:https";
 import { isIP } from "node:net";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 import { pipeline, type Readable } from "node:stream";
-import type { Address, Resolver, Transport, TransportResponse } from "./safe-fetch";
+import type { Address, Resolver, Transport, TransportRequest, TransportResponse } from "./safe-fetch";
 
 // The two things safeFetch cannot test without a network: the system's DNS answer and the HTTPS request. Both are tiny and
 // take everything from safeFetch's already vetted request, so they cannot be pointed anywhere else.
@@ -48,35 +48,81 @@ function decoded(res: Readable, encoding: string | undefined): Readable | null {
 
 const first = (value: string | string[] | undefined): string | undefined => (Array.isArray(value) ? value[0] : value);
 
-/** One GET over TLS to port 443 of the vetted address. Certificates are checked as Node does by default. */
-export const httpsTransport: Transport = ({ url, addresses, signal }) =>
-  new Promise<TransportResponse>((resolve, reject) => {
-    const host = url.hostname.replace(/^\[|\]$/g, "");
-    const request = https.request(
-      {
-        host,
-        port: 443,
-        path: `${url.pathname}${url.search}`,
-        method: "GET",
-        headers: REQUEST_HEADERS,
-        lookup: pinnedLookup(addresses),
-        // The name goes in the TLS handshake (SNI) and the Host header; an address literal has no name to send.
-        servername: isIP(host) ? undefined : host,
-        agent: false,
-        signal,
-      },
-      (res) => {
-        const body = decoded(res, first(res.headers["content-encoding"]));
-        if (!body) {
-          res.destroy();
-          reject(new Error("unsupported content-encoding"));
-          return;
-        }
-        const headers: Record<string, string | undefined> = {};
-        for (const [name, value] of Object.entries(res.headers)) headers[name] = first(value);
-        resolve({ status: res.statusCode ?? 0, headers, body, close: () => res.destroy() });
-      },
-    );
-    request.on("error", reject);
-    request.end();
-  });
+/**
+ * Hosts whose responses Node's strict HTTP parser is known to reject (www.bseindia.com answers with header bytes it refuses:
+ * HPE_INVALID_HEADER_TOKEN). A fixed list in code, never user input. A host matches when it is one of these or a sub-domain of
+ * one, on a dot boundary ("notbseindia.com" does not match).
+ */
+export const LENIENT_PARSER_HOSTS: readonly string[] = ["bseindia.com"];
+
+/** The error Node's strict parser raises for a header it will not accept; the only failure that is ever retried. */
+const STRICT_PARSER_REFUSAL = "HPE_INVALID_HEADER_TOKEN";
+
+/** The entry of `allowed` that `hostname` is or sits under, or null. Exact suffix match on a dot boundary, lower case. */
+export function lenientHostFor(hostname: string, allowed: readonly string[]): string | null {
+  const host = hostname.toLowerCase();
+  return allowed.find((entry) => host === entry || host.endsWith(`.${entry}`)) ?? null;
+}
+
+export type HttpsTransportDeps = {
+  /** The request function (default node:https, looked up at each call). Tests point it at a local server. */
+  request?: typeof https.request;
+  /** Hosts that may be retried once with the lenient header parser after the strict parser refuses them. */
+  lenientHosts?: readonly string[];
+};
+
+/**
+ * One GET over TLS to port 443 of the vetted address. Certificates are checked as Node does by default. The strict HTTP parser is
+ * always used first. Only when it refuses the response headers (HPE_INVALID_HEADER_TOKEN) AND the host is on the lenient list is
+ * the same request made once more with `insecureHTTPParser`; every other rule (https, the pinned vetted address, the signal, the
+ * three request headers, the checks safeFetch makes on the answer) is the same for the retry, and a redirect to another host is
+ * a new call of this function, strict again.
+ */
+export function createHttpsTransport(deps: HttpsTransportDeps = {}): Transport {
+  const lenientHosts = deps.lenientHosts ?? LENIENT_PARSER_HOSTS;
+  const attempt = ({ url, addresses, signal }: TransportRequest, lenient: boolean) =>
+    new Promise<TransportResponse>((resolve, reject) => {
+      const host = url.hostname.replace(/^\[|\]$/g, "");
+      const request = (deps.request ?? https.request)(
+        {
+          host,
+          port: 443,
+          path: `${url.pathname}${url.search}`,
+          method: "GET",
+          headers: REQUEST_HEADERS,
+          lookup: pinnedLookup(addresses),
+          // The name goes in the TLS handshake (SNI) and the Host header; an address literal has no name to send.
+          servername: isIP(host) ? undefined : host,
+          agent: false,
+          signal,
+          ...(lenient ? { insecureHTTPParser: true } : {}),
+        },
+        (res) => {
+          const body = decoded(res, first(res.headers["content-encoding"]));
+          if (!body) {
+            res.destroy();
+            reject(new Error("unsupported content-encoding"));
+            return;
+          }
+          const headers: Record<string, string | undefined> = {};
+          for (const [name, value] of Object.entries(res.headers)) headers[name] = first(value);
+          resolve({ status: res.statusCode ?? 0, headers, body, close: () => res.destroy() });
+        },
+      );
+      request.on("error", reject);
+      request.end();
+    });
+  return async (req) => {
+    try {
+      return await attempt(req, false);
+    } catch (error) {
+      const entry = (error as { code?: unknown } | null)?.code === STRICT_PARSER_REFUSAL ? lenientHostFor(req.url.hostname, lenientHosts) : null;
+      if (entry === null) throw error;
+      // The listed domain only, never the link or an address (the log rule of safeFetch).
+      console.warn("link fetch: strict header parser refused a listed host, retrying once leniently", entry);
+      return attempt(req, true);
+    }
+  };
+}
+
+export const httpsTransport: Transport = createHttpsTransport();
