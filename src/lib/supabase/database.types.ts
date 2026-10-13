@@ -1154,6 +1154,42 @@ export type Database = {
           },
         ]
       }
+      ledger_anchors: {
+        Row: {
+          anchor_date: string
+          anchor_version: string | null
+          created_at: string
+          event_count: number
+          first_seq: number | null
+          head_hash: string
+          last_seq: number | null
+          line: string
+          published_at: string | null
+        }
+        Insert: {
+          anchor_date: string
+          anchor_version?: string | null
+          created_at?: string
+          event_count: number
+          first_seq?: number | null
+          head_hash: string
+          last_seq?: number | null
+          line: string
+          published_at?: string | null
+        }
+        Update: {
+          anchor_date?: string
+          anchor_version?: string | null
+          created_at?: string
+          event_count?: number
+          first_seq?: number | null
+          head_hash?: string
+          last_seq?: number | null
+          line?: string
+          published_at?: string | null
+        }
+        Relationships: []
+      }
       lint_allowances: {
         Row: {
           created_at: string
@@ -1746,6 +1782,15 @@ export type Database = {
           day: string
         }[]
       }
+      check_ledger_anchors: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          days: number
+          first_bad_date: string
+          ok: boolean
+          reason: string
+        }[]
+      }
       check_ledger_chain: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1888,6 +1933,7 @@ export type Database = {
         }[]
       }
       score_ideas: { Args: Record<PropertyKey, never>; Returns: number }
+      seal_ledger_days: { Args: Record<PropertyKey, never>; Returns: number }
       storage_usage: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1907,6 +1953,15 @@ export type Database = {
       unpublish_item: {
         Args: { p_actor: string; p_item_id: string }
         Returns: string
+      }
+      verify_ledger_anchors: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          days: number
+          first_bad_date: string
+          ok: boolean
+          reason: string
+        }[]
       }
       verify_ledger_chain: {
         Args: Record<PropertyKey, never>

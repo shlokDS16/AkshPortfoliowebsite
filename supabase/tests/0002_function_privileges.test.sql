@@ -40,15 +40,16 @@ $$, 'anon can execute no function in public except heartbeat_ages, capture_days,
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
-     and p.proname not in ('queue_age', 'storage_usage', 'open_idea', 'add_idea_event', 'check_ledger_chain', 'enter_closes', 'rescore_ideas')
-$$, 'authenticated can execute no function in public except queue_age and storage_usage (numbers only) and the ledger functions (0010: open_idea, add_idea_event, check_ledger_chain; 0011: enter_closes, rescore_ideas; each checks the admin)');
+     and p.proname not in ('queue_age', 'storage_usage', 'open_idea', 'add_idea_event', 'check_ledger_chain', 'enter_closes', 'rescore_ideas', 'check_ledger_anchors')
+$$, 'authenticated can execute no function in public except queue_age and storage_usage (numbers only) and the ledger functions (0010: open_idea, add_idea_event, check_ledger_chain; 0011: enter_closes, rescore_ideas; 0013: check_ledger_anchors; each checks the admin)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('service_role', p.oid, 'execute')
      and p.proname not in ('publish_revision', 'unpublish_item', 'add_lint_allowance', 'remove_lint_allowance', 'claim_job_step',
                            'reserve_usage', 'prune_provider_usage', 'reserve_units', 'verify_ledger_chain',
-                           'store_fetched_closes', 'store_uploaded_closes', 'mark_market_day_shut', 'score_ideas', 'tracked_symbols')
-$$, 'service_role can execute no function in public except the four gate functions, claim_job_step, the usage ledger trio, verify_ledger_chain (0010) and the five market functions (0011: store_fetched_closes, store_uploaded_closes, mark_market_day_shut, score_ideas, tracked_symbols)');
+                           'store_fetched_closes', 'store_uploaded_closes', 'mark_market_day_shut', 'score_ideas', 'tracked_symbols',
+                           'seal_ledger_days', 'verify_ledger_anchors')
+$$, 'service_role can execute no function in public except the four gate functions, claim_job_step, the usage ledger trio, verify_ledger_chain (0010), the five market functions (0011: store_fetched_closes, store_uploaded_closes, mark_market_day_shut, score_ideas, tracked_symbols) and the two anchor functions (0013: seal_ledger_days, verify_ledger_anchors)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
