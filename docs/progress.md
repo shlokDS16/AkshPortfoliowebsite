@@ -71,7 +71,7 @@ Spec `docs/specs/2026-10-13-phase-3-track-record-design.md`, ADR-005 (`docs/arch
 - [ ] 3.2 `MarketDataPort`: NSE bhavcopy adapter + manual entry (Upstox dropped 2026-10-06, ADR-001 s9.2)
 - [ ] 3.3 Cron: closes, scoring vs Nifty 50, hash anchor to public Gist
 - [ ] 3.4 Private ledger UI (hit rate, excess return, holding period, mistakes journal)
-- [ ] 3.5 Public case studies: 30-day release gate, snapshot charts, "what I expected / what happened / what I learned"
+- [ ] 3.5 Public case studies: 30-day release gate, snapshot charts, "what I expected / what happened / what I learned" - rule 4 half done in Plan 3a Task 5 (2026-10-13): migration 0014 makes `publish_revision()` refuse any item that names a company for 30 India days after an idea on it is opened, closed or resized (read from the sealed events), and refuse a "no position" disclosure the sealed ledger contradicts; 1614 pgTAP green on a clean database, LOCAL only. The public case-study half is Plan 3b.
 - [ ] 3.6 Resolve Q1 (client logins) with legal input
 
 ## Phase 4 - Learning graph

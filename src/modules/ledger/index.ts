@@ -8,4 +8,4 @@ export { createSupabaseLedgerRepo } from "./repo";
 export {
   addIdeaEvent, checkLedger, linkIdeaToItem, loadIdea, loadLedger, openIdea, rescoreLedger, type IdeaDetail, type LedgerView,
 } from "./service";
-export { clearDateFrom, holdsOpenPosition, stanceClearDate } from "./gate";
+export { ledgerGateFacts, type LedgerGateFacts } from "./gate";

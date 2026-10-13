@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 import { DeskError } from "./errors";
+import { formatDate } from "./format";
 
 /**
  * Failures reach a desk screen as a fixed code in the redirect URL (`?error=title-required`), never as free
@@ -237,3 +238,24 @@ export const OCR_SERVICE_REFUSED =
  */
 export const pagesNotSortedText = (pages: number): string =>
   `${pages === 1 ? "1 page" : `${pages} pages`} could not be sorted by the desk. You can choose the pages to read yourself.`;
+
+/**
+ * The ledger half of the publish gate (migration 0014): the plain words for each reason code publish_revision() records
+ * with a refusal. The database stores the same sentences as its fallback; these are what a screen shows, so the wording can
+ * change without a migration. `clearFrom` is the ISO day a refusal under rule 4 lifts. Pending Shlok's approval (spec s22).
+ */
+export const GATE_LEDGER_TEXT = {
+  ledger_recent_entry: (clearFrom: string | null): string | null =>
+    clearFrom
+      ? `The ledger has an entry on this company from the last 30 days. This can be published from ${formatDate(clearFrom)}.`
+      : null,
+  ledger_position: (): string => "The ledger shows a position in this company; the disclosure cannot say no.",
+  ledger_check_failed: (): string =>
+    "The ledger failed its own check, so nothing about this company can be published until it is looked at. Run the integrity check on the Ledger page.",
+} as const;
+
+/** The screen text for a recorded gate reason code, or null for a code this build does not know (the stored sentence is then shown). */
+export function gateReasonText(code: string | null | undefined, clearFrom: string | null | undefined): string | null {
+  if (!code || !Object.hasOwn(GATE_LEDGER_TEXT, code)) return null;
+  return GATE_LEDGER_TEXT[code as keyof typeof GATE_LEDGER_TEXT](clearFrom ?? null);
+}

@@ -1,4 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
+import { addDays, istDate, PUBLICATION_LAG_DAYS } from "@/lib/dates";
+import { formatDate } from "@/lib/format";
+import { adminDb } from "./support/desk";
 
 // Runs signed in as the admin (storage state from the `setup` project).
 // The local database is not reset between runs, so titles carry a run suffix.
@@ -140,4 +143,38 @@ test("the advisory preview marks a sentence before any run, and the gate button 
   await run.click();
   await expect(gate(page).getByTestId("gate-decision")).toHaveAttribute("data-verdict", "fail");
   await expect(page.getByRole("button", { name: "Allow this sentence" })).toBeVisible();
+});
+
+test("rule 4 from the ledger: an idea opened on the file's company refuses the publish with the rule 4 sentence, and the checklist says when it clears", async ({ page }) => {
+  const db = await adminDb();
+  const symbol = `E2E${RUN.toUpperCase()}`;
+  const name = `Ledger gate company ${RUN}`;
+  const company = await db.from("companies").insert({ slug: `ledger-gate-${RUN}`, name, nse_symbol: symbol, visibility: "public" }).select("id").single();
+  if (company.error) throw company.error;
+
+  await page.goto("/desk/items");
+  const itemId = await createItem(page, `Ledger gate file ${RUN}`);
+  await page.getByLabel("Learning objective").fill("See the ledger hold a file back.");
+  await page.getByRole("button", { name: "Save details" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Details saved." })).toHaveText("Details saved.");
+  await saveRevision(page, "Utilisation peaked in 2024.", "draft");
+  const linked = await db.from("items").update({ company_id: company.data.id, holds_position: "not_disclosed" }).eq("id", itemId);
+  if (linked.error) throw linked.error;
+
+  // Aksh records an idea on the company: the file may not be published for 30 India days.
+  const opened = await db.rpc("open_idea", { p_company_id: company.data.id, p_expects: "outperform", p_horizon_days: 365, p_held: false, p_body_md: "Because the order book is long." });
+  if (opened.error) throw opened.error;
+  const clearFrom = formatDate(addDays(istDate(new Date()), PUBLICATION_LAG_DAYS));
+
+  await page.goto(`/desk/items/${itemId}`);
+  await expect(gate(page).getByText(`Rule 4: clear from ${clearFrom}`)).toBeVisible();
+  await gate(page).getByRole("checkbox", { name: /I have not changed my stance/ }).check();
+  await gate(page).getByRole("button", { name: /^Run the publishing gate on revision #2$/ }).click();
+  await expect(gate(page).getByTestId("gate-decision")).toHaveAttribute("data-verdict", "fail");
+  const failure = gate(page).getByTestId("gate-failure").filter({ hasText: "Rule 4: named-security recency" });
+  await expect(failure).toHaveAttribute("data-rule", "4");
+  await expect(failure).toContainText(`The ledger has an entry on this company from the last 30 days. This can be published from ${clearFrom}.`);
+  // No way round it: the only controls are the gate's own run button and, for rule 1 only, an allowance.
+  await expect(failure.getByRole("button")).toHaveCount(0);
+  await expect(page.getByTestId("visibility")).toHaveText("Private");
 });

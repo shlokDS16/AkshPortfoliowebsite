@@ -1841,6 +1841,14 @@ export type Database = {
           ok: boolean
         }[]
       }
+      ledger_gate_facts: {
+        Args: { p_company_id: string }
+        Returns: {
+          clear_from: string
+          holds_position: boolean
+          ledger_ok: boolean
+        }[]
+      }
       mark_market_day_shut: {
         Args: { p_trade_date: string }
         Returns: undefined

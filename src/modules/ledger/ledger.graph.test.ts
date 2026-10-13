@@ -75,7 +75,8 @@ describe("the ledger module's boundaries", () => {
   it("the only database functions the module calls are the ones on this list, each named by a literal", () => {
     // open_idea and add_idea_event are the two event doors; rescore_ideas recomputes scores in SQL; the two check functions
     // only read. Adding any other function (enter_closes, store_fetched_closes, a sealing function) is a decision, not a drive-by.
-    const ALLOWED_RPC = ["add_idea_event", "check_ledger_anchors", "check_ledger_chain", "open_idea", "rescore_ideas"];
+    // ledger_gate_facts (migration 0014) only reads: it is the publish gate's own view of one company, for the checklist.
+    const ALLOWED_RPC = ["add_idea_event", "check_ledger_anchors", "check_ledger_chain", "ledger_gate_facts", "open_idea", "rescore_ideas"];
     const used = new Set<string>();
     for (const [file, source] of sources) {
       for (const match of source.matchAll(/\.rpc\(\s*([^,)\s]*)/g)) {

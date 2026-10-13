@@ -1,50 +1,27 @@
-import { addDays, istDate, PUBLICATION_LAG_DAYS } from "@/lib/dates";
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 
-// The ledger side of the publish gate (publishing rules 4 and 5; SQL twin in migration 0014). These read for the
-// checklist the publish panel shows; the gate itself is `publish_revision()` and is never overridden from here.
+// The ledger side of the publish gate (publishing rules 4 and 5; migration 0014). The gate itself is `publish_revision()` and
+// is never overridden from here. This only reads, for the checklist the publish panel shows, what the gate will conclude:
+// it asks the SAME database function the gate uses (`ledger_gate_facts`), which reads the sealed events and nothing the
+// owner can edit, so the checklist cannot disagree with the gate.
 
-/** The four entry kinds that change a stance on a company (open, close, and a resize either way). */
-const STANCE_KINDS = ["open", "close", "upsize", "downsize"];
+/** What the sealed ledger says about one company, as the gate will see it. */
+export type LedgerGateFacts = {
+  /** False when the ledger failed its own check: the gate then refuses every item that names a company. */
+  ledgerOk: boolean;
+  /** The India date (ISO) from which rule 4 passes, or null when it is clear today. */
+  stanceClearDate: string | null;
+  /** True when a non-withdrawn, not-closed idea on the company is held. A disclosure that says "no" would contradict it. */
+  holdsOpenPosition: boolean;
+};
 
-/**
- * The India date from which rule 4 passes, given the time of the latest stance-changing entry on the company; null when
- * there is no such entry or its 30 days are over (rule 4 is clear today). Same rule as the SQL: blocked while
- * `last > today - 30`, counted on the Asia/Kolkata calendar.
- */
-export function clearDateFrom(lastStanceAt: string | null, today: string): string | null {
-  if (lastStanceAt === null) return null;
-  const clear = addDays(istDate(lastStanceAt), PUBLICATION_LAG_DAYS);
-  return clear > today ? clear : null;
-}
-
-/**
- * The India date from which rule 4 passes for this company, or null when it is clear now. Ideas that were withdrawn
- * do not count. A database failure is thrown: it is never read as "clear".
- */
-export async function stanceClearDate(db: Db, companyId: string, today: string = istDate(new Date())): Promise<string | null> {
-  const ideas = await db.from("ideas").select("id").eq("company_id", companyId).neq("status", "void");
-  if (ideas.error) throw dbError("ledger.stanceClearDate", ideas.error);
-  const ids = (ideas.data ?? []).map((row) => row.id);
-  if (ids.length === 0) return null;
-  const events = await db
-    .from("idea_events")
-    .select("recorded_at")
-    .in("idea_id", ids)
-    .in("kind", STANCE_KINDS)
-    .order("recorded_at", { ascending: false })
-    .limit(1);
-  if (events.error) throw dbError("ledger.stanceClearDate", events.error);
-  return clearDateFrom(events.data?.[0]?.recorded_at ?? null, today);
-}
-
-/**
- * True when an open idea on the company is marked as held. A disclosure that says "no position" would contradict it
- * (rule 5, consistency). Not seeing a position is not proof of none: the ledger may be incomplete.
- */
-export async function holdsOpenPosition(db: Db, companyId: string): Promise<boolean> {
-  const { data, error } = await db.from("ideas").select("id").eq("company_id", companyId).eq("status", "open").eq("held", true).limit(1);
-  if (error) throw dbError("ledger.holdsOpenPosition", error);
-  return (data ?? []).length > 0;
+/** Asks the database for the gate's own facts. A failure is thrown: it is never read as "clear". */
+export async function ledgerGateFacts(db: Db, companyId: string): Promise<LedgerGateFacts> {
+  const { data, error } = await db.rpc("ledger_gate_facts", { p_company_id: companyId });
+  if (error) throw dbError("ledger.gateFacts", error);
+  const row = data?.[0];
+  // The function always returns one row; anything else cannot be trusted as a clear.
+  if (!row) throw dbError("ledger.gateFacts", { message: "ledger_gate_facts returned no row" });
+  return { ledgerOk: row.ledger_ok === true, stanceClearDate: row.clear_from ?? null, holdsOpenPosition: row.holds_position === true };
 }

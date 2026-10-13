@@ -40,8 +40,8 @@ $$, 'anon can execute no function in public except heartbeat_ages, capture_days,
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
-     and p.proname not in ('queue_age', 'storage_usage', 'open_idea', 'add_idea_event', 'check_ledger_chain', 'enter_closes', 'rescore_ideas', 'check_ledger_anchors')
-$$, 'authenticated can execute no function in public except queue_age and storage_usage (numbers only) and the ledger functions (0010: open_idea, add_idea_event, check_ledger_chain; 0011: enter_closes, rescore_ideas; 0013: check_ledger_anchors; each checks the admin)');
+     and p.proname not in ('queue_age', 'storage_usage', 'open_idea', 'add_idea_event', 'check_ledger_chain', 'enter_closes', 'rescore_ideas', 'check_ledger_anchors', 'ledger_gate_facts')
+$$, 'authenticated can execute no function in public except queue_age and storage_usage (numbers only) and the ledger functions (0010: open_idea, add_idea_event, check_ledger_chain; 0011: enter_closes, rescore_ideas; 0013: check_ledger_anchors; 0014: ledger_gate_facts; each checks the admin)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('service_role', p.oid, 'execute')
