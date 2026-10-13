@@ -25,6 +25,13 @@ vi.mock("@/lib/supabase/service", () => ({
       const result = { data: [], error: null };
       return Object.assign(Promise.resolve(result), { abortSignal: () => Promise.resolve(result) });
     },
+    // the anchor step reads its sealed days: an empty ledger here
+    from: () => {
+      const chain: Record<string, unknown> = {};
+      for (const op of ["select", "order", "limit", "gte", "lte", "is"]) chain[op] = () => chain;
+      chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], count: 0, error: null });
+      return chain;
+    },
   }),
 }));
 vi.mock("@/lib/supabase/public", () => ({
@@ -80,6 +87,7 @@ describe("GET /api/cron/daily", () => {
       { job: "heartbeat:daily", ok: true, detail: "alive" },
       { job: "ledger:prices", ok: true, detail: "nothing to fetch" },
       { job: "ledger:score", ok: true, detail: "scored 0 ideas" },
+      { job: "ledger:anchor", ok: true, detail: "sealed 0 days; no finished day to publish yet" },
       { job: "ingestion:sweep", ok: true, detail: "nothing to run" },
     ]);
     expect(fake.claims).toBe(1);

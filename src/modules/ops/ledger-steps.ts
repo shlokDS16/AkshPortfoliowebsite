@@ -1,10 +1,11 @@
 import "server-only";
 import { istDate } from "@/lib/dates";
 import { serverEnv } from "@/lib/env.server";
-import { createMarketDataPort } from "@/lib/providers";
+import { createAnchorPort, createMarketDataPort } from "@/lib/providers";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { HeartbeatRepo } from "./heartbeat";
 import { createJobHeartbeatRepo } from "./job-deps";
+import { publishAnchors, type AnchorJobDeps } from "./ledger-anchor";
 import { fetchCloses, scoreIdeas, type LedgerJobDeps } from "./ledger-prices";
 import { runSteps, type Step, type StepResult } from "./steps";
 
@@ -24,11 +25,22 @@ export function buildLedgerDeps(): LedgerJobDeps {
   };
 }
 
-/** `ledger:prices` (25 s) then `ledger:score` (5 s). Task 9 adds `ledger:anchor` (15 s): 45 s in all, before the ingestion sweep. */
-export function ledgerDailySteps(make: () => LedgerJobDeps = buildLedgerDeps): Step[] {
+/** The anchor step's deps, built when it runs; the public-copy port is built inside the step, so a bad setting fails only this step. */
+export function buildAnchorDeps(): AnchorJobDeps {
+  return {
+    db: createSupabaseServiceClient(),
+    anchor: () => createAnchorPort(serverEnv()),
+    clock: Date.now,
+    now: () => new Date(),
+  };
+}
+
+/** `ledger:prices` (25 s), `ledger:score` (5 s), then `ledger:anchor` (15 s): 45 s in all, before the ingestion sweep. */
+export function ledgerDailySteps(make: () => LedgerJobDeps = buildLedgerDeps, makeAnchor: () => AnchorJobDeps = buildAnchorDeps): Step[] {
   return [
     { job: "ledger:prices", run: () => fetchCloses(make()) },
     { job: "ledger:score", run: () => scoreIdeas(make()) },
+    { job: "ledger:anchor", run: () => publishAnchors(makeAnchor()) },
   ];
 }
 

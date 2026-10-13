@@ -11,7 +11,7 @@ describe("the server step lists (extend Phase 1, do not replace it)", () => {
   });
 
   it("runs the ledger steps after the daily heartbeat and BEFORE the ingestion sweep (Hobby: one cron, 45 s then 200 s)", () => {
-    expect(SERVER_DAILY_STEPS.map((s) => s.job)).toEqual([...DAILY_STEPS.map((s) => s.job), "ledger:prices", "ledger:score", "ingestion:sweep"]);
+    expect(SERVER_DAILY_STEPS.map((s) => s.job)).toEqual([...DAILY_STEPS.map((s) => s.job), "ledger:prices", "ledger:score", "ledger:anchor", "ingestion:sweep"]);
   });
 });
 
