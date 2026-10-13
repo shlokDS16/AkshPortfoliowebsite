@@ -52,6 +52,12 @@ const first = (value: string | string[] | undefined): string | undefined => (Arr
  * Hosts whose responses Node's strict HTTP parser is known to reject (www.bseindia.com answers with header bytes it refuses:
  * HPE_INVALID_HEADER_TOKEN). A fixed list in code, never user input. A host matches when it is one of these or a sub-domain of
  * one, on a dot boundary ("notbseindia.com" does not match).
+ *
+ * `insecureHTTPParser` is not limited to a bad header byte: Node has no switch for one rule. Measured on Node 24.14.0 (llhttp 9.3.0),
+ * it also admits LF-only line endings (a bare LF inside a header value starts a new header), `Content-Length` together with
+ * `Transfer-Encoding: chunked`, obs-fold continuation lines, and any HTTP version. The set follows the Node release in production.
+ * What contains it: the size cap and the time cap of safeFetch, the pinned vetted address, one connection per attempt
+ * (`agent: false`), and a strict parser again on every redirect hop. See Q24 in docs/project-memory/unanswered-questions.md.
  */
 export const LENIENT_PARSER_HOSTS: readonly string[] = ["bseindia.com"];
 
@@ -73,8 +79,9 @@ export type HttpsTransportDeps = {
 
 /**
  * One GET over TLS to port 443 of the vetted address. Certificates are checked as Node does by default. The strict HTTP parser is
- * always used first. Only when it refuses the response headers (HPE_INVALID_HEADER_TOKEN) AND the host is on the lenient list is
- * the same request made once more with `insecureHTTPParser`; every other rule (https, the pinned vetted address, the signal, the
+ * always used first. Only when it refuses the response headers (HPE_INVALID_HEADER_TOKEN, and no other error: a reset connection or
+ * an LF-only answer is not retried) AND the host is on the lenient list is the same request made once more with
+ * `insecureHTTPParser`, which admits more than a bad header byte (see LENIENT_PARSER_HOSTS); every other rule (https, the pinned vetted address, the signal, the
  * three request headers, the checks safeFetch makes on the answer) is the same for the retry, and a redirect to another host is
  * a new call of this function, strict again.
  */

@@ -210,7 +210,7 @@ describe("classify_pages: an answer that does not come", () => {
     expect(await classifyPagesStep(ctx(s, llm, stepFor([1, 2, 3])))).toEqual({ kind: "retry", failure: "schema", error: "pages.0.kind: Invalid option" });
     const second = done(await classifyPagesStep(ctx(s, llm, stepFor([1, 2, 3], { schemaFailures: 1, lastError: "pages.0.kind: Invalid option" }))));
     expect(complete.mock.calls[1]![0].system).toContain("Your previous answer was rejected: pages.0.kind: Invalid option");
-    expect(second).toMatchObject({ result: { kept: 0, letGo: "schema", unsortedPages: 3 }, enqueue: [] });
+    expect(second).toMatchObject({ result: { kept: 0, letGo: "schema", unsortedPages: 3, unsortedPageNos: [1, 2, 3] }, enqueue: [] });
   });
 
   it("retries a provider error twice, lets the batch go on the third, and queues the next batch when there is one", async () => {
@@ -226,7 +226,7 @@ describe("classify_pages: an answer that does not come", () => {
 
   it("lets a refused request go (a bad key shows on the reading itself) without failing the document", async () => {
     const { llm } = fake({ kind: "rejected", status: 401, message: "bad key", rate: NO_RATE });
-    expect(await classifyPagesStep(ctx(setup([1]), llm, stepFor([1])))).toMatchObject({ kind: "done", result: { letGo: "refused", unsortedPages: 1 } });
+    expect(await classifyPagesStep(ctx(setup([1]), llm, stepFor([1])))).toMatchObject({ kind: "done", result: { letGo: "refused", unsortedPages: 1, unsortedPageNos: [1] } });
   });
 
   it("needs attention with the plain sentence when its arguments are not readable, and when the document is gone", async () => {

@@ -31,6 +31,17 @@ async function serve(host: string, response: string): Promise<void> {
   ports.set(host, (server.address() as net.AddressInfo).port);
 }
 
+/** A raw TCP server that resets the connection as soon as the request arrives. */
+async function serveReset(host: string): Promise<void> {
+  const server = net.createServer((socket) => {
+    socket.once("data", () => socket.resetAndDestroy());
+    socket.on("error", () => undefined);
+  });
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  servers.push(server);
+  ports.set(host, (server.address() as net.AddressInfo).port);
+}
+
 const page = (header: string, status = "200 OK", extra = "") =>
   `HTTP/1.1 ${status}\r\nContent-Type: text/html\r\n${header}\r\n${extra}Content-Length: 2\r\nConnection: close\r\n\r\nhi`;
 
@@ -113,6 +124,34 @@ describe("a listed host", () => {
     expect(hits).toEqual([]); // neither reached the transport
     await expect(safeFetch("https://www.bseindia.com/a", { resolve, transport: transport(["bseindia.com"]), maxBytes: 1 })).rejects.toMatchObject({ code: "link-too-large" });
     expect(hitsOn("www.bseindia.com").map((h) => h.lenient)).toEqual([false, true]);
+  });
+
+  // Only the one strict-parser refusal buys a retry: any other failure of a listed host is the same single strict attempt as for any host.
+  it("is not retried when the connection is reset: one strict attempt, the same failure and log line as an unlisted host", async () => {
+    await serveReset("www.bseindia.com");
+    const error = await fetchWith("https://www.bseindia.com/a", ["bseindia.com"]).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(DocumentError);
+    expect(error).toMatchObject({ code: "link-failed" });
+    expect(hitsOn("www.bseindia.com")).toEqual([{ host: "www.bseindia.com", lenient: false }]);
+    expect(console.warn).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith("link fetch failed", "Error", "ECONNRESET");
+  });
+
+  it("is not retried when the answer has LF-only line endings (a different strict refusal, HPE_CR_EXPECTED)", async () => {
+    const lfOnly = "HTTP/1.1 200 OK\nContent-Length: 2\n\nhi";
+    await serve("www.bseindia.com", lfOnly);
+    await serve("strict.example", lfOnly);
+    // The premise: the strict parser does refuse it, and with a code other than the one that is retried.
+    await expect(transport([])({ url: new URL("https://strict.example/a"), addresses: PUBLIC, signal: new AbortController().signal })).rejects.toMatchObject({
+      code: "HPE_CR_EXPECTED",
+    });
+    hits = [];
+    const error = await fetchWith("https://www.bseindia.com/a", ["bseindia.com"]).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(DocumentError);
+    expect(error).toMatchObject({ code: "link-failed" });
+    expect(hitsOn("www.bseindia.com")).toEqual([{ host: "www.bseindia.com", lenient: false }]);
+    expect(console.warn).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith("link fetch failed", "Error", "HPE_CR_EXPECTED");
   });
 
   it("a status outside 2xx on the retry is still a failure", async () => {

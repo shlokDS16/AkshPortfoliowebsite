@@ -118,9 +118,10 @@ export const classifyPagesStep: StepHandler = async (ctx) => {
     if (kept.length > 0) await documents.setVerdicts(documentId, kept);
   }
 
-  // `unsortedPages` is what the inbox card reads (unsorted-read.ts): the pages this batch asked about and the model did not place.
+  // `unsortedPages` and `unsortedPageNos` are what the inbox card reads (unsorted-read.ts): the pages this batch asked about and the model
+  // did not place. The numbers let the card stop counting a page once Aksh has chosen or read it.
   const found = [...args.data.accepted, ...sortedBefore, ...kept];
-  const result = { promptVersion: CLASSIFY_PROMPT_VERSION, asked: asked.length, kept: kept.length, tokens, ...(letGo ? { letGo, unsortedPages: asked.length } : {}) };
+  const result = { promptVersion: CLASSIFY_PROMPT_VERSION, asked: asked.length, kept: kept.length, tokens, ...(letGo ? { letGo, unsortedPages: asked.length, unsortedPageNos: asked.map((p) => p.pageNo) } : {}) };
   if (rest.length > 0) return { kind: "done", result, enqueue: [nextClassifyStep(rest, found)] };
   const picked = await selectFound(ctx, doc, found);
   return { kind: "done", result: { ...result, selected: picked.selected }, enqueue: picked.enqueue };

@@ -6,7 +6,7 @@ import { estimateReadyBy, formatReadyBy } from "./eta";
 import { listedPages, readInboxPages, type InboxPageRow, type ListedPage } from "./inbox-pages";
 import { readDigestCounts } from "./digest-read";
 import { readTranscripts } from "./inbox-transcripts";
-import { readUnsortedPages } from "./unsorted-read";
+import { readUnsortedPages, unsortedStillOpen } from "./unsorted-read";
 import { PAGE_STEP_KINDS } from "./page-steps";
 import { tallyPending } from "./proposal-counts";
 import { trayFor, type DocState, type TrayView } from "./trays";
@@ -172,6 +172,8 @@ export async function listInbox(
   const docs = rows.map((d): InboxDoc => {
     const steps = toSteps(stepsOf.get(d.id) ?? []);
     const scans = (pagesOf.get(d.id) ?? []).filter((p) => p.is_scan).length;
+    // A let-go page stops counting once it is ticked or its figures are read (the card's "choose the pages yourself" line clears).
+    const chosenOrRead = new Set([...(pagesOf.get(d.id) ?? []).filter((p) => p.selected).map((p) => p.page_no), ...readPageNumbers(stepsOf.get(d.id) ?? [])]);
     const state: DocState = {
       status: d.status as DocumentStatus,
       pageCount: d.page_count,
@@ -184,7 +186,7 @@ export async function listInbox(
       flagged: waiting.get(d.id)?.flagged ?? 0,
       decided: waiting.get(d.id)?.decided ?? 0,
       digestClaims: digests.get(d.id) ?? 0,
-      unsortedPages: unsorted.get(d.id) ?? 0,
+      unsortedPages: unsortedStillOpen(unsorted.get(d.id), chosenOrRead),
       steps,
     };
     return {
