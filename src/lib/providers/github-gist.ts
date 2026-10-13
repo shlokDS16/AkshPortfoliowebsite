@@ -1,4 +1,4 @@
-import { type AnchorMiss, type AnchorPort, type AnchorRead, type AnchorWrite, anchorFileProblem, anchorTextProblem } from "./anchor";
+import { type AnchorMiss, type AnchorPort, type AnchorRead, type AnchorWrite, anchorFileProblem, anchorWriteGate } from "./anchor";
 import { readCapped } from "./read-capped";
 
 // The GitHub Gist adapter (spec s9, ADR-005 s2 and s3.3, Plan 3a Task 8). It reads and writes ONE file of ONE public gist
@@ -28,8 +28,10 @@ const MAX_MS = 60_000;
 /**
  * The most the adapter will receive in one answer. The file is at most about 1 MB, but the answer also lists the gist's
  * revisions (up to 3,000, each carrying a user object), and the anchor commits once a day, so the list alone grows by
- * roughly half a megabyte a year (an estimate from the size of GitHub's history entries, not measured here: no request is
- * made in Task 8). 8 MB leaves years of room; passing it is `too_large`.
+ * roughly half a megabyte a year. THAT SIZE IS AN UNMEASURED ESTIMATE (no request was made when this was written), and the
+ * answer may also list forks (anyone can fork a public gist), which the owner does not control. 8 MB leaves years of
+ * room; passing it is `too_large` (fail closed: nothing is written). On the first live use, compare this cap with the
+ * real response size and record the figure in ADR-005 s2.
  */
 const RESPONSE_CAP_BYTES = 8 * 1024 * 1024;
 const HINT_BYTES = 8 * 1024;
@@ -66,8 +68,17 @@ function fileOf(gist: Json, file: string): Found {
   if (!Object.hasOwn(files, file)) return gist.truncated === true ? { kind: "too_large" } : { kind: "absent" };
   const entry = files[file];
   if (!isObject(entry)) return { kind: "bad" };
-  if (entry.truncated === true) return { kind: "too_large" };
+  // Whole only when the answer says so. A missing or odd `truncated` is never trusted: a short read could let a write pass.
+  if (entry.truncated !== false) return { kind: "too_large" };
   return typeof entry.content === "string" ? { kind: "file", text: entry.content } : { kind: "bad" };
+}
+
+/** The file's content in a PATCH answer, whatever flags it carries; the caller proves it whole by equality with what it sent. */
+function echoedContent(gist: Json, file: string): string | null {
+  const files = gist.files;
+  if (!isObject(files) || !Object.hasOwn(files, file)) return null;
+  const entry = files[file];
+  return isObject(entry) && typeof entry.content === "string" ? entry.content : null;
 }
 
 export function createGithubGistAnchor(opts: GithubGistOptions): AnchorPort {
@@ -142,7 +153,7 @@ export function createGithubGistAnchor(opts: GithubGistOptions): AnchorPort {
     return drop(response, { kind: "provider_error", message: `GitHub answered HTTP ${status}` });
   }
 
-  async function drop(response: Response, miss: AnchorMiss): Promise<AnchorMiss> {
+  async function drop<T extends AnchorWrite>(response: Response, miss: T): Promise<T> {
     await response.body?.cancel().catch(() => undefined);
     return miss;
   }
@@ -195,35 +206,38 @@ export function createGithubGistAnchor(opts: GithubGistOptions): AnchorPort {
     },
 
     async write(file, text, call): Promise<AnchorWrite> {
-      const problem = anchorFileProblem(file) ?? anchorTextProblem(text);
-      if (problem) return { kind: "invalid_request", message: problem };
+      // Append-only and the no-op are decided before any request (anchor.ts): the port cannot shorten or replace a published byte.
+      const gate = anchorWriteGate(file, text, call.expected);
+      if (gate) return gate;
       const next = clock(call.timeoutMs, DEFAULT_WRITE_BUDGET_MS);
       const checkMs = next?.() ?? null;
       if (next === null || checkMs === null) return NO_TIME;
 
       // The check. GitHub offers no conditional update, so this second read is as close as the adapter can get.
+      // Every outcome up to here means NOTHING was sent.
       const seen = await look(file, checkMs);
       if (seen.kind !== "seen") return seen;
       if (seen.text !== call.expected) return { kind: "changed", found: seen.text, version: seen.version };
-      if (seen.text === text) return { kind: "ok", version: seen.version, wrote: false, continuity: "unbroken" };
 
       const patchMs = next();
       if (patchMs === null) return NO_TIME;
-      const uncertain = (message: string): AnchorMiss => ({ kind: "provider_error", message: `${message}; the update may or may not have been applied` });
+      // From here the request may have reached GitHub: anything that is not a clear refusal is `unconfirmed`.
+      const unconfirmed = (message: string): AnchorWrite => ({ kind: "unconfirmed", message });
       const response = await send("PATCH", patchMs, JSON.stringify({ files: { [file]: { content: text } } }));
-      if (!(response instanceof Response)) return response.kind === "provider_error" ? uncertain(response.message) : response;
-      if (response.status !== 200) {
-        const miss = await missFor(response, true);
-        return miss.kind === "provider_error" && response.status !== 422 ? uncertain(miss.message) : miss;
+      if (!(response instanceof Response)) return unconfirmed(`${response.kind === "provider_error" ? response.message : "the request failed"}; the update was sent and the result is not known`);
+      const status = response.status;
+      if (status === 404) return drop(response, { kind: "cannot_write" }); // the gist was just read: most likely the token cannot write to it
+      if (status >= 400 && status < 500) return missFor(response, true); // refused: 401, 403 (or a rate limit), 422, 429, other 4xx
+      if (status !== 200) {
+        await response.body?.cancel().catch(() => undefined);
+        return unconfirmed(`GitHub answered HTTP ${status} to the update; the result is not known`);
       }
       const parsed = await parse(response);
-      if ("miss" in parsed) return parsed.miss.kind === "provider_error" ? uncertain(parsed.miss.message) : parsed.miss;
-      const { gist } = parsed;
-      const echoed = fileOf(gist, file);
-      if (echoed.kind !== "file" || echoed.text !== text) return uncertain("the update could not be confirmed");
-      const [newest, before] = versionsOf(gist);
-      const continuity = before === undefined || before === null || seen.version === null ? "unknown" : before === seen.version ? "unbroken" : "interrupted";
-      return { kind: "ok", version: newest ?? null, wrote: true, continuity };
+      if ("miss" in parsed) return unconfirmed("the update was accepted but the answer could not be read; the result is not confirmed");
+      if (echoedContent(parsed.gist, file) !== text) return unconfirmed("the update was accepted but the answer does not hold what was sent; the result is not confirmed");
+      const [newest, before] = versionsOf(parsed.gist);
+      if (before === undefined || before === null || seen.version === null) return { kind: "ok", version: newest ?? null, continuity: "unknown" };
+      return before === seen.version ? { kind: "ok", version: newest ?? null, continuity: "unbroken" } : { kind: "interrupted", version: newest ?? null };
     },
   };
 }

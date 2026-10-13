@@ -1,4 +1,4 @@
-import { type AnchorPort, anchorFileProblem, anchorTextProblem } from "./anchor";
+import { type AnchorPort, anchorFileProblem, anchorWriteGate } from "./anchor";
 
 // The fixture anchor: local e2e and CI only. createAnchorPort creates it only when the Supabase URL is a loopback address.
 // No network. The store lives on globalThis, so the next cron call (which builds a new port) sees what the last one wrote,
@@ -38,15 +38,15 @@ export function createFixtureAnchor(): AnchorPort {
       return held ? { kind: "ok", text: held.text, version: held.version } : { kind: "absent", what: "file" };
     },
     async write(file, text, call) {
-      const problem = anchorFileProblem(file) ?? anchorTextProblem(text);
-      if (problem) return { kind: "invalid_request", message: problem };
+      // The same gate as the real adapter: append-only, and a text equal to the expected one is nothing to add.
+      const gate = anchorWriteGate(file, text, call.expected);
+      if (gate) return gate;
       const s = store();
       const held = s.files.get(file);
       if ((held?.text ?? null) !== call.expected) return { kind: "changed", found: held?.text ?? null, version: held?.version ?? null };
-      if (held && held.text === text) return { kind: "ok", version: held.version, wrote: false, continuity: "unbroken" };
       const version = `fixture-${++s.counter}`;
       s.files.set(file, { text, version });
-      return { kind: "ok", version, wrote: true, continuity: "unbroken" };
+      return { kind: "ok", version, continuity: "unbroken" };
     },
   };
 }

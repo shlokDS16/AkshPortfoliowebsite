@@ -10,7 +10,7 @@ describe("the fixture anchor (local e2e and CI; an in-process store, no network)
     const port = createFixtureAnchor();
     expect(port.name).toBe("fixture");
     expect(await port.read(FILE)).toEqual({ kind: "absent", what: "file" });
-    expect(await port.write(FILE, "a\n", { expected: null })).toEqual({ kind: "ok", version: "fixture-1", wrote: true, continuity: "unbroken" });
+    expect(await port.write(FILE, "a\n", { expected: null })).toEqual({ kind: "ok", version: "fixture-1", continuity: "unbroken" });
     expect(await port.read(FILE)).toEqual({ kind: "ok", text: "a\n", version: "fixture-1" });
   });
 
@@ -30,15 +30,27 @@ describe("the fixture anchor (local e2e and CI; an in-process store, no network)
   it("honours the precondition exactly, and answers what it found", async () => {
     const port = createFixtureAnchor();
     await port.write(FILE, "a\n", { expected: null });
-    expect(await port.write(FILE, "z\n", { expected: "A\n" })).toEqual({ kind: "changed", found: "a\n", version: "fixture-1" });
+    expect(await port.write(FILE, "A\nz\n", { expected: "A\n" })).toEqual({ kind: "changed", found: "a\n", version: "fixture-1" });
     expect(await port.write(FILE, "z\n", { expected: null })).toEqual({ kind: "changed", found: "a\n", version: "fixture-1" });
     expect(await port.read(FILE)).toMatchObject({ text: "a\n" });
   });
 
-  it("writing what is already there sends nothing", async () => {
+  it("writing what is already there is nothing_to_add, and nothing changes", async () => {
     const port = createFixtureAnchor();
     await port.write(FILE, "a\n", { expected: null });
-    expect(await port.write(FILE, "a\n", { expected: "a\n" })).toEqual({ kind: "ok", version: "fixture-1", wrote: false, continuity: "unbroken" });
+    expect(await port.write(FILE, "a\n", { expected: "a\n" })).toEqual({ kind: "nothing_to_add" });
+    expect(await port.read(FILE)).toMatchObject({ version: "fixture-1" });
+  });
+
+  it("is append-only, like the real adapter: a shorter, different or rewritten text is refused and the file is untouched", async () => {
+    const port = createFixtureAnchor();
+    await port.write(FILE, "a\nb\n", { expected: null });
+    for (const text of ["a\n", "a\nB\n", "x\nb\n", "X\nb\nc\n", "b\n", "a\nb"]) {
+      expect(await port.write(FILE, text, { expected: "a\nb\n" }), text).toMatchObject({ kind: "invalid_request" });
+    }
+    expect(peekFixtureAnchor(FILE)).toBe("a\nb\n");
+    expect(await port.write(FILE, "a\nb\nc\n", { expected: "a\nb\n" })).toMatchObject({ kind: "ok", version: "fixture-2" });
+    expect(peekFixtureAnchor(FILE)).toBe("a\nb\nc\n");
   });
 
   it("seeding stands in for a hand-edited gist (tests of the anchor step)", async () => {
