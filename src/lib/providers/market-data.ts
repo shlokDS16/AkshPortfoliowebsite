@@ -11,6 +11,13 @@ export type Miss =
   | { kind: "no_file" } // 404: weekend, holiday or not published yet
   | { kind: "blocked"; message: string } // 401, 403, 429, or an HTML page where a file was expected
   | { kind: "provider_error"; message: string }; // timeout, 5xx, a zip or CSV we could not read
+/**
+ * For the caller that decides whether a day is a holiday (Plan 3a Task 7): the two files are asked independently, for any
+ * date, and a day may be shut only when BOTH answer `no_file`. An equity `no_file` beside an index `ok` is a contradiction
+ * (a Nifty 50 close proves the market was open): treat it as a provider error, never as a holiday. Before the first day is
+ * shut in a run, ask the equity address of the last day known to be open again; if that is not `ok` the address or the
+ * archive is broken and no day is marked.
+ */
 export type EquityDay = { kind: "ok"; tradeDate: string; closes: Close[] } | Miss;
 export type IndexDay = { kind: "ok"; tradeDate: string; close: number } | Miss;
 

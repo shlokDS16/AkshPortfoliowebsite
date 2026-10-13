@@ -1,7 +1,7 @@
 import type { Close, MarketDataPort } from "./market-data";
 
-// The fixture market-data adapter: local e2e and CI only, never on Vercel (createMarketDataPort refuses it there, ruling
-// R27: made-up closes would reach the track record). It never touches the network. Closes are a pure function of the
+// The fixture market-data adapter: local e2e and CI only. createMarketDataPort creates it only when the Supabase URL is a
+// loopback address (made-up closes are stored as official closes, so a hosted database must never see them). No network. Closes are a pure function of the
 // symbol and the date, so every run of every test sees the same numbers. Weekends have no file; the symbol BLOCKED is blocked.
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BHAVCOPY_HEADER, bhavCsv, INDEX_HEADER, indexCsv } from "@/test/nse-files";
-import { CsvError, parseBhavcopyCsv, parseIndexCsv } from "./nse-csv";
+import { CsvError, MAX_FIELD_CHARS, MAX_FIELDS_PER_ROW, MAX_ROWS, parseBhavcopyCsv, parseCsvRows, parseIndexCsv } from "./nse-csv";
 
 function refusal(fn: () => unknown): CsvError {
   try {
@@ -147,5 +147,75 @@ describe("parseIndexCsv", () => {
     for (const close of ["", "-", "0", "abc", "22,363.35", "-100"]) {
       expect(refusal(() => parseIndexCsv(indexCsv([{ name: "Nifty 50", close }]))).code).toBe("bad_number");
     }
+  });
+});
+
+describe("the parser stops at its caps instead of reading on (review I-1)", () => {
+  const junk = '"never reached';
+
+  it("refuses more than 50,000 rows without reading past the cap", () => {
+    // If the loop read on, it would hit the unterminated quote and report `malformed`.
+    expect(refusal(() => parseCsvRows(`${"a\n".repeat(MAX_ROWS + 1)}${junk}`)).code).toBe("too_large");
+    expect(refusal(() => parseCsvRows(`${",\n".repeat(MAX_ROWS + 1)}${junk}`)).code).toBe("too_large");
+    expect(parseCsvRows("a\n".repeat(MAX_ROWS))).toHaveLength(MAX_ROWS);
+  });
+
+  it("refuses a row of more than 256 fields without reading past the cap", () => {
+    expect(refusal(() => parseCsvRows(`${",".repeat(5000)}${junk}`)).code).toBe("too_large");
+    expect(parseCsvRows(`${"x,".repeat(MAX_FIELDS_PER_ROW - 1)}x`)[0]).toHaveLength(MAX_FIELDS_PER_ROW);
+    expect(refusal(() => parseCsvRows("x,".repeat(MAX_FIELDS_PER_ROW) + "x")).code).toBe("too_large");
+  });
+
+  it("refuses a field of more than 4,096 characters, quoted or not, without reading past the cap", () => {
+    expect(refusal(() => parseCsvRows(`${"x".repeat(MAX_FIELD_CHARS + 2)}${junk}`)).code).toBe("too_large");
+    expect(refusal(() => parseCsvRows(`"${"x".repeat(MAX_FIELD_CHARS + 2)}${junk}`)).code).toBe("too_large");
+    expect(parseCsvRows("x".repeat(MAX_FIELD_CHARS))[0][0]).toHaveLength(MAX_FIELD_CHARS);
+  });
+
+  it("the parsers refuse the same shapes with the typed code", () => {
+    expect(refusal(() => parseBhavcopyCsv("a\n".repeat(MAX_ROWS + 1), ["ALPHA"])).code).toBe("too_large");
+    expect(refusal(() => parseIndexCsv(",\n".repeat(MAX_ROWS + 1))).code).toBe("too_large");
+  });
+
+  it("the real file's shape is far inside the caps", () => {
+    const rows = Array.from({ length: 3714 }, (_, i) => ({ symbol: `S${i}` }));
+    expect(parseBhavcopyCsv(bhavCsv(rows), ["S5"]).closes).toHaveLength(1);
+  });
+});
+
+describe("quotes, ISINs and the price column (review M-1, M-2, M-3)", () => {
+  it("refuses text after a closing quote: `\"10\"5` is not 105", () => {
+    expect(refusal(() => parseCsvRows('a,"10"5\n')).code).toBe("malformed");
+    expect(refusal(() => parseCsvRows('"a"b,c\n')).code).toBe("malformed");
+    expect(parseCsvRows('a,"10"\n"x",y')).toEqual([["a", "10"], ["x", "y"]]);
+    expect(parseCsvRows('"a ""b"" c",d\r\n')).toEqual([['a "b" c', "d"]]);
+  });
+
+  it("a close with a quote glued on is refused as a price", () => {
+    const csv = `${BHAVCOPY_HEADER.join(",")}\n${bhavCsv([{ symbol: "ALPHA", close: "10.00" }]).split("\n")[1].replace("10.00", '"10"5')}\n`;
+    expect(refusal(() => parseBhavcopyCsv(csv, ["ALPHA"])).code).toBe("malformed");
+  });
+
+  it("keeps an ISIN in its standard shape and gives null for blank or any other shape", () => {
+    const run = (isin: string) => parseBhavcopyCsv(bhavCsv([{ symbol: "ALPHA", isin }]), ["ALPHA"]).closes[0].isin;
+    expect(run("INE002A01018")).toBe("INE002A01018");
+    expect(run(" INE002A01018 ")).toBe("INE002A01018");
+    for (const odd of ["", "<script>alert(1)</script>", "X".repeat(50), "INE00", "ine002a01018", "INE002A0101A", "1NE002A01018"]) expect(run(odd)).toBeNull();
+  });
+
+  it("refuses the file when the ISIN of a used row holds a NUL or a control character", () => {
+    for (const bad of ["INE002A0101\u0000", "INE\u0000", "INE002A01018\u0007", "\tINE002A01018"]) {
+      expect(refusal(() => parseBhavcopyCsv(bhavCsv([{ symbol: "ALPHA", isin: bad }]), ["ALPHA"])).code).toBe("malformed");
+    }
+    // A row nobody asked for is not read.
+    expect(parseBhavcopyCsv(bhavCsv([{ symbol: "ALPHA" }, { symbol: "OTHER", isin: "INE\u0000" }]), ["ALPHA"]).closes).toHaveLength(1);
+  });
+
+  it("refuses a price with more digits than the database column keeps (numeric(14, 4)), never dropping it silently", () => {
+    expect(parseBhavcopyCsv(bhavCsv([{ symbol: "ALPHA", close: "9999999999.9999" }]), ["ALPHA"]).closes[0].close).toBe(9999999999.9999);
+    for (const close of ["12345678901", "123456789012.123456", "10.12345", "99999999999.00"]) {
+      expect(refusal(() => parseBhavcopyCsv(bhavCsv([{ symbol: "ALPHA", close }]), ["ALPHA"])).code).toBe("bad_number");
+    }
+    expect(refusal(() => parseIndexCsv(indexCsv([{ name: "Nifty 50", close: "12345678901.5" }]))).code).toBe("bad_number");
   });
 });

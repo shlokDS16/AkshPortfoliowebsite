@@ -17,9 +17,10 @@ export { NSE_HOST } from "./nse-template";
 /** Honest about who is asking. NSE answers a browser-shaped agent and gives nothing to an empty one (ADR-005 s2). */
 export const NSE_USER_AGENT = "Mozilla/5.0 (compatible; AkshResearchDesk/1.0)";
 const DEFAULT_TIMEOUT_MS = 8_000;
-/** The answer as sent (the real zip is about 207 KB), the file unzipped (about 639 KB), and the index file (about 17.5 KB). */
+const MAX_TIMEOUT_MS = 60_000;
+/** The answer as sent (the real zip is about 207 KB), the file unzipped (639,229 bytes on 2026-10-12; the cap is 12 times that), and the index file (about 17.5 KB). */
 const ZIP_CAP_BYTES = 4 * 1024 * 1024;
-const UNZIP_CAP_BYTES = 16 * 1024 * 1024;
+const UNZIP_CAP_BYTES = 8 * 1024 * 1024;
 const INDEX_CAP_BYTES = 1024 * 1024;
 
 export type NseMarketDataOptions = {
@@ -65,6 +66,8 @@ async function get(doFetch: typeof fetch, url: string, maxBytes: number, timeout
       method: "GET",
       headers: { "user-agent": NSE_USER_AGENT, accept: "*/*" },
       redirect: "error",
+      // A remembered 404 is the one answer that must never be reused.
+      cache: "no-store",
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
@@ -118,15 +121,28 @@ export function createNseMarketData(opts: NseMarketDataOptions): MarketDataPort 
     const problem = nseTemplateProblem(template, placeholder);
     if (problem) throw new Error(`${name} ${problem}`);
   }
+  if (opts.timeoutMs !== undefined && !(Number.isInteger(opts.timeoutMs) && opts.timeoutMs >= 1 && opts.timeoutMs <= MAX_TIMEOUT_MS)) {
+    throw new Error(`the NSE timeout must be a whole number of milliseconds from 1 to ${MAX_TIMEOUT_MS}`);
+  }
   const doFetch = opts.fetch ?? fetch;
-  const timeout = (call?: number) => call ?? opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  /**
+   * The time for one call. A per-call value comes from a caller's remaining budget and may be fractional or spent: it is
+   * rounded down, capped, and when nothing is left there is no request at all (`null`).
+   */
+  const timeout = (call?: number): number | null => {
+    const ms = Math.min(Math.floor(call ?? opts.timeoutMs ?? DEFAULT_TIMEOUT_MS), MAX_TIMEOUT_MS);
+    return ms >= 1 ? ms : null;
+  };
+  const noTime: Miss = { kind: "provider_error", message: "no time left for the NSE call" };
 
   return {
     name: "nse",
     async equityCloses(tradeDate, symbols, call): Promise<EquityDay> {
       const url = addressFor(opts.bhavcopyTemplate, BHAVCOPY_PLACEHOLDER, tradeDate);
       if (typeof url !== "string") return url;
-      const got = await get(doFetch, url, ZIP_CAP_BYTES, timeout(call?.timeoutMs));
+      const ms = timeout(call?.timeoutMs);
+      if (ms === null) return noTime;
+      const got = await get(doFetch, url, ZIP_CAP_BYTES, ms);
       if (got.kind !== "ok") return got;
       try {
         const csv = new TextDecoder("utf-8", { fatal: true }).decode(unzipSingle(got.bytes, UNZIP_CAP_BYTES));
@@ -140,7 +156,9 @@ export function createNseMarketData(opts: NseMarketDataOptions): MarketDataPort 
     async indexClose(tradeDate, call): Promise<IndexDay> {
       const url = addressFor(opts.indexTemplate, INDEX_PLACEHOLDER, tradeDate);
       if (typeof url !== "string") return url;
-      const got = await get(doFetch, url, INDEX_CAP_BYTES, timeout(call?.timeoutMs));
+      const ms = timeout(call?.timeoutMs);
+      if (ms === null) return noTime;
+      const got = await get(doFetch, url, INDEX_CAP_BYTES, ms);
       if (got.kind !== "ok") return got;
       try {
         const day = parseIndexCsv(new TextDecoder("utf-8", { fatal: true }).decode(got.bytes));

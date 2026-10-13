@@ -1,5 +1,7 @@
-import { deflateRawSync } from "node:zlib";
-import { describe, expect, it, vi } from "vitest";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
+import { deflateRawSync, gzipSync } from "node:zlib";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildZip } from "@/test/zip-builder";
 import { bhavCsv, indexCsv } from "@/test/nse-files";
 import { createNseMarketData, NSE_USER_AGENT } from "./nse-bhavcopy";
@@ -35,6 +37,7 @@ describe("the NSE adapter: a good day", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(BHAV_URL);
     expect(init?.redirect).toBe("error");
+    expect(init?.cache).toBe("no-store");
     expect(init?.signal).toBeInstanceOf(AbortSignal);
     expect(init?.method ?? "GET").toBe("GET");
     expect(init?.headers).toEqual({ "user-agent": NSE_USER_AGENT, accept: "*/*" });
@@ -217,5 +220,157 @@ describe("the NSE adapter: addresses", () => {
     expect(nseTemplateProblem(DEFAULT_NSE_BHAVCOPY_TEMPLATE, "{YYYYMMDD}")).toBeNull();
     expect(nseTemplateProblem(DEFAULT_NSE_INDEX_TEMPLATE, "{DDMMYYYY}")).toBeNull();
     expect(fillNseTemplate(DEFAULT_NSE_BHAVCOPY_TEMPLATE, "{YYYYMMDD}", "2026-10-12")).toBe(BHAV_URL);
+  });
+});
+
+describe("the NSE adapter: hostile files that are small on the wire (review I-1)", () => {
+  const encode = (text: string) => new TextEncoder().encode(text);
+  const ask = (data: Uint8Array) => port(respondWith(() => body(buildZip([{ data }]), { status: 200 }))).equityCloses("2026-10-12", ["ALPHA"]);
+
+  it("many tiny rows, one huge field and a row with thousands of fields are provider errors naming the typed cause", async () => {
+    for (const data of [encode("a\n".repeat(3_000_000)), encode(",\n".repeat(3_000_000)), encode("x".repeat(100_000)), encode(",".repeat(100_000)), encode(`"${"x".repeat(1_000_000)}"`)]) {
+      const out = await ask(data);
+      expect(out).toMatchObject({ kind: "provider_error" });
+      expect(JSON.stringify(out)).toContain("too_large");
+    }
+  });
+
+  it("the same shapes in the index file", async () => {
+    const out = await port(respondWith(() => body("a\n".repeat(500_000), { status: 200 }))).indexClose("2026-10-12");
+    expect(out).toMatchObject({ kind: "provider_error" });
+    expect(JSON.stringify(out)).toContain("too_large");
+  });
+
+  it("a file past the 8 MB unzip cap is refused before it is inflated", async () => {
+    const out = await ask(new Uint8Array(9 * 1024 * 1024));
+    expect(JSON.stringify(out)).toContain("too_large");
+  });
+});
+
+describe("the NSE adapter: empty and unreadable answers", () => {
+  it("a 200 with an empty body, or no body at all, is a provider error", async () => {
+    expect(await port(respondWith(() => body("", { status: 200 }))).equityCloses("2026-10-12", ["ALPHA"])).toMatchObject({ kind: "provider_error" });
+    expect(await port(respondWith(() => new Response(null, { status: 200 }))).indexClose("2026-10-12")).toMatchObject({ kind: "provider_error" });
+  });
+
+  it("a file that is not valid UTF-8 is a provider error", async () => {
+    const bad = buildZip([{ data: new Uint8Array([0xff, 0xfe, 0xfd, 0x0a]) }]);
+    expect(await port(respondWith(() => body(bad, { status: 200 }))).equityCloses("2026-10-12", ["ALPHA"])).toMatchObject({ kind: "provider_error" });
+  });
+
+  it("a 404 is no_file whatever it carries, even an HTML page (the status is the only signal)", async () => {
+    const out = await port(respondWith(() => body("<html>not found</html>", { status: 404, headers: { "content-type": "text/html" } }))).equityCloses("2026-10-12", ["ALPHA"]);
+    expect(out).toEqual({ kind: "no_file" });
+  });
+
+  it("the two files are asked independently, for any past date, each with its own typed outcome", async () => {
+    const mixed = vi.fn<typeof fetch>(async (url) => (String(url).includes("BhavCopy") ? body("", { status: 404 }) : body(indexCsv([{ name: "Nifty 50", date: "01-09-2026" }]), { status: 200 })));
+    const p = port(mixed);
+    expect(await p.equityCloses("2026-09-01", ["ALPHA"])).toEqual({ kind: "no_file" });
+    expect(await p.indexClose("2026-09-01")).toMatchObject({ kind: "ok", tradeDate: "2026-09-01" });
+    expect(String(mixed.mock.calls[0][0])).toContain("20260901");
+    expect(String(mixed.mock.calls[1][0])).toContain("01092026");
+  });
+});
+
+describe("the NSE adapter: the timeout setting", () => {
+  it.each([0, -5, 1.5, Number.NaN, 61_000, Number.POSITIVE_INFINITY])("a creation timeout of %s is a configuration error, not a failed fetch", (timeoutMs) => {
+    expect(() => createNseMarketData({ ...templates, timeoutMs })).toThrow(/timeout must be a whole number/);
+  });
+
+  it("a per-call value that is fractional is rounded down; one that is spent makes no request", async () => {
+    const fetchMock = respondWith(() => body(goodIndex(), { status: 200 }));
+    const p = port(fetchMock);
+    expect(await p.indexClose("2026-10-12", { timeoutMs: 2500.7 })).toMatchObject({ kind: "ok" });
+    for (const timeoutMs of [0, 0.4, -10, Number.NaN]) {
+      expect(await p.indexClose("2026-10-12", { timeoutMs })).toEqual({ kind: "provider_error", message: "no time left for the NSE call" });
+      expect(await p.equityCloses("2026-10-12", ["ALPHA"], { timeoutMs })).toMatchObject({ kind: "provider_error" });
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the NSE adapter: template allowlist (review M-4)", () => {
+  const problem = (t: string) => nseTemplateProblem(t, "{YYYYMMDD}");
+
+  it.each([
+    "https://nsearchives.nseindia.com/a/%2e%2e/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/a\\b/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/a#/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/a\t/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/a\u0000/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/a‮/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/．．/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/a$&/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/a//{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/{YYYYMMDD}{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/{DDMMYYYY}/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com/{YYYYMMDD}.zip{",
+    "HTTPS://nsearchives.nseindia.com/{YYYYMMDD}.zip",
+    "https://nsearchives.nseindia.com./{YYYYMMDD}.zip",
+    "https://NSEARCHIVES.nseindia.com/{YYYYMMDD}.zip",
+    " https://nsearchives.nseindia.com/{YYYYMMDD}.zip",
+  ])("refuses %j", (template) => {
+    expect(problem(template)).not.toBeNull();
+  });
+
+  it("accepts a plain path with letters, digits and . _ - /", () => {
+    expect(problem("https://nsearchives.nseindia.com/content/cm/v2/Bhav-Copy_{YYYYMMDD}.csv.zip")).toBeNull();
+  });
+});
+
+describe("the NSE adapter against a real local HTTP server (the behaviour the mocks only imitate)", () => {
+  let server: Server;
+  let origin = "";
+  let handler: (req: IncomingMessage, res: ServerResponse) => void = () => undefined;
+
+  beforeAll(async () => {
+    server = createServer((req, res) => handler(req, res));
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(async () => {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  /** The adapter's own fetch call, re-aimed at the local server; every option the adapter set is passed on untouched. */
+  const aimed: typeof fetch = (url, init) => fetch(String(url).replace("https://nsearchives.nseindia.com", origin), init);
+  const local = (timeoutMs?: number) => createNseMarketData({ ...templates, fetch: aimed, timeoutMs });
+
+  it("a 302 is not followed and is a provider error", async () => {
+    let hits = 0;
+    handler = (_req, res) => {
+      hits++;
+      res.writeHead(302, { location: "http://127.0.0.1:1/elsewhere" }).end();
+    };
+    expect(await local().indexClose("2026-10-12")).toMatchObject({ kind: "provider_error" });
+    expect(hits).toBe(1);
+  });
+
+  it("a body that drips is cut by the timeout", async () => {
+    handler = (_req, res) => {
+      res.writeHead(200, { "content-type": "text/csv" });
+      const timer = setInterval(() => res.write("x"), 20);
+      res.on("close", () => clearInterval(timer));
+    };
+    const started = Date.now();
+    expect(await local(300).indexClose("2026-10-12")).toMatchObject({ kind: "provider_error" });
+    expect(Date.now() - started).toBeLessThan(3000);
+  });
+
+  it("a gzip-encoded body that inflates past the cap is cut at the cap", async () => {
+    handler = (_req, res) => {
+      res.writeHead(200, { "content-type": "application/zip", "content-encoding": "gzip" });
+      res.end(gzipSync(Buffer.alloc(30 * 1024 * 1024)));
+    };
+    expect(await local().equityCloses("2026-10-12", ["ALPHA"])).toMatchObject({ kind: "provider_error" });
+  });
+
+  it("a good file through a real socket, and a 404", async () => {
+    handler = (_req, res) => res.writeHead(200, { "content-type": "text/csv" }).end(goodIndex());
+    expect(await local().indexClose("2026-10-12")).toMatchObject({ kind: "ok", close: 22363.35 });
+    handler = (_req, res) => res.writeHead(404).end();
+    expect(await local().indexClose("2026-10-12")).toEqual({ kind: "no_file" });
   });
 });

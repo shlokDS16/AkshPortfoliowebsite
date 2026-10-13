@@ -13,13 +13,19 @@ export const DEFAULT_NSE_INDEX_TEMPLATE = `https://${NSE_HOST}/content/indices/i
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+const PREFIX = `https://${NSE_HOST}/`;
+/** The only characters a path may hold once the placeholder is taken out: no brace, escape, query, fragment, space or control. */
+const PATH_CHARS = /^[A-Za-z0-9._/-]*$/;
+
 /** The reason a template is not acceptable, or null. The value itself is never echoed. */
 export function nseTemplateProblem(template: string, placeholder: NsePlaceholder): string | null {
-  if (!template.startsWith(`https://${NSE_HOST}/`)) return `must start with https://${NSE_HOST}/`;
-  if (template.split(placeholder).length !== 2) return `must contain ${placeholder} exactly once`;
-  // Everything that could move the request elsewhere or hide a second address: userinfo, a query, a fragment, escapes,
-  // a backslash, white space, a parent-directory step.
-  if (/[\s@?#%\\]/.test(template) || template.includes("..")) return "may change the path only (no query, fragment, escape or user info)";
+  if (!template.startsWith(PREFIX)) return `must start with ${PREFIX}`;
+  const parts = template.slice(PREFIX.length).split(placeholder);
+  if (parts.length !== 2) return `must contain ${placeholder} exactly once`;
+  // An allowlist, so a brace left over (the other placeholder, a typo), an escape, user info, a query or a control
+  // character can never pass. Doubled slashes and parent-directory steps are refused too.
+  const path = parts.join("");
+  if (!PATH_CHARS.test(path) || path.includes("..") || path.includes("//")) return "may change the path only, using letters, digits and . _ - /";
   let url: URL;
   try {
     url = new URL(template.replace(placeholder, "20260101"));

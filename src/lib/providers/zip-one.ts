@@ -1,4 +1,4 @@
-import { crc32, inflateRawSync } from "node:zlib";
+import zlib, { inflateRawSync } from "node:zlib";
 
 // A reader for a zip archive that holds exactly one file, on node:zlib (no dependency). The bytes come from the network, so
 // the reader assumes a hostile file: the sizes are bounded before anything is inflated and again while inflating, and the
@@ -13,6 +13,27 @@ export class ZipError extends Error {
     this.name = "ZipError";
   }
 }
+
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+/** CRC-32 (the zip checksum) in plain code, for a Node that has no zlib.crc32 (it arrived in Node 20.15 and 22.2). */
+export function crc32Fallback(bytes: Uint8Array): number {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+// Looked up on the default export so a Node without crc32 still loads this file.
+const builtinCrc32 = (zlib as unknown as { crc32?: (data: Uint8Array) => number }).crc32;
+const checksum = (bytes: Uint8Array): number => (builtinCrc32 ? builtinCrc32(bytes) : crc32Fallback(bytes));
 
 const EOCD_SIG = 0x06054b50;
 const ZIP64_LOCATOR_SIG = 0x07064b50;
@@ -94,6 +115,6 @@ export function unzipSingle(zip: Uint8Array, maxBytes: number): Uint8Array {
     }
   }
   if (out.byteLength !== declaredSize) throw new ZipError("corrupt", "the file is not the size it declares");
-  if (crc32(out) !== crc) throw new ZipError("corrupt", "the file fails its checksum");
+  if (checksum(out) !== crc) throw new ZipError("corrupt", "the file fails its checksum");
   return out;
 }

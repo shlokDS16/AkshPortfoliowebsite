@@ -83,20 +83,34 @@ export type MarketDataEnv = {
   NSE_INDEX_URL_TEMPLATE?: string;
   LLM_ADAPTER?: "groq" | "fixture";
   VERCEL_ENV?: string;
+  /** The database address: the fixture closes may be stored only in a database on this machine. */
+  NEXT_PUBLIC_SUPABASE_URL?: string;
 };
 
+/** True only for 127.0.0.1, localhost and [::1], matched on the parsed host (never a prefix: `localhost.evil.test` is not local). */
+export function isLoopbackUrl(value: string | undefined): boolean {
+  if (!value) return false;
+  try {
+    return ["127.0.0.1", "localhost", "[::1]"].includes(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
- * The fixture when LLM_ADAPTER=fixture (and not on Vercel, ruling R27: made-up closes would reach the track record);
- * otherwise the NSE adapter, which needs no key. Never null. A template that does not point at the NSE archive host
- * throws here, at start-up, rather than at the first fetch.
+ * The fixture when LLM_ADAPTER=fixture; otherwise the NSE adapter, which needs no key. Never null.
+ * The fixture's made-up closes are stored as official `nse_fetch` closes, the rank nothing can replace, so unlike the LLM
+ * and OCR fixtures (whose output only reaches a review screen) it is created ONLY when the Supabase URL is a loopback
+ * address (Plan 3a Task 6 fix round, review I-3). Anywhere else, whatever LLM_ADAPTER or VERCEL_ENV say, asking for it is
+ * a configuration error that stops the job before a single close is fetched or stored. A template that does not point at
+ * the NSE archive host throws here too, at start-up, rather than at the first fetch.
  */
 export function createMarketDataPort(env: MarketDataEnv): MarketDataPort {
   if (env.LLM_ADAPTER === "fixture") {
-    if (env.VERCEL_ENV && DEPLOYED.has(env.VERCEL_ENV)) {
-      console.error("market data: LLM_ADAPTER=fixture is refused on a Vercel deployment; the real NSE files are used");
-    } else {
-      return createFixtureMarketData();
+    if (!isLoopbackUrl(env.NEXT_PUBLIC_SUPABASE_URL)) {
+      throw new Error("market data: LLM_ADAPTER=fixture is only allowed with a local database (127.0.0.1, localhost or [::1]); remove it, or point NEXT_PUBLIC_SUPABASE_URL at the local stack");
     }
+    return createFixtureMarketData();
   }
   return createNseMarketData({
     bhavcopyTemplate: env.NSE_BHAVCOPY_URL_TEMPLATE ?? DEFAULT_NSE_BHAVCOPY_TEMPLATE,

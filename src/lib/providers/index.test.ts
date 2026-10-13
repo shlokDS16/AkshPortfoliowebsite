@@ -112,29 +112,46 @@ describe("createOcrPort (the fixture wins; else OCR.space when a key is set; els
   });
 });
 
-describe("createMarketDataPort (the fixture off Vercel when asked; else NSE; never null)", () => {
+describe("createMarketDataPort (the fixture only against a local database; else NSE; never null)", () => {
+  const LOCAL = "http://127.0.0.1:54321";
+
   it("is NSE by default, with the default templates", () => {
     expect(createMarketDataPort({}).name).toBe("nse");
-    expect(createMarketDataPort({ LLM_ADAPTER: "groq", VERCEL_ENV: "production" }).name).toBe("nse");
+    expect(createMarketDataPort({ LLM_ADAPTER: "groq", VERCEL_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: "https://abcd.supabase.co" }).name).toBe("nse");
   });
 
-  it("is the fixture when LLM_ADAPTER=fixture off Vercel, and never calls the network", async () => {
+  it("is the fixture when LLM_ADAPTER=fixture and the database is on this machine, in every loopback form, and never calls the network", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const port = createMarketDataPort({ LLM_ADAPTER: "fixture" });
+    for (const NEXT_PUBLIC_SUPABASE_URL of [LOCAL, "http://localhost:54321", "http://[::1]:54321", "http://LOCALHOST:54321/"]) {
+      expect(createMarketDataPort({ LLM_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL }).name).toBe("fixture");
+    }
+    const port = createMarketDataPort({ LLM_ADAPTER: "fixture", VERCEL_ENV: "development", NEXT_PUBLIC_SUPABASE_URL: LOCAL });
     expect(port.name).toBe("fixture");
-    expect(createMarketDataPort({ LLM_ADAPTER: "fixture", VERCEL_ENV: "development" }).name).toBe("fixture");
     expect(await port.indexClose("2026-10-12")).toMatchObject({ kind: "ok" });
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
 
-  it("refuses the fixture on Vercel preview and production (ruling R27) and uses NSE there", () => {
-    const warn = vi.spyOn(console, "error").mockImplementation(() => {});
-    for (const VERCEL_ENV of ["preview", "production"]) {
-      expect(createMarketDataPort({ LLM_ADAPTER: "fixture", VERCEL_ENV }).name).toBe("nse");
+  it("refuses the fixture with a configuration error against a hosted database, whatever else is set", () => {
+    for (const NEXT_PUBLIC_SUPABASE_URL of ["https://abcd.supabase.co", "https://abcd.supabase.co/", "http://10.0.0.5:54321", "https://127.0.0.1.evil.test", "http://localhost.evil.test:54321", "http://evil.test/localhost", "http://127.0.0.1@evil.test", "https://evil.test/?u=http://127.0.0.1", "not a url", "", undefined]) {
+      for (const VERCEL_ENV of [undefined, "development", "preview", "production"]) {
+        expect(() => createMarketDataPort({ LLM_ADAPTER: "fixture", VERCEL_ENV, NEXT_PUBLIC_SUPABASE_URL })).toThrow(/LLM_ADAPTER=fixture is only allowed with a local database/);
+      }
     }
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+  });
+
+  it("the error names the setting and carries no URL", () => {
+    try {
+      createMarketDataPort({ LLM_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: "https://secretproject.supabase.co" });
+      throw new Error("expected a throw");
+    } catch (error) {
+      expect((error as Error).message).not.toContain("secretproject");
+    }
+  });
+
+  it("does not change how the LLM and OCR fixtures are chosen", () => {
+    expect(createLlmPort({ LLM_ADAPTER: "fixture" })?.name).toBe("fixture");
+    expect(createOcrPort({ LLM_ADAPTER: "fixture" }, { maxBytes: 1 })?.name).toBe("fixture");
   });
 
   it("takes the templates from the environment, and refuses one that points at another host", () => {
