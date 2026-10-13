@@ -22,6 +22,11 @@ const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest(
 /** The fixture with a trailing PDF comment, so its hash is new on every run (pdf.js ignores bytes after %%EOF). */
 const uniquePdf = (tag: string) => new Uint8Array(Buffer.concat([FIXTURE, Buffer.from(`% e2e ${RUN} ${tag}\n`, "latin1")]));
 
+/** How long a test waits for its job to settle (see settle below). */
+const SETTLE_MS = 150_000;
+// A settle may wait out one sliding minute of the shared token ledger, so a test here may take longer than the 30 s default.
+test.describe.configure({ timeout: SETTLE_MS + 30_000 });
+
 let admin: Db;
 let service: Db;
 
@@ -57,6 +62,30 @@ async function pump(request: APIRequestContext) {
   const response = await request.post("/api/jobs/run", { headers: { authorization: `Bearer ${E2E_CRON_SECRET}` } });
   expect(response.status()).toBe(200);
   expect((await response.json()).results).toContainEqual({ job: "ingestion:drain", ok: true });
+}
+
+/**
+ * Pumps until the job has no step left to run, then returns. One pump is NOT guaranteed to finish a job: Groq's
+ * tokens-per-minute cap is a sliding minute over a ledger every spec and every earlier test shares, so on a fast runner a step
+ * that would overflow it is deferred (status queued, wait_reason groq_minute, not_before in the next minute) and the drain, which
+ * has nothing else to run, ends with ok. That is the product working as designed, so the test waits for the step's own not_before
+ * and pumps again, and fails with the unsettled steps named if the job never settles.
+ */
+async function settle(request: APIRequestContext, jobId: string) {
+  const until = Date.now() + SETTLE_MS;
+  for (;;) {
+    await pump(request);
+    const { data, error } = await admin.from("job_steps").select("kind, page_no, status, wait_reason, not_before").eq("job_id", jobId).in("status", ["queued", "running"]);
+    if (error) throw error;
+    if (data.length === 0) return;
+    const waits = data.map((s) => (s.status === "queued" ? Date.parse(s.not_before) : Date.now() + 5_000));
+    const next = Math.max(Math.min(...waits) - Date.now(), 0) + 1_000; // a second past the earliest step's not_before
+    if (Date.now() + next > until) {
+      const left = data.map((s) => `${s.kind} p.${s.page_no} ${s.status} (${s.wait_reason ?? "no wait reason"}, not before ${s.not_before})`).join("; ");
+      throw new Error(`The job still had steps to run after ${SETTLE_MS / 1000} s of pumping: ${left}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, next));
+  }
 }
 
 const stepsOf = async (jobId: string) => {
@@ -137,7 +166,7 @@ test("the pump reads an uploaded PDF's pages, selects its statement pages and re
   let jobId: string | null = null;
   try {
     jobId = await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
-    await pump(request);
+    await settle(request, jobId);
 
     const steps = await stepsOf(jobId);
     expect(steps.map((s) => [s.kind, s.page_no, s.status, s.last_error])).toEqual([
@@ -187,7 +216,7 @@ test("the pump sorts a table the rules could not place with the small model (fix
   let jobId: string | null = null;
   try {
     jobId = await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
-    await pump(request);
+    await settle(request, jobId);
 
     const steps = await stepsOf(jobId);
     expect(steps.map((s) => [s.kind, s.page_no, s.status, s.last_error])).toEqual([
@@ -215,7 +244,7 @@ test("the pump reads a scanned page with the scan reader (fixture), then reads i
   let jobId: string | null = null;
   try {
     jobId = await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
-    await pump(request);
+    await settle(request, jobId);
 
     const steps = await stepsOf(jobId);
     expect(steps.map((s) => [s.kind, s.page_no, s.status, s.last_error])).toEqual([
@@ -249,7 +278,7 @@ test("the pump never parses a stored file whose hash differs from the one claime
   let jobId: string | null = null;
   try {
     jobId = await createQueueRepo(admin).createJob(documentId, "ingest_pdf", { kind: "pdf_text", pageNo: 1 });
-    await pump(request);
+    await settle(request, jobId);
     expect(await stepsOf(jobId)).toEqual([
       { kind: "pdf_text", page_no: 1, status: "needs_attention", result: null, last_error: "The stored file is not the PDF that was uploaded. Choose Try again, or Skip this document." },
     ]);
