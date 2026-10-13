@@ -51,6 +51,11 @@ const serverSchema = publicSchema.extend({
   // Market data (Plan 3a Task 6; ADR-005 s2). No key: NSE's public archive. The host is fixed in code; these change the path only.
   NSE_BHAVCOPY_URL_TEMPLATE: nseTemplate(BHAVCOPY_PLACEHOLDER, DEFAULT_NSE_BHAVCOPY_TEMPLATE),
   NSE_INDEX_URL_TEMPLATE: nseTemplate(INDEX_PLACEHOLDER, DEFAULT_NSE_INDEX_TEMPLATE),
+  // The public anchor (Plan 3a Task 8; ADR-005 s3.3). Both owner-set; either unset means the days are sealed and not published.
+  /** A fine-grained token with the user permission "Gists: write". Letters, digits, underscore, dot, hyphen only. */
+  GITHUB_GIST_TOKEN: optional(z.string().trim().regex(/^[A-Za-z0-9_.-]{20,255}$/, "must be a GitHub token")),
+  /** The id of a public gist the owner created by hand. Strict, because it becomes part of an address. */
+  LEDGER_ANCHOR_GIST_ID: optional(z.string().trim().regex(/^[0-9a-f]{20,40}$/, "must be a gist id (20 to 40 lowercase hex characters)")),
   /** Set by Vercel (development | preview | production); unset locally and in CI. */
   VERCEL_ENV: optional(z.string().trim()),
 });

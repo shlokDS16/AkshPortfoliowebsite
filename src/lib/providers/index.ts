@@ -1,6 +1,9 @@
 import "server-only";
+import { type AnchorPort, createOffAnchor } from "./anchor";
+import { createFixtureAnchor } from "./fixture-anchor";
 import { createFixtureLlm } from "./fixture-llm";
 import { createFixtureMarketData } from "./fixture-market-data";
+import { createGithubGistAnchor } from "./github-gist";
 import { createGroqLlm } from "./groq";
 import { createFixtureOcr } from "./fixture-ocr";
 import { createFixtureTranscriber } from "./fixture-transcriber";
@@ -13,6 +16,7 @@ import type { OcrPort } from "./ocr";
 import { createOcrSpace } from "./ocrspace";
 import type { TranscriberPort } from "./transcriber";
 
+export type { AnchorMiss, AnchorPort, AnchorRead, AnchorWrite } from "./anchor";
 export type { LlmPort, LlmRequest, LlmResult, LlmUsage, RateHeaders } from "./llm";
 export type { Close, EquityDay, IndexDay, MarketDataPort, Miss } from "./market-data";
 export type { OcrFiletype, OcrPort, OcrResult } from "./ocr";
@@ -116,4 +120,31 @@ export function createMarketDataPort(env: MarketDataEnv): MarketDataPort {
     bhavcopyTemplate: env.NSE_BHAVCOPY_URL_TEMPLATE ?? DEFAULT_NSE_BHAVCOPY_TEMPLATE,
     indexTemplate: env.NSE_INDEX_URL_TEMPLATE ?? DEFAULT_NSE_INDEX_TEMPLATE,
   });
+}
+
+/** The slice of the server env that picks the anchor adapter (passed in; this file never reads process.env). */
+export type AnchorEnv = {
+  GITHUB_GIST_TOKEN?: string;
+  LEDGER_ANCHOR_GIST_ID?: string;
+  LLM_ADAPTER?: "groq" | "fixture";
+  /** The database address: the fixture may be used only with a database on this machine. */
+  NEXT_PUBLIC_SUPABASE_URL?: string;
+};
+
+/**
+ * Never null. With the token or the gist id unset (the default) the port is the "off" adapter: every call answers
+ * `not_configured`, the day's line is sealed in the database and simply not published; that is not an error. The fixture
+ * when LLM_ADAPTER=fixture, and, like the market-data fixture, only against a loopback database (a fixture "published"
+ * state next to a hosted ledger would be a false claim of proof); anywhere else asking for it is a configuration error.
+ * A malformed id or token throws here (the env parse refuses them too), naming the setting and never the value.
+ */
+export function createAnchorPort(env: AnchorEnv): AnchorPort {
+  if (env.LLM_ADAPTER === "fixture") {
+    if (!isLoopbackUrl(env.NEXT_PUBLIC_SUPABASE_URL)) {
+      throw new Error("anchor: LLM_ADAPTER=fixture is only allowed with a local database (127.0.0.1, localhost or [::1]); remove it, or point NEXT_PUBLIC_SUPABASE_URL at the local stack");
+    }
+    return createFixtureAnchor();
+  }
+  if (!env.GITHUB_GIST_TOKEN || !env.LEDGER_ANCHOR_GIST_ID) return createOffAnchor();
+  return createGithubGistAnchor({ token: env.GITHUB_GIST_TOKEN, gistId: env.LEDGER_ANCHOR_GIST_ID });
 }
