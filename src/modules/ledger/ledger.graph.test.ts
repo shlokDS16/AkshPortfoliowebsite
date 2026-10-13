@@ -72,6 +72,29 @@ describe("the ledger module's boundaries", () => {
     }
   });
 
+  it("the only database functions the module calls are the ones on this list, each named by a literal", () => {
+    // open_idea and add_idea_event are the two event doors; rescore_ideas recomputes scores in SQL; the two check functions
+    // only read. Adding any other function (enter_closes, store_fetched_closes, a sealing function) is a decision, not a drive-by.
+    const ALLOWED_RPC = ["add_idea_event", "check_ledger_anchors", "check_ledger_chain", "open_idea", "rescore_ideas"];
+    const used = new Set<string>();
+    for (const [file, source] of sources) {
+      for (const match of source.matchAll(/\.rpc\(\s*([^,)\s]*)/g)) {
+        const arg = match[1] as string;
+        expect(arg, `${rel(file)}: rpc name must be a plain string literal`).toMatch(/^"[a-z_]+"$/);
+        used.add(arg.slice(1, -1));
+      }
+    }
+    expect([...used].sort()).toEqual(ALLOWED_RPC);
+  });
+
+  it("every table is named by a plain string literal, so the write guard above cannot be sidestepped by a variable", () => {
+    for (const [file, source] of sources) {
+      for (const match of source.matchAll(/\.from\(\s*([^)\s]*)/g)) {
+        expect(match[1], `${rel(file)}: .from(...) must take a plain string literal`).toMatch(/^"[a-z_]+"/);
+      }
+    }
+  });
+
   it("the browser-safe entry reaches no server-only code, no database client and no node: module", () => {
     const reached = reachable([join(MODULE, "client.ts")]);
     for (const [file, source] of reached) {

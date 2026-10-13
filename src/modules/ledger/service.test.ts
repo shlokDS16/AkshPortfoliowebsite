@@ -81,8 +81,8 @@ describe("loadLedger: what the Ledger page needs, in one call", () => {
     expect(ledger.ideas).toHaveLength(3);
     expect(ledger.scores).toHaveLength(2);
     expect(ledger.changes).toHaveLength(1);
-    expect(ledger.summary.closed).toMatchObject({ ahead: 1, total: 1 });
-    expect(ledger.summary.all).toEqual({ ahead: 1, total: 2 });
+    expect(ledger.summary.closed).toMatchObject({ asExpected: 1, total: 1 });
+    expect(ledger.summary.all).toEqual({ asExpected: 1, total: 2 });
     expect(ledger.summary.withdrawn).toBe(1);
     expect(ledger.summary.restated).toEqual(["c"]);
   });

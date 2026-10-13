@@ -202,3 +202,57 @@ describe("rescore, links and status", () => {
     });
   });
 });
+
+describe("long lists are read page by page until they run out (PostgREST stops a response at 1000 rows)", () => {
+  const scoreRow = (n: number) => ({
+    idea_id: `i${n}`, entry_date: "2026-10-14", entry_close: 100, entry_index: 20000, entry_skipped_days: 0, entry_source: "nse_fetch",
+    mark_date: "2026-10-20", mark_close: 110, mark_index: 20500, exit_skipped_days: null, mark_source: "nse_fetch", factor: 1,
+    idea_return: 0.1, index_return: 0.025, excess: 0.075, holding_days: 6, is_final: false, flags: [], computed_at: "2026-10-20T00:30:00+00:00",
+  });
+  const eventRow = (n: number) => ({ id: `e${n}`, seq: n, idea_id: "i1", kind: "review", recorded_at: "2026-10-13T08:00:00+00:00", stance: {}, body_md: "W", hash: "h", prev_hash: "p" });
+  const changeRow = (n: number) => ({ id: n, idea_id: "i1", changed_at: "2026-10-10T00:30:00+00:00", changed: ["mark_close"], was: {}, became: {} });
+  const rows = (n: number, make: (i: number) => unknown, from = 0) => Array.from({ length: n }, (_, i) => make(from + i));
+  const ranges = (calls: { ops: [string, ...unknown[]][] }[]) => calls.map((c) => c.ops.find((o) => o[0] === "range")?.slice(1));
+
+  it("listScores asks for the next page while a page comes back full, and returns every row", async () => {
+    const { db, calls } = createFakeDb([{ data: rows(1000, scoreRow) }, { data: rows(1000, scoreRow, 1000) }, { data: rows(3, scoreRow, 2000) }]);
+    const scores = await createSupabaseLedgerRepo(db).listScores();
+    expect(scores).toHaveLength(2003);
+    expect(scores[2002]!.ideaId).toBe("i2002");
+    expect(ranges(calls)).toEqual([[0, 999], [1000, 1999], [2000, 2999]]);
+    expect(calls[0]!.ops).toContainEqual(["order", "idea_id"]);
+  });
+
+  it("listScores stops after one request when the first page is short", async () => {
+    const { db, calls } = createFakeDb([{ data: rows(2, scoreRow) }]);
+    expect(await createSupabaseLedgerRepo(db).listScores()).toHaveLength(2);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("a page that is exactly full is followed by one more request, and an empty answer ends the list", async () => {
+    const { db, calls } = createFakeDb([{ data: rows(1000, scoreRow) }, { data: [] }]);
+    expect(await createSupabaseLedgerRepo(db).listScores()).toHaveLength(1000);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("listLessons pages, newest first", async () => {
+    const { db, calls } = createFakeDb([{ data: rows(1000, eventRow) }, { data: rows(1, eventRow, 1000) }]);
+    const lessons = await createSupabaseLedgerRepo(db).listLessons();
+    expect(lessons).toHaveLength(1001);
+    expect(ranges(calls)).toEqual([[0, 999], [1000, 1999]]);
+    expect(calls[1]!.ops).toContainEqual(["order", "seq", { ascending: false }]);
+  });
+
+  it("listScoreChanges pages, for one idea or all, and keeps its filter on every page", async () => {
+    const { db, calls } = createFakeDb([{ data: rows(1000, changeRow) }, { data: rows(2, changeRow, 1000) }]);
+    const changes = await createSupabaseLedgerRepo(db).listScoreChanges("i1");
+    expect(changes).toHaveLength(1002);
+    expect(ranges(calls)).toEqual([[0, 999], [1000, 1999]]);
+    for (const call of calls) expect(call.ops).toContainEqual(["eq", "idea_id", "i1"]);
+  });
+
+  it("an error on a later page is thrown, not swallowed into a short list", async () => {
+    const { db } = createFakeDb([{ data: rows(1000, changeRow) }, { error: { message: "down", code: "08006" } }]);
+    await expect(createSupabaseLedgerRepo(db).listScoreChanges()).rejects.toBeInstanceOf(DbError);
+  });
+});

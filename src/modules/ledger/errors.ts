@@ -17,6 +17,7 @@ export const LEDGER_ERROR_TEXT = {
   "ledger-is-void": "This idea was withdrawn, so nothing more can be added to it.",
   "ledger-opposite-open": "An open idea on this company expects the opposite. Close or withdraw it first.",
   "ledger-not-found": "This idea or company could not be found.",
+  "ledger-integrity": "The ledger failed its own check. Nothing was saved. Run the integrity check on the Ledger page.",
 } as const;
 
 export type LedgerErrorCode = keyof typeof LEDGER_ERROR_TEXT;
@@ -42,16 +43,25 @@ const SQL_CODES: Record<string, LedgerErrorCode> = {
   bad_horizon: "ledger-bad-horizon",
   bad_stance: "ledger-bad-input",
   bad_kind: "ledger-bad-input",
+  chain_broken: "ledger-integrity",
+  projection_mismatch: "ledger-integrity",
+  anchor_mismatch: "ledger-integrity",
 };
 
+/** The codes that mean the ledger failed one of its own checks: not Aksh's mistake, and the most serious signal there is. */
+const INTEGRITY_CODES = new Set(["chain_broken", "projection_mismatch", "anchor_mismatch"]);
+
 /**
- * Turns a Postgres error from a ledger call into a typed desk error. A ledger code we do not list (chain_broken,
- * projection_mismatch, ...) stays a DbError: it is not Aksh's mistake and must not read as one.
+ * Turns a Postgres error from a ledger call into a typed desk error. A ledger code we do not list stays a DbError. The three
+ * integrity codes (chain_broken, projection_mismatch, anchor_mismatch) get their own message, and are logged here by shape
+ * (operation and code), because a typed error is one the screens treat as "already explained" and do not log.
  */
 export function ledgerErrorFromDb(op: string, error: { message: string; code?: string }): Error {
   if (error.code === "P0001") {
     const match = /^ledger:([a-z_]+)$/.exec(error.message);
-    const mapped = match ? SQL_CODES[match[1] as string] : undefined;
+    const sqlCode = match?.[1];
+    const mapped = sqlCode !== undefined && Object.hasOwn(SQL_CODES, sqlCode) ? SQL_CODES[sqlCode] : undefined;
+    if (sqlCode !== undefined && INTEGRITY_CODES.has(sqlCode)) console.error("ledger integrity failure", { op, code: error.code, ledger: sqlCode });
     return mapped ? new LedgerError(mapped) : dbError(op, error);
   }
   if (error.code === "P0002") return new LedgerError("ledger-not-found");

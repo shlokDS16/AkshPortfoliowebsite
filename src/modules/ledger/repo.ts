@@ -87,6 +87,19 @@ function toChange(row: Tables<"idea_score_changes">): ScoreChange {
   };
 }
 
+// PostgREST cuts a response at its max rows (supabase/config.toml: 1000) without saying so, so the lists that grow with the
+// ledger are read a page at a time until a page comes back short. Each needs a total order that is unique per row.
+const PAGE_ROWS = 1_000;
+
+async function readAll<R>(op: string, page: (from: number, to: number) => PromiseLike<{ data: R[] | null; error: { message: string; code?: string } | null }>): Promise<R[]> {
+  const out: R[] = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const rows = check(op, await page(from, from + PAGE_ROWS - 1)) ?? [];
+    out.push(...rows);
+    if (rows.length < PAGE_ROWS) return out;
+  }
+}
+
 function check<T>(op: string, result: { data: T; error: { message: string; code?: string } | null }): T {
   if (result.error) throw ledgerErrorFromDb(op, result.error);
   return result.data;
@@ -142,19 +155,23 @@ export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
     },
 
     async listLessons() {
-      const rows = check("ledger.listLessons", await db.from("idea_events").select(EVENT_COLUMNS).eq("kind", "review").order("seq", { ascending: false }));
-      return (rows ?? []).map(toEvent);
+      const rows = await readAll("ledger.listLessons", (from, to) =>
+        db.from("idea_events").select(EVENT_COLUMNS).eq("kind", "review").order("seq", { ascending: false }).range(from, to),
+      );
+      return rows.map(toEvent);
     },
 
     async listScores() {
-      const rows = check("ledger.listScores", await db.from("idea_scores").select(SCORE_COLUMNS));
-      return (rows ?? []).map(toScore);
+      const rows = await readAll("ledger.listScores", (from, to) => db.from("idea_scores").select(SCORE_COLUMNS).order("idea_id").range(from, to));
+      return rows.map(toScore);
     },
 
     async listScoreChanges(ideaId) {
-      const base = db.from("idea_score_changes").select(CHANGE_COLUMNS);
-      const rows = check("ledger.listScoreChanges", await (ideaId === undefined ? base : base.eq("idea_id", ideaId)).order("id", { ascending: false }));
-      return (rows ?? []).map(toChange);
+      const rows = await readAll("ledger.listScoreChanges", (from, to) => {
+        const base = db.from("idea_score_changes").select(CHANGE_COLUMNS);
+        return (ideaId === undefined ? base : base.eq("idea_id", ideaId)).order("id", { ascending: false }).range(from, to);
+      });
+      return rows.map(toChange);
     },
 
     async closesStatus(): Promise<ClosesStatus> {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AccessDeniedError } from "@/lib/errors";
 import { DbError } from "@/lib/supabase/errors";
 import { errorCode, errorText } from "@/lib/messages";
@@ -37,8 +37,27 @@ describe("each database code becomes a desk message", () => {
     expect(sql("ledger: not allowed", "42501")).toBeInstanceOf(AccessDeniedError);
   });
 
+  it.each(["chain_broken", "projection_mismatch", "anchor_mismatch"])("ledger:%s is the ledger failing its own check, in its own words", (code) => {
+    const error = sql(`ledger:${code}`);
+    expect(error).toBeInstanceOf(LedgerError);
+    expect(errorCode(error)).toBe("ledger-integrity");
+    expect((error as LedgerError).message).toBe("The ledger failed its own check. Nothing was saved. Run the integrity check on the Ledger page.");
+  });
+
+  it("an integrity failure is logged by shape (operation and code, no message), because the screen will not log a typed error", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      sql("ledger:chain_broken");
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(spy.mock.calls[0])).toContain("chain_broken");
+      expect(JSON.stringify(spy.mock.calls[0])).toContain("ledger.test");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("a ledger code we do not know, and a failure with no code, stay database errors (save-failed), never free text", () => {
-    for (const error of [sql("ledger:chain_broken"), sql("ledger:projection_mismatch"), sql("connection reset", "08006"), sql("boom", undefined as unknown as string)]) {
+    for (const error of [sql("ledger:something_new"), sql("connection reset", "08006"), sql("boom", undefined as unknown as string)]) {
       expect(error).toBeInstanceOf(DbError);
       expect(errorCode(error)).toBe("save-failed");
     }

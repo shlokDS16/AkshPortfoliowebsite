@@ -40,13 +40,22 @@ export const LEDGER_TAG_TEXT = {
   none: "No mistake",
 } as const;
 
-/** The four cells of the journal grid: his process call against how the idea ended. */
+/**
+ * The four cells of the journal grid: his process call against whether the call ended as expected. The words hold for an idea
+ * that expected to do worse than the Nifty 50 as much as for one that expected to do better (the database flips the sign).
+ */
 export const LEDGER_GRID_TEXT = {
-  earned: { title: "Earned", detail: "Sound process, ended ahead" },
-  lucky: { title: "Lucky", detail: "Flawed process, ended ahead" },
-  unlucky: { title: "Unlucky", detail: "Sound process, ended behind" },
-  deserved: { title: "Deserved", detail: "Flawed process, ended behind" },
+  earned: { title: "Earned", detail: "Sound process, ended as expected" },
+  lucky: { title: "Lucky", detail: "Flawed process, ended as expected" },
+  unlucky: { title: "Unlucky", detail: "Sound process, did not end as expected" },
+  deserved: { title: "Deserved", detail: "Flawed process, did not end as expected" },
 } as const;
+
+/** The words a screen puts beside the closed and all-ideas figures: "4 of 7 ended as expected". */
+export const LEDGER_OUTCOME_TEXT = "ended as expected";
+/** Beside the closed figure: closed ideas left out of it. */
+export const closedNotCountedText = (n: number): string =>
+  `${formatCount(n, "closed idea")} not counted yet (needs a check, waiting for a close, or exit not fixed).`;
 
 /** One line per score flag. Machine facts about a score, not Aksh's words. */
 export const LEDGER_FLAG_TEXT = {
@@ -86,5 +95,5 @@ export const chainBrokenText = (firstBadSeq: number | null): string =>
 export function anchorBrokenText(firstBadDate: string | null, reason: string | null): string {
   const from = firstBadDate === null ? "" : ` from ${formatDate(firstBadDate)}`;
   const why = reason !== null && Object.hasOwn(ANCHOR_REASON_TEXT, reason) ? ` (${ANCHOR_REASON_TEXT[reason]})` : "";
-  return `The sealed days and the entries disagree${from}${why}. Nothing was changed. Tell Shlok.`;
+  return `The sealed days and the entries disagree${from}${why}. This check changed nothing. Tell Shlok.`;
 }

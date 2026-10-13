@@ -7,8 +7,9 @@ const TODAY = "2026-10-13";
 describe("summarise: the empty ledger", () => {
   it("has no figure at all, and no list", () => {
     expect(summarise([], [], TODAY)).toEqual({
-      closed: { ahead: 0, total: 0, showPercent: false },
-      all: { ahead: 0, total: 0 },
+      closed: { asExpected: 0, total: 0, showPercent: false, notCounted: 0 },
+      all: { asExpected: 0, total: 0 },
+      byDirection: { outperform: 0, underperform: 0 },
       medianExcessClosed: null,
       medianExcessAll: null,
       holdingDays: null,
@@ -39,9 +40,9 @@ describe("summarise: closed against all", () => {
   ];
   const s = summarise(ideas, scores, TODAY);
 
-  it("counts the closed ideas that ended ahead, and all ideas ahead, side by side", () => {
-    expect(s.closed).toMatchObject({ ahead: 2, total: 3 });
-    expect(s.all).toEqual({ ahead: 3, total: 5 });
+  it("counts the closed ideas that ended as expected, and all ideas as expected, side by side", () => {
+    expect(s.closed).toMatchObject({ asExpected: 2, total: 3 });
+    expect(s.all).toEqual({ asExpected: 3, total: 5 });
   });
 
   it("medians of excess over closed, and over all", () => {
@@ -53,9 +54,9 @@ describe("summarise: closed against all", () => {
     expect(s.holdingDays).toEqual({ median: 200, min: 100, max: 300 });
   });
 
-  it("an excess of exactly zero is not 'ahead'", () => {
+  it("an excess of exactly zero is not 'as expected'", () => {
     const r = summarise([closedIdea({ id: "z" })], [finalScore({ ideaId: "z", excess: 0 })], TODAY);
-    expect(r.closed).toMatchObject({ ahead: 0, total: 1 });
+    expect(r.closed).toMatchObject({ asExpected: 0, total: 1 });
   });
 });
 
@@ -108,8 +109,8 @@ describe("summarise: ideas that need a check are left out and listed", () => {
       TODAY,
     );
     expect(s.needsCheck).toEqual(["bad"]);
-    expect(s.closed).toMatchObject({ ahead: 1, total: 1 });
-    expect(s.all).toEqual({ ahead: 1, total: 1 });
+    expect(s.closed).toMatchObject({ asExpected: 1, total: 1 });
+    expect(s.all).toEqual({ asExpected: 1, total: 1 });
     expect(s.medianExcessClosed).toBe(0.1);
     expect(s.medianExcessAll).toBe(0.1);
     expect(s.holdingDays).toEqual({ median: 147, min: 147, max: 147 });
@@ -131,7 +132,7 @@ describe("summarise: withdrawn and unscored ideas", () => {
       TODAY,
     );
     expect(s.withdrawn).toBe(2);
-    expect(s.all).toEqual({ ahead: 1, total: 1 });
+    expect(s.all).toEqual({ asExpected: 1, total: 1 });
     expect(s.needsCheck).toEqual([]);
     expect(s.waiting).toEqual([]);
   });
@@ -166,8 +167,8 @@ describe("summarise: a closed idea whose exit is not fixed", () => {
   const s = summarise(ideas, scores, TODAY);
   it("is counted in 'all' only, and listed", () => {
     expect(s.exitPending).toEqual(["p"]);
-    expect(s.closed).toMatchObject({ ahead: 1, total: 1 });
-    expect(s.all).toEqual({ ahead: 2, total: 2 });
+    expect(s.closed).toMatchObject({ asExpected: 1, total: 1 });
+    expect(s.all).toEqual({ asExpected: 2, total: 2 });
     expect(s.medianExcessClosed).toBe(0.1);
     expect(s.holdingDays).toEqual({ median: 147, min: 147, max: 147 });
   });
@@ -182,7 +183,7 @@ describe("summarise: hand-entered and stale marks are counted but named", () => 
     );
     expect(s.handEntered).toEqual(["h"]);
     expect(s.stale).toEqual(["s"]);
-    expect(s.all).toEqual({ ahead: 2, total: 2 });
+    expect(s.all).toEqual({ asExpected: 2, total: 2 });
   });
 });
 
@@ -199,7 +200,7 @@ describe("summarise: an attested score is treated exactly like a hand-entered on
     );
     expect(s.handEntered).toEqual(["h", "a", "ab"]);
     expect(s.needsCheck).toEqual([]);
-    expect(s.all).toEqual({ ahead: 2, total: 3 });
+    expect(s.all).toEqual({ asExpected: 2, total: 3 });
   });
 
   it("still sends an attested score to needs-a-check when a real alarm rides with it", () => {

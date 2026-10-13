@@ -82,6 +82,7 @@ const ERRORS = {
   "ledger-is-void": "This idea was withdrawn, so nothing more can be added to it.",
   "ledger-opposite-open": "An open idea on this company expects the opposite. Close or withdraw it first.",
   "ledger-not-found": "This idea or company could not be found.",
+  "ledger-integrity": "The ledger failed its own check. Nothing was saved. Run the integrity check on the Ledger page.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -154,6 +155,7 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "ledger-is-void": "ledger-is-void",
   "ledger-opposite-open": "ledger-opposite-open",
   "ledger-not-found": "ledger-not-found",
+  "ledger-integrity": "ledger-integrity",
 };
 
 /**

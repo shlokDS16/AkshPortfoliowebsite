@@ -61,7 +61,10 @@ export type IdeaScore = {
   factor: number | null;
   ideaReturn: number | null;
   indexReturn: number | null;
-  /** Idea minus index (sign flipped for an idea that expects to do worse). */
+  /**
+   * The result for the call: idea minus index, with the sign flipped for an idea that expects to do worse. Positive means the
+   * call was right (as expected), whichever way it pointed; it does not mean the share beat the index.
+   */
   excess: number | null;
   holdingDays: number | null;
   isFinal: boolean;
@@ -81,10 +84,17 @@ export type ScoreChange = {
 };
 
 export type Summary = {
-  /** Closed ideas whose exit is fixed, and how many of them ended ahead of the Nifty 50. */
-  closed: { ahead: number; total: number; showPercent: boolean };
+  /**
+   * Closed ideas whose exit is fixed, and how many of them ended as expected (the call was right, whichever way it pointed).
+   * `notCounted` is the closed ideas left out of `total`: needing a check, waiting for a close, or with the exit not fixed.
+   * A screen shows it beside "N of M" so that the headline cannot hide them.
+   */
+  closed: { asExpected: number; total: number; showPercent: boolean; notCounted: number };
   /** Every idea with a figure (open ones and closed ones still waiting for their exit), marked to the latest close. */
-  all: { ahead: number; total: number };
+  all: { asExpected: number; total: number };
+  /** The ideas counted in `all`, by what they expected, so a screen can say when the figures mix both directions. */
+  byDirection: { outperform: number; underperform: number };
+  /** Medians of the result for the call (`IdeaScore.excess`), each idea in the direction of its own call. */
   medianExcessClosed: number | null;
   medianExcessAll: number | null;
   /** Calendar days from entry to exit, over the closed ideas counted in `closed`. */

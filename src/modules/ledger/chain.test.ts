@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { chainLines, combineChecks } from "./chain";
+import { CHAIN_LIMIT_TEXT } from "@/lib/messages-ledger";
+import { chainLines, chainReport, combineChecks } from "./chain";
 import type { ChainCheckRows } from "./types";
 
 const OK: ChainCheckRows = {
@@ -63,11 +64,11 @@ describe("chainLines: what the screen may say", () => {
     expect(chainLines(combineChecks(withChain({ ok: false })))).toEqual(["The ledger chain is broken."]);
   });
 
-  it("an anchor problem names the day and the way the sealed day differs, and says nothing was changed", () => {
+  it("an anchor problem names the day and the way the sealed day differs, and says the check changed nothing", () => {
     const [line] = chainLines(combineChecks(withAnchors({ ok: false, firstBadDate: "2026-10-04", reason: "count" })));
     expect(line).toMatch(/^The sealed days and the entries disagree from 4 Oct 2026/);
     expect(line).toMatch(/number of entries/);
-    expect(line).toMatch(/Nothing was changed\. Tell Shlok\.$/);
+    expect(line).toMatch(/This check changed nothing\. Tell Shlok\.$/);
   });
 
   it("an unknown anchor reason is not shown as free text", () => {
@@ -85,5 +86,34 @@ describe("chainLines: what the screen may say", () => {
     expect(lines).toHaveLength(2);
     expect(lines[0]).toMatch(/chain/);
     expect(lines[1]).toMatch(/sealed days/);
+  });
+});
+
+describe("chainReport: a pass carries its limit with it", () => {
+  it("returns one structure holding the consistent-with-itself line and the standing limit text together", () => {
+    const report = chainReport(combineChecks(OK));
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+    expect(report.headline).toBe("Consistent with itself: 42 entries, 12 sealed days.");
+    expect(report.limit).toBe(CHAIN_LIMIT_TEXT);
+    expect(report.lines).toEqual([report.headline, report.limit]);
+  });
+
+  it("chainLines on a pass can never show the headline without the limit", () => {
+    const lines = chainLines(combineChecks(OK));
+    expect(lines).toHaveLength(2);
+    expect(lines[1]).toBe(CHAIN_LIMIT_TEXT);
+  });
+
+  it("a failure carries its problem lines and no reassurance", () => {
+    const report = chainReport(combineChecks(withChain({ ok: false, firstBadSeq: 17 })));
+    expect(report.ok).toBe(false);
+    expect(report.lines).toEqual(["The ledger chain is broken at entry 17."]);
+    expect(report.lines.join(" ")).not.toMatch(/consistent/i);
+  });
+
+  it("the failed-check line does not read as a statement about the ledger", () => {
+    const [line] = chainLines(combineChecks(withAnchors({ ok: false, firstBadDate: "2026-10-04", reason: "head" })));
+    expect(line).not.toMatch(/Nothing was changed/);
   });
 });

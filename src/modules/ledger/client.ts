@@ -10,9 +10,9 @@ export {
 export { needsCheck } from "./flags";
 export { summarise } from "./summary";
 export { journalGrid } from "./journal";
-export { chainLines, combineChecks } from "./chain";
+export { chainLines, chainReport, combineChecks, type ChainReport } from "./chain";
 export { LEDGER_ERROR_TEXT, type LedgerErrorCode } from "./errors";
 export {
-  CHAIN_LIMIT_TEXT, LEDGER_CLOSE_REASON_TEXT, LEDGER_EXPECTS_TEXT, LEDGER_FLAG_TEXT, LEDGER_GRID_TEXT, LEDGER_KIND_TEXT, LEDGER_PROCESS_TEXT,
-  LEDGER_TAG_TEXT, LEDGER_UNKNOWN_FLAG_TEXT,
+  CHAIN_LIMIT_TEXT, closedNotCountedText, LEDGER_CLOSE_REASON_TEXT, LEDGER_EXPECTS_TEXT, LEDGER_FLAG_TEXT, LEDGER_GRID_TEXT, LEDGER_KIND_TEXT,
+  LEDGER_OUTCOME_TEXT, LEDGER_PROCESS_TEXT, LEDGER_TAG_TEXT, LEDGER_UNKNOWN_FLAG_TEXT,
 } from "@/lib/messages-ledger";
