@@ -25,7 +25,9 @@ if (!stack) console.warn("usage-repo.integration: no local Supabase stack, skipp
 const CAPS: Caps = { tpm: 1_000, tpd: 5_000, rpm: 5, rpd: 50 };
 
 describe.skipIf(!stack)("createUsageRepo against reserve_usage on the local database (service_role)", () => {
-  const db = createClient<Database>(stack?.url ?? "", stack?.secretKey ?? "", { auth: { persistSession: false, autoRefreshToken: false } });
+  // Vitest still runs this callback to collect a skipped suite, and createClient throws on an empty URL or key
+  // (CI's app job has no local stack), so the skipped case gets placeholders that are never used.
+  const db = createClient<Database>(stack?.url ?? "http://127.0.0.1:54321", stack?.secretKey ?? "skipped-no-local-stack", { auth: { persistSession: false, autoRefreshToken: false } });
   const repo = createUsageRepo(db);
   const bucket = () => `it:${randomUUID()}`;
 
