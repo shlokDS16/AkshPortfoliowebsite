@@ -191,6 +191,51 @@ export type Database = {
           },
         ]
       }
+      corporate_actions: {
+        Row: {
+          company_id: string
+          created_at: string
+          ex_date: string
+          factor: number
+          id: string
+          kind: string
+          note: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          ex_date: string
+          factor: number
+          id?: string
+          kind: string
+          note?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          ex_date?: string
+          factor?: number
+          id?: string
+          kind?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_actions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corporate_actions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_digests: {
         Row: {
           claim: string
@@ -631,6 +676,74 @@ export type Database = {
           },
         ]
       }
+      idea_scores: {
+        Row: {
+          computed_at: string
+          entry_close: number | null
+          entry_date: string | null
+          entry_index: number | null
+          entry_source: string | null
+          excess: number | null
+          factor: number | null
+          flags: string[]
+          holding_days: number | null
+          idea_id: string
+          idea_return: number | null
+          index_return: number | null
+          is_final: boolean
+          mark_close: number | null
+          mark_date: string | null
+          mark_index: number | null
+          mark_source: string | null
+        }
+        Insert: {
+          computed_at?: string
+          entry_close?: number | null
+          entry_date?: string | null
+          entry_index?: number | null
+          entry_source?: string | null
+          excess?: number | null
+          factor?: number | null
+          flags?: string[]
+          holding_days?: number | null
+          idea_id: string
+          idea_return?: number | null
+          index_return?: number | null
+          is_final?: boolean
+          mark_close?: number | null
+          mark_date?: string | null
+          mark_index?: number | null
+          mark_source?: string | null
+        }
+        Update: {
+          computed_at?: string
+          entry_close?: number | null
+          entry_date?: string | null
+          entry_index?: number | null
+          entry_source?: string | null
+          excess?: number | null
+          factor?: number | null
+          flags?: string[]
+          holding_days?: number | null
+          idea_id?: string
+          idea_return?: number | null
+          index_return?: number | null
+          is_final?: boolean
+          mark_close?: number | null
+          mark_date?: string | null
+          mark_index?: number | null
+          mark_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_scores_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: true
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ideas: {
         Row: {
           close_reason: string | null
@@ -1025,6 +1138,81 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_days: {
+        Row: {
+          decided_at: string
+          source: string
+          status: string
+          trade_date: string
+        }
+        Insert: {
+          decided_at?: string
+          source: string
+          status: string
+          trade_date: string
+        }
+        Update: {
+          decided_at?: string
+          source?: string
+          status?: string
+          trade_date?: string
+        }
+        Relationships: []
+      }
+      prices_daily: {
+        Row: {
+          benchmark: string | null
+          close: number
+          company_id: string | null
+          created_at: string
+          id: number
+          isin: string | null
+          series: string | null
+          source: string
+          symbol: string | null
+          trade_date: string
+        }
+        Insert: {
+          benchmark?: string | null
+          close: number
+          company_id?: string | null
+          created_at?: string
+          id?: never
+          isin?: string | null
+          series?: string | null
+          source: string
+          symbol?: string | null
+          trade_date: string
+        }
+        Update: {
+          benchmark?: string | null
+          close?: number
+          company_id?: string | null
+          created_at?: string
+          id?: never
+          isin?: string | null
+          series?: string | null
+          source?: string
+          symbol?: string | null
+          trade_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prices_daily_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prices_daily_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1544,6 +1732,15 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      enter_closes: {
+        Args: {
+          p_index_close: number
+          p_rows: Json
+          p_source: string
+          p_trade_date: string
+        }
+        Returns: number
+      }
       heartbeat_ages: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1551,6 +1748,10 @@ export type Database = {
           job: string
           ok: boolean
         }[]
+      }
+      mark_market_day_shut: {
+        Args: { p_trade_date: string }
+        Returns: undefined
       }
       open_idea: {
         Args: {
@@ -1605,6 +1806,7 @@ export type Database = {
         Args: { p_actor: string; p_item_id: string; p_sentence_hash: string }
         Returns: boolean
       }
+      rescore_ideas: { Args: Record<PropertyKey, never>; Returns: number }
       reserve_units: {
         Args: {
           p_bucket: string
@@ -1638,6 +1840,7 @@ export type Database = {
           reservation_id: string
         }[]
       }
+      score_ideas: { Args: Record<PropertyKey, never>; Returns: number }
       storage_usage: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1645,6 +1848,11 @@ export type Database = {
           storage_bytes: number
         }[]
       }
+      store_fetched_closes: {
+        Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
+        Returns: number
+      }
+      tracked_symbols: { Args: Record<PropertyKey, never>; Returns: string[] }
       unpublish_item: {
         Args: { p_actor: string; p_item_id: string }
         Returns: string

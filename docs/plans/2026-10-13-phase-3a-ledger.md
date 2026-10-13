@@ -400,3 +400,6 @@ Pacing: Tasks 1-9 (about 2.17M) leave a working, tested back end with the cron l
 10. A lint hint while writing an idea, so the original entry can be revealed later
 11. A second witness for the anchor
 12. Close-out and whole-branch review
+
+## Amendment (Task 2, 2026-10-13): migration numbering
+Task 2 exceeded 300 lines, so it was split as its acceptance line allows: `20261013000011_market.sql` (tables, source ladder, job and admin price doors) and `20261013000012_scores.sql` (`score_ideas_now`, `score_ideas`, `rescore_ideas`). Tasks 3 and 5 therefore use `20261013000013_ledger_anchors.sql` and `20261013000014_ledger_gate.sql`, with test files renamed to match. The pgTAP file for Task 2 is `supabase/tests/0011_market_scores.test.sql` (one flow covers both migrations).
