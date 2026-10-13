@@ -7,8 +7,10 @@ import { istDate, isPastLag } from "@/lib/dates";
 import { InvalidInputError, ItemNotFoundError } from "@/lib/errors";
 import { isUuid } from "@/lib/ids";
 import { doneTo, failTo } from "@/lib/redirects";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { fileProblems } from "@/modules/casefile/client";
 import { requireAdmin } from "@/modules/identity";
+import { ledgerGateFacts } from "@/modules/ledger";
 import type { GateDecision } from "./decision";
 import { FileStructureError, HandCheckRequiredError } from "./errors";
 import { gateDeps, publishRevision, unpublishItem } from "./gate-service";
@@ -21,8 +23,22 @@ import { allowFlaggedSentence } from "./publish";
 const itemPath = (itemId: string) => (isUuid(itemId) ? `/desk/items/${itemId}` : "/desk/items");
 
 /**
+ * Whether the sealed ledger already refuses rule 4 for this company (a stance entry in the last 30 days, or a ledger that failed
+ * its own check). Only the hand tick consults it: the database gate re-reads the ledger itself and decides. A ledger that cannot
+ * be read is not "refusing" here: the checklist then shows the row as manual too, and the tick stays required.
+ */
+async function ledgerRefusesRule4(companyId: string): Promise<boolean> {
+  try {
+    const facts = await ledgerGateFacts(await createSupabaseServerClient(), companyId);
+    return !facts.ledgerOk || facts.stanceClearDate !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The editor's "Run the publishing gate". Server backstops for what the checklist previews: the rule 4 hand check
- * (D16) and the file structure are refused with a fixed code and record nothing. Everything else is decided and
+ * (D16, asked for only while the ledger does not already refuse) and the file structure are refused with a fixed code and record nothing. Everything else is decided and
  * recorded by the database gate, pass or fail. There is no override of any rule.
  */
 export async function publishCheckedAction(itemId: string, revisionId: string, formData: FormData): Promise<void> {
@@ -33,8 +49,13 @@ export async function publishCheckedAction(itemId: string, revisionId: string, f
   try {
     const ctx = await (await gateDeps(admin)).repo.loadPublishContext(itemId, revisionId);
     if (!ctx) throw new ItemNotFoundError(itemId);
-    const rule4 = formData.get("rule4") === "on";
-    if (ctx.item.companyId && !rule4) throw new HandCheckRequiredError();
+    // The hand tick answers a question the ledger cannot: "have I changed my stance outside it?". It is asked for, and recorded as
+    // true, only while the ledger itself does not refuse. When the ledger refuses, no tick is required (the gate records the
+    // refusal) and a stray tick is NOT recorded as an attestation beside that refusal.
+    const refused = ctx.item.companyId ? await ledgerRefusesRule4(ctx.item.companyId) : false;
+    const ticked = formData.get("rule4") === "on";
+    if (ctx.item.companyId && !refused && !ticked) throw new HandCheckRequiredError();
+    const rule4 = ticked && !refused;
     const isFile = ctx.item.kind === "thesis" || ctx.item.kind === "case_study";
     if (isFile && fileProblems(ctx.revision.bodyMd, ctx.revision.structured).length > 0) throw new FileStructureError();
     decision = await publishRevision(itemId, revisionId, { handChecks: ctx.item.companyId ? { rule4 } : {} });

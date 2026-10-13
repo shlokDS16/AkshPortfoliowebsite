@@ -8,6 +8,8 @@ import type { PublishContext } from "./repo";
 
 const order: string[] = [];
 const state = vi.hoisted(() => ({ repo: null as unknown }));
+// What the sealed ledger says about the item's company (migration 0014's ledger_gate_facts), set per test.
+const ledgerFacts = vi.hoisted(() => ({ next: null as unknown, calls: [] as string[] }));
 const redirect = vi.fn((to: string) => {
   throw new Error(`NEXT_REDIRECT:${to}`);
 });
@@ -28,6 +30,13 @@ vi.mock("@/lib/supabase/server", () => ({
   },
 }));
 vi.mock("./repo", () => ({ createSupabaseComplianceRepo: () => state.repo }));
+vi.mock("@/modules/ledger", () => ({
+  ledgerGateFacts: async (_db: unknown, companyId: string) => {
+    ledgerFacts.calls.push(companyId);
+    if (ledgerFacts.next instanceof Error) throw ledgerFacts.next;
+    return ledgerFacts.next;
+  },
+}));
 vi.mock("./gate-rpc", () => ({
   createGateRpc: () => {
     order.push("gate");
@@ -217,15 +226,62 @@ describe("publishCheckedAction (the editor's Run the publishing gate; the only f
   });
 
   it("refuses a company file without the rule-4 hand check, with a fixed code and no recorded decision", async () => {
+    ledgerFacts.next = { ledgerOk: true, stanceClearDate: null, holdsOpenPosition: false };
     repo.context = named("Margins held.");
     expect(param(await target(() => publishCheckedAction(ITEM, REV, form())), "error")).toBe("hand-check-required");
     expect(repo.published).toHaveLength(0);
   });
 
   it("records the hand check inside the decision when it is ticked", async () => {
+    ledgerFacts.next = { ledgerOk: true, stanceClearDate: null, holdsOpenPosition: false };
     repo.context = named("Margins held.");
     await target(() => publishCheckedAction(ITEM, REV, form({ rule4: "on" })));
     expect(repo.published[0].lintResult).toMatchObject({ handChecks: { rule4: true } });
+  });
+
+  describe("the hand tick and the ledger (Task 5 review I-2)", () => {
+    beforeEach(() => {
+      repo.context = named("Margins held.");
+      ledgerFacts.calls.length = 0;
+      ledgerFacts.next = { ledgerOk: true, stanceClearDate: null, holdsOpenPosition: false };
+    });
+
+    it("with a clear ledger the tick is required and recorded as before", async () => {
+      expect(param(await target(() => publishCheckedAction(ITEM, REV, form())), "error")).toBe("hand-check-required");
+      await target(() => publishCheckedAction(ITEM, REV, form({ rule4: "on" })));
+      expect(ledgerFacts.calls).toEqual([COMPANY, COMPANY]);
+      expect(repo.published).toHaveLength(1);
+      expect(repo.published[0].lintResult).toMatchObject({ handChecks: { rule4: true } });
+    });
+
+    it("with a recent ledger entry no tick is required, and a tick is NOT recorded as an attestation beside the refusal", async () => {
+      ledgerFacts.next = { ledgerOk: true, stanceClearDate: "2026-11-01", holdsOpenPosition: false };
+      await target(() => publishCheckedAction(ITEM, REV, form()));
+      expect(repo.published[0].lintResult).toMatchObject({ handChecks: { rule4: false } });
+      await target(() => publishCheckedAction(ITEM, REV, form({ rule4: "on" })));
+      expect(repo.published).toHaveLength(2);
+      expect(repo.published[1].lintResult).toMatchObject({ handChecks: { rule4: false } });
+    });
+
+    it("with a ledger that failed its own check the same holds", async () => {
+      ledgerFacts.next = { ledgerOk: false, stanceClearDate: null, holdsOpenPosition: false };
+      await target(() => publishCheckedAction(ITEM, REV, form({ rule4: "on" })));
+      expect(repo.published[0].lintResult).toMatchObject({ handChecks: { rule4: false } });
+    });
+
+    it("a ledger that cannot be read is not a refusal and not a clear: the tick stays required", async () => {
+      ledgerFacts.next = new Error("rpc down");
+      expect(param(await target(() => publishCheckedAction(ITEM, REV, form())), "error")).toBe("hand-check-required");
+      expect(repo.published).toHaveLength(0);
+      await target(() => publishCheckedAction(ITEM, REV, form({ rule4: "on" })));
+      expect(repo.published[0].lintResult).toMatchObject({ handChecks: { rule4: true } });
+    });
+
+    it("an item that names no company never asks the ledger", async () => {
+      repo.context = context("Margins held.");
+      await target(() => publishCheckedAction(ITEM, REV, form()));
+      expect(ledgerFacts.calls).toEqual([]);
+    });
   });
 
   it("needs no hand check when no company is named, and ignores a stray tick", async () => {
@@ -234,6 +290,7 @@ describe("publishCheckedAction (the editor's Run the publishing gate; the only f
   });
 
   it("refuses a company file whose structure does not line up, before the gate runs", async () => {
+    ledgerFacts.next = { ledgerOk: true, stanceClearDate: null, holdsOpenPosition: false };
     repo.context = named("Margins held.", "thesis");
     expect(param(await target(() => publishCheckedAction(ITEM, REV, form({ rule4: "on" }))), "error")).toBe("file-structure");
     expect(repo.published).toHaveLength(0);

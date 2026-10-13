@@ -122,6 +122,39 @@ describe("PublishChecklist", () => {
     expect(screen.getByText("Preview passes. The gate decides and records the result.")).toBeInTheDocument();
   });
 
+  describe("when the ledger refuses rule 4 (Task 5 review I-2)", () => {
+    const refused = items.map((i) => (i.id === "rule-4" ? { ...i, state: "fail" as const, detail: "Rule 4: clear from 1 Nov 2026" } : i));
+
+    it("shows the refusal as a failure, offers no tick, and counts it as not passed", () => {
+      const { container } = render(<PublishChecklist items={refused} rule4Needed {...base} />);
+      expect(screen.queryByRole("checkbox")).toBeNull();
+      expect(screen.getByRole("heading", { name: "Publish checklist · 1 of 3" })).toBeInTheDocument();
+      expect(screen.getByText("Preview: 2 rules fail. The gate decides and records the result; you can run it now.")).toBeInTheDocument();
+      expect(screen.getByText("Rule 4: clear from 1 Nov 2026")).toBeInTheDocument();
+      expect(new FormData(container.querySelector("form")!).get("rule4")).toBeNull();
+      expect(container.textContent).not.toMatch(/override/i);
+    });
+
+    it("a tick made while the row was manual does not turn a later refusal green, and is not submitted", async () => {
+      const { container, rerender } = render(<PublishChecklist items={items} rule4Needed {...base} />);
+      await userEvent.click(screen.getByRole("checkbox", { name: /I have not changed my stance/ }));
+      expect(screen.getByRole("heading", { name: "Publish checklist · 2 of 3" })).toBeInTheDocument();
+      rerender(<PublishChecklist items={refused} rule4Needed {...base} />);
+      expect(screen.getByRole("heading", { name: "Publish checklist · 1 of 3" })).toBeInTheDocument();
+      expect(screen.queryByRole("checkbox")).toBeNull();
+      expect(new FormData(container.querySelector("form")!).get("rule4")).toBeNull();
+      const row = screen.getByText("No recent change of stance").closest("li")!;
+      expect(row.querySelector("svg")!.getAttribute("class")).toMatch(/text-bad/);
+    });
+
+    it("a ledger that failed its own check is a failure too, whatever the box said", async () => {
+      const broken = items.map((i) => (i.id === "rule-4" ? { ...i, state: "fail" as const, detail: "The ledger failed its own check." } : i));
+      render(<PublishChecklist items={broken} rule4Needed {...base} />);
+      expect(screen.queryByRole("checkbox")).toBeNull();
+      expect(screen.getByRole("heading", { name: "Publish checklist · 1 of 3" })).toBeInTheDocument();
+    });
+  });
+
   it("a file whose company brief is missing still offers the rule-4 tick the server requires", async () => {
     const { container } = render(<PublishChecklist items={items} rule4Needed {...base} companyName={null} />);
     const form = container.querySelector("form")!;

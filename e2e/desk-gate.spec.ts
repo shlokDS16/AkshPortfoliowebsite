@@ -168,7 +168,9 @@ test("rule 4 from the ledger: an idea opened on the file's company refuses the p
 
   await page.goto(`/desk/items/${itemId}`);
   await expect(gate(page).getByText(`Rule 4: clear from ${clearFrom}`)).toBeVisible();
-  await gate(page).getByRole("checkbox", { name: /I have not changed my stance/ }).check();
+  // The ledger refuses, so the checklist offers no hand tick: ticking would put "I have not changed my stance" beside a refusal that
+  // says the opposite (Task 5 review I-2). The gate is still run, and records the refusal with no attestation.
+  await expect(gate(page).getByRole("checkbox", { name: /I have not changed my stance/ })).toHaveCount(0);
   await gate(page).getByRole("button", { name: /^Run the publishing gate on revision #2$/ }).click();
   await expect(gate(page).getByTestId("gate-decision")).toHaveAttribute("data-verdict", "fail");
   const failure = gate(page).getByTestId("gate-failure").filter({ hasText: "Rule 4: named-security recency" });
