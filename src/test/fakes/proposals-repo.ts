@@ -5,6 +5,8 @@ export type MemoryProposalsRepo = ProposalsRepo & {
   extractions: (NewExtraction & { id: string })[];
   proposals: ProposalRow[];
   readings: ReadingRow[];
+  /** Marks a stored figure as accepted, edited or filed (the memory rows carry no status). */
+  markDecided(documentId: string, pageNo: number, dedupeKey: string): void;
 };
 
 /** In-memory extractions and proposals, with the database's unique (document, dedupe key) rule. */
@@ -12,6 +14,7 @@ export function createMemoryProposalsRepo(): MemoryProposalsRepo {
   const extractions: MemoryProposalsRepo["extractions"] = [];
   const proposals: ProposalRow[] = [];
   const readings: ReadingRow[] = [];
+  const decided = new Set<string>();
   return {
     extractions,
     proposals,
@@ -31,6 +34,12 @@ export function createMemoryProposalsRepo(): MemoryProposalsRepo {
     },
     async countForDocument(documentId) {
       return proposals.filter((p) => p.documentId === documentId).length;
+    },
+    markDecided(documentId, pageNo, dedupeKey) {
+      decided.add(`${documentId}:${pageNo}:${dedupeKey}`);
+    },
+    async decidedKeys(documentId, pageNo) {
+      return new Set(proposals.filter((p) => p.pageNo === pageNo && decided.has(`${documentId}:${pageNo}:${p.dedupeKey}`)).map((p) => p.dedupeKey));
     },
     async insertProposals(rows) {
       for (const row of rows) {

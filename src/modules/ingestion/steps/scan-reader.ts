@@ -2,7 +2,7 @@ import type { OcrFiletype } from "@/lib/providers/ocr";
 import { OCR_BLOCK_FALLBACK_MS, OCR_BUCKET, OCR_CAPS, OCR_KEY_REFUSALS, OCR_TIMEOUT_MS, SHORT_WAIT_MS } from "../caps";
 import { llmTimeoutMs } from "../deadline";
 import { callWithinUnits } from "../governor";
-import { OCR_KEY_REFUSED, OCR_PAGE_REFUSED, OCR_TOO_BIG } from "../ocr-copy";
+import { OCR_KEY_REFUSED, OCR_PAGE_REFUSED, OCR_SERVICE_REFUSED, OCR_TOO_BIG } from "../ocr-copy";
 import type { StepContext, StepOutcome } from "../types";
 
 // One request to the scan reader, for a scanned PDF page (ocr_page) and a photo alike: reserve one unit in the ledger,
@@ -17,13 +17,14 @@ export function scanTimeout(ctx: StepContext): { timeoutMs: number } | { outcome
   return { timeoutMs: Math.min(OCR_TIMEOUT_MS, left) };
 }
 
-/** The scan reader said the daily allowance is spent (or its IP is): hold the bucket, or read it as a key problem on the third time. */
+/** The scan reader said the daily allowance is spent (or its IP is): hold the bucket, or say the service keeps refusing on the third time. */
 async function dayRefusal(ctx: StepContext): Promise<StepOutcome> {
   const { usage } = ctx.deps.repos;
   const now = ctx.deps.now();
   const [totals, refusals] = await Promise.all([usage.totals(OCR_BUCKET), usage.refusalsSinceUse(OCR_BUCKET)]);
-  // The answer cannot always tell a quota from a bad key. Our own ledger under its cap, and the third refusal in a row: say the key.
-  if (totals.today < OCR_CAPS.day && refusals + 1 >= OCR_KEY_REFUSALS) return { kind: "attention", error: OCR_KEY_REFUSED };
+  // The answer cannot tell a quota from a bad key, and the free limit is per IP address, not per key (final review M-2).
+  // Our own ledger under its cap, and the third refusal in a row: say the service refused, naming both causes.
+  if (totals.today < OCR_CAPS.day && refusals + 1 >= OCR_KEY_REFUSALS) return { kind: "attention", error: OCR_SERVICE_REFUSED };
   const reset = await usage.earliestReset(OCR_BUCKET);
   const notBefore = reset && reset.getTime() > now.getTime() ? reset : new Date(now.getTime() + OCR_BLOCK_FALLBACK_MS);
   await usage.block(OCR_BUCKET, "rate_limited", notBefore, "ocr_day", NO_RATE);
@@ -49,7 +50,7 @@ export async function readWithScanReader(
   if (read.kind === "ok") return { text: read.text };
   if (read.kind === "provider_error") return { outcome: { kind: "retry", failure: "provider", error: read.message.slice(0, 400) } };
   if (read.reason === "size") return { outcome: { kind: "attention", error: OCR_TOO_BIG } };
-  if (read.reason === "pages") return { outcome: { kind: "attention", error: OCR_PAGE_REFUSED } };
+  if (read.reason === "pages" || read.reason === "file") return { outcome: { kind: "attention", error: OCR_PAGE_REFUSED } };
   if (read.reason === "key") return { outcome: { kind: "attention", error: OCR_KEY_REFUSED } };
   return { outcome: await dayRefusal(ctx) };
 }

@@ -6,6 +6,7 @@ import { estimateReadyBy, formatReadyBy } from "./eta";
 import { listedPages, readInboxPages, type InboxPageRow, type ListedPage } from "./inbox-pages";
 import { readDigestCounts } from "./digest-read";
 import { readTranscripts } from "./inbox-transcripts";
+import { readUnsortedPages } from "./unsorted-read";
 import { PAGE_STEP_KINDS } from "./page-steps";
 import { tallyPending } from "./proposal-counts";
 import { trayFor, type DocState, type TrayView } from "./trays";
@@ -121,7 +122,7 @@ export async function listInbox(
 
   // Voice notes that wait for Aksh to check what was typed out (the document is open and he has not decided).
   const voiceIds = open.data.filter((d) => d.kind === "audio" && d.status === "active" && d.transcript_status === "pending").map((d) => d.id);
-  const [jobs, pages, companies, proposals, transcripts, digests] = await Promise.all([
+  const [jobs, pages, companies, proposals, transcripts, digests, unsorted] = await Promise.all([
     activeIds.length === 0
       ? { data: [], error: null }
       : db
@@ -141,6 +142,7 @@ export async function listInbox(
           .in("document_id", activeIds),
     readTranscripts(db, voiceIds),
     readDigestCounts(db, activeIds),
+    readUnsortedPages(db, activeIds),
   ]);
   if (jobs.error) throw dbError("inbox.listSteps", jobs.error);
   if (companies.error) throw dbError("inbox.listCompanies", companies.error);
@@ -182,6 +184,7 @@ export async function listInbox(
       flagged: waiting.get(d.id)?.flagged ?? 0,
       decided: waiting.get(d.id)?.decided ?? 0,
       digestClaims: digests.get(d.id) ?? 0,
+      unsortedPages: unsorted.get(d.id) ?? 0,
       steps,
     };
     return {

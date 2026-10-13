@@ -8,7 +8,7 @@ import { createMemoryUsageRepo, type MemoryUsageRepo } from "@/test/fakes/usage-
 import { makePdf } from "@/test/fixtures/pdf";
 import { OCR_BUCKET, OCR_CAPS } from "../caps";
 import { machineDocuments, type StepDeps } from "../deps";
-import { OCR_KEY_REFUSED, OCR_NOTHING_READ, OCR_PAGE_REFUSED, OCR_TOO_BIG } from "../ocr-copy";
+import { OCR_KEY_REFUSED, OCR_NOTHING_READ, OCR_PAGE_REFUSED, OCR_SERVICE_REFUSED, OCR_TOO_BIG } from "../ocr-copy";
 import type { Step, StepContext } from "../types";
 import { ocrPage } from "./ocr-page";
 import { PAGE_NOT_STORED } from "./extract-page";
@@ -191,11 +191,15 @@ describe("ocr_page: waiting and refusing (never a failure count)", () => {
     expect(out).toEqual({ kind: "defer", notBefore: new Date(T0 + 3600_000), reason: "ocr_day" });
   });
 
-  it("the third refusal in a row while the ledger is under its cap reads as the key, not the quota", async () => {
+  it("the third refusal in a row while the ledger is under its cap says the service refused (shared address limit or key), not that the key is bad", async () => {
     const usage = createMemoryUsageRepo();
     usage.refusalsSinceUse = async () => 2;
     const out = await ocrPage(ctx(setup(), ocrWith({ kind: "refused", reason: "day", message: "x" }), { usage }));
-    expect(out).toEqual({ kind: "attention", error: OCR_KEY_REFUSED });
+    expect(out).toEqual({ kind: "attention", error: OCR_SERVICE_REFUSED });
+    expect(OCR_SERVICE_REFUSED).not.toBe(OCR_KEY_REFUSED);
+    expect(OCR_SERVICE_REFUSED).toMatch(/address/);
+    expect(OCR_SERVICE_REFUSED).toMatch(/key/);
+    expect(OCR_SERVICE_REFUSED).toMatch(/text PDF/);
     expect(usage.blocks).toEqual([]);
     // ... but not when our own ledger says the day is spent
     const spent = createMemoryUsageRepo();
@@ -215,6 +219,14 @@ describe("ocr_page: waiting and refusing (never a failure count)", () => {
   it("a size or page refusal from the reader is a sentence for Aksh", async () => {
     expect(await ocrPage(ctx(setup(), ocrWith({ kind: "refused", reason: "size", message: "x" })))).toEqual({ kind: "attention", error: OCR_TOO_BIG });
     expect(await ocrPage(ctx(setup(), ocrWith({ kind: "refused", reason: "pages", message: "x" })))).toEqual({ kind: "attention", error: OCR_PAGE_REFUSED });
+  });
+
+  it("a request the reader will never accept (HTTP 400) is a sentence for Aksh, never a retry", async () => {
+    const usage = createMemoryUsageRepo();
+    const out = await ocrPage(ctx(setup(), ocrWith({ kind: "refused", reason: "file", message: "HTTP 400" }), { usage }));
+    expect(out).toEqual({ kind: "attention", error: OCR_PAGE_REFUSED });
+    expect(usage.reservations[0].settled).toEqual({ used: 0, status: "released" });
+    expect(usage.blocks).toEqual([]);
   });
 
   it("a page over 1 MB is refused before anything is reserved or sent", async () => {

@@ -94,6 +94,13 @@ describe("OCR.space adapter", () => {
     expect(t).toMatchObject({ kind: "provider_error", message: "TimeoutError" });
   });
 
+  it("HTTP 400 is a request the provider will never accept: a permanent refusal for the file, not a retryable error", async () => {
+    const r = await port(async () => new Response("Bad request", { status: 400 })).read(PDF, { table: true });
+    expect(r).toEqual({ kind: "refused", reason: "file", message: "HTTP 400" });
+    // The retryable family is untouched.
+    expect(await port(async () => new Response("x", { status: 502 })).read(PDF, { table: true })).toEqual({ kind: "provider_error", message: "HTTP 502" });
+  });
+
   it("any other failing status or an unreadable answer is a provider error", async () => {
     expect(await port(async () => new Response("oops", { status: 500 })).read(PDF, { table: true })).toEqual({ kind: "provider_error", message: "HTTP 500" });
     expect(await port(async () => new Response("<html>", { status: 200 })).read(PDF, { table: true })).toMatchObject({ kind: "provider_error" });

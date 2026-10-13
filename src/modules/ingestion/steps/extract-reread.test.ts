@@ -5,7 +5,7 @@ import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
 import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
-import { PAGE_CHAR_LIMIT, REREAD_MAX_COMPLETION } from "../caps";
+import { MAX_PROPOSALS_PER_DOCUMENT, PAGE_CHAR_LIMIT, REREAD_MAX_COMPLETION } from "../caps";
 import { PROMPT_VERSION, REREAD_PROMPT_VERSION } from "../prompts";
 import { machineDocuments, type StepDeps } from "../deps";
 import type { Step, StepContext } from "../types";
@@ -132,5 +132,34 @@ describe("extract_page: a re-read", () => {
     const { llm, complete } = spied(createFixtureLlm());
     await extractPage(ctx(s, llm, { pass: 2, args: { reread: "yes" } }));
     expect(complete).not.toHaveBeenCalled();
+  });
+
+  it("near the 60-figure cap, lines Aksh already decided take none of the room: the new line is proposed, they are not (final review M-5)", async () => {
+    const s = setup();
+    await extractPage(ctx(s, createFixtureLlm()));
+    const first = s.proposals.proposals.filter((p) => p.pageNo === 4);
+    expect(first).toHaveLength(3);
+    // He accepted the first two; the third is pending (a real re-read rejects it first, so the room it left is counted as free below).
+    s.proposals.markDecided(DOC, 4, first[0]!.dedupeKey);
+    s.proposals.markDecided(DOC, 4, first[1]!.dedupeKey);
+    // Leave room for exactly two new rows: the in-memory count includes the pending row, as the database count would before the reject.
+    const filler = Array.from({ length: MAX_PROPOSALS_PER_DOCUMENT - 3 - 2 }, (_, i) => ({
+      documentId: DOC, pageNo: 1, extractionId: "x", dedupeKey: `k${i}`, machineValue: {} as never, flags: [], reason: "core" as const,
+    }));
+    await s.proposals.insertProposals(filler);
+    expect(await s.proposals.countForDocument(DOC)).toBe(MAX_PROPOSALS_PER_DOCUMENT - 2);
+
+    const out = await extractPage(ctx(s, createFixtureLlm(), REREAD));
+    const added = s.proposals.proposals.filter((p) => p.dedupeKey.endsWith("|r2"));
+    // Three lines come back; two are his, so only the third is new.
+    expect(added.map((p) => p.dedupeKey.replace(/\|r2$/, ""))).toEqual([first[2]!.dedupeKey]);
+    expect(out).toMatchObject({ kind: "done", result: { reread: true, proposals: 1 } });
+  });
+
+  it("a re-read of a page with nothing decided proposes every line, as before", async () => {
+    const s = setup();
+    await extractPage(ctx(s, createFixtureLlm()));
+    await extractPage(ctx(s, createFixtureLlm(), REREAD));
+    expect(s.proposals.proposals.filter((p) => p.dedupeKey.endsWith("|r2"))).toHaveLength(3);
   });
 });

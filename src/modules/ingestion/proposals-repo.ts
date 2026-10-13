@@ -50,6 +50,8 @@ export interface ProposalsRepo {
   insertExtraction(row: NewExtraction): Promise<string>;
   /** How many proposals the document has, rejected ones aside (a re-read rejects a page's unchecked figures to make room for the new ones, R3). */
   countForDocument(documentId: string): Promise<number>;
+  /** The dedupe keys of the page's figures Aksh has accepted, edited or filed (a re-read leaves these as they are, final review M-5). */
+  decidedKeys(documentId: string, pageNo: number): Promise<Set<string>>;
   /** A row whose (document, dedupe key) exists is left as it is, so a repeated or duplicate step adds nothing. */
   insertProposals(rows: ProposalRow[]): Promise<void>;
   /** A row whose (document, page, test, pass) exists is left as it is: a rerun of the same pass keeps the first reading, a re-read is a new pass. */
@@ -110,6 +112,17 @@ export function createProposalsRepo(db: Db): ProposalsRepo {
       const { count, error } = await db.from("proposals").select("id", { count: "exact", head: true }).eq("document_id", documentId).neq("status", "rejected");
       if (error) throw jobDbError("proposals.count", error);
       return count ?? 0;
+    },
+
+    async decidedKeys(documentId, pageNo) {
+      const { data, error } = await db
+        .from("proposals")
+        .select("dedupe_key")
+        .eq("document_id", documentId)
+        .eq("page_no", pageNo)
+        .in("status", ["accepted", "edited", "filed"]);
+      if (error) throw jobDbError("proposals.decidedKeys", error);
+      return new Set(data.map((r) => r.dedupe_key));
     },
 
     async insertProposals(rows) {

@@ -12,7 +12,7 @@ function fakeDb(results: { data?: unknown; count?: number | null; error: unknown
       const call: Call = { table, ops: [] };
       calls.push(call);
       const proxy: Record<string, unknown> = {};
-      for (const op of ["select", "insert", "upsert", "eq", "neq", "limit", "order", "maybeSingle", "single"]) {
+      for (const op of ["select", "insert", "upsert", "eq", "neq", "in", "limit", "order", "maybeSingle", "single"]) {
         proxy[op] = (...args: unknown[]) => (call.ops.push([op, ...args]), proxy);
       }
       proxy.then = (resolve: (v: unknown) => void) => resolve(results.shift() ?? { data: null, error: null });
@@ -29,6 +29,15 @@ describe("proposals repo: what a re-read needs", () => {
     expect(calls[0]).toEqual({
       table: "proposals",
       ops: [["select", "id", { count: "exact", head: true }], ["eq", "document_id", "d1"], ["neq", "status", "rejected"]],
+    });
+  });
+
+  it("lists the dedupe keys of the page's accepted, edited and filed figures, nothing else", async () => {
+    const { db, calls } = fakeDb([{ data: [{ dedupe_key: "revenue|FY26|consolidated" }, { dedupe_key: "finance costs|FY26|consolidated|r2" }], error: null }]);
+    expect(await createProposalsRepo(db).decidedKeys("d1", 4)).toEqual(new Set(["revenue|FY26|consolidated", "finance costs|FY26|consolidated|r2"]));
+    expect(calls[0]).toEqual({
+      table: "proposals",
+      ops: [["select", "dedupe_key"], ["eq", "document_id", "d1"], ["eq", "page_no", 4], ["in", "status", ["accepted", "edited", "filed"]]],
     });
   });
 

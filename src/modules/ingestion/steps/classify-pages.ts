@@ -118,8 +118,9 @@ export const classifyPagesStep: StepHandler = async (ctx) => {
     if (kept.length > 0) await documents.setVerdicts(documentId, kept);
   }
 
+  // `unsortedPages` is what the inbox card reads (unsorted-read.ts): the pages this batch asked about and the model did not place.
   const found = [...args.data.accepted, ...sortedBefore, ...kept];
-  const result = { promptVersion: CLASSIFY_PROMPT_VERSION, asked: asked.length, kept: kept.length, tokens, ...(letGo ? { letGo } : {}) };
+  const result = { promptVersion: CLASSIFY_PROMPT_VERSION, asked: asked.length, kept: kept.length, tokens, ...(letGo ? { letGo, unsortedPages: asked.length } : {}) };
   if (rest.length > 0) return { kind: "done", result, enqueue: [nextClassifyStep(rest, found)] };
   const picked = await selectFound(ctx, doc, found);
   return { kind: "done", result: { ...result, selected: picked.selected }, enqueue: picked.enqueue };

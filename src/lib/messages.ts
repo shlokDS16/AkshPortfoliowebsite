@@ -196,3 +196,18 @@ export const CHECKED_SOURCE_FALLBACK = "the filing";
 export function checkedAgainstPageText(page: number, doc: string): string {
   return `Printed on p. ${page} of ${doc.trim() === "" || doc === "Source not listed" ? CHECKED_SOURCE_FALLBACK : doc}; matched by the desk and accepted by the analyst.`;
 }
+
+/**
+ * Scan reader, third refusal in a row while our own count of the day is under its cap (final review M-2). OCR.space's free
+ * limit is counted per internet address, so the desk cannot tell a shared-address limit from a key problem; it says so and
+ * blames neither Aksh nor the key. Wording is the build's pick, pending Shlok's approval (spec s16.15).
+ */
+export const OCR_SERVICE_REFUSED =
+  "The scan reader has refused three requests in a row. Its free daily limit is counted per internet address, so this may be that shared limit or the desk's key. Try again later, or upload a text PDF instead.";
+
+/**
+ * Classifier gave up on some pages (live smoke S3): the pages stay unselected and Aksh is told once, on the document's
+ * reading state. Pending Shlok's approval, spec s16.15.
+ */
+export const pagesNotSortedText = (pages: number): string =>
+  `${pages === 1 ? "1 page" : `${pages} pages`} could not be sorted by the desk. You can choose the pages to read yourself.`;

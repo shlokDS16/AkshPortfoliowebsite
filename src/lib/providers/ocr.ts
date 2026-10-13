@@ -6,9 +6,10 @@ export type OcrResult =
   | { kind: "ok"; text: string }
   /**
    * A quota or a limit, never a crash: `day` is the provider's daily allowance (defer), `size` and `pages` are limits of the
-   * file (attention), `key` is a key the provider did not accept (attention, never a daily defer; ruling R9).
+   * file (attention), `key` is a key the provider did not accept (attention, never a daily defer; ruling R9), `file` is a
+   * request the provider will never accept (HTTP 400, a corrupt file: attention, never retried).
    */
-  | { kind: "refused"; reason: "day" | "size" | "pages" | "key"; message: string }
+  | { kind: "refused"; reason: "day" | "size" | "pages" | "key" | "file"; message: string }
   | { kind: "provider_error"; message: string };
 
 export interface OcrPort {

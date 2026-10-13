@@ -22,6 +22,9 @@ export const ISSUES_MAX = 400;
 /** When the document cap leaves room for only some of a page, core lines go first, then tracked labels, then movers. */
 const RANK = { core: 0, label_match: 1, moved: 2 } as const;
 
+/** A re-read files its rows under `<key>|r<pass>`; the key the page's first read gave them is what a decision is compared with. */
+const baseKeys = (keys: Set<string>): Set<string> => new Set([...keys].map((k) => k.replace(/\|r\d+$/, "")));
+
 export const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
 
 /**
@@ -69,7 +72,11 @@ export async function saveExtraction(
     extraction: s.extraction, pageNo: s.pageNo, pageText: s.pageText, pageKind: page.kind ?? s.extraction.page_kind, pageBasis: page.basis, docBasis: doc.basis,
     fileLabels: file.labels,
   }).sort((a, b) => RANK[a.reason] - RANK[b.reason]);
-  const built = all.slice(0, Math.max(0, MAX_PROPOSALS_PER_DOCUMENT - s.have));
+  // A re-read leaves what Aksh already accepted, edited or filed as it is (final review M-5): those lines are not proposed
+  // again, so they take none of the room the cap leaves for new ones. A first read has nothing decided on the page.
+  const decided = s.reread ? baseKeys(await proposals.decidedKeys(doc.id, s.pageNo)) : null;
+  const fresh = decided ? all.filter((p) => !decided.has(p.dedupeKey)) : all;
+  const built = fresh.slice(0, Math.max(0, MAX_PROPOSALS_PER_DOCUMENT - s.have));
   await proposals.insertProposals(
     built.map((p) => ({ documentId: doc.id, pageNo: s.pageNo, extractionId, dedupeKey: s.reread ? `${p.dedupeKey}|r${s.pass ?? 1}` : p.dedupeKey, machineValue: p.machineValue, flags: p.flags, reason: p.reason })),
   );

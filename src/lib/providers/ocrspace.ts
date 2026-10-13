@@ -99,6 +99,8 @@ export function createOcrSpace(opts: OcrSpaceOptions): OcrPort {
         const status = response.status;
         if (status === 401) return { kind: "refused", reason: "key", message: "HTTP 401" };
         if (status === 413) return { kind: "refused", reason: "size", message: "HTTP 413" };
+        // A 400 is a request the provider will never accept (a corrupt file): retrying only spends the daily allowance.
+        if (status === 400) return { kind: "refused", reason: "file", message: "HTTP 400" };
         if (status === 403 || status === 429) {
           // A 403 is the free plan's quota answer; only a body that names the key as bad changes that.
           const verdict = classify(await response.text().catch(() => ""), opts.apiKey);
