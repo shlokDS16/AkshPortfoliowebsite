@@ -8,7 +8,10 @@ vi.mock("@/lib/env.server", () => ({ serverEnv: () => env.value }));
 describe("the server step lists (extend Phase 1, do not replace it)", () => {
   it("keeps each clock's heartbeat first and adds one ingestion step", () => {
     expect(SERVER_PUMP_STEPS.map((s) => s.job)).toEqual([...PUMP_STEPS.map((s) => s.job), "ingestion:drain"]);
-    expect(SERVER_DAILY_STEPS.map((s) => s.job)).toEqual([...DAILY_STEPS.map((s) => s.job), "ingestion:sweep"]);
+  });
+
+  it("runs the ledger steps after the daily heartbeat and BEFORE the ingestion sweep (Hobby: one cron, 45 s then 200 s)", () => {
+    expect(SERVER_DAILY_STEPS.map((s) => s.job)).toEqual([...DAILY_STEPS.map((s) => s.job), "ledger:prices", "ledger:score", "ingestion:sweep"]);
   });
 });
 

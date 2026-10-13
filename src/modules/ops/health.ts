@@ -5,12 +5,16 @@ import type { HeartbeatRepo, LatestRun } from "./heartbeat";
 
 // Public entry (@/modules/ops/health): everything here may run without the secret-key client.
 // Spec s8: the pump is unhealthy after 2 h, the daily job after 36 h, and either when its latest run failed.
-export const HEALTH_RULES = [
+// The ledger's two steps (Plan 3a) follow the same 36 h rule but are `optional`: a job that has never run is healthy (so a
+// deploy does not turn production red before the first daily run, and an empty ledger looks like any other), while a
+// failed or stale latest run is not. The public contract grows by these two rows and nothing else.
+type Rule = { job: string; maxAgeSeconds: number; label: string; optional?: boolean };
+export const HEALTH_RULES: readonly Rule[] = [
   { job: "heartbeat:pump", maxAgeSeconds: 120 * 60, label: "the 15-minute pump" },
   { job: "heartbeat:daily", maxAgeSeconds: 36 * 60 * 60, label: "the daily job" },
-] as const;
-
-type Rule = (typeof HEALTH_RULES)[number];
+  { job: "ledger:prices", maxAgeSeconds: 36 * 60 * 60, label: "the closing prices", optional: true },
+  { job: "ledger:anchor", maxAgeSeconds: 36 * 60 * 60, label: "the public proof", optional: true },
+];
 
 /** The one verdict for a clock, in whole seconds. Both the desk strip and the public monitor use it. */
 export type ClockCheck = {
@@ -26,7 +30,7 @@ export type QueueCheck = { ageSeconds: number | null; ok: boolean };
 export type HealthReport = { ok: boolean; checkedAt: string; checks: ClockCheck[]; queue: QueueCheck };
 
 function checkClock(rule: Rule, run: { ageSeconds: number; ok: boolean } | null): ClockCheck {
-  if (!run) return { job: rule.job, label: rule.label, ageSeconds: null, ok: false, lastRunFailed: false };
+  if (!run) return { job: rule.job, label: rule.label, ageSeconds: null, ok: rule.optional === true, lastRunFailed: false };
   const ageSeconds = Math.max(0, Math.floor(run.ageSeconds));
   return {
     job: rule.job,
@@ -65,7 +69,7 @@ export function describeStale(report: HealthReport): string[] {
     .filter((c) => !c.ok)
     .map((c) => {
       if (c.ageSeconds === null) return `${c.label} has never run`;
-      if (c.lastRunFailed) return `${c.label}'s last run failed ${formatAge(c.ageSeconds)} ago`;
+      if (c.lastRunFailed) return `${c.label}${c.label.endsWith("s") ? "'" : "'s"} last run failed ${formatAge(c.ageSeconds)} ago`;
       return `${c.label} last ran ${formatAge(c.ageSeconds)} ago`;
     });
 }

@@ -10,6 +10,7 @@ export {
 export { needsCheck } from "./flags";
 export { summarise } from "./summary";
 export { journalGrid } from "./journal";
+export { datesToFetch, FETCH_WINDOW_DAYS, isWeekday, lastOpenDate, weekdaysBehind, type MarketDayRow } from "./trading-days";
 export { chainLines, chainReport, combineChecks, type ChainReport } from "./chain";
 export { LEDGER_ERROR_TEXT, type LedgerErrorCode } from "./errors";
 export {

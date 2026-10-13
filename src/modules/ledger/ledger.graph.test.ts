@@ -105,7 +105,7 @@ describe("the ledger module's boundaries", () => {
   });
 
   it("the arithmetic files are pure: no database client, no clock, no randomness", () => {
-    for (const name of ["summary.ts", "journal.ts", "chain.ts"]) {
+    for (const name of ["summary.ts", "journal.ts", "chain.ts", "trading-days.ts"]) {
       const source = sources.find(([f]) => rel(f) === name)?.[1] ?? "";
       expect(source.length, name).toBeGreaterThan(0);
       expect(source, name).not.toMatch(/@\/lib\/supabase|new Date\(\)|Date\.now|Math\.random|\bfetch\(/);

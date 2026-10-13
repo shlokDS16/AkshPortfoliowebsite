@@ -7,6 +7,8 @@ import { describeQueue, describeStale, evaluateHealth, evaluatePublicHealth, get
 const NOW = new Date("2026-10-04T12:00:00Z");
 const PUMP = "heartbeat:pump";
 const DAILY = "heartbeat:daily";
+const PRICES = "ledger:prices";
+const ANCHOR = "ledger:anchor";
 const secondsAgo = (s: number, ok = true): LatestRun => ({ ranAt: new Date(NOW.getTime() - s * 1000).toISOString(), ok });
 const minutesAgo = (m: number, ok = true) => secondsAgo(m * 60, ok);
 
@@ -23,7 +25,7 @@ describe("evaluateHealth (desk strip)", () => {
   it("is ok when the pump is under 2 h and the daily job under 36 h old", () => {
     const report = evaluateHealth({ [PUMP]: minutesAgo(20), [DAILY]: minutesAgo(30 * 60) }, NOW, null);
     expect(report.ok).toBe(true);
-    expect(report.checks.map((c) => c.ageSeconds)).toEqual([1200, 108_000]);
+    expect(report.checks.map((c) => c.ageSeconds)).toEqual([1200, 108_000, null, null]);
     expect(report.queue).toEqual({ ageSeconds: null, ok: true });
   });
 
@@ -53,7 +55,7 @@ describe("one rule behind the strip and the monitor", () => {
     const { strip, monitor } = bothVerdicts(pump, daily);
     expect(strip.ok).toBe(healthy);
     expect(monitor.ok).toBe(healthy);
-    expect(strip.checks.map((c) => [c.job, c.ok, c.ageSeconds])).toEqual(monitor.checks.slice(0, 2).map((c) => [c.job, c.ok, c.ageSeconds]));
+    expect(strip.checks.map((c) => [c.job, c.ok, c.ageSeconds])).toEqual(monitor.checks.slice(0, 4).map((c) => [c.job, c.ok, c.ageSeconds]));
   });
 });
 
@@ -66,6 +68,8 @@ describe("evaluatePublicHealth (rows from public.heartbeat_ages())", () => {
       checks: [
         { job: PUMP, ageSeconds: 1200, ok: true },
         { job: DAILY, ageSeconds: 108_000, ok: true },
+        { job: PRICES, ageSeconds: null, ok: true },
+        { job: ANCHOR, ageSeconds: null, ok: true },
         { job: "queue", ageSeconds: 90, ok: true },
       ],
     });
@@ -77,20 +81,19 @@ describe("evaluatePublicHealth (rows from public.heartbeat_ages())", () => {
       checks: [
         { job: PUMP, ageSeconds: 300, ok: true },
         { job: DAILY, ageSeconds: null, ok: false },
+        { job: PRICES, ageSeconds: null, ok: true },
+        { job: ANCHOR, ageSeconds: null, ok: true },
         { job: "queue", ageSeconds: null, ok: true },
       ],
     });
   });
 
-  it("exposes only the two clocks and the queue, and only job, ageSeconds and ok (no detail, no other jobs)", () => {
+  it("exposes only the clocks and the queue, and only job, ageSeconds and ok (no detail, no other jobs)", () => {
     const withDetail = { ...row(PUMP, 5), detail: "secret failure text" };
-    const report = evaluatePublicHealth([withDetail, row(DAILY, 5), row("heartbeat:prices", 5)], 10);
-    expect(report.checks.map((c) => Object.keys(c))).toEqual([
-      ["job", "ageSeconds", "ok"],
-      ["job", "ageSeconds", "ok"],
-      ["job", "ageSeconds", "ok"],
-    ]);
-    expect(JSON.stringify(report)).not.toMatch(/secret|prices|detail/);
+    const report = evaluatePublicHealth([withDetail, row(DAILY, 5), row("heartbeat:other", 5), row("ledger:score", 5)], 10);
+    expect(report.checks.map((c) => c.job)).toEqual([PUMP, DAILY, PRICES, ANCHOR, "queue"]);
+    expect(report.checks.map((c) => Object.keys(c))).toEqual(Array(5).fill(["job", "ageSeconds", "ok"]));
+    expect(JSON.stringify(report)).not.toMatch(/secret|other|score|detail/);
   });
 
   it("clamps clock skew to zero and tolerates a numeric string from Postgres", () => {
@@ -101,7 +104,7 @@ describe("evaluatePublicHealth (rows from public.heartbeat_ages())", () => {
       ],
       -2,
     );
-    expect(report.checks.map((c) => c.ageSeconds)).toEqual([0, 90, 0]);
+    expect(report.checks.map((c) => c.ageSeconds)).toEqual([0, 90, null, null, 0]);
   });
 });
 
@@ -115,7 +118,7 @@ describe("the queue check (plan E7, ruling R11)", () => {
     expect(strip.queue.ok).toBe(healthy);
     expect(strip.ok).toBe(healthy);
     expect(monitor.ok).toBe(healthy);
-    expect(monitor.checks[2]).toEqual({ job: "queue", ageSeconds: age, ok: healthy });
+    expect(monitor.checks[4]).toEqual({ job: "queue", ageSeconds: age, ok: healthy });
     expect(strip.queue).toEqual({ ageSeconds: age, ok: healthy });
   });
 
@@ -145,7 +148,7 @@ describe("getPublicHealth", () => {
     const report = await getPublicHealth(db);
     expect(calls.sort()).toEqual(["heartbeat_ages", "queue_age"]);
     expect(report.checks[0]).toEqual({ job: PUMP, ageSeconds: 60, ok: true });
-    expect(report.checks[2]).toEqual({ job: "queue", ageSeconds: 30, ok: true });
+    expect(report.checks[4]).toEqual({ job: "queue", ageSeconds: 30, ok: true });
   });
 
   it("throws when the database call fails", async () => {
@@ -158,5 +161,55 @@ describe("getPublicHealth", () => {
   it("readQueueAge reads null as an empty queue", async () => {
     expect(await readQueueAge(dbWith({ queue_age: QUEUE_EMPTY }).db)).toBeNull();
     expect(await readQueueAge(dbWith({ queue_age: { data: "42", error: null } }).db)).toBe(42);
+  });
+});
+
+describe("the ledger's two optional clocks (Plan 3a Task 7)", () => {
+  const row = (job: string, seconds: number, ok = true) => ({ job, age_seconds: seconds, ok });
+  const base = [row(PUMP, 60), row(DAILY, 60)];
+  const HOURS = 3600;
+
+  it("a job that has never run is healthy, on the strip and on the monitor", () => {
+    const strip = evaluateHealth({ [PUMP]: minutesAgo(5), [DAILY]: minutesAgo(60) }, NOW, null);
+    expect(strip.ok).toBe(true);
+    expect(strip.checks.map((c) => [c.job, c.ok, c.ageSeconds])).toEqual([
+      [PUMP, true, 300],
+      [DAILY, true, 3600],
+      [PRICES, true, null],
+      [ANCHOR, true, null],
+    ]);
+    expect(describeStale(strip)).toEqual([]);
+    expect(evaluatePublicHealth(base, null).ok).toBe(true);
+  });
+
+  it("a failed latest run is unhealthy, even though it is fresh, on both paths", () => {
+    const strip = evaluateHealth({ [PUMP]: minutesAgo(5), [DAILY]: minutesAgo(60), [PRICES]: minutesAgo(10, false) }, NOW, null);
+    expect(strip.ok).toBe(false);
+    expect(describeStale(strip)).toEqual(["the closing prices' last run failed 10 min ago"]);
+    const monitor = evaluatePublicHealth([...base, row(PRICES, 600, false)], null);
+    expect(monitor.ok).toBe(false);
+    expect(monitor.checks.find((c) => c.job === PRICES)).toEqual({ job: PRICES, ageSeconds: 600, ok: false });
+  });
+
+  it.each([
+    ["exactly 36 h", 36 * HOURS, true],
+    ["36 h + 1 s", 36 * HOURS + 1, false],
+  ])("a run %s old is %s on both paths", (_label, seconds, healthy) => {
+    const strip = evaluateHealth({ [PUMP]: minutesAgo(5), [DAILY]: minutesAgo(60), [ANCHOR]: secondsAgo(seconds) }, NOW, null);
+    expect(strip.ok).toBe(healthy);
+    expect(evaluatePublicHealth([...base, row(ANCHOR, seconds)], null).ok).toBe(healthy);
+  });
+
+  it("a healthy run in the window is ok and reports only its age", () => {
+    const monitor = evaluatePublicHealth([...base, row(PRICES, 5 * HOURS), row(ANCHOR, 5 * HOURS)], null);
+    expect(monitor.checks.slice(2, 4)).toEqual([
+      { job: PRICES, ageSeconds: 18_000, ok: true },
+      { job: ANCHOR, ageSeconds: 18_000, ok: true },
+    ]);
+    expect(monitor.ok).toBe(true);
+  });
+
+  it("the two clocks and a missing core clock still make the report red", () => {
+    expect(evaluatePublicHealth([row(PUMP, 60), row(PRICES, 60), row(ANCHOR, 60)], null).ok).toBe(false);
   });
 });

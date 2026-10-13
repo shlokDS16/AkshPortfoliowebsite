@@ -76,6 +76,8 @@ describe("GET /api/cron/daily", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(fake.beats).toEqual([
       { job: "heartbeat:daily", ok: true, detail: "alive" },
+      { job: "ledger:prices", ok: true, detail: "nothing to fetch" },
+      { job: "ledger:score", ok: true, detail: "scored 0 ideas" },
       { job: "ingestion:sweep", ok: true, detail: "nothing to run" },
     ]);
     expect(fake.claims).toBe(1);
@@ -118,9 +120,20 @@ describe("GET /api/health", () => {
       checks: [
         { job: "heartbeat:pump", ageSeconds: 600, ok: true },
         { job: "heartbeat:daily", ageSeconds: 36_000, ok: true },
+        { job: "ledger:prices", ageSeconds: null, ok: true },
+        { job: "ledger:anchor", ageSeconds: null, ok: true },
         { job: "queue", ageSeconds: null, ok: true },
       ],
     });
+  });
+
+  it("is 500 when the closing-price job's latest run failed, and still returns only a job, an age and a boolean", async () => {
+    fake.ages = [fresh("heartbeat:pump", 10), fresh("heartbeat:daily", 600), { ...fresh("ledger:prices", 30, false), detail: "NSE refused; closes to 2026-10-09" } as never];
+    const response = await health();
+    expect(response.status).toBe(500);
+    const text = JSON.stringify(await response.json());
+    expect(text).toContain('{"job":"ledger:prices","ageSeconds":1800,"ok":false}');
+    expect(text).not.toMatch(/NSE|closes to|2026/);
   });
 
   it("is 500 when the pump is stale", async () => {

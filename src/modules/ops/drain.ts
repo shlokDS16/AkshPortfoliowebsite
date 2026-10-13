@@ -5,6 +5,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { createDigestsRepo, createProposalsRepo, createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, OCR_MAX_BYTES, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
 import { latestFileForCompany } from "@/modules/research";
+import { LEDGER_DAILY_STEPS } from "./ledger-steps";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
 import type { Step } from "./steps";
 
@@ -89,7 +90,9 @@ export const SERVER_PUMP_STEPS: readonly Step[] = [
   ...PUMP_STEPS,
   { job: "ingestion:drain", run: async () => summaryText(await drainFor(DRAIN_MS.pump)) },
 ];
+/** The heartbeat, then the ledger (closes, scores; about 45 s at most), then the ingestion sweep (200 s). A step that fails does not stop the next. */
 export const SERVER_DAILY_STEPS: readonly Step[] = [
   ...DAILY_STEPS,
+  ...LEDGER_DAILY_STEPS,
   { job: "ingestion:sweep", run: sweep },
 ];
