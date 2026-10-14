@@ -1,5 +1,6 @@
 // Client-safe: zod and types only, so a desk screen can import the decision shape.
 import { z } from "zod";
+import { gateReasonText } from "@/lib/messages";
 import type { Json } from "@/lib/supabase/database.types";
 import { LINT_FIELDS, type LintAllowed } from "./rules";
 
@@ -19,6 +20,8 @@ export type GateFailure = {
   sentence: string | null;
   match: string | null;
   sentenceHash: string | null;
+  /** A stable reason code the database records for the ledger half of the gate (migration 0014); absent on older failures. */
+  code?: string | null;
 };
 export type GateDecision = {
   decisionId: string;
@@ -46,7 +49,7 @@ const allowedSchema = z.object({
   match: z.string(),
 });
 const reasonsSchema = z.object({
-  failures: z.array(z.object({ rule: z.string(), message: z.string() })).default([]),
+  failures: z.array(z.object({ rule: z.string(), message: z.string(), code: z.string().optional(), clear_from: z.string().optional() })).default([]),
   lint: z
     .object({ findings: z.array(findingSchema).default([]), allowedBy: z.array(allowedSchema).default([]) })
     .default({ findings: [], allowedBy: [] }),
@@ -58,7 +61,9 @@ const reasonsSchema = z.object({
 // needs an older data_as_of") is shown as well, so one explanation never hides another.
 const SQL_RULE_FIELD: Record<string, string | null> = { "3": null, "5": null, "6": "learningObjective" };
 
-function explainedByLint(failure: { rule: string }, findings: readonly GateFailure[]): boolean {
+function explainedByLint(failure: { rule: string; code?: string }, findings: readonly GateFailure[]): boolean {
+  // A ledger reason (it carries a code) is never the lint's: the lint cannot see the ledger.
+  if (failure.code) return false;
   if (!Object.hasOwn(SQL_RULE_FIELD, failure.rule)) return false;
   return findings.some((l) => l.rule === failure.rule && l.sentence === null && l.field === SQL_RULE_FIELD[failure.rule]);
 }
@@ -76,7 +81,16 @@ export function decisionFromRow(row: DecisionRow): GateDecision {
   const sqlFailures: GateFailure[] = reasons.failures
     .filter((f) => !(f.rule === "lint" && f.message === LINT_NOT_PASSED && lintFailures.length > 0))
     .filter((f) => !explainedByLint(f, lintFailures))
-    .map((f) => ({ ...f, field: null, sentence: null, match: null, sentenceHash: null }));
+    .map((f) => ({
+      rule: f.rule,
+      // A known reason code is shown in the desk's own plain words; the sentence the database stored is the fallback.
+      message: gateReasonText(f.code, f.clear_from) ?? f.message,
+      field: null,
+      sentence: null,
+      match: null,
+      sentenceHash: null,
+      ...(f.code ? { code: f.code } : {}),
+    }));
   const failures = [...lintFailures, ...sqlFailures];
   return {
     decisionId: row.id,

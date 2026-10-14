@@ -191,6 +191,61 @@ export type Database = {
           },
         ]
       }
+      corporate_actions: {
+        Row: {
+          company_id: string
+          created_at: string
+          ex_date: string
+          factor: number
+          id: string
+          kind: string
+          note: string | null
+          supersedes: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          ex_date: string
+          factor: number
+          id?: string
+          kind: string
+          note?: string | null
+          supersedes?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          ex_date?: string
+          factor?: number
+          id?: string
+          kind?: string
+          note?: string | null
+          supersedes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_actions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corporate_actions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corporate_actions_supersedes_fkey"
+            columns: ["supersedes"]
+            isOneToOne: false
+            referencedRelation: "corporate_actions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_digests: {
         Row: {
           claim: string
@@ -581,6 +636,239 @@ export type Database = {
         }
         Relationships: []
       }
+      idea_events: {
+        Row: {
+          body_md: string
+          canonical: string
+          hash: string
+          id: string
+          idea_id: string
+          kind: string
+          nonce: string
+          prev_hash: string
+          recorded_at: string
+          seq: number
+          stance: NonNullable<Json>
+        }
+        Insert: {
+          body_md: string
+          canonical: string
+          hash: string
+          id?: string
+          idea_id: string
+          kind: string
+          nonce: string
+          prev_hash: string
+          recorded_at: string
+          seq: number
+          stance?: NonNullable<Json>
+        }
+        Update: {
+          body_md?: string
+          canonical?: string
+          hash?: string
+          id?: string
+          idea_id?: string
+          kind?: string
+          nonce?: string
+          prev_hash?: string
+          recorded_at?: string
+          seq?: number
+          stance?: NonNullable<Json>
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_events_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      idea_score_changes: {
+        Row: {
+          became: NonNullable<Json>
+          changed: string[]
+          changed_at: string
+          id: number
+          idea_id: string
+          was: NonNullable<Json>
+        }
+        Insert: {
+          became: NonNullable<Json>
+          changed: string[]
+          changed_at?: string
+          id?: never
+          idea_id: string
+          was: NonNullable<Json>
+        }
+        Update: {
+          became?: NonNullable<Json>
+          changed?: string[]
+          changed_at?: string
+          id?: never
+          idea_id?: string
+          was?: NonNullable<Json>
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_score_changes_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: false
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      idea_scores: {
+        Row: {
+          computed_at: string
+          entry_close: number | null
+          entry_date: string | null
+          entry_index: number | null
+          entry_skipped_days: number | null
+          entry_source: string | null
+          excess: number | null
+          exit_skipped_days: number | null
+          factor: number | null
+          flags: string[]
+          holding_days: number | null
+          idea_id: string
+          idea_return: number | null
+          index_return: number | null
+          is_final: boolean
+          mark_close: number | null
+          mark_date: string | null
+          mark_index: number | null
+          mark_source: string | null
+        }
+        Insert: {
+          computed_at?: string
+          entry_close?: number | null
+          entry_date?: string | null
+          entry_index?: number | null
+          entry_skipped_days?: number | null
+          entry_source?: string | null
+          excess?: number | null
+          exit_skipped_days?: number | null
+          factor?: number | null
+          flags?: string[]
+          holding_days?: number | null
+          idea_id: string
+          idea_return?: number | null
+          index_return?: number | null
+          is_final?: boolean
+          mark_close?: number | null
+          mark_date?: string | null
+          mark_index?: number | null
+          mark_source?: string | null
+        }
+        Update: {
+          computed_at?: string
+          entry_close?: number | null
+          entry_date?: string | null
+          entry_index?: number | null
+          entry_skipped_days?: number | null
+          entry_source?: string | null
+          excess?: number | null
+          exit_skipped_days?: number | null
+          factor?: number | null
+          flags?: string[]
+          holding_days?: number | null
+          idea_id?: string
+          idea_return?: number | null
+          index_return?: number | null
+          is_final?: boolean
+          mark_close?: number | null
+          mark_date?: string | null
+          mark_index?: number | null
+          mark_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_scores_idea_id_fkey"
+            columns: ["idea_id"]
+            isOneToOne: true
+            referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ideas: {
+        Row: {
+          close_reason: string | null
+          closed_at: string | null
+          company_id: string
+          created_at: string
+          expects: string
+          held: boolean
+          horizon_days: number
+          id: string
+          item_id: string | null
+          opened_at: string
+          process_call: string | null
+          status: string
+        }
+        Insert: {
+          close_reason?: string | null
+          closed_at?: string | null
+          company_id: string
+          created_at?: string
+          expects: string
+          held: boolean
+          horizon_days: number
+          id?: string
+          item_id?: string | null
+          opened_at?: string
+          process_call?: string | null
+          status?: string
+        }
+        Update: {
+          close_reason?: string | null
+          closed_at?: string | null
+          company_id?: string
+          created_at?: string
+          expects?: string
+          held?: boolean
+          horizon_days?: number
+          id?: string
+          item_id?: string | null
+          opened_at?: string
+          process_call?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ideas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ideas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ideas_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ideas_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ignored_tokens: {
         Row: {
           created_at: string
@@ -866,6 +1154,84 @@ export type Database = {
           },
         ]
       }
+      ledger_anchors: {
+        Row: {
+          anchor_date: string
+          anchor_version: string | null
+          created_at: string
+          event_count: number
+          first_seq: number | null
+          head_hash: string
+          last_seq: number | null
+          line: string
+          published_at: string | null
+        }
+        Insert: {
+          anchor_date: string
+          anchor_version?: string | null
+          created_at?: string
+          event_count: number
+          first_seq?: number | null
+          head_hash: string
+          last_seq?: number | null
+          line: string
+          published_at?: string | null
+        }
+        Update: {
+          anchor_date?: string
+          anchor_version?: string | null
+          created_at?: string
+          event_count?: number
+          first_seq?: number | null
+          head_hash?: string
+          last_seq?: number | null
+          line?: string
+          published_at?: string | null
+        }
+        Relationships: []
+      }
+      ledger_uploads: {
+        Row: {
+          admin_id: string
+          id: number
+          index_bytes: number | null
+          index_given: boolean
+          index_sha256: string | null
+          kept: number
+          stored: number
+          trade_date: string
+          uploaded_at: string
+          zip_bytes: number
+          zip_sha256: string
+        }
+        Insert: {
+          admin_id: string
+          id?: never
+          index_bytes?: number | null
+          index_given: boolean
+          index_sha256?: string | null
+          kept: number
+          stored: number
+          trade_date: string
+          uploaded_at?: string
+          zip_bytes: number
+          zip_sha256: string
+        }
+        Update: {
+          admin_id?: string
+          id?: never
+          index_bytes?: number | null
+          index_given?: boolean
+          index_sha256?: string | null
+          kept?: number
+          stored?: number
+          trade_date?: string
+          uploaded_at?: string
+          zip_bytes?: number
+          zip_sha256?: string
+        }
+        Relationships: []
+      }
       lint_allowances: {
         Row: {
           created_at: string
@@ -901,6 +1267,81 @@ export type Database = {
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_days: {
+        Row: {
+          decided_at: string
+          source: string
+          status: string
+          trade_date: string
+        }
+        Insert: {
+          decided_at?: string
+          source: string
+          status: string
+          trade_date: string
+        }
+        Update: {
+          decided_at?: string
+          source?: string
+          status?: string
+          trade_date?: string
+        }
+        Relationships: []
+      }
+      prices_daily: {
+        Row: {
+          benchmark: string | null
+          close: number
+          company_id: string | null
+          created_at: string
+          id: number
+          isin: string | null
+          series: string | null
+          source: string
+          symbol: string | null
+          trade_date: string
+        }
+        Insert: {
+          benchmark?: string | null
+          close: number
+          company_id?: string | null
+          created_at?: string
+          id?: never
+          isin?: string | null
+          series?: string | null
+          source: string
+          symbol?: string | null
+          trade_date: string
+        }
+        Update: {
+          benchmark?: string | null
+          close?: number
+          company_id?: string | null
+          created_at?: string
+          id?: never
+          isin?: string | null
+          series?: string | null
+          source?: string
+          symbol?: string | null
+          trade_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prices_daily_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prices_daily_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1359,6 +1800,15 @@ export type Database = {
       }
     }
     Functions: {
+      add_idea_event: {
+        Args: {
+          p_body_md: string
+          p_idea_id: string
+          p_kind: string
+          p_stance?: Json
+        }
+        Returns: string
+      }
       add_lint_allowance: {
         Args: {
           p_actor: string
@@ -1372,6 +1822,24 @@ export type Database = {
         Args: { p_days?: number }
         Returns: {
           day: string
+        }[]
+      }
+      check_ledger_anchors: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          days: number
+          first_bad_date: string
+          ok: boolean
+          reason: string
+        }[]
+      }
+      check_ledger_chain: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          bad_idea: string
+          events: number
+          first_bad_seq: number
+          ok: boolean
         }[]
       }
       claim_job_step: {
@@ -1403,6 +1871,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      enter_closes: {
+        Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
+        Returns: Record<string, unknown>
+      }
       heartbeat_ages: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1410,6 +1882,29 @@ export type Database = {
           job: string
           ok: boolean
         }[]
+      }
+      ledger_gate_facts: {
+        Args: { p_company_id: string }
+        Returns: {
+          clear_from: string
+          holds_position: boolean
+          ledger_ok: boolean
+        }[]
+      }
+      mark_market_day_shut: {
+        Args: { p_trade_date: string }
+        Returns: undefined
+      }
+      open_idea: {
+        Args: {
+          p_body_md: string
+          p_company_id: string
+          p_expects: string
+          p_held: boolean
+          p_horizon_days: number
+          p_item_id?: string
+        }
+        Returns: string
       }
       prune_provider_usage: {
         Args: Record<PropertyKey, never>
@@ -1453,6 +1948,7 @@ export type Database = {
         Args: { p_actor: string; p_item_id: string; p_sentence_hash: string }
         Returns: boolean
       }
+      rescore_ideas: { Args: Record<PropertyKey, never>; Returns: number }
       reserve_units: {
         Args: {
           p_bucket: string
@@ -1486,6 +1982,8 @@ export type Database = {
           reservation_id: string
         }[]
       }
+      score_ideas: { Args: Record<PropertyKey, never>; Returns: number }
+      seal_ledger_days: { Args: Record<PropertyKey, never>; Returns: number }
       storage_usage: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1493,9 +1991,45 @@ export type Database = {
           storage_bytes: number
         }[]
       }
+      store_fetched_closes: {
+        Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
+        Returns: number
+      }
+      store_uploaded_closes: {
+        Args: {
+          p_admin: string
+          p_index_bytes: number
+          p_index_close: number
+          p_index_sha256: string
+          p_rows: Json
+          p_trade_date: string
+          p_zip_bytes: number
+          p_zip_sha256: string
+        }
+        Returns: Record<string, unknown>
+      }
+      tracked_symbols: { Args: Record<PropertyKey, never>; Returns: string[] }
       unpublish_item: {
         Args: { p_actor: string; p_item_id: string }
         Returns: string
+      }
+      verify_ledger_anchors: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          days: number
+          first_bad_date: string
+          ok: boolean
+          reason: string
+        }[]
+      }
+      verify_ledger_chain: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          bad_idea: string
+          events: number
+          first_bad_seq: number
+          ok: boolean
+        }[]
       }
     }
     Enums: {

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { clearMailbox, ensureUser, latestEmailLink, mailCountFor, requireStack, tokenHashFor } from "./support/auth";
+import { clearMailbox, ensureUser, isConfirmed, latestEmailLink, mailCountFor, removeUser, requireStack, tokenHashFor } from "./support/auth";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
 
 const OUTSIDER = "outsider@desk.test";
@@ -31,6 +31,22 @@ test("magic link: the form answers alike for everyone, and only the admin gets a
   await page.goto(await latestEmailLink(stack, E2E_ADMIN_EMAIL));
   await expect(page).toHaveURL(/\/desk$/);
   await expect(page.getByRole("textbox", { name: "Capture" })).toBeVisible();
+});
+
+// Root cause of the one failure in the Task 5 full run (fix round 3): a sign-in link asked for before the account existed made GoTrue
+// sign the address up UNCONFIRMED, ensureUser then saw "already registered" and left it so, and the form's magic-link request
+// (shouldCreateUser: false) came back signup_disabled. The helpers must leave a confirmed user whichever of them runs first. (Checked
+// through the admin API, not by sending another link: the local mailer would refuse a second message so soon after the first test's.)
+test("e2e helpers: asking for a link before the account exists leaves a confirmed account (the sign-in form needs one)", async () => {
+  const stack = requireStack();
+  const probe = `helper-probe-${Date.now().toString(36)}@desk.test`;
+  try {
+    await tokenHashFor(stack, probe);
+    await ensureUser(stack, probe);
+    expect(await isConfirmed(stack, probe)).toBe(true);
+  } finally {
+    await removeUser(stack, probe);
+  }
 });
 
 test("confirm route: an admin token hash signs in, and next= cannot leave the desk", async ({ page, baseURL }) => {

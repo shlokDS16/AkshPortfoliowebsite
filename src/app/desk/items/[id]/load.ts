@@ -5,6 +5,7 @@ import { getCompanyBrief } from "@/modules/catalog";
 import { allowableHashes, annotateBody, createSupabaseComplianceRepo, getLatestDecision, previewGate } from "@/modules/compliance";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { listStagedForItem, listStagedReadingsForItem, provenanceForItem } from "@/modules/ingestion";
+import { ledgerGateFacts } from "@/modules/ledger";
 import { createSupabaseResearchRepo, getItemWithHistory } from "@/modules/research";
 
 /** Everything the editor shows, read once per request (admin session; RLS admin policies apply). */
@@ -31,12 +32,16 @@ export async function loadEditor(id: string) {
     isFile ? listStagedReadingsForItem(db, item.id) : Promise.resolve([]),
     isFile ? provenanceForItem(db, item.id) : Promise.resolve({}),
   ]);
+  // What the sealed ledger says about this company, asked of the same database function the gate uses. Advisory: if it cannot
+  // be read the checklist falls back to the hand check alone (never to "clear"), and the database gate still decides.
+  const ledger = ctx && item.companyId ? await ledgerGateFacts(db, item.companyId).catch(() => null) : null;
   const preview = ctx
     ? previewGate({
         ctx,
         today: istDate(new Date()),
         companyPublic: company ? company.visibility === "public" : null,
         structureProblems: isFile ? fileProblems(ctx.revision.bodyMd, ctx.revision.structured) : [],
+        ledger,
       })
     : null;
   return {

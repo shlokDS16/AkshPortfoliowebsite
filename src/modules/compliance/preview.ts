@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/format";
+import { GATE_LEDGER_TEXT } from "@/lib/messages";
 import { lintText } from "./lint";
 import { buildLintInput } from "./lint-input";
 import type { PublishContext } from "./repo";
@@ -12,13 +13,22 @@ export type BodyFlag = { hash: string; rule: string; match: string | null; messa
 export type BodySegment = { text: string; flag: BodyFlag | null; allowed: { hash: string; reason: string; at: string } | null };
 export type AnnotatedBody = { paragraphs: BodySegment[][]; unplaced: LintFinding[] };
 
-type PreviewInput = { ctx: PublishContext; today: string; companyPublic: boolean | null; structureProblems: string[] };
+/** What the sealed ledger says about the item's company, as the database gate will read it (ledger_gate_facts). */
+export type LedgerGateInput = { ledgerOk: boolean; stanceClearDate: string | null; holdsOpenPosition: boolean };
+type PreviewInput = {
+  ctx: PublishContext;
+  today: string;
+  companyPublic: boolean | null;
+  structureProblems: string[];
+  /** Absent when the item names no company or the ledger could not be asked; the checklist then keeps the hand check only. */
+  ledger?: LedgerGateInput | null;
+};
 
 /**
  * D17 (revised, R8): the gate's own pure lint on the saved revision, shown before a run. Advisory only: the
  * database gate still decides and records, and the run button never waits for this.
  */
-export function previewGate({ ctx, today, companyPublic, structureProblems }: PreviewInput): GatePreview {
+export function previewGate({ ctx, today, companyPublic, structureProblems, ledger = null }: PreviewInput): GatePreview {
   const { item } = ctx;
   const lint = lintText(buildLintInput(ctx, today));
   const isFile = item.kind === "thesis" || item.kind === "case_study";
@@ -46,8 +56,36 @@ export function previewGate({ ctx, today, companyPublic, structureProblems }: Pr
     items.push({ id: "company", name: "Company is public", state: companyPublic ? "pass" : "fail", detail: companyPublic ? "The company can be listed" : "Make the company public before publishing." });
   }
   const rule4Needed = item.companyId !== null;
-  items.push({ id: "rule-4", name: "No recent change of stance", state: rule4Needed ? "manual" : "pass", detail: rule4Needed ? "Tick the hand check below." : "No company named" });
+  items.push(rule4Row(rule4Needed, ledger));
+  // The disclosure against the ledger (rule 5, consistency): a "no" the sealed ledger contradicts is refused by the database.
+  if (item.companyId && ledger) {
+    const contradicted = item.holdsPosition === "no" && ledger.holdsOpenPosition;
+    items.push({
+      id: "position-ledger",
+      name: "Position matches the ledger",
+      state: ledger.ledgerOk && !contradicted ? "pass" : "fail",
+      detail: !ledger.ledgerOk
+        ? GATE_LEDGER_TEXT.ledger_check_failed()
+        : contradicted
+          ? GATE_LEDGER_TEXT.ledger_position()
+          : item.holdsPosition === "no"
+            ? "The ledger shows no open position in this company."
+            : "The disclosure does not say no, so the ledger cannot contradict it.",
+    });
+  }
   return { lint, items, failing: items.filter((i) => i.state === "fail").length, rule4Needed };
+}
+
+/**
+ * Rule 4 from the ledger. The hand check stays (the ledger may be incomplete), so a clear ledger is still "manual"; an entry
+ * from the last 30 days, or a ledger that failed its own check, is a failure the database would also record.
+ */
+function rule4Row(rule4Needed: boolean, ledger: LedgerGateInput | null): ChecklistItem {
+  const name = "No recent change of stance";
+  if (!rule4Needed) return { id: "rule-4", name, state: "pass", detail: "No company named" };
+  if (ledger && !ledger.ledgerOk) return { id: "rule-4", name, state: "fail", detail: GATE_LEDGER_TEXT.ledger_check_failed() };
+  if (ledger?.stanceClearDate) return { id: "rule-4", name, state: "fail", detail: `Rule 4: clear from ${formatDate(ledger.stanceClearDate)}` };
+  return { id: "rule-4", name, state: "manual", detail: ledger ? "Nothing in the ledger from the last 30 days. Tick the hand check below." : "Tick the hand check below." };
 }
 
 type Mark = { key: string; sentence: string; flag: BodyFlag | null; allowed: BodySegment["allowed"] };

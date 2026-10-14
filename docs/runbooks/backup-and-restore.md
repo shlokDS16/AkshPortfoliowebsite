@@ -88,3 +88,42 @@ With the local stack running (`pnpm db:start`): `bash scripts/backup/restore-dri
 - Storage buckets are not covered. None are used yet; revisit in Phase 2 when PDFs land in Storage.
 - GitHub disables scheduled workflows after 60 days without repository activity; a manual run or any commit re-enables them.
 - A backup is only as fresh as the last green run: check the Actions tab if you receive a failure email.
+
+## Restoring the ledger (events must not be re-sealed)
+
+(Rewritten in Plan 3a fix round 2, 2026-10-13: it now covers every ledger table, the sealed-day anchors, and what to do when a check stops the job.)
+
+**What the ledger is, and what can be rebuilt.** Five tables hold history that nothing can recompute, so they are restored together, from one backup, and never from different dates: `public.ideas` and `public.idea_events` (the hash chain, migration 0010), `public.ledger_anchors` (one sealed line per day, 0013), `public.corporate_actions` (Aksh's split, bonus and "no action" rows, 0011) and `public.idea_score_changes` (the restatement log, 0011). `public.idea_scores` is a recomputation: after a restore run `select public.score_ideas();` (or press Rescore) and it is rebuilt from the events, the prices and the actions. `prices_daily` and `market_days` come back with the dump; a missing day is refetched by the daily job.
+
+Each event's time, number, random nonce, sealed text and hash are set by a trigger on every INSERT. A restore that lets that trigger fire (a plain `INSERT`, or `COPY` with triggers on) does not bring the old history back: it writes a NEW, internally valid chain with today's times and new hashes, and the chain check says "ok". The published fingerprints would then disagree with the database, and the original record is gone.
+
+### The restore itself
+
+1. Restore only from a full backup, in the order of the section above: roles, schema, then `SET session_replication_role = replica` and the data. The line keeps the seal trigger and the append-only triggers switched off, so every row goes in exactly as it was. Never replay events through `open_idea()` or `add_idea_event()`.
+2. Restore into a new project, or a database whose ledger tables are empty. The load uses `COPY`/`INSERT` only. The two anchor guards (`ledger_anchors_guard`, `ledger_anchors_no_truncate`) are ALWAYS triggers: they keep firing under `replica`, and they refuse UPDATE, DELETE and TRUNCATE, so a dump that issues `TRUNCATE` or `DELETE` on `ledger_anchors` (a `--clean` restore, for instance) stops with "ledger_anchors is append-only". That is intended. Do not edit the dump by hand; restore into an empty database instead.
+3. The one exception: replacing the rows of a ledger_anchors table that already has rows (a restore over an older copy), done by the database owner on purpose. Name the triggers, replace the rows, put the guards back and check them:
+
+```sql
+alter table public.ledger_anchors disable trigger ledger_anchors_guard;
+alter table public.ledger_anchors disable trigger ledger_anchors_no_truncate;
+-- replace the rows from the backup here (delete, then insert exactly the backup's rows)
+alter table public.ledger_anchors enable always trigger ledger_anchors_guard;
+alter table public.ledger_anchors enable always trigger ledger_anchors_no_truncate;
+select tgname, tgenabled from pg_trigger
+ where tgrelid = 'public.ledger_anchors'::regclass and not tgisinternal order by tgname;
+```
+
+   Both rows must read `A` (always). Never use `alter table ... enable trigger user` or `enable trigger all` for this table, and expect `pg_restore --disable-triggers` to do the same thing: they put the guards back as `O` (origin only), which `session_replication_role = replica` switches off. After ANY restore, run the `pg_trigger` query above; if a row reads `O`, run the two `enable always` lines.
+
+### After the restore: verify, in this order, as the project owner
+
+1. `select * from public.verify_ledger_chain();` The first column (`ok`) must be `true`, `events` must equal the `public.idea_events` count in `manifest.txt`, and `first_bad_seq` and `bad_idea` must be empty. A `bad_idea` means the `ideas` table does not match its events (a mixed restore) or a void was sealed after its window.
+2. `select * from public.verify_ledger_anchors();` `ok` must be `true`, `days` must equal the `public.ledger_anchors` count in `manifest.txt`, and `first_bad_date` and `reason` must be empty. This compares every sealed day with the events as restored. It is what tells a faithful restore from a re-sealed one, or from a backup older than the last sealed day.
+3. Compare the lines of `ledger_anchors` with the public gist (once the gist is switched on). If the gist holds days the restored database lacks, the backup is older than the record: do not publish anything, do not run `seal_ledger_days()` (it would seal the missing days from whatever the events now say), and tell Shlok.
+4. Run `select public.score_ideas();`. It must complete; `select count(*) from public.idea_score_changes;` must not have grown (a faithful restore restates nothing).
+
+### When a check stops the job
+
+- **`seal_ledger_days()` raises `ledger:anchor_mismatch`** (the detail names the first date and the reason: `early_event`, `gap`, `count`, `seq`, `head`, `line`). Sealing stops for every later day until the owner acts; nothing is written. Read it with `select * from public.verify_ledger_anchors();`. The events and the sealed days disagree. Compare with the last good backup and the gist, find which side moved, and restore that side from the backup (steps 1 to 3 above). Never delete anchor rows to make the check pass: with the newest rows gone the next seal writes new ones from the events as they now stand, which blesses the change (spec s20, the known limit). Never re-seal a day that was already published. Record what happened in `docs/project-memory/timeline.md`.
+- **`seal_ledger_days()` or `score_ideas()` raises `ledger:chain_broken`** (detail: `first_bad_seq`, `bad_idea`). Run `select * from public.verify_ledger_chain();`. If the events themselves are wrong, restore from the last good backup; never edit `idea_events`. If only `bad_idea` is set, an `ideas` row disagrees with its events: read the idea's events (`select seq, kind, recorded_at, stance from public.idea_events where idea_id = '<bad_idea>' order by seq;`) and put the `ideas` row back to what they say (status, `opened_at`, `closed_at`, `close_reason`, horizon, `held`, process call; `company_id`, `expects` and `created_at` are guarded by `ideas_guard_update`, so changing them needs that one trigger disabled for the statement and enabled again). Then run `verify_ledger_chain()` again until it says `ok`.
+- **`score_ideas()` raises `ledger:projection_mismatch`** (detail: the idea). It is the same repair as a `bad_idea` above; the scores already stored stay as they were while it is unresolved.

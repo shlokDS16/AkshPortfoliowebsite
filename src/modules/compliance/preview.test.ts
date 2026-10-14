@@ -52,6 +52,50 @@ describe("previewGate (D17: the same lint, before publish; advisory)", () => {
   });
 });
 
+describe("previewGate with the ledger (rule 4 and the position check; the database gate decides)", () => {
+  const run = (over: Partial<PublishContext["item"]>, ledger: Parameters<typeof previewGate>[0]["ledger"]) =>
+    previewGate({ ctx: ctx(over, "Margins held."), today: "2026-10-06", companyPublic: true, structureProblems: [], ledger });
+  const row = (result: ReturnType<typeof previewGate>, id: string) => result.items.find((i) => i.id === id);
+
+  it("an entry from the last 30 days fails rule 4 and names the day it clears", () => {
+    const result = run({}, { ledgerOk: true, stanceClearDate: "2026-11-12", holdsOpenPosition: false });
+    expect(row(result, "rule-4")).toMatchObject({ state: "fail", detail: "Rule 4: clear from 12 Nov 2026" });
+    expect(result.failing).toBe(1);
+    expect(result.rule4Needed).toBe(true);
+  });
+
+  it("a clear ledger keeps the hand check (the ledger may be incomplete)", () => {
+    const result = run({}, { ledgerOk: true, stanceClearDate: null, holdsOpenPosition: false });
+    expect(row(result, "rule-4")?.state).toBe("manual");
+    expect(row(result, "rule-4")?.detail).toMatch(/Nothing in the ledger/);
+  });
+
+  it("a ledger that failed its own check fails both lines", () => {
+    const result = run({}, { ledgerOk: false, stanceClearDate: null, holdsOpenPosition: false });
+    expect(row(result, "rule-4")?.state).toBe("fail");
+    expect(row(result, "position-ledger")?.state).toBe("fail");
+  });
+
+  it("the position line: a 'no' against a held position fails; 'yes', 'not disclosed' and an unheld 'no' pass", () => {
+    const held = { ledgerOk: true, stanceClearDate: null, holdsOpenPosition: true };
+    expect(row(run({ holdsPosition: "no" }, held), "position-ledger")).toMatchObject({
+      state: "fail", detail: "The ledger shows a position in this company; the disclosure cannot say no.",
+    });
+    expect(row(run({ holdsPosition: "yes" }, held), "position-ledger")?.state).toBe("pass");
+    expect(row(run({ holdsPosition: "not_disclosed" }, held), "position-ledger")?.state).toBe("pass");
+    expect(row(run({ holdsPosition: "no" }, { ...held, holdsOpenPosition: false }), "position-ledger")?.state).toBe("pass");
+  });
+
+  it("without ledger facts, or for an item with no company, the checklist is exactly what it was", () => {
+    const plain = preview(ctx({}, "Margins held."));
+    expect(row(plain, "position-ledger")).toBeUndefined();
+    expect(row(plain, "rule-4")).toMatchObject({ state: "manual", detail: "Tick the hand check below." });
+    const note = run(NOTE, { ledgerOk: true, stanceClearDate: "2026-11-12", holdsOpenPosition: true });
+    expect(row(note, "position-ledger")).toBeUndefined();
+    expect(row(note, "rule-4")).toMatchObject({ state: "pass", detail: "No company named" });
+  });
+});
+
 describe("allowableHashes (an allowance may cover only a recorded rule-1 failure on the newest revision)", () => {
   const hash = "a".repeat(64);
   const decision = (revisionId: string): GateDecision => ({

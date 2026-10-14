@@ -193,6 +193,34 @@ describe("decisionFromRow", () => {
     expect(decision.failures.map((f) => f.rule)).toEqual(["1", "lint"]);
   });
 
+  it("shows a ledger reason in the desk's plain words by its code, with the date from the record; the stored sentence is the fallback", () => {
+    const decision = decisionFromRow(
+      row({
+        failures: [
+          { rule: "4", code: "ledger_recent_entry", clear_from: "2026-11-12", message: "The ledger has an entry on this company from the last 30 days. This can be published from 12 Nov 2026." },
+          { rule: "5", code: "ledger_position", message: "stored sentence" },
+          { rule: "4", code: "ledger_check_failed", message: "stored sentence" },
+          { rule: "4", code: "a_future_code", message: "The sentence the database stored." },
+        ],
+        lint: { findings: [], allowedBy: [] },
+      }),
+    );
+    expect(decision.failures.map((f) => [f.rule, f.code, f.message])).toEqual([
+      ["4", "ledger_recent_entry", "The ledger has an entry on this company from the last 30 days. This can be published from 12 Nov 2026."],
+      ["5", "ledger_position", "The ledger shows a position in this company; the disclosure cannot say no."],
+      ["4", "ledger_check_failed", "The ledger failed its own check, so nothing about this company can be published until it is looked at. Run the integrity check on the Ledger page."],
+      ["4", "a_future_code", "The sentence the database stored."],
+    ]);
+  });
+
+  it("a ledger rule 5 failure is never hidden by a lint rule 5 whole-item finding; an old rule 5 failure (no code) still is", () => {
+    const lint5 = { rule: "5", field: null, sentence: null, sentenceHash: null, match: null, message: "Set holds position." };
+    const withCode = decisionFromRow(row({ failures: [{ rule: "5", code: "ledger_position", message: "m" }], lint: { findings: [lint5], allowedBy: [] } }));
+    expect(withCode.failures.map((f) => f.code ?? "-")).toEqual(["-", "ledger_position"]);
+    const old = decisionFromRow(row({ failures: [{ rule: "5", message: "holds_position is required when a company is named." }], lint: { findings: [lint5], allowedBy: [] } }));
+    expect(old.failures).toHaveLength(1);
+  });
+
   it("carries the revision and the allowances", () => {
     const hash = "b".repeat(64);
     const decision = decisionFromRow({

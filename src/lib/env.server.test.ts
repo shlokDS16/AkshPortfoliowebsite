@@ -110,4 +110,71 @@ describe("parseServerEnv: the LLM settings (optional; unset means AI reading is 
     expect(parseServerEnv({ ...valid, VERCEL_ENV: "preview" }).VERCEL_ENV).toBe("preview");
     expect(parseServerEnv(valid).VERCEL_ENV).toBeUndefined();
   });
+  it("defaults the two NSE templates to the verified archive patterns, also when the template leaves them empty", () => {
+    const env = parseServerEnv(valid);
+    expect(env.NSE_BHAVCOPY_URL_TEMPLATE).toBe("https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_{YYYYMMDD}_F_0000.csv.zip");
+    expect(env.NSE_INDEX_URL_TEMPLATE).toBe("https://nsearchives.nseindia.com/content/indices/ind_close_all_{DDMMYYYY}.csv");
+    expect(parseServerEnv({ ...valid, NSE_BHAVCOPY_URL_TEMPLATE: "", NSE_INDEX_URL_TEMPLATE: "" }).NSE_INDEX_URL_TEMPLATE).toBe(env.NSE_INDEX_URL_TEMPLATE);
+  });
+
+  it("accepts a changed path on the NSE archive host", () => {
+    const template = "https://nsearchives.nseindia.com/content/cm/new_{YYYYMMDD}.zip";
+    expect(parseServerEnv({ ...valid, NSE_BHAVCOPY_URL_TEMPLATE: template }).NSE_BHAVCOPY_URL_TEMPLATE).toBe(template);
+  });
+
+  it("refuses, at parse time, a template for another host, http, a missing or swapped placeholder", () => {
+    for (const NSE_BHAVCOPY_URL_TEMPLATE of [
+      "https://evil.example/{YYYYMMDD}.zip",
+      "http://nsearchives.nseindia.com/{YYYYMMDD}.zip",
+      "https://nsearchives.nseindia.com@evil.example/{YYYYMMDD}.zip",
+      "https://nsearchives.nseindia.com/no-date.zip",
+      "https://nsearchives.nseindia.com/{DDMMYYYY}.zip",
+    ]) {
+      expect(() => parseServerEnv({ ...valid, NSE_BHAVCOPY_URL_TEMPLATE })).toThrow(/NSE_BHAVCOPY_URL_TEMPLATE/);
+    }
+    expect(() => parseServerEnv({ ...valid, NSE_INDEX_URL_TEMPLATE: "https://evil.example/{DDMMYYYY}.csv" })).toThrow(/NSE_INDEX_URL_TEMPLATE/);
+    expect(() => parseServerEnv({ ...valid, NSE_INDEX_URL_TEMPLATE: "https://evil.example/{DDMMYYYY}.csv" })).not.toThrow(/evil\.example/);
+  });
+
+  it("leaves the public anchor off when the token and the gist id are unset or empty", () => {
+    const env = parseServerEnv(valid);
+    expect(env.GITHUB_GIST_TOKEN).toBeUndefined();
+    expect(env.LEDGER_ANCHOR_GIST_ID).toBeUndefined();
+    const blank = parseServerEnv({ ...valid, GITHUB_GIST_TOKEN: "", LEDGER_ANCHOR_GIST_ID: "" });
+    expect(blank.GITHUB_GIST_TOKEN).toBeUndefined();
+    expect(blank.LEDGER_ANCHOR_GIST_ID).toBeUndefined();
+  });
+
+  it("accepts a gist id and a token of the right shape", () => {
+    const env = parseServerEnv({ ...valid, GITHUB_GIST_TOKEN: " github_pat_11ABCDEFG0123456789_abcdef ", LEDGER_ANCHOR_GIST_ID: " aa11bb22cc33dd44ee55ff6677889900 " });
+    expect(env.LEDGER_ANCHOR_GIST_ID).toBe("aa11bb22cc33dd44ee55ff6677889900");
+    expect(env.GITHUB_GIST_TOKEN).toBe("github_pat_11ABCDEFG0123456789_abcdef");
+  });
+
+  it("refuses at parse time a gist id that could alter the address path, naming the variable and never the value", () => {
+    for (const LEDGER_ANCHOR_GIST_ID of ["../../users/x", "aa11bb22cc33dd44ee55/../x", "aa11bb22cc33dd44ee55ff6677889900?x=1", "AA11BB22CC33DD44EE55FF6677889900", "short", "aa11bb22cc33dd44ee55ff6677889900aa11bb22cc33", "%2e%2e%2f%2e%2e%2fusers%2fxxxx", "aa11bb22cc33dd44ee55 ff66778899"]) {
+      let message = "";
+      try {
+        parseServerEnv({ ...valid, LEDGER_ANCHOR_GIST_ID });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message, LEDGER_ANCHOR_GIST_ID).toMatch(/LEDGER_ANCHOR_GIST_ID/);
+      expect(message).not.toContain(LEDGER_ANCHOR_GIST_ID);
+    }
+  });
+
+  it("refuses a token with a space or a line break, and never echoes it", () => {
+    for (const GITHUB_GIST_TOKEN of ["short", "github_pat_11ABCDEFG0123456789 abc", "github_pat_11ABCDEFG0123456789\r\nX-Evil: 1"]) {
+      let message = "";
+      try {
+        parseServerEnv({ ...valid, GITHUB_GIST_TOKEN });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toMatch(/GITHUB_GIST_TOKEN/);
+      expect(message).not.toContain("Evil");
+      expect(message).not.toContain("github_pat_");
+    }
+  });
 });

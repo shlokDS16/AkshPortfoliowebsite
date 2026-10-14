@@ -27,10 +27,17 @@ const SEGMENT = { pass: "bg-ink", fail: "bg-bad", manual: "hatch bg-warn-wash" }
 
 /** C's checklist as the summary of B's notes. The only publish path is the database gate; no override exists. */
 export function PublishChecklist({ items, rule4Needed, companyName, companyAction, publishAction, publishLabel, live, figureReminder = true }: Props) {
-  const [rule4, setRule4] = useState(false);
-  const passed = items.filter((i) => i.state === "pass" || (i.id === "rule-4" && rule4)).length;
+  const [ticked, setTicked] = useState(false);
+  // The hand tick counts, and shows as passed, ONLY while the rule 4 row is waiting for it (manual). When the ledger refuses
+  // (a recent entry, or a failed ledger check) the row stays a failure whatever the box says, and the box is not offered: the
+  // sentence beside it would be false. The server applies the same rule (publishCheckedAction).
+  const rule4Row = items.find((i) => i.id === "rule-4");
+  const tickable = rule4Needed && (rule4Row === undefined || rule4Row.state === "manual");
+  const rule4 = tickable && ticked;
+  const honoured = (i: ChecklistItem) => i.id === "rule-4" && i.state === "manual" && rule4;
+  const passed = items.filter((i) => i.state === "pass" || honoured(i)).length;
   const failing = items.filter((i) => i.state === "fail").length;
-  const reason = [failing ? `${formatCount(failing, "rule")} ${failing === 1 ? "fails" : "fail"}` : null, rule4Needed && !rule4 ? "rule 4 unchecked" : null]
+  const reason = [failing ? `${formatCount(failing, "rule")} ${failing === 1 ? "fails" : "fail"}` : null, tickable && !rule4 ? "rule 4 unchecked" : null]
     .filter(Boolean)
     .join(" · ");
   const summary = reason
@@ -45,14 +52,14 @@ export function PublishChecklist({ items, rule4Needed, companyName, companyActio
           </h2>
           <div aria-hidden className="flex h-1.5 gap-0.5">
             {items.map((i) => (
-              <span key={i.id} className={cn("flex-1 transition-colors duration-(--motion-fast)", i.id === "rule-4" && rule4 ? SEGMENT.pass : SEGMENT[i.state])} />
+              <span key={i.id} className={cn("flex-1 transition-colors duration-(--motion-fast)", honoured(i) ? SEGMENT.pass : SEGMENT[i.state])} />
             ))}
           </div>
         </>
       ) : null}
       <ul className="divide-y divide-rule">
         {items.map((i) => {
-          const done = i.id === "rule-4" && rule4;
+          const done = honoured(i);
           const Glyph = GLYPH[done ? "pass" : i.state];
           return (
             <li key={i.id} className={cn("flex gap-2 py-2", i.state === "fail" && "bg-bad-wash px-2")}>
@@ -82,7 +89,7 @@ export function PublishChecklist({ items, rule4Needed, companyName, companyActio
           action={publishAction}
           label={publishLabel}
           summary={summary}
-          rule4={rule4Needed ? { company: companyName ?? "this company", checked: rule4, onChange: setRule4 } : null}
+          rule4={tickable ? { company: companyName ?? "this company", checked: rule4, onChange: setTicked } : null}
         />
       ) : !live ? (
         <p className="text-small text-ink-muted">Save a revision to publish it.</p>

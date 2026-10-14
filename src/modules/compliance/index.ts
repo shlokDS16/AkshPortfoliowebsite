@@ -9,5 +9,5 @@ export { normaliseSentence, splitSentences } from "./sentences";
 export { allowableHashes, decisionFromRow, type DecisionRow, type GateDecision, type GateFailure } from "./decision";
 export { createSupabaseComplianceRepo, type ComplianceRepo, type GateRpc, type PublishContext } from "./repo";
 export { allowFlaggedSentence, getLatestDecision, PublishContextNotFoundError, runPublishGate, type GateDeps, type PublishDeps, type PublishOptions } from "./publish";
-export { annotateBody, previewGate, type AllowanceRecord, type AnnotatedBody, type BodyFlag, type BodySegment, type ChecklistItem, type ChecklistState, type GatePreview } from "./preview";
+export { annotateBody, previewGate, type AllowanceRecord, type AnnotatedBody, type BodyFlag, type BodySegment, type ChecklistItem, type ChecklistState, type GatePreview, type LedgerGateInput } from "./preview";
 export { latestFailures, listBlockedItems, type BlockedItem } from "./blocked";

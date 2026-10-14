@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("DeskShell", () => {
-  it("marks the surface private, shows Capture · Inbox · Items · Names with the inbox and names counts, and the current tab", () => {
+  it("marks the surface private, shows Capture · Inbox · Items · Ledger · Names with the inbox and names counts, and the current tab", () => {
     renderWithMotion(
       <DeskShell names={3} inbox={2} liveness={{ status: "ok" }} signOut={async () => {}}>
         <p>body</p>
@@ -25,7 +25,7 @@ describe("DeskShell", () => {
     );
     expect(screen.getByText("private")).toHaveClass("font-mono");
     const tabs = screen.getAllByRole("navigation", { name: "Desk sections" })[0];
-    expect(within(tabs).getAllByRole("link").map((l) => l.textContent)).toEqual(["Capture", "Inbox 2", "Items", "Names 3"]);
+    expect(within(tabs).getAllByRole("link").map((l) => l.textContent)).toEqual(["Capture", "Inbox 2", "Items", "Ledger", "Names 3"]);
     expect(within(tabs).getByRole("link", { name: /Names/ })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("main")).toHaveTextContent("body");
     expectTokenOnly(document.body);
@@ -85,6 +85,21 @@ describe("LivenessStrip", () => {
       "Background jobs are late: the 15-minute pump last ran 5 h ago. Documents have not moved for 7 h; your uploads are safe. The uptime monitor has emailed Shlok and Aksh.",
     );
     expect(alert.textContent?.match(/safe/g)).toHaveLength(1);
+  });
+
+  it("shows a note about a good run quietly: not an alert, nothing about the monitor", () => {
+    render(<LivenessStrip state={{ status: "ok", notes: ["The latest closing-prices run found no row for 1 of 3 companies in NSE's file."] }} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    const note = screen.getByTestId("health-note");
+    expect(note).toHaveAttribute("role", "status");
+    expect(note).toHaveTextContent("The latest closing-prices run found no row for 1 of 3 companies in NSE's file.");
+    expect(note.textContent).not.toMatch(/monitor/);
+  });
+
+  it("puts the note after the red sentence when a clock is late", () => {
+    render(<LivenessStrip state={{ status: "late", problems: ["the scores' last run failed 5 min ago: scoring did not finish within its time limit"], notes: ["A note."] }} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Background jobs are late: the scores' last run failed 5 min ago: scoring did not finish within its time limit.");
+    expect(screen.getByTestId("health-note")).toHaveTextContent("A note.");
   });
 
   it("says plainly when the database cannot be reached, with a fixed text", () => {

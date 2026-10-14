@@ -7,11 +7,12 @@ import { CountFlow } from "@/components/ui/count-flow";
 import { EASE_SNAP, MOTION } from "@/components/ui/motion-tokens";
 import { cn } from "@/lib/utils";
 
-// D18: Capture, Inbox, Items, Names (design-dna 8.4). Inbox and Names carry a count while something waits on Aksh.
+// D18: Capture, Inbox, Items, Names (design-dna 8.4); Ledger joins between Items and Names (Plan 3a Task 10, spec s10). Inbox and Names carry a count while something waits on Aksh.
 const TABS = [
   { href: "/desk", label: "Capture", match: (p: string) => p === "/desk" },
   { href: "/desk/inbox", label: "Inbox", match: (p: string) => p.startsWith("/desk/inbox") },
   { href: "/desk/items", label: "Items", match: (p: string) => p.startsWith("/desk/items") },
+  { href: "/desk/ledger", label: "Ledger", match: (p: string) => p.startsWith("/desk/ledger") },
   { href: "/desk/names", label: "Names", match: (p: string) => p.startsWith("/desk/names") },
 ] as const;
 
@@ -37,7 +38,8 @@ export function DeskTabs({ names, inbox, variant }: { names: number; inbox: numb
                 href={tab.href}
                 aria-current={on ? "page" : undefined}
                 className={cn(
-                  "flex h-full items-center justify-center gap-1 px-3 text-small no-underline",
+                  "flex h-full items-center justify-center gap-1 text-small no-underline",
+                  bottom ? "px-1" : "px-3",
                   on ? "font-semibold text-ink" : "text-ink-muted",
                 )}
               >

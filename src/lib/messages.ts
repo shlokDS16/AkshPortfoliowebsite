@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 import { DeskError } from "./errors";
+import { formatDate } from "./format";
 
 /**
  * Failures reach a desk screen as a fixed code in the redirect URL (`?error=title-required`), never as free
@@ -70,6 +71,33 @@ const ERRORS = {
   "nothing-to-file": "Tick at least one figure to file.",
   "company-locked": "Some of this document's figures are already in its company's file, so the company cannot be changed.",
   "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
+  // Ledger (= LEDGER_ERROR_TEXT in modules/ledger/errors.ts; a test keeps them equal). Pending Shlok's approval, spec s19.
+  "ledger-no-symbol": "This company has no NSE symbol yet. Add it under Names first.",
+  "ledger-company-not-ready": "This company is still waiting for review, or has been merged into another. Settle it under Names, then record the idea on the company it became.",
+  "ledger-not-open": "This idea is not open, so that entry cannot be added.",
+  "ledger-not-closed": "This idea is still open. Close it before writing what you learned.",
+  "ledger-void-too-late": "This idea can no longer be withdrawn, because its entry price is about to be fixed. Close it instead.",
+  "ledger-words-required": "Write your own words first. An entry cannot be empty.",
+  "ledger-body-too-long": "That is over 10,000 characters. Shorten it.",
+  "ledger-bad-horizon": "Choose a horizon from 30 days to 10 years.",
+  "ledger-bad-input": "Check this idea's fields and try again.",
+  "ledger-is-void": "This idea was withdrawn, so nothing more can be added to it.",
+  "ledger-opposite-open": "An open idea on this company expects the opposite. Close or withdraw it first.",
+  "ledger-not-found": "This idea or company could not be found.",
+  "ledger-integrity": "The ledger failed its own check. Nothing was saved. Run the integrity check on the Ledger page.",
+  "ledger-bad-close": "Type the close as a plain number such as 1234.50 (up to four decimals, no commas).",
+  "ledger-bad-date": "Choose a real date that is not in the future.",
+  "ledger-close-too-early": "The market has not closed yet for that date (15:30 India). A close can be typed after it.",
+  "ledger-close-weekend": "NSE has no session on a Saturday or Sunday, so a close cannot be typed for it.",
+  "ledger-close-not-stored": "That close was not stored: only a company that has an idea on file (not a withdrawn one) takes a close.",
+  "ledger-close-kept-official": "That day already has a close for this company from NSE's fetched file or from a file you uploaded, so the typed close was not stored and the earlier close stands.",
+  "ledger-close-too-old": "That date is more than 400 days back. A close can be typed or dropped for a day in the last 400 days.",
+  "ledger-bad-factor": "The factor must be a number from 0.001 to 1000, and not 1 for a split, bonus or other action. For 'No action needed' leave it at 1.",
+  "ledger-action-duplicate": "That action is already entered. To change it, choose 'Correct this entry' on the earlier one.",
+  "ledger-note-too-long": "That note is over 500 characters. Shorten it.",
+  "ledger-fetch-busy": "A fetch is already running. Wait for it to finish, then reload this page.",
+  "ledger-item-other-company": "That file is about a different company. Open the idea from the company's own file, or without a link to a file.",
+  "ledger-day-shut": "NSE had no trading on that date, so a closing price cannot be typed for it. If NSE did trade that day, upload NSE's official file for it instead.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -130,6 +158,33 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "nothing-to-file": "nothing-to-file",
   "document-closed": "document-closed",
   "company-locked": "company-locked",
+  // LedgerError likewise.
+  "ledger-no-symbol": "ledger-no-symbol",
+  "ledger-company-not-ready": "ledger-company-not-ready",
+  "ledger-not-open": "ledger-not-open",
+  "ledger-not-closed": "ledger-not-closed",
+  "ledger-void-too-late": "ledger-void-too-late",
+  "ledger-words-required": "ledger-words-required",
+  "ledger-body-too-long": "ledger-body-too-long",
+  "ledger-bad-horizon": "ledger-bad-horizon",
+  "ledger-bad-input": "ledger-bad-input",
+  "ledger-is-void": "ledger-is-void",
+  "ledger-opposite-open": "ledger-opposite-open",
+  "ledger-not-found": "ledger-not-found",
+  "ledger-integrity": "ledger-integrity",
+  "ledger-day-shut": "ledger-day-shut",
+  "ledger-bad-close": "ledger-bad-close",
+  "ledger-bad-date": "ledger-bad-date",
+  "ledger-close-too-early": "ledger-close-too-early",
+  "ledger-close-weekend": "ledger-close-weekend",
+  "ledger-close-not-stored": "ledger-close-not-stored",
+  "ledger-close-kept-official": "ledger-close-kept-official",
+  "ledger-close-too-old": "ledger-close-too-old",
+  "ledger-bad-factor": "ledger-bad-factor",
+  "ledger-action-duplicate": "ledger-action-duplicate",
+  "ledger-note-too-long": "ledger-note-too-long",
+  "ledger-fetch-busy": "ledger-fetch-busy",
+  "ledger-item-other-company": "ledger-item-other-company",
 };
 
 /**
@@ -171,6 +226,12 @@ const NOTICES = {
   "figures-to-set": "Figures to updated to the latest figure date. Run the publishing gate again.",
   refiled: "Filed.",
   "name-saved": "Saved. The name is screened.",
+  // Ledger (Plan 3a Task 10, spec s28). Pending Shlok's approval.
+  "idea-recorded": "Idea recorded and sealed.",
+  "entry-added": "Entry added and sealed.",
+  // Closes page and corporate actions (Plan 3a Task 11, spec s31). Pending Shlok's approval.
+  "close-entered": "Close stored as typed. It is marked on every score that uses it.",
+  "action-added": "Action entered. It is marked on every score whose period it falls in.",
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-saved-readings-missing":
@@ -211,3 +272,24 @@ export const OCR_SERVICE_REFUSED =
  */
 export const pagesNotSortedText = (pages: number): string =>
   `${pages === 1 ? "1 page" : `${pages} pages`} could not be sorted by the desk. You can choose the pages to read yourself.`;
+
+/**
+ * The ledger half of the publish gate (migration 0014): the plain words for each reason code publish_revision() records
+ * with a refusal. The database stores the same sentences as its fallback; these are what a screen shows, so the wording can
+ * change without a migration. `clearFrom` is the ISO day a refusal under rule 4 lifts. Pending Shlok's approval (spec s22).
+ */
+export const GATE_LEDGER_TEXT = {
+  ledger_recent_entry: (clearFrom: string | null): string | null =>
+    clearFrom
+      ? `The ledger has an entry on this company from the last 30 days. This can be published from ${formatDate(clearFrom)}.`
+      : null,
+  ledger_position: (): string => "The ledger shows a position in this company; the disclosure cannot say no.",
+  ledger_check_failed: (): string =>
+    "The ledger failed its own check, so nothing about this company can be published until it is looked at. Run the integrity check on the Ledger page.",
+} as const;
+
+/** The screen text for a recorded gate reason code, or null for a code this build does not know (the stored sentence is then shown). */
+export function gateReasonText(code: string | null | undefined, clearFrom: string | null | undefined): string | null {
+  if (!code || !Object.hasOwn(GATE_LEDGER_TEXT, code)) return null;
+  return GATE_LEDGER_TEXT[code as keyof typeof GATE_LEDGER_TEXT](clearFrom ?? null);
+}
