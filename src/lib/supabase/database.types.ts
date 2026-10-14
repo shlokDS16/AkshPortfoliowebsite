@@ -1818,6 +1818,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      alert_sent: { Args: { p_id: number; p_kind: string }; Returns: undefined }
+      alert_step: {
+        Args: { p_red: string[] }
+        Returns: {
+          incident_id: number
+          keys: string[]
+          kind: string
+          opened_at: string
+        }[]
+      }
       capture_days: {
         Args: { p_days?: number }
         Returns: {

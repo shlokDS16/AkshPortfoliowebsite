@@ -700,6 +700,10 @@ The daily cron runs independent steps, each writing its own heartbeat row: `hear
 
 The three ledger checks are "never run is healthy", so a fresh deploy does not turn red before the first daily run. The desk's red strip uses the same rules and adds the failed run's own reason for the ledger steps.
 
+### Turning on the alert email
+
+The desk can email you once when something stops working, and once when it is fixed. It is off until you switch it on: on Vercel, Production, set `RESEND_API_KEY` (a key from resend.com/api-keys) and `ALERT_EMAIL` (the address that should get the emails; a comma-separated list also works), then redeploy. Until a domain is verified at Resend, `ALERT_EMAIL` must be your own Resend account address, because Resend delivers its test sender `onboarding@resend.dev` to that address only. Aksh is not emailed until a domain is verified (open question Q36). The step is called `alerts:email` and runs last in the 15-minute pump and in the daily job, so each clock also notices when the other has gone quiet. It writes a line in the heartbeat log each time: `no incident`, `opened incident 3, emailed`, `incident 3 still open`, `closed incident 3, emailed`, `email off: ...`, or the reason a send failed (a failed send is tried again on the next run). It is not one of the health checks, so a broken mailer shows only in that log. One incident gets one "needs a look" email and, after everything has been healthy for 30 minutes, one "all clear" email.
+
 ### The nightly backup and restore
 
 The runbook is `docs/runbooks/backup-and-restore.md`. It covers: what runs, what to do when the nightly run fails, where the artifacts are (Actions, then "backup", then a run, then Artifacts), how to run one by hand, how to open one, how to restore into a new project, and a section called "Restoring the ledger (events must not be re-sealed)". That section matters: never replay ledger events through the app's functions. Restore with the dump in the order the runbook gives, then run `public.verify_ledger_chain()` and `public.verify_ledger_anchors()` and compare the counts with the manifest. Uploaded PDFs live in Supabase Storage and are NOT in the backup. The passphrase is in your password manager; without it the backups cannot be opened. Run a backup by hand before any risky change.
@@ -734,7 +738,8 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 | `LLM_ADAPTER` | Local testing only (`fixture`). Never set it on Vercel. It is refused there. |
 | `NSE_BHAVCOPY_URL_TEMPLATE`, `NSE_INDEX_URL_TEMPLATE` | Optional. Change only the path of NSE's files; the host is fixed in code. Leave empty. Do not set on Vercel. |
 | `GITHUB_GIST_TOKEN`, `LEDGER_ANCHOR_GIST_ID` | Switch the public copy of the ledger's fingerprints on. Left unset on purpose. |
-| `GOOGLE_VISION_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_AUDIENCE_ID`, `YOUTUBE_API_KEY` | In the template for later phases. Not used by this version. |
+| `RESEND_API_KEY`, `ALERT_EMAIL`, `RESEND_FROM` | Switch the alert email on (see "Turning on the alert email"). Left unset, nothing is sent. `RESEND_FROM` is optional. |
+| `GOOGLE_VISION_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_AUDIENCE_ID`, `YOUTUBE_API_KEY` | In the template for later phases. Not used by this version. |
 
 ### The first live day: two things to check
 

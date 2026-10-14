@@ -6,12 +6,19 @@ const env = vi.hoisted(() => ({ value: {} as Record<string, string | undefined> 
 vi.mock("@/lib/env.server", () => ({ serverEnv: () => env.value }));
 
 describe("the server step lists (extend Phase 1, do not replace it)", () => {
-  it("keeps each clock's heartbeat first and adds one ingestion step", () => {
-    expect(SERVER_PUMP_STEPS.map((s) => s.job)).toEqual([...PUMP_STEPS.map((s) => s.job), "ingestion:drain"]);
+  it("keeps each clock's heartbeat first, adds one ingestion step, and ends with the alert email", () => {
+    expect(SERVER_PUMP_STEPS.map((s) => s.job)).toEqual([...PUMP_STEPS.map((s) => s.job), "ingestion:drain", "alerts:email"]);
   });
 
   it("runs the ledger steps after the daily heartbeat and BEFORE the ingestion sweep (Hobby: one cron, 45 s then 200 s)", () => {
-    expect(SERVER_DAILY_STEPS.map((s) => s.job)).toEqual([...DAILY_STEPS.map((s) => s.job), "ledger:prices", "ledger:score", "ledger:anchor", "ingestion:sweep"]);
+    expect(SERVER_DAILY_STEPS.map((s) => s.job)).toEqual([...DAILY_STEPS.map((s) => s.job), "ledger:prices", "ledger:score", "ledger:anchor", "ingestion:sweep", "alerts:email"]);
+  });
+});
+
+describe("alerts:email is the LAST step of both server clocks (so the heartbeats before it are written, and each clock alerts on the other's silence)", () => {
+  it.each([["pump", SERVER_PUMP_STEPS], ["daily", SERVER_DAILY_STEPS]] as const)("the %s clock", (_name, steps) => {
+    expect(steps.at(-1)?.job).toBe("alerts:email");
+    expect(steps.filter((s) => s.job === "alerts:email")).toHaveLength(1);
   });
 });
 

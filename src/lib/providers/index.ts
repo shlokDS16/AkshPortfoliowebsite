@@ -1,4 +1,5 @@
 import "server-only";
+import type { AlertMailer } from "./alert-mailer";
 import { type AnchorPort, createOffAnchor } from "./anchor";
 import { createFixtureAnchor, fixtureAnchorDirectory } from "./fixture-anchor";
 import { createFixtureLlm } from "./fixture-llm";
@@ -13,9 +14,11 @@ import type { MarketDataPort } from "./market-data";
 import { createNseMarketData } from "./nse-bhavcopy";
 import { DEFAULT_NSE_BHAVCOPY_TEMPLATE, DEFAULT_NSE_INDEX_TEMPLATE } from "./nse-template";
 import type { OcrPort } from "./ocr";
+import { createResendMailer, DEFAULT_ALERT_FROM } from "./resend-mailer";
 import { createOcrSpace } from "./ocrspace";
 import type { TranscriberPort } from "./transcriber";
 
+export type { AlertMailer, AlertMessage, AlertSend } from "./alert-mailer";
 export type { AnchorMiss, AnchorPort, AnchorRead, AnchorReadAll, AnchorWrite } from "./anchor";
 export type { LlmPort, LlmRequest, LlmResult, LlmUsage, RateHeaders } from "./llm";
 export type { Close, EquityDay, IndexDay, MarketDataPort, Miss } from "./market-data";
@@ -149,3 +152,18 @@ export function createAnchorPort(env: AnchorEnv): AnchorPort {
   if (!env.GITHUB_GIST_TOKEN || !env.LEDGER_ANCHOR_GIST_ID) return createOffAnchor();
   return createGithubGistAnchor({ token: env.GITHUB_GIST_TOKEN, gistId: env.LEDGER_ANCHOR_GIST_ID });
 }
+
+/** The slice of the server env that picks the alert mailer (passed in; this file never reads process.env). */
+export type AlertMailerEnv = { RESEND_API_KEY?: string; RESEND_FROM?: string; ALERT_EMAIL?: readonly string[] };
+
+/**
+ * Null while alert email is off: it needs RESEND_API_KEY and at least one ALERT_EMAIL address (ADMIN_EMAIL is not a fallback:
+ * before a domain is verified Resend refuses every address but the account owner's own, so a guessed recipient would only fail).
+ * A value of the wrong shape throws here, naming the setting and never the value; the alert step runs this inside itself, so
+ * that becomes its own failed heartbeat and the steps before it are untouched.
+ */
+export function createAlertMailer(env: AlertMailerEnv): AlertMailer | null {
+  if (!env.RESEND_API_KEY || !env.ALERT_EMAIL?.length) return null;
+  return createResendMailer({ apiKey: env.RESEND_API_KEY, from: env.RESEND_FROM ?? DEFAULT_ALERT_FROM, to: env.ALERT_EMAIL });
+}
+

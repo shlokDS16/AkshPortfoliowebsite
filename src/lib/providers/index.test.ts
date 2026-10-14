@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createFixtureLlm } from "./fixture-llm";
-import { createAnchorPort, createLlmPort, createMarketDataPort, createOcrPort } from "./index";
+import { createAlertMailer, createAnchorPort, createLlmPort, createMarketDataPort, createOcrPort } from "./index";
 import type { LlmRequest } from "./llm";
 
 const KEY = `gsk_${"k".repeat(40)}`;
@@ -219,3 +219,25 @@ describe("createAnchorPort (off unless the owner set both variables; the fixture
     expect(createAnchorPort({ LLM_ADAPTER: "groq", NEXT_PUBLIC_SUPABASE_URL: LOCAL }).name).toBe("off");
   });
 });
+
+describe("createAlertMailer (off unless the key and at least one address are set)", () => {
+  const RESEND = "re_abcdEFGH_1234567890secretsecret";
+
+  it("is null when either is missing", () => {
+    expect(createAlertMailer({})).toBeNull();
+    expect(createAlertMailer({ RESEND_API_KEY: RESEND })).toBeNull();
+    expect(createAlertMailer({ RESEND_API_KEY: RESEND, ALERT_EMAIL: [] })).toBeNull();
+    expect(createAlertMailer({ ALERT_EMAIL: ["a@example.com"] })).toBeNull();
+  });
+
+  it("is the Resend adapter when both are set, with or without a sender", () => {
+    expect(createAlertMailer({ RESEND_API_KEY: RESEND, ALERT_EMAIL: ["a@example.com"] })?.name).toBe("resend");
+    expect(createAlertMailer({ RESEND_API_KEY: RESEND, ALERT_EMAIL: ["a@example.com"], RESEND_FROM: "desk@example.com" })?.name).toBe("resend");
+  });
+
+  it("throws, naming the setting, for a value of the wrong shape (the step turns that into its own failed heartbeat)", () => {
+    expect(() => createAlertMailer({ RESEND_API_KEY: "nope", ALERT_EMAIL: ["a@example.com"] })).toThrow(/RESEND_API_KEY/);
+    expect(() => createAlertMailer({ RESEND_API_KEY: RESEND, ALERT_EMAIL: ["nope"] })).toThrow(/ALERT_EMAIL/);
+  });
+});
+

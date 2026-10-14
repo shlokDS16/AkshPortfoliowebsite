@@ -79,7 +79,7 @@ describe("GET /api/cron/daily", () => {
     expect(response.status).toBe(401);
   });
 
-  it("writes the daily heartbeat, then sweeps the job queue under its own heartbeat", async () => {
+  it("writes the daily heartbeat, then sweeps the job queue under its own heartbeat, and ends with the alert step (off here)", async () => {
     const response = await daily(new NextRequest("http://x/api/cron/daily", { headers: authed }));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -89,6 +89,7 @@ describe("GET /api/cron/daily", () => {
       { job: "ledger:score", ok: true, detail: "scored 0 ideas" },
       { job: "ledger:anchor", ok: true, detail: "sealed 0 days; the public copy is off, 0 days waiting" },
       { job: "ingestion:sweep", ok: true, detail: "nothing to run" },
+      { job: "alerts:email", ok: true, detail: "email off: RESEND_API_KEY or ALERT_EMAIL is not set" },
     ]);
     expect(fake.claims).toBe(1);
   });
@@ -111,10 +112,11 @@ describe("POST /api/jobs/run", () => {
       results: [
         { job: "heartbeat:pump", ok: true },
         { job: "ingestion:drain", ok: true },
+        { job: "alerts:email", ok: true },
       ],
     });
     await call();
-    expect(fake.beats.map((b) => b.job)).toEqual(["heartbeat:pump", "ingestion:drain", "heartbeat:pump", "ingestion:drain"]);
+    expect(fake.beats.map((b) => b.job)).toEqual(["heartbeat:pump", "ingestion:drain", "alerts:email", "heartbeat:pump", "ingestion:drain", "alerts:email"]);
   });
 });
 

@@ -5,6 +5,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { createDigestsRepo, createProposalsRepo, createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, OCR_MAX_BYTES, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
 import { latestFileForCompany } from "@/modules/research";
+import { ALERT_STEP } from "./alert-steps";
 import { LEDGER_DAILY_STEPS } from "./ledger-steps";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
 import type { Step } from "./steps";
@@ -85,14 +86,16 @@ async function sweep(): Promise<string> {
   return sweepText(summary, await pruneUsage(createSupabaseServiceClient()));
 }
 
-/** Phase 1's clocks first (each its own heartbeat), then the ingestion drain. */
+/** Phase 1's clocks first (each its own heartbeat), then the ingestion drain, then the alert email (about 15 s at most). */
 export const SERVER_PUMP_STEPS: readonly Step[] = [
   ...PUMP_STEPS,
   { job: "ingestion:drain", run: async () => summaryText(await drainFor(DRAIN_MS.pump)) },
+  ALERT_STEP,
 ];
-/** The heartbeat, then the ledger (closes, scores; about 45 s at most), then the ingestion sweep (200 s). A step that fails does not stop the next. */
+/** The heartbeat, then the ledger (closes, scores; about 45 s at most), then the ingestion sweep (200 s), then the alert email (about 15 s). A step that fails does not stop the next. */
 export const SERVER_DAILY_STEPS: readonly Step[] = [
   ...DAILY_STEPS,
   ...LEDGER_DAILY_STEPS,
   { job: "ingestion:sweep", run: sweep },
+  ALERT_STEP,
 ];

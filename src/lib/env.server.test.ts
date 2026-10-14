@@ -178,3 +178,31 @@ describe("parseServerEnv: the LLM settings (optional; unset means AI reading is 
     }
   });
 });
+
+describe("parseServerEnv: the alert email settings (2.9; all optional, off unless RESEND_API_KEY and ALERT_EMAIL are set)", () => {
+  it("leaves them unset, blank included", () => {
+    const env = parseServerEnv({ ...valid, RESEND_API_KEY: "", ALERT_EMAIL: "", RESEND_FROM: "" });
+    expect(env.RESEND_API_KEY).toBeUndefined();
+    expect(env.ALERT_EMAIL).toBeUndefined();
+    expect(parseServerEnv(valid).RESEND_API_KEY).toBeUndefined();
+    expect(parseServerEnv(valid).ALERT_EMAIL).toBeUndefined();
+  });
+
+  it("defaults RESEND_FROM to the Resend test sender, also when the template leaves it empty", () => {
+    expect(parseServerEnv(valid).RESEND_FROM).toBe("Aksh Research Desk <onboarding@resend.dev>");
+    expect(parseServerEnv({ ...valid, RESEND_FROM: "" }).RESEND_FROM).toBe("Aksh Research Desk <onboarding@resend.dev>");
+    expect(parseServerEnv({ ...valid, RESEND_FROM: " Aksh <desk@akshagrawal.in> " }).RESEND_FROM).toBe("Aksh <desk@akshagrawal.in>");
+  });
+
+  it("reads ALERT_EMAIL as one address or a comma-separated list, trimmed, lower-cased, without empty entries or repeats", () => {
+    expect(parseServerEnv({ ...valid, ALERT_EMAIL: " Shlok@Example.com " }).ALERT_EMAIL).toEqual(["shlok@example.com"]);
+    expect(parseServerEnv({ ...valid, ALERT_EMAIL: "a@example.com, B@example.org,,a@example.com ," }).ALERT_EMAIL).toEqual(["a@example.com", "b@example.org"]);
+    expect(parseServerEnv({ ...valid, ALERT_EMAIL: " , " }).ALERT_EMAIL).toBeUndefined();
+  });
+
+  it("does not stop the whole app for a mistyped alert setting: the shape is checked where the mail is built (so it fails only that step)", () => {
+    const env = parseServerEnv({ ...valid, RESEND_API_KEY: "not a key", ALERT_EMAIL: "not-an-address" });
+    expect(env.RESEND_API_KEY).toBe("not a key");
+    expect(env.ALERT_EMAIL).toEqual(["not-an-address"]);
+  });
+});
