@@ -9,6 +9,10 @@
 -- idea_scores or idea_score_changes. The source of a price is never a caller's word: the admin's browser session can only
 -- write 'manual'; 'nse_fetch' and 'nse_upload' come from two service_role doors. Corporate actions are append-only: a
 -- correction is a new row that supersedes the old one.
+--
+-- Final fix wave (2026-10-14), still local so amended in place: the hand doors report what they WROTE and what they LEFT as it
+-- was (a close that already had an equal or higher source), never "matched" as "stored" (upload review I-1); every upload
+-- leaves one append-only row in ledger_uploads, written only inside store_uploaded_closes (upload review I-2).
 -- =============================================================================
 
 -- 1. Tables.
@@ -85,6 +89,25 @@ create table public.idea_score_changes (
 );
 create index idea_score_changes_idea_idx on public.idea_score_changes (idea_id, id);
 
+-- Upload review I-2: one row for every official-file upload, kept for good. The hashes are computed on the server from the bytes
+-- it received (NSE's real file for a day has one hash, so anyone holding the real file can check a drop). Written only inside
+-- store_uploaded_closes (service_role); no API role can update, delete or truncate it.
+create table public.ledger_uploads (
+  id           bigint generated always as identity primary key,
+  uploaded_at  timestamptz not null default clock_timestamp(),
+  admin_id     uuid not null,     -- the admin the route checked; no foreign key, so the record outlives the account
+  trade_date   date not null,
+  zip_sha256   text not null check (zip_sha256 ~ '^[0-9a-f]{64}$'),
+  zip_bytes    integer not null check (zip_bytes > 0),
+  index_sha256 text check (index_sha256 ~ '^[0-9a-f]{64}$'),
+  index_bytes  integer check (index_bytes > 0),
+  stored       integer not null check (stored >= 0),
+  kept         integer not null check (kept >= 0),
+  index_given  boolean not null,  -- a Nifty 50 close came with the file
+  constraint ledger_uploads_index_pair check ((index_sha256 is null) = (index_bytes is null))
+);
+create index ledger_uploads_day_idx on public.ledger_uploads (trade_date, id);
+
 create trigger corporate_actions_append_only before update or delete on public.corporate_actions
   for each row execute function private.reject_mutation();
 create trigger corporate_actions_no_truncate before truncate on public.corporate_actions
@@ -93,6 +116,13 @@ create trigger idea_score_changes_append_only before update or delete on public.
   for each row execute function private.reject_mutation();
 create trigger idea_score_changes_no_truncate before truncate on public.idea_score_changes
   for each statement execute function private.reject_mutation();
+
+create trigger ledger_uploads_append_only before update or delete on public.ledger_uploads
+  for each row execute function private.reject_mutation();
+create trigger ledger_uploads_no_truncate before truncate on public.ledger_uploads
+  for each statement execute function private.reject_mutation();
+alter table public.ledger_uploads enable always trigger ledger_uploads_append_only;
+alter table public.ledger_uploads enable always trigger ledger_uploads_no_truncate;
 
 -- A correction supersedes an action of the same company; an action that is still live cannot be entered twice. The check
 -- and the insert are one step under a per-company lock, so a double submit cannot create two live actions (round 2, N-9).
@@ -128,6 +158,7 @@ $$;
 
 -- 2. The source ladder, and the only code that writes prices_daily. nse_fetch 3 > nse_upload 2 > manual 1.
 -- A higher source replaces a lower one; an equal one replaces only when it is a typed (manual) correction.
+-- put_close says whether it wrote.
 create function private.close_rank(p_source text)
 returns integer language sql immutable set search_path = ''
 as $$
@@ -144,9 +175,11 @@ $$;
 create function private.put_close(
   p_company_id uuid, p_benchmark text, p_trade_date date, p_close numeric,
   p_source text, p_symbol text, p_series text, p_isin text
-) returns void
+) returns boolean
 language plpgsql security definer set search_path = ''
 as $$
+declare
+  v_rows integer;
 begin
   if p_company_id is not null then
     insert into public.prices_daily as p (company_id, trade_date, close, source, symbol, series, isin)
@@ -156,6 +189,7 @@ begin
                   series = excluded.series, isin = excluded.isin
       where private.close_rank(excluded.source) > private.close_rank(p.source)
          or (excluded.source = 'manual' and p.source = 'manual');
+    get diagnostics v_rows = row_count;
   else
     insert into public.prices_daily as p (benchmark, trade_date, close, source, symbol, series, isin)
     values (p_benchmark, p_trade_date, p_close, p_source, p_symbol, p_series, p_isin)
@@ -164,7 +198,9 @@ begin
                   series = excluded.series, isin = excluded.isin
       where private.close_rank(excluded.source) > private.close_rank(p.source)
          or (excluded.source = 'manual' and p.source = 'manual');
+    get diagnostics v_rows = row_count;
   end if;
+  return v_rows > 0;   -- false: a close of an equal or higher source was already there and was left as it was
 end;
 $$;
 
@@ -203,15 +239,17 @@ $$;
 -- A row is {symbol, series, isin, close}. A row with no usable close is dropped (a missing price is never a wrong one),
 -- and so is a series that is not an equity series, and an ISIN that is not twelve capital letters or digits (stored as
 -- none). EQ is preferred; a tie is broken by the lower close so the same
--- input always stores the same row. Returns the number of companies matched.
-create function private.put_company_rows(p_trade_date date, p_rows jsonb, p_source text, p_scope text)
-returns integer
+-- input always stores the same row. Returns how many closes it WROTE (stored) and how many companies it matched but left as
+-- they were because a close of an equal or higher source already stood (kept).
+create function private.put_company_rows(p_trade_date date, p_rows jsonb, p_source text, p_scope text,
+                                         out stored integer, out kept integer)
 language plpgsql security definer set search_path = ''
 as $$
 declare
-  r   record;
-  v_n integer := 0;
+  r record;
 begin
+  stored := 0;
+  kept := 0;
   if p_rows is null or jsonb_typeof(p_rows) <> 'array' then
     perform private.ledger_fail('bad_rows');
   end if;
@@ -227,10 +265,12 @@ begin
          or (p_scope = 'ideas' and exists (select 1 from public.ideas i where i.company_id = c.id and i.status <> 'void')))
      order by c.id, (x.series = 'EQ') desc nulls last, x.series, x.close::numeric
   loop
-    perform private.put_close(r.company_id, null, p_trade_date, r.close, p_source, r.symbol, r.series, r.isin);
-    v_n := v_n + 1;
+    if private.put_close(r.company_id, null, p_trade_date, r.close, p_source, r.symbol, r.series, r.isin) then
+      stored := stored + 1;
+    else
+      kept := kept + 1;
+    end if;
   end loop;
-  return v_n;
 end;
 $$;
 
@@ -254,12 +294,9 @@ $$;
 -- with the Nifty 50 close that reopens it: either refusal is ledger:day_shut, so nothing appears to succeed. p_now is a
 -- clock argument for the tests only: private functions are executable by no API role, and both public callers leave it out.
 create function private.put_hand_closes(p_trade_date date, p_rows jsonb, p_index_close numeric, p_source text,
-                                        p_now timestamptz default clock_timestamp())
-returns integer
+                                        p_now timestamptz default clock_timestamp(), out stored integer, out kept integer)
 language plpgsql security definer set search_path = ''
 as $$
-declare
-  v_n integer;
 begin
   if p_trade_date is null or not private.market_closed(p_trade_date, p_now) then
     perform private.ledger_fail('future_date');
@@ -271,9 +308,8 @@ begin
      and exists (select 1 from public.market_days d where d.trade_date = p_trade_date and d.status = 'shut') then
     perform private.ledger_fail('day_shut');
   end if;
-  v_n := private.put_company_rows(p_trade_date, p_rows, p_source, 'ideas');
+  select r.stored, r.kept into stored, kept from private.put_company_rows(p_trade_date, p_rows, p_source, 'ideas') r;
   perform private.put_index_close(p_trade_date, p_index_close, p_source);
-  return v_n;
 end;
 $$;
 
@@ -288,19 +324,28 @@ begin
   if p_trade_date is null or p_trade_date > (now() at time zone 'Asia/Kolkata')::date then
     perform private.ledger_fail('future_date');
   end if;
-  v_n := private.put_company_rows(p_trade_date, p_rows, 'nse_fetch', 'tracked');
+  -- The fetch reports the companies it matched (a repeat of the same file matches the same ones and writes none again).
+  select r.stored + r.kept into v_n from private.put_company_rows(p_trade_date, p_rows, 'nse_fetch', 'tracked') r;
   perform private.put_index_close(p_trade_date, p_index_close, 'nse_fetch');
   return v_n;
 end;
 $$;
 
 -- The official file Aksh dropped by hand, parsed by a trusted server component and stored through the service role:
--- the only way a row carries the source nse_upload. (The browser session cannot name a source.)
-create function public.store_uploaded_closes(p_trade_date date, p_rows jsonb, p_index_close numeric)
-returns integer
-language sql security definer set search_path = ''
+-- the only way a row carries the source nse_upload. (The browser session cannot name a source.) It also writes the upload's own
+-- record (ledger_uploads) in the same transaction: who (the route passes the checked admin), which day, the SHA-256 and size of
+-- the bytes the server received, what was stored and what was kept. A refused upload raises before this, so it leaves no record.
+create function public.store_uploaded_closes(
+  p_trade_date date, p_rows jsonb, p_index_close numeric,
+  p_admin uuid, p_zip_sha256 text, p_zip_bytes integer, p_index_sha256 text, p_index_bytes integer,
+  out stored integer, out kept integer
+) language plpgsql security definer set search_path = ''
 as $$
-  select private.put_hand_closes(p_trade_date, p_rows, p_index_close, 'nse_upload');
+begin
+  select h.stored, h.kept into stored, kept from private.put_hand_closes(p_trade_date, p_rows, p_index_close, 'nse_upload') h;
+  insert into public.ledger_uploads (admin_id, trade_date, zip_sha256, zip_bytes, index_sha256, index_bytes, stored, kept, index_given)
+  values (p_admin, p_trade_date, p_zip_sha256, p_zip_bytes, p_index_sha256, p_index_bytes, stored, kept, p_index_close is not null);
+end;
 $$;
 
 -- A missing file is a shut day, but only when a later fetched date is open (so an NSE outage is not a holiday), only
@@ -334,15 +379,14 @@ as $$
 $$;
 
 -- 5. The admin's hand path: a number he typed. The source is always 'manual'; it is not a parameter.
-create function public.enter_closes(p_trade_date date, p_rows jsonb, p_index_close numeric)
-returns integer
+create function public.enter_closes(p_trade_date date, p_rows jsonb, p_index_close numeric, out stored integer, out kept integer)
 language plpgsql security definer set search_path = ''
 as $$
 begin
   if not private.is_admin() then
     raise exception 'ledger: not allowed' using errcode = '42501';
   end if;
-  return private.put_hand_closes(p_trade_date, p_rows, p_index_close, 'manual');
+  select h.stored, h.kept into stored, kept from private.put_hand_closes(p_trade_date, p_rows, p_index_close, 'manual') h;
 end;
 $$;
 
@@ -352,20 +396,22 @@ alter table public.prices_daily        enable row level security;
 alter table public.corporate_actions   enable row level security;
 alter table public.idea_scores         enable row level security;
 alter table public.idea_score_changes  enable row level security;
+alter table public.ledger_uploads      enable row level security;
 
 create policy market_days_admin_read         on public.market_days         for select to authenticated using ((select private.is_admin()));
 create policy prices_daily_admin_read        on public.prices_daily        for select to authenticated using ((select private.is_admin()));
 create policy corporate_actions_admin_read   on public.corporate_actions   for select to authenticated using ((select private.is_admin()));
 create policy idea_scores_admin_read         on public.idea_scores         for select to authenticated using ((select private.is_admin()));
 create policy idea_score_changes_admin_read  on public.idea_score_changes  for select to authenticated using ((select private.is_admin()));
+create policy ledger_uploads_admin_read       on public.ledger_uploads      for select to authenticated using ((select private.is_admin()));
 create policy corporate_actions_admin_insert on public.corporate_actions   for insert to authenticated
   with check ((select private.is_admin()));
 
 -- 7. Grants. Start from nothing, then grant by name.
-revoke all on public.market_days, public.prices_daily, public.corporate_actions, public.idea_scores, public.idea_score_changes
-  from public, anon, authenticated, service_role;
+revoke all on public.market_days, public.prices_daily, public.corporate_actions, public.idea_scores, public.idea_score_changes,
+  public.ledger_uploads from public, anon, authenticated, service_role;
 grant select on public.market_days, public.prices_daily, public.corporate_actions, public.idea_scores,
-  public.idea_score_changes to authenticated;
+  public.idea_score_changes, public.ledger_uploads to authenticated;
 grant insert (company_id, ex_date, factor, kind, note, supersedes) on public.corporate_actions to authenticated;
 grant select on public.market_days to service_role;
 
@@ -380,12 +426,12 @@ revoke execute on function private.put_company_rows(date, jsonb, text, text)    
 revoke execute on function private.put_index_close(date, numeric, text)                               from public, anon, authenticated, service_role;
 revoke execute on function private.put_hand_closes(date, jsonb, numeric, text, timestamptz)           from public, anon, authenticated, service_role;
 revoke execute on function public.store_fetched_closes(date, jsonb, numeric)                           from public, anon, authenticated, service_role;
-revoke execute on function public.store_uploaded_closes(date, jsonb, numeric)                          from public, anon, authenticated, service_role;
+revoke execute on function public.store_uploaded_closes(date, jsonb, numeric, uuid, text, integer, text, integer) from public, anon, authenticated, service_role;
 revoke execute on function public.mark_market_day_shut(date)                                           from public, anon, authenticated, service_role;
 revoke execute on function public.tracked_symbols()                                                    from public, anon, authenticated, service_role;
 revoke execute on function public.enter_closes(date, jsonb, numeric)                                   from public, anon, authenticated, service_role;
 grant execute on function public.store_fetched_closes(date, jsonb, numeric)  to service_role;
-grant execute on function public.store_uploaded_closes(date, jsonb, numeric) to service_role;
+grant execute on function public.store_uploaded_closes(date, jsonb, numeric, uuid, text, integer, text, integer) to service_role;
 grant execute on function public.mark_market_day_shut(date)                  to service_role;
 grant execute on function public.tracked_symbols()                           to service_role;
 grant execute on function public.enter_closes(date, jsonb, numeric)          to authenticated;

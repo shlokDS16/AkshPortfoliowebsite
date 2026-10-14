@@ -500,15 +500,14 @@ alter table public.idea_events enable row level security;
 
 create policy ideas_admin_read on public.ideas for select to authenticated
   using ((select private.is_admin()));
-create policy ideas_admin_link on public.ideas for update to authenticated
-  using ((select private.is_admin())) with check ((select private.is_admin()));
+-- Final review I-1: there is no update policy and no update grant on ideas for any API role. ideas.item_id is set only
+-- inside open_idea(), which checks that the file belongs to the idea's company; there is no unlink.
 create policy idea_events_admin_read on public.idea_events for select to authenticated
   using ((select private.is_admin()));
 
 -- 10. Grants. Start from nothing (the default privileges already close new objects), then grant by name.
 revoke all on public.ideas, public.idea_events from public, anon, authenticated, service_role;
 grant select on public.ideas, public.idea_events to authenticated;
-grant update (item_id) on public.ideas to authenticated;
 
 revoke execute on function private.words_ok(text)                   from public, anon, authenticated, service_role;
 revoke execute on function private.idea_void_deadline(timestamptz)  from public, anon, authenticated, service_role;

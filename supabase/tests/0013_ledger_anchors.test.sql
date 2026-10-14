@@ -7,7 +7,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(135);
+select plan(140);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -438,6 +438,14 @@ select is(pg_temp.bad(), '- - true', 'KNOWN LIMIT: and the whole comparison agre
 select pg_temp.restore();
 select is(pg_temp.bad(), '- - true', 'restored: the original rows and events are back');
 
+-- 7h2. Final review I-2: the scorer reads the same comparison. On a clean ledger it scores; over a sealed-day mismatch it
+-- refuses and leaves the stored scores exactly as they were.
+set local role service_role;
+select lives_ok($$ select public.score_ideas() $$, '7h2: a ledger that matches its sealed days scores');
+reset role;
+select cmp_ok((select count(*) from public.idea_scores), '>', 0::bigint, '7h2: and wrote score rows');
+create temp table score_snap as select count(*) as n, max(computed_at) as t from public.idea_scores;
+
 -- 7i. Sealing refuses to go on over a mismatch, and writes nothing.
 alter table public.idea_events disable trigger user;
 update public.idea_events set body_md = 'Note gamma, quietly rewritten' where seq = 3;
@@ -451,6 +459,17 @@ select throws_ok($$ select public.seal_ledger_days() $$, 'P0001', 'ledger:anchor
   '7i: the service_role door raises the same way');
 reset role;
 select is((select count(*) from public.ledger_anchors), 4::bigint, '7i: and still wrote no row');
+-- Final review I-2: the same mismatch stops the scorer (both doors) and changes no score.
+set local role service_role;
+select throws_ok($$ select public.score_ideas() $$, 'P0001', 'ledger:anchor_mismatch',
+  '7i: the scorer raises ledger:anchor_mismatch over a rewritten sealed day (job door)');
+reset role;
+set local role authenticated;
+select throws_ok($$ select public.rescore_ideas() $$, 'P0001', 'ledger:anchor_mismatch',
+  '7i: and so does the admin''s rescore');
+reset role;
+select is((select array[count(*)::text, max(computed_at)::text] from public.idea_scores),
+          (select array[n::text, t::text] from score_snap), '7i: and the stored scores are untouched');
 select pg_temp.restore();
 
 -- 7j. A broken chain (a sealed text changed without re-hashing) stops sealing too.

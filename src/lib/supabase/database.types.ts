@@ -1190,6 +1190,48 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_uploads: {
+        Row: {
+          admin_id: string
+          id: number
+          index_bytes: number | null
+          index_given: boolean
+          index_sha256: string | null
+          kept: number
+          stored: number
+          trade_date: string
+          uploaded_at: string
+          zip_bytes: number
+          zip_sha256: string
+        }
+        Insert: {
+          admin_id: string
+          id?: never
+          index_bytes?: number | null
+          index_given: boolean
+          index_sha256?: string | null
+          kept: number
+          stored: number
+          trade_date: string
+          uploaded_at?: string
+          zip_bytes: number
+          zip_sha256: string
+        }
+        Update: {
+          admin_id?: string
+          id?: never
+          index_bytes?: number | null
+          index_given?: boolean
+          index_sha256?: string | null
+          kept?: number
+          stored?: number
+          trade_date?: string
+          uploaded_at?: string
+          zip_bytes?: number
+          zip_sha256?: string
+        }
+        Relationships: []
+      }
       lint_allowances: {
         Row: {
           created_at: string
@@ -1831,7 +1873,7 @@ export type Database = {
       }
       enter_closes: {
         Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
-        Returns: number
+        Returns: Record<string, unknown>
       }
       heartbeat_ages: {
         Args: Record<PropertyKey, never>
@@ -1954,8 +1996,17 @@ export type Database = {
         Returns: number
       }
       store_uploaded_closes: {
-        Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
-        Returns: number
+        Args: {
+          p_admin: string
+          p_index_bytes: number
+          p_index_close: number
+          p_index_sha256: string
+          p_rows: Json
+          p_trade_date: string
+          p_zip_bytes: number
+          p_zip_sha256: string
+        }
+        Returns: Record<string, unknown>
       }
       tracked_symbols: { Args: Record<PropertyKey, never>; Returns: string[] }
       unpublish_item: {

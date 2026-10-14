@@ -601,8 +601,10 @@ insert into public.companies (id, slug, name, nse_symbol, isin, visibility)
 select pg_temp.item('LI1', 'learning', null, null);
 select pg_temp.item('LI2', 'learning', pg_temp.co('LK2'), 'no');
 select pg_temp.item('LI3', 'learning', null, null);                  -- never linked
--- Task 11 step 0 (task 10 review I3): open_idea() now refuses a file of another company, so these two links are made the other way
--- (the admin's own column update of ideas.item_id, which still exists), to keep exercising the gate's reading of a wrong link.
+-- Task 11 step 0 (task 10 review I3): open_idea() refuses a file of another company. Final review I-1: no API role can update
+-- ideas.item_id any more either, so these two wrong links are made by the database owner (this script runs as the owner here:
+-- the last role reset is above). That is the only way left to build such a link, which is exactly what this section needs: the
+-- gate must still read it honestly if one ever exists (a restore, a hand edit in the SQL editor).
 insert into pg_temp.ids select 'LK_A', public.open_idea(pg_temp.co('LK'), 'outperform', 365, true, 'Linked to a learning note');
 insert into pg_temp.ids select 'LK_B', public.open_idea(pg_temp.co('LK'), 'outperform', 365, true, 'Linked to a second note');
 update public.ideas set item_id = pg_temp.co('I_LI1') where id = (select idea from pg_temp.ids where sym = 'LK_A');

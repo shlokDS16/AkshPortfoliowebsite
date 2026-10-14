@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(254);
+select plan(256);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -35,7 +35,7 @@ select ok((select bool_and(c.relrowsecurity) from pg_class c
 select is((select count(*) from public.verify_ledger_chain() where ok and events = 0 and first_bad_seq is null), 1::bigint,
   'an empty chain verifies as ok with 0 events');
 
--- 2. Privileges: anon nothing at all; service_role nothing on the tables; authenticated reads and sets item_id only.
+-- 2. Privileges: anon nothing at all; service_role nothing on the tables; authenticated reads only (final review I-1: not even item_id).
 select is_empty($$
   select c.relname from pg_class c
    where c.oid in ('public.ideas'::regclass, 'public.idea_events'::regclass)
@@ -53,13 +53,14 @@ select ok(has_table_privilege('authenticated', 'public.ideas', 'select')
       and not has_table_privilege('authenticated', 'public.ideas', 'insert,delete,truncate')
       and not has_any_column_privilege('authenticated', 'public.idea_events', 'insert,update,references')
       and not has_table_privilege('authenticated', 'public.idea_events', 'delete,truncate')
-      and has_column_privilege('authenticated', 'public.ideas', 'item_id', 'update')
+      and not has_any_column_privilege('authenticated', 'public.ideas', 'update')
+      and not has_column_privilege('authenticated', 'public.ideas', 'item_id', 'update')
       and not has_column_privilege('authenticated', 'public.ideas', 'status', 'update')
       and not has_column_privilege('authenticated', 'public.ideas', 'opened_at', 'update')
       and not has_column_privilege('authenticated', 'public.ideas', 'held', 'update')
       and not has_column_privilege('authenticated', 'public.ideas', 'horizon_days', 'update')
       and not has_column_privilege('authenticated', 'public.ideas', 'company_id', 'update'),
-  'authenticated reads both tables, writes neither, and may update ideas.item_id only');
+  'authenticated reads both tables and writes neither, not even ideas.item_id (set only inside open_idea)');
 select ok(not has_table_privilege('authenticated', 'public.ideas', 'trigger,references,truncate,delete,insert')
       and not has_table_privilege('authenticated', 'public.idea_events', 'trigger,references,truncate,delete,insert,update'),
   'authenticated holds no TRIGGER, REFERENCES, TRUNCATE, INSERT or DELETE on either table');
@@ -236,16 +237,18 @@ select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-00000000000
 select throws_ok($$ select public.add_idea_event((select v from ctx where k = 'i1'), 'note', 'x') $$,
   '42501', null, 'a non-admin cannot add an event');
 select throws_ok($$ select * from public.check_ledger_chain() $$, '42501', null, 'a non-admin cannot run the admin chain check');
-select lives_ok($$ update public.ideas set item_id = 'a1000000-0000-4000-8000-000000000001' $$,
-  'a non-admin''s item_id update is not an error, it matches no row (RLS)');
+select throws_ok($$ update public.ideas set item_id = 'a1000000-0000-4000-8000-000000000001' $$, '42501', null,
+  'a non-admin''s item_id update is refused (no update grant)');
 reset role;
 select is((select count(*) from public.ideas where item_id is not null), 0::bigint, 'a non-admin changed no idea');
 
--- 7. The admin: item_id is the one editable column; the state columns are not.
+-- 7. The admin: no column of ideas is editable, item_id included (final review I-1); the link is set only inside open_idea.
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
-select lives_ok($$ update public.ideas set item_id = 'a1000000-0000-4000-8000-000000000001' where id = (select v from ctx where k = 'i1') $$,
-  'the admin can link an idea to a company file (item_id)');
+select throws_ok($$ update public.ideas set item_id = 'a1000000-0000-4000-8000-000000000001' where id = (select v from ctx where k = 'i1') $$,
+  '42501', null, 'the admin cannot set ideas.item_id directly (final review I-1)');
+select throws_ok($$ update public.ideas set item_id = null where id = (select v from ctx where k = 'i1') $$,
+  '42501', null, 'and cannot remove a link either');
 select throws_ok($$ update public.ideas set status = 'closed' where id = (select v from ctx where k = 'i1') $$, '42501', null,
   'the admin cannot update ideas.status directly');
 select throws_ok($$ update public.ideas set opened_at = now() - interval '2 days' where id = (select v from ctx where k = 'i1') $$,
@@ -256,8 +259,12 @@ select throws_ok($$ insert into public.ideas (company_id, expects, horizon_days,
 select throws_ok($$ delete from public.ideas where id = (select v from ctx where k = 'i1') $$, '42501', null,
   'the admin cannot DELETE an idea');
 reset role;
+set local role service_role;
+select throws_ok($$ update public.ideas set item_id = 'a1000000-0000-4000-8000-000000000001' where id = (select v from ctx where k = 'i1') $$,
+  '42501', null, 'service_role cannot set ideas.item_id either');
+reset role;
 select is((select i.item_id from public.ideas i where i.id = (select v from ctx where k = 'i1')),
-  'a1000000-0000-4000-8000-000000000001'::uuid, 'item_id was set');
+  null::uuid, 'item_id was not touched');
 
 -- 8. Refusals at the door: codes and the stance shape per kind.
 set local role authenticated;

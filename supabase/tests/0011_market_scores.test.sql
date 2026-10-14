@@ -6,7 +6,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(359);
+select plan(394);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -169,7 +169,7 @@ select ok(has_table_privilege('service_role', 'public.market_days', 'select')
       and not has_any_column_privilege('service_role', 'public.corporate_actions', 'select,insert,update'),
   'service_role reads market_days only and holds nothing on the other four');
 select ok(not has_function_privilege('anon', 'public.store_fetched_closes(date, jsonb, numeric)', 'execute')
-      and not has_function_privilege('anon', 'public.store_uploaded_closes(date, jsonb, numeric)', 'execute')
+      and not has_function_privilege('anon', 'public.store_uploaded_closes(date, jsonb, numeric, uuid, text, integer, text, integer)', 'execute')
       and not has_function_privilege('anon', 'public.mark_market_day_shut(date)', 'execute')
       and not has_function_privilege('anon', 'public.enter_closes(date, jsonb, numeric)', 'execute')
       and not has_function_privilege('anon', 'public.score_ideas()', 'execute')
@@ -177,7 +177,7 @@ select ok(not has_function_privilege('anon', 'public.store_fetched_closes(date, 
       and not has_function_privilege('anon', 'public.tracked_symbols()', 'execute'),
   'anon cannot execute any function of this migration');
 select ok(has_function_privilege('service_role', 'public.store_fetched_closes(date, jsonb, numeric)', 'execute')
-      and has_function_privilege('service_role', 'public.store_uploaded_closes(date, jsonb, numeric)', 'execute')
+      and has_function_privilege('service_role', 'public.store_uploaded_closes(date, jsonb, numeric, uuid, text, integer, text, integer)', 'execute')
       and has_function_privilege('service_role', 'public.mark_market_day_shut(date)', 'execute')
       and has_function_privilege('service_role', 'public.score_ideas()', 'execute')
       and has_function_privilege('service_role', 'public.tracked_symbols()', 'execute')
@@ -186,7 +186,7 @@ select ok(has_function_privilege('service_role', 'public.store_fetched_closes(da
       and has_function_privilege('authenticated', 'public.enter_closes(date, jsonb, numeric)', 'execute')
       and has_function_privilege('authenticated', 'public.rescore_ideas()', 'execute')
       and not has_function_privilege('authenticated', 'public.store_fetched_closes(date, jsonb, numeric)', 'execute')
-      and not has_function_privilege('authenticated', 'public.store_uploaded_closes(date, jsonb, numeric)', 'execute')
+      and not has_function_privilege('authenticated', 'public.store_uploaded_closes(date, jsonb, numeric, uuid, text, integer, text, integer)', 'execute')
       and not has_function_privilege('authenticated', 'public.mark_market_day_shut(date)', 'execute')
       and not has_function_privilege('authenticated', 'public.score_ideas()', 'execute')
       and not has_function_privilege('authenticated', 'public.tracked_symbols()', 'execute'),
@@ -565,14 +565,14 @@ select is((select count(*) from public.corporate_actions a join public.companies
   'both rows of the correction are kept');
 
 -- 6d. C-1 / I-5: a final score that rests on typed closes is not permanent. BRAVO closed 5 March 11:00; closes typed by hand.
-select is(public.enter_closes('2026-03-02', jsonb_build_array(pg_temp.r('BRAVO', 100)), null), 1::integer, 'the admin types BRAVO''s entry close');
-select is(public.enter_closes('2026-03-05', jsonb_build_array(pg_temp.r('BRAVO', 110)), null), 1::integer, 'and its exit close');
+select is((public.enter_closes('2026-03-02', jsonb_build_array(pg_temp.r('BRAVO', 100)), null)).stored, 1::integer, 'the admin types BRAVO''s entry close');
+select is((public.enter_closes('2026-03-05', jsonb_build_array(pg_temp.r('BRAVO', 110)), null)).stored, 1::integer, 'and its exit close');
 select is(pg_temp.px('BRAVO', '2026-03-05'), '110/manual', 'a typed close is stored as manual, whatever the caller says');
 select private.score_ideas_now('2026-03-06');
 -- 110 / 100 - 1 = 0.1; Nifty 20400 / 20000 - 1 = 0.02; excess 0.08; 3 days; the weaker source is manual: hand_price.
 select is(pg_temp.sc('BRAVO'), '2026-03-02|100|20000|2026-03-05|110|20400|1|0.1|0.02|0.08|3|t|{hand_price}', 'typed closes make a final score, marked hand_price');
 select ok(pg_temp.is_tracked('BRAVO'), 'C-1: an idea that is final on typed closes is still tracked, so the official row can land');
-select is(public.enter_closes('2026-03-05', jsonb_build_array(pg_temp.r('BRAVO', 121)), null), 1::integer, 'a typed close can be corrected by typing it again');
+select is((public.enter_closes('2026-03-05', jsonb_build_array(pg_temp.r('BRAVO', 121)), null)).stored, 1::integer, 'a typed close can be corrected by typing it again');
 select private.score_ideas_now('2026-03-06');
 -- 121 / 100 - 1 = 0.21; excess 0.19.
 select is(pg_temp.sc('BRAVO'), '2026-03-02|100|20000|2026-03-05|121|20400|1|0.21|0.02|0.19|3|t|{hand_price}', 'the final score follows the corrected close');
@@ -593,7 +593,7 @@ select is((select x.changed from public.idea_score_changes x join public.ideas i
   array['entry_close', 'entry_source', 'excess', 'flags', 'idea_return', 'mark_close', 'mark_source'], 'the second entry lists every moved field');
 select ok(not pg_temp.is_tracked('BRAVO'), 'once its score rests on fetched closes at both ends a closed idea is no longer tracked');
 -- I-5: a close back-filled on an earlier open day moves a fixed entry, and that is logged. XRAY entered 4 March (50 / 20100).
-select is(public.enter_closes('2026-03-03', jsonb_build_array(pg_temp.r('XRAY', 48)), null), 1::integer, 'a close is back-filled for 3 March');
+select is((public.enter_closes('2026-03-03', jsonb_build_array(pg_temp.r('XRAY', 48)), null)).stored, 1::integer, 'a close is back-filled for 3 March');
 select private.score_ideas_now('2026-03-06');
 -- Entry 3 March (48 / 20200), mark 5 March (55 / 20400): 55 / 48 - 1 = 0.1458333 -> 0.145833; Nifty 20400 / 20200 - 1 = 0.0099010 -> 0.009901;
 -- excess 0.145833 - 0.009901 = 0.135932; 2 days; the entry close is typed: hand_price.
@@ -683,7 +683,7 @@ select is(pg_temp.sc('GAMMA'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1
 -- N-3: the hand_price flag looks at every close inside the scored span, not only the entry and the mark. GAMMA is
 -- 200 -> 180 with fetched closes on 2 and 6 March; a typed close for 4 March lies strictly between them.
 select is(pg_temp.sc('GAMMA'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{}', 'GAMMA before the typed close');
-select is(public.enter_closes('2026-03-04', jsonb_build_array(pg_temp.r('GAMMA', 150)), null), 1::integer, 'a close is typed for a day between the entry and the mark');
+select is((public.enter_closes('2026-03-04', jsonb_build_array(pg_temp.r('GAMMA', 150)), null)).stored, 1::integer, 'a close is typed for a day between the entry and the mark');
 select private.score_ideas_now('2026-03-06');
 select is(pg_temp.sc('GAMMA'), '2026-03-02|200|20000|2026-03-06|180|20500|1|-0.1|0.025|0.125|4|f|{hand_price}',
   'N-3: the entry and the mark are official, yet a typed close inside the span marks the score hand_price');
@@ -787,9 +787,9 @@ select is(pg_temp.sc('HOTEL'), '2026-03-12|720|21850|2026-03-13|756|22000|1.02|0
 select is(pg_temp.sc('WHISKEY'), '2026-03-02|60|20000|2026-03-13|66|22000|1|0.1|0.1|0|11|f|{exit_pending}', 'closed after the last close: exit_pending');
 
 -- Source weakest-of-two: QUEBEC on 16 March from an uploaded file (the trusted door), the index typed by hand.
-select is(public.store_uploaded_closes('2026-03-16', jsonb_build_array(pg_temp.r('QUEBEC', 82)), null), 1::integer, 'an uploaded company close without an index');
+select is((public.store_uploaded_closes('2026-03-16', jsonb_build_array(pg_temp.r('QUEBEC', 82)), null, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null)).stored, 1::integer, 'an uploaded company close without an index');
 select is((select count(*) from public.market_days where trade_date = '2026-03-16'), 0::bigint, 'still undecided');
-select is(public.enter_closes('2026-03-16', '[]'::jsonb, 22100), 0::integer, 'the index typed by hand opens the date');
+select is((public.enter_closes('2026-03-16', '[]'::jsonb, 22100)).stored, 0::integer, 'the index typed by hand opens the date');
 select is(pg_temp.md('2026-03-16'), 'open/manual', 'C-1: a date opened by a typed index close remembers that it is manual, so it is not "decided"');
 select is(private.score_ideas_now('2026-03-16'), pg_temp.nv(), 'stage D scoring');
 -- QUEBEC: 82 / 80 - 1 = 0.025; Nifty 22100 / 22000 - 1 = 0.0045454...; excess 0.0204545...; 3 days; the mark has a typed index: hand_price.
@@ -810,13 +810,13 @@ select private.score_ideas_now('2026-03-16');
 select public.enter_closes('2026-02-02', jsonb_build_array(pg_temp.r('ROMEO', 10)), 100);
 select is(pg_temp.px('ROMEO', '2026-02-02') || ' ' || pg_temp.ix('2026-02-02'), '10/manual 100/manual', 'a typed close is stored');
 select is(pg_temp.md('2026-02-02'), 'open/manual', 'a date opened by a typed index close is manual: the daily fetch still asks for it');
-select public.store_uploaded_closes('2026-02-02', jsonb_build_array(pg_temp.r('ROMEO', 20)), 200);
+select public.store_uploaded_closes('2026-02-02', jsonb_build_array(pg_temp.r('ROMEO', 20)), 200, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null);
 select is(pg_temp.px('ROMEO', '2026-02-02') || ' ' || pg_temp.ix('2026-02-02'), '20/nse_upload 200/nse_upload', 'an uploaded file replaces a typed close');
 select is(pg_temp.md('2026-02-02'), 'open/nse_upload', 'and upgrades the date');
 select public.store_fetched_closes('2026-02-02', jsonb_build_array(pg_temp.r('ROMEO', 30)), 300);
 select is(pg_temp.px('ROMEO', '2026-02-02') || ' ' || pg_temp.ix('2026-02-02'), '30/nse_fetch 300/nse_fetch', 'the fetched file replaces an uploaded one');
 select is(pg_temp.md('2026-02-02'), 'open/nse_fetch', 'a fetched date is decided');
-select public.store_uploaded_closes('2026-02-02', jsonb_build_array(pg_temp.r('ROMEO', 40)), 400);
+select public.store_uploaded_closes('2026-02-02', jsonb_build_array(pg_temp.r('ROMEO', 40)), 400, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null);
 select is(pg_temp.px('ROMEO', '2026-02-02') || ' ' || pg_temp.ix('2026-02-02'), '30/nse_fetch 300/nse_fetch', 'an uploaded file never replaces a fetched one');
 select public.enter_closes('2026-02-02', jsonb_build_array(pg_temp.r('ROMEO', 50)), 500);
 select is(pg_temp.px('ROMEO', '2026-02-02') || ' ' || pg_temp.ix('2026-02-02'), '30/nse_fetch 300/nse_fetch', 'a typed close never replaces a fetched one');
@@ -826,18 +826,50 @@ select is(pg_temp.px('ROMEO', '2026-02-02') || ' ' || pg_temp.ix('2026-02-02'), 
 select public.enter_closes('2026-02-03', jsonb_build_array(pg_temp.r('ROMEO', 10)), 100);
 select public.enter_closes('2026-02-03', jsonb_build_array(pg_temp.r('ROMEO', 11)), 101);
 select is(pg_temp.px('ROMEO', '2026-02-03') || ' ' || pg_temp.ix('2026-02-03'), '11/manual 101/manual', 'a typed close is corrected by typing it again');
-select public.store_uploaded_closes('2026-02-03', jsonb_build_array(pg_temp.r('ROMEO', 21)), 201);
-select public.store_uploaded_closes('2026-02-03', jsonb_build_array(pg_temp.r('ROMEO', 22)), 202);
+select public.store_uploaded_closes('2026-02-03', jsonb_build_array(pg_temp.r('ROMEO', 21)), 201, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null);
+select public.store_uploaded_closes('2026-02-03', jsonb_build_array(pg_temp.r('ROMEO', 22)), 202, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null);
 select is(pg_temp.px('ROMEO', '2026-02-03') || ' ' || pg_temp.ix('2026-02-03'), '21/nse_upload 201/nse_upload', 'an uploaded close is not replaced by a second upload');
+-- 8b. Upload review I-1 and I-2: what the door reports is what it wrote. A close kept as it was (an equal or higher source was
+-- already there) is counted as kept, never as stored; every upload leaves one ledger_uploads row. "stored/kept" below.
+create function pg_temp.sk2(p_stored integer, p_kept integer) returns text language sql as $$ select p_stored || '/' || p_kept $$;
+select is((select pg_temp.sk2(u.stored, u.kept) from public.store_uploaded_closes('2026-02-02', jsonb_build_array(pg_temp.r('ROMEO', 41)), 401,
+    'aaaaaaaa-0000-4000-8000-000000000001', repeat('b', 64), 2048, null, null) u), '0/1', '8b: an upload over a fetched close writes nothing and says it kept it');
+select is((select pg_temp.sk2(u.stored, u.kept) from public.store_uploaded_closes('2026-02-03', jsonb_build_array(pg_temp.r('ROMEO', 23)), 203,
+    'aaaaaaaa-0000-4000-8000-000000000001', repeat('b', 64), 2048, null, null) u), '0/1', '8b: a second upload over an earlier upload writes nothing and says it kept it');
+select is((select pg_temp.sk2(u.stored, u.kept) from public.enter_closes('2026-02-03', jsonb_build_array(pg_temp.r('ROMEO', 24)), null) u),
+  '0/1', '8b: a typed close over an uploaded one writes nothing and says it kept it');
+select is(pg_temp.px('ROMEO', '2026-02-03') || ' ' || pg_temp.ix('2026-02-03'), '21/nse_upload 201/nse_upload', '8b: and the stored rows are untouched');
+select is((select pg_temp.sk2(u.stored, u.kept) from public.enter_closes('2026-02-19', jsonb_build_array(pg_temp.r('ROMEO', 80)), 800) u),
+  '1/0', '8b: a typed close on a fresh day is stored');
+select is((select pg_temp.sk2(u.stored, u.kept) from public.enter_closes('2026-02-19', jsonb_build_array(pg_temp.r('ROMEO', 81)), 801) u),
+  '1/0', '8b: a typed correction over a typed close is stored (it replaces it)');
+select is((select pg_temp.sk2(u.stored, u.kept) from public.store_uploaded_closes('2026-02-19', jsonb_build_array(pg_temp.r('ROMEO', 82)), 802,
+    'aaaaaaaa-0000-4000-8000-000000000001', repeat('b', 64), 2048, null, null) u), '1/0', '8b: an upload over a typed close is stored (it outranks it)');
+select public.store_fetched_closes('2026-02-20', jsonb_build_array(pg_temp.r('ROMEO', 70)), 700);
+create temp table up_before as select count(*) as n from public.ledger_uploads;
+select is((select pg_temp.sk2(u.stored, u.kept) from public.store_uploaded_closes('2026-02-20',
+    jsonb_build_array(pg_temp.r('ROMEO', 71), pg_temp.r('PAPA', 5)), 701, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('c', 64), 4096, repeat('d', 64), 512) u),
+  '1/1', '8b: a file with one fresh company and one already fetched stores one and keeps one');
+select is(pg_temp.px('ROMEO', '2026-02-20') || ' ' || pg_temp.px('PAPA', '2026-02-20'), '70/nse_fetch 5/nse_upload',
+  '8b: the fetched close stands and the fresh one is the upload');
+select is((select concat_ws('|', u.admin_id, u.trade_date, u.zip_sha256 = repeat('c', 64), u.zip_bytes, u.index_sha256 = repeat('d', 64),
+                            u.index_bytes, u.stored, u.kept, u.index_given)
+             from public.ledger_uploads u order by u.id desc limit 1),
+  'aaaaaaaa-0000-4000-8000-000000000001|2026-02-20|t|4096|t|512|1|1|t', '8b: the upload left one row: who, which day, the file hashes and sizes, stored and kept');
+select is((select count(*) from public.ledger_uploads) - (select n from up_before), 1::bigint, '8b: exactly one row for that upload');
+select throws_ok($$ select * from public.store_uploaded_closes(((now() at time zone 'Asia/Kolkata')::date + 1), '[]'::jsonb, 100,
+    'aaaaaaaa-0000-4000-8000-000000000001', repeat('b', 64), 10, null, null) $$, 'P0001', 'ledger:future_date', '8b: a refused upload...');
+select is((select count(*) from public.ledger_uploads) - (select n from up_before), 1::bigint, '8b: ...leaves no row');
+
 -- enter_closes rules.
-select is(public.enter_closes('2026-02-04', jsonb_build_array(pg_temp.r('ROMEO', 12), pg_temp.r('SIERRA', 11), pg_temp.r('UNTRK', 5)), null), 1::integer,
+select is((public.enter_closes('2026-02-04', jsonb_build_array(pg_temp.r('ROMEO', 12), pg_temp.r('SIERRA', 11), pg_temp.r('UNTRK', 5)), null)).stored, 1::integer,
   'enter_closes keeps rows only for companies with a non-void idea (SIERRA is void, UNTRK has none)');
 select is((select count(*) from public.prices_daily p join public.companies c on c.id = p.company_id
             where c.nse_symbol in ('SIERRA', 'UNTRK') and p.trade_date = '2026-02-04'), 0::bigint, 'the dropped rows are not stored');
 select is((select count(*) from public.market_days where trade_date = '2026-02-04'), 0::bigint, 'no index close, so the date is undecided');
 select throws_ok($$ select public.enter_closes(((now() at time zone 'Asia/Kolkata')::date + 1), '[]'::jsonb, 100) $$, 'P0001', 'ledger:future_date',
   'enter_closes refuses a future date');
-select throws_ok($$ select public.store_uploaded_closes(((now() at time zone 'Asia/Kolkata')::date + 1), '[]'::jsonb, 100) $$, 'P0001', 'ledger:future_date',
+select throws_ok($$ select public.store_uploaded_closes(((now() at time zone 'Asia/Kolkata')::date + 1), '[]'::jsonb, 100, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null) $$, 'P0001', 'ledger:future_date',
   'store_uploaded_closes refuses a future date');
 select throws_ok($$ select public.enter_closes('2026-02-05', '[]'::jsonb, 0) $$, 'P0001', 'ledger:bad_close', 'a Nifty 50 close of zero is refused');
 select throws_ok($$ select public.store_fetched_closes(((now() at time zone 'Asia/Kolkata')::date + 1), '[]'::jsonb, 100) $$, 'P0001', 'ledger:future_date',
@@ -845,7 +877,7 @@ select throws_ok($$ select public.store_fetched_closes(((now() at time zone 'Asi
 select throws_ok($$ select public.store_fetched_closes('2026-02-05', '{"a":1}'::jsonb, 100) $$, 'P0001', 'ledger:bad_rows', 'rows must be an array');
 select is(public.store_fetched_closes('2026-02-05', jsonb_build_array(pg_temp.r('ROMEO', -5), pg_temp.r('ROMEO', 0)), null), 0::integer,
   'a non-positive close is dropped, never stored');
-select is(public.enter_closes('2026-02-06', jsonb_build_array(jsonb_build_object('symbol', 'ROMEO', 'close', 'abc')), null), 0::integer,
+select is((public.enter_closes('2026-02-06', jsonb_build_array(jsonb_build_object('symbol', 'ROMEO', 'close', 'abc')), null)).stored, 0::integer,
   'a close that is not a number is dropped');
 -- C-1: nothing before the close of the day, and a typed close never on a weekend.
 -- The rule is exercised end to end with a clock argument that no API role can reach (private.put_hand_closes(.., p_now)), so
@@ -869,7 +901,7 @@ select ok(not private.market_closed('2026-03-06', '2026-03-06 15:29:59+05:30') a
 select throws_ok($$ select public.enter_closes('2026-02-07', '[]'::jsonb, 100) $$, 'P0001', 'ledger:weekend', 'a typed index close on a Saturday is refused');
 select throws_ok($$ select public.enter_closes('2026-02-08', jsonb_build_array(jsonb_build_object('symbol', 'ROMEO', 'close', 9)), null) $$, 'P0001', 'ledger:weekend',
   'typed company closes on a Sunday are refused');
-select public.store_uploaded_closes('2026-02-07', '[]'::jsonb, 100);
+select public.store_uploaded_closes('2026-02-07', '[]'::jsonb, 100, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null);
 select is(pg_temp.md('2026-02-07'), 'open/nse_upload', 'an official file for a special Saturday session is accepted through the trusted door');
 -- M-1: only equity series are stored; a tie between two rows of one symbol is broken by the lower close, whatever the file order.
 select is(public.store_fetched_closes('2026-02-10', jsonb_build_array(pg_temp.r('PAPA', 5, null, 'RE')), null), 0::integer, 'a rights-entitlement series is not a share close');
@@ -923,11 +955,11 @@ insert into public.market_days (trade_date, status, source) values ('2026-01-14'
 select throws_ok($$ select public.enter_closes('2026-01-14', '[]'::jsonb, 100) $$, 'P0001', 'ledger:day_shut', 'I-4: a typed Nifty 50 close on a shut day is refused');
 select throws_ok($$ select public.enter_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 9)), null) $$, 'P0001', 'ledger:day_shut',
   'I-4: typed company closes on a shut day are refused');
-select throws_ok($$ select public.store_uploaded_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 9)), null) $$, 'P0001', 'ledger:day_shut',
+select throws_ok($$ select public.store_uploaded_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 9)), null, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null) $$, 'P0001', 'ledger:day_shut',
   'I-4: an uploaded file without the Nifty 50 close cannot reopen the day, so it is refused rather than reported as stored');
 select is(pg_temp.md('2026-01-14'), 'shut/nse_fetch', 'I-4: the day is still shut after the refusals');
 select is((select count(*) from public.prices_daily where trade_date = '2026-01-14'), 0::bigint, 'I-4: and the refused calls stored nothing at all');
-select is(public.store_uploaded_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 9)), 100), 1::integer, 'I-4: an official file with the Nifty 50 close is stored');
+select is((public.store_uploaded_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 9)), 100, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null)).stored, 1::integer, 'I-4: an official file with the Nifty 50 close is stored');
 select is(pg_temp.md('2026-01-14'), 'open/nse_upload', 'I-4: and reopens the shut day, under the upload source (so the daily fetch still asks for it)');
 select is(pg_temp.px('ROMEO', '2026-01-14') || ' ' || pg_temp.ix('2026-01-14'), '9/nse_upload 100/nse_upload', 'I-4: the uploaded closes are the ones in force');
 select public.store_fetched_closes('2026-01-14', jsonb_build_array(pg_temp.r('ROMEO', 10)), 101);
@@ -1072,7 +1104,7 @@ select throws_ok($$ select public.score_ideas() $$, '42501', null, 'anon cannot 
 select throws_ok($$ select public.rescore_ideas() $$, '42501', null, 'anon cannot run rescore_ideas');
 select throws_ok($$ select public.tracked_symbols() $$, '42501', null, 'anon cannot list tracked symbols');
 select throws_ok($$ select public.store_fetched_closes('2026-02-09', '[]'::jsonb, 100) $$, '42501', null, 'anon cannot store fetched closes');
-select throws_ok($$ select public.store_uploaded_closes('2026-02-09', '[]'::jsonb, 100) $$, '42501', null, 'anon cannot store uploaded closes');
+select throws_ok($$ select public.store_uploaded_closes('2026-02-09', '[]'::jsonb, 100, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null) $$, '42501', null, 'anon cannot store uploaded closes');
 select throws_ok($$ select public.enter_closes('2026-02-09', '[]'::jsonb, 100) $$, '42501', null, 'anon cannot enter closes');
 select throws_ok($$ select public.mark_market_day_shut('2026-02-09') $$, '42501', null, 'anon cannot mark a shut day');
 reset role;
@@ -1086,7 +1118,7 @@ select ok((select count(*) from public.prices_daily) > 0 and (select count(*) fr
 select throws_ok($$ select public.score_ideas() $$, '42501', null, 'the admin cannot run the job''s score_ideas');
 select throws_ok($$ select public.tracked_symbols() $$, '42501', null, 'the admin cannot run tracked_symbols');
 select throws_ok($$ select public.store_fetched_closes('2026-02-09', '[]'::jsonb, 100) $$, '42501', null, 'the admin cannot run store_fetched_closes');
-select throws_ok($$ select public.store_uploaded_closes('2026-02-09', '[]'::jsonb, 100) $$, '42501', null,
+select throws_ok($$ select public.store_uploaded_closes('2026-02-09', '[]'::jsonb, 100, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null) $$, '42501', null,
   'C-1: the admin session cannot run the door that writes the nse_upload source');
 select throws_ok($$ select public.mark_market_day_shut('2026-02-09') $$, '42501', null, 'the admin cannot run mark_market_day_shut');
 select throws_ok($$ insert into public.prices_daily (benchmark, trade_date, close, source) values ('NIFTY50', '2026-02-09', 100, 'nse_fetch') $$, '42501', null,
@@ -1141,8 +1173,62 @@ select throws_ok($$ insert into public.corporate_actions (company_id, ex_date, f
 select throws_ok($$ select public.rescore_ideas() $$, '42501', null, 'service_role cannot run the admin''s rescore_ideas');
 select throws_ok($$ select public.enter_closes('2026-02-09', '[]'::jsonb, 100) $$, '42501', null, 'service_role cannot run enter_closes');
 select lives_ok($$ select public.store_fetched_closes('2026-02-09', '[]'::jsonb, 100) $$, 'service_role stores fetched closes');
-select lives_ok($$ select public.store_uploaded_closes('2026-02-10', '[]'::jsonb, 100) $$, 'service_role stores uploaded closes (the trusted door)');
+select lives_ok($$ select public.store_uploaded_closes('2026-02-10', '[]'::jsonb, 100, 'aaaaaaaa-0000-4000-8000-000000000001', repeat('a', 64), 1000, null, null) $$, 'service_role stores uploaded closes (the trusted door)');
 select lives_ok($$ select public.mark_market_day_shut('2026-02-09') $$, 'service_role marks shut days (a no-op for an old date)');
+reset role;
+
+-- 11. ledger_uploads (upload review I-2): append-only, written only by store_uploaded_closes, read by the admin only.
+select has_table('public', 'ledger_uploads', 'ledger_uploads exists');
+select ok((select c.relrowsecurity from pg_class c where c.oid = 'public.ledger_uploads'::regclass), 'RLS is enabled on ledger_uploads');
+select is_empty($$
+  select 1 where has_table_privilege('anon', 'public.ledger_uploads', 'select,insert,update,delete,truncate,references,trigger')
+     or has_any_column_privilege('anon', 'public.ledger_uploads', 'select,insert,update,references')
+$$, 'anon holds no privilege on ledger_uploads');
+select is_empty($$
+  select 1 where has_table_privilege('service_role', 'public.ledger_uploads', 'select,insert,update,delete,truncate,references,trigger')
+     or has_any_column_privilege('service_role', 'public.ledger_uploads', 'select,insert,update,references')
+$$, 'service_role holds no privilege on ledger_uploads (it writes only through store_uploaded_closes)');
+select ok(has_table_privilege('authenticated', 'public.ledger_uploads', 'select')
+      and not has_table_privilege('authenticated', 'public.ledger_uploads', 'insert,update,delete,truncate,references,trigger')
+      and not has_any_column_privilege('authenticated', 'public.ledger_uploads', 'insert,update,references'),
+  'authenticated may only read ledger_uploads');
+select is_empty($$
+  select p.polname from pg_policy p
+   where p.polrelid = 'public.ledger_uploads'::regclass
+     and (p.polroles = '{0}'::oid[] or p.polroles @> array['anon'::regrole::oid] or p.polcmd <> 'r')
+$$, 'the only policy on ledger_uploads is a SELECT policy and it does not reach anon or PUBLIC');
+select is((select count(*) from pg_trigger t where t.tgrelid = 'public.ledger_uploads'::regclass and not t.tgisinternal and t.tgenabled = 'A'),
+  2::bigint, 'both append-only guards on ledger_uploads are enabled ALWAYS (they fire in every replication role)');
+select is((select count(*) from pg_proc p where p.prosrc ~* 'insert\s+into\s+public\.ledger_uploads|update\s+public\.ledger_uploads|delete\s+from\s+public\.ledger_uploads'),
+  1::bigint, 'exactly one function writes ledger_uploads (public.store_uploaded_closes)');
+select throws_ok($$ update public.ledger_uploads set stored = 99 $$, 'P0001', null, 'the owner''s UPDATE of an upload record is refused');
+select throws_ok($$ delete from public.ledger_uploads $$, 'P0001', null, 'the owner''s DELETE of an upload record is refused');
+select throws_ok($$ truncate public.ledger_uploads $$, 'P0001', null, 'the owner''s TRUNCATE of the upload records is refused');
+set local session_replication_role = replica;
+select throws_ok($$ update public.ledger_uploads set stored = 99 $$, 'P0001', null, 'in replica mode an update is still refused');
+select throws_ok($$ delete from public.ledger_uploads $$, 'P0001', null, 'in replica mode a delete is still refused');
+select throws_ok($$ truncate public.ledger_uploads $$, 'P0001', null, 'in replica mode a truncate is still refused');
+reset session_replication_role;
+select throws_ok($$ insert into public.ledger_uploads (admin_id, trade_date, zip_sha256, zip_bytes, stored, kept, index_given)
+    values ('aaaaaaaa-0000-4000-8000-000000000001', '2026-02-20', 'not-a-hash', 10, 0, 0, false) $$, '23514', null,
+  'a file hash must be 64 hex characters');
+set local role authenticated;
+select ok((select count(*) from public.ledger_uploads) > 0, 'the admin reads the upload records');
+select throws_ok($$ insert into public.ledger_uploads (admin_id, trade_date, zip_sha256, zip_bytes, stored, kept, index_given)
+    values ('aaaaaaaa-0000-4000-8000-000000000001', '2026-02-20', repeat('a', 64), 10, 0, 0, false) $$, '42501', null, 'the admin cannot insert an upload record');
+select throws_ok($$ update public.ledger_uploads set stored = 99 $$, '42501', null, 'the admin cannot update an upload record');
+select throws_ok($$ delete from public.ledger_uploads $$, '42501', null, 'the admin cannot delete an upload record');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
+set local role authenticated;
+select is((select count(*) from public.ledger_uploads), 0::bigint, 'a non-admin reads no upload records');
+reset role;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+set local role service_role;
+select throws_ok($$ select * from public.ledger_uploads $$, '42501', null, 'service_role cannot read the upload records');
+select throws_ok($$ insert into public.ledger_uploads (admin_id, trade_date, zip_sha256, zip_bytes, stored, kept, index_given)
+    values ('aaaaaaaa-0000-4000-8000-000000000001', '2026-02-20', repeat('a', 64), 10, 0, 0, false) $$, '42501', null,
+  'service_role cannot insert an upload record directly (only through the definer function)');
 reset role;
 
 select * from finish();

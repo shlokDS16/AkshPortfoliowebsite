@@ -7,8 +7,8 @@
 -- private.score_ideas_now() is the only code that writes idea_scores and idea_score_changes. It recomputes every
 -- non-void idea from the SEALED events (direction, void, company, open and close time), prices_daily, market_days and
 -- corporate_actions, so a score is a pure function of stored facts and re-running it is harmless. It refuses to run
--- while the ledger check fails (it runs FIRST, so no sealed text is parsed before it has been verified) or the projection
--- (ideas) disagrees with the events. No price or return is ever written into idea_events.
+-- while the ledger check fails (it runs FIRST, so no sealed text is parsed before it has been verified), the projection
+-- (ideas) disagrees with the events, or a sealed day disagrees with the entries (ledger:anchor_mismatch, final review I-2). No price or return is ever written into idea_events.
 --
 -- Every corporate action is typed by hand (there is no automatic source). An action of any kind clears isin_changed for
 -- its step, a 'none' ("I looked, the move is real") also clears jump, and a factor multiplies the return; so a score that
@@ -140,6 +140,7 @@ as $$
 declare
   i          record;
   v_bad      record;
+  v_anchor   record;
   v_old      public.idea_scores;
   v_new      public.idea_scores;
   v_row      public.idea_scores;
@@ -171,6 +172,15 @@ begin
   select f.idea_id into v_bad from private.idea_facts() f where f.agrees is not true limit 1;
   if found then
     raise exception 'ledger:projection_mismatch' using errcode = 'P0001', detail = 'idea ' || v_bad.idea_id;
+  end if;
+  -- Final review I-2: the sealed days are the third line. Entries rewritten and re-hashed so the chain agrees with itself still
+  -- disagree with the days already sealed (0013); a score computed from them would be a figure the desk's own check cannot vouch
+  -- for. Same refusal as the seal step. private.ledger_anchor_check() is created in 0013 (resolved when this runs). Lock order:
+  -- this function holds only the scoring lock and the check is a plain read, so it cannot wait for the seal's chain lock.
+  select c.first_bad_date, c.reason into v_anchor from private.ledger_anchor_check() c where c.ok is not true;
+  if found then
+    raise exception 'ledger:anchor_mismatch' using errcode = 'P0001',
+      detail = format('first_bad_date=%s reason=%s', v_anchor.first_bad_date, v_anchor.reason);
   end if;
 
   -- A withdrawn idea has no score (a withdrawal is only possible before its entry close, so none is fixed). If a row
