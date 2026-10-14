@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { type EnvSource, parseEnv, publicSchema } from "./env";
+import { DEFAULT_ALERT_FROM } from "./providers/resend-mailer";
 import {
   BHAVCOPY_PLACEHOLDER,
   DEFAULT_NSE_BHAVCOPY_TEMPLATE,
@@ -25,6 +26,16 @@ const nseTemplate = (placeholder: NsePlaceholder, fallback: string) =>
       if (problem) ctx.addIssue({ code: "custom", message: problem });
     }),
   );
+
+/** One address or a comma-separated list: trimmed, lower-cased, no empty entries, no repeats; none left means unset. */
+const addressList = z.preprocess(
+  (v) => {
+    if (typeof v !== "string") return v === "" ? undefined : v;
+    const list = [...new Set(v.split(",").map((a) => a.trim().toLowerCase()).filter(Boolean))];
+    return list.length > 0 ? list : undefined;
+  },
+  z.array(z.string()).optional(),
+);
 
 const serverSchema = publicSchema.extend({
   SUPABASE_SECRET_KEY: z.string().startsWith("sb_secret_", "must be a secret key (sb_secret_...)"),
@@ -56,6 +67,14 @@ const serverSchema = publicSchema.extend({
   GITHUB_GIST_TOKEN: optional(z.string().trim().regex(/^[A-Za-z0-9_.-]{20,255}$/, "must be a GitHub token")),
   /** The id of a public gist the owner created by hand. Strict, because it becomes part of an address. */
   LEDGER_ANCHOR_GIST_ID: optional(z.string().trim().regex(/^[0-9a-f]{20,40}$/, "must be a gist id (20 to 40 lowercase hex characters)")),
+  // The alert email (2.9; docs/specs/2026-10-14-alert-email-design.md s3). Off unless the key and ALERT_EMAIL are both set. Their
+  // SHAPE is checked where the mail is built (src/lib/providers/resend-mailer.ts), not here: a typo then fails only the
+  // `alerts:email` step, visible in the heartbeat log, instead of stopping every page and job (a parse error is app-wide).
+  RESEND_API_KEY: optional(z.string().trim()),
+  /** One address or a comma-separated list. Until a domain is verified at Resend it must be the Resend account's own address (Q36). */
+  ALERT_EMAIL: addressList,
+  /** The sender. Without a verified domain Resend allows only onboarding@resend.dev, and only to the account's own address. */
+  RESEND_FROM: z.preprocess(blank, z.string().trim().min(1).default(DEFAULT_ALERT_FROM)),
   /** Set by Vercel (development | preview | production); unset locally and in CI. */
   VERCEL_ENV: optional(z.string().trim()),
 });
