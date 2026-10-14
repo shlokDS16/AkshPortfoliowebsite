@@ -1,18 +1,21 @@
 import { addDays, istDate } from "@/lib/dates";
+import { formatDate, formatTime } from "@/lib/format";
 import { formatClose } from "./figures";
 import { restatements, type Restated } from "./marks";
-import { ACTION_KIND_TEXT, actionFactorText, DAY_STATE_TEXT } from "@/lib/messages-closes";
+import { ACTION_KIND_TEXT, actionFactorText, DAY_STATE_TEXT, uploadLineText } from "@/lib/messages-closes";
 import { LEDGER_SOURCE_TEXT } from "@/lib/messages-ledger";
-import type { ActionKind, CorporateAction, Idea, IdeaScore, MarketDay, PickCompany, ScoreChange, StoredClose } from "./types";
+import { CLOSE_LOOKBACK_DAYS } from "./constants";
+import type { ActionKind, CorporateAction, Idea, IdeaScore, MarketDay, PickCompany, ScoreChange, StoredClose, UploadRecord } from "./types";
 
 // The Closes page's view model (Task 11): the recent days with their state, the closes that are not NSE's own fetched file, the
 // corporate actions by company, and the scores restated lately. Pure: rows in, plain values out. Nothing here is his text.
 
 /** How many calendar days back the days list reaches (today included). */
 export const DAYS_SHOWN = 10;
-/** How far back the typed and dropped closes and the restatements are listed. */
+/** How far back the restatements are listed. */
 export const RECENT_DAYS = 30;
-const HAND_LIMIT = 50;
+/** Closes that are not NSE's fetched file are listed over CLOSE_LOOKBACK_DAYS (400), the span a close may be stored for; the cap is far above any real count. */
+const HAND_LIMIT = 500;
 const RESTATED_LIMIT = 10;
 
 export type DayState = "open" | "shut" | "undecided" | "today";
@@ -25,6 +28,8 @@ export type DayLine = {
   /** Names of tracked companies with no close for this open day. */
   missing: string[];
 };
+/** One recorded upload: when (India time), which trading date, the first 12 characters of the file's SHA-256, and what it did. */
+export type UploadLine = { id: number; uploadedOn: string; uploadedAt: string; tradeDate: string; hash12: string; countsText: string };
 export type HandCloseLine = { companyName: string; symbol: string | null; date: string; close: string; sourceText: string };
 export type ActionLine = {
   id: string;
@@ -46,6 +51,7 @@ export type ClosesView = {
   today: string;
   days: DayLine[];
   hand: HandCloseLine[];
+  uploads: UploadLine[];
   actions: ActionGroup[];
   restated: RestatedLine[];
   /** Companies a close or an action can be entered for. */
@@ -126,6 +132,10 @@ export type ClosesInput = {
   today: string;
   days: readonly MarketDay[];
   closes: readonly StoredClose[];
+  /** Closes that are not NSE's fetched file, over the last CLOSE_LOOKBACK_DAYS. */
+  handCloses: readonly StoredClose[];
+  /** The recorded uploads, newest first. */
+  uploads: readonly UploadRecord[];
   ideas: readonly Idea[];
   scores: readonly IdeaScore[];
   actions: readonly CorporateAction[];
@@ -139,8 +149,9 @@ export function buildClosesView(input: ClosesInput): ClosesView {
   const company = new Map<string, { name: string; symbol: string | null }>();
   for (const i of ideas) company.set(i.companyId, { name: i.companyName, symbol: i.symbol });
   for (const c of input.companies) company.set(c.id, { name: c.name, symbol: c.symbol });
-  const hand = input.closes
-    .filter((c) => c.source !== "nse_fetch" && c.tradeDate >= since)
+  const handSince = addDays(today, -CLOSE_LOOKBACK_DAYS);
+  const hand = input.handCloses
+    .filter((c) => c.source !== "nse_fetch" && c.tradeDate >= handSince)
     .sort((a, b) => b.tradeDate.localeCompare(a.tradeDate) || a.companyId.localeCompare(b.companyId))
     .slice(0, HAND_LIMIT)
     .map((c): HandCloseLine => {
@@ -156,6 +167,11 @@ export function buildClosesView(input: ClosesInput): ClosesView {
     today,
     days: daysList(today, input.days, input.closes, ideas, input.scores),
     hand,
+    uploads: input.uploads.map(
+      (u): UploadLine => ({
+        id: u.id, uploadedOn: formatDate(u.uploadedAt), uploadedAt: formatTime(u.uploadedAt), tradeDate: u.tradeDate, hash12: u.zipSha256.slice(0, 12), countsText: uploadLineText(u),
+      }),
+    ),
     actions: groupActions(input.actions, input.companies, ideas),
     restated,
     // A close is kept, and a score rests on an action, only for a company with an idea on file (a withdrawn idea does not count).

@@ -18,6 +18,7 @@ const FIELD_OF: Partial<Record<ErrorCode, FieldName>> = {
   "ledger-bad-date": "date",
   "ledger-close-too-early": "date",
   "ledger-close-weekend": "date",
+  "ledger-close-too-old": "date",
   "ledger-day-shut": "date",
   "ledger-bad-factor": "factor",
   "ledger-note-too-long": "note",

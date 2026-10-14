@@ -9,7 +9,8 @@ import { UPLOAD_LIMITS, type UploadResult } from "@/modules/ledger/client";
 //   3. Content-Length, when it is there, against the limit, before one byte of the body is read;
 //   4. the body is read through a counter that stops at the limit whatever Content-Length said (it may be absent or false);
 //   5. only then is the form taken apart, and each file checked against its own limit;
-//   6. the files go to the upload function as bytes. Nothing is written to disk and the file is not kept.
+//   6. the files go to the upload function as bytes, with the checked admin's id for the upload record. Nothing is written to disk and
+//      the file is not kept (only its SHA-256 and size are, in the database).
 // The answer is JSON with a closed code; no parser message and no file content is ever sent back.
 
 export type UploadRouteDeps = {
@@ -17,7 +18,7 @@ export type UploadRouteDeps = {
   getAdmin: () => Promise<AdminIdentity | null>;
   /** NEXT_PUBLIC_SITE_URL. */
   siteUrl: () => string;
-  upload: (input: { date: string; zip: Uint8Array; index: Uint8Array | null }) => Promise<UploadResult>;
+  upload: (input: { date: string; zip: Uint8Array; index: Uint8Array | null; adminId: string }) => Promise<UploadResult>;
 };
 
 const FIELDS = new Set(["date", "bhavcopy", "index"]);
@@ -60,7 +61,8 @@ async function fileBytes(value: FormDataEntryValue | null, max: number): Promise
 
 export function createUploadHandler(deps: UploadRouteDeps) {
   return async function POST(request: Request): Promise<Response> {
-    if (!(await deps.getAdmin())) return answer({ ok: false, error: "not-signed-in" }, 401);
+    const admin = await deps.getAdmin();
+    if (!admin) return answer({ ok: false, error: "not-signed-in" }, 401);
 
     const origin = request.headers.get("origin");
     if (origin === null || ![new URL(deps.siteUrl()).origin, new URL(request.url).origin].includes(origin)) return refusal("forbidden", 403);
@@ -94,7 +96,7 @@ export function createUploadHandler(deps: UploadRouteDeps) {
     if (index === "not_a_file") return refusal("not_a_form", 400);
 
     try {
-      const result = await deps.upload({ date, zip, index });
+      const result = await deps.upload({ date, zip, index, adminId: admin.userId });
       return answer(result, result.ok ? 200 : 422);
     } catch (error) {
       // Name only: a database message or a file value must never reach a log or the page.

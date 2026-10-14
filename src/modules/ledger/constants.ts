@@ -29,6 +29,8 @@ export const ACTION_NOTE_MAX = 500;
 /** An ex-date may be entered up to this many days ahead (a split announced for next month); never earlier than the first date below. */
 export const ACTION_AHEAD_DAYS = 366;
 export const ACTION_FIRST_DATE = "2000-01-01";
+/** A close (typed or dropped) may be stored for a day at most this many days back, and the Closes page lists the closes that are not NSE's own fetched file over the same span (upload review M-3). */
+export const CLOSE_LOOKBACK_DAYS = 400;
 
 /** A percentage of closed ideas is not shown below this many (decision D13). */
 export const MIN_CLOSED_FOR_PERCENT = 5;

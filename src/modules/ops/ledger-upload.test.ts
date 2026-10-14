@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "@/lib/supabase/types";
 import { bhavCsv, indexCsv } from "@/test/nse-files";
@@ -13,8 +14,10 @@ vi.mock("@/lib/supabase/service", () => ({ createSupabaseServiceClient: () => ({
 type Stored = { name: string; args: Record<string, unknown> };
 const DAY = "2026-10-12";
 const TODAY = "2026-10-14";
+const ADMIN = "aaaaaaaa-0000-4000-8000-000000000001";
+const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-function fakeDb(opts: { symbols?: string[]; store?: { message: string; code?: string }; trackedError?: boolean; score?: "ok" | "fail" } = {}) {
+function fakeDb(opts: { symbols?: string[]; store?: { message: string; code?: string }; kept?: number; storeShape?: "object" | "list" | "none"; trackedError?: boolean; score?: "ok" | "fail" } = {}) {
   const calls: Stored[] = [];
   const answer = (result: unknown) => {
     const builder = { abortSignal: () => builder, then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve) };
@@ -24,7 +27,14 @@ function fakeDb(opts: { symbols?: string[]; store?: { message: string; code?: st
     rpc: (name: string, args?: Record<string, unknown>) => {
       calls.push({ name, args: args ?? {} });
       if (name === "tracked_symbols") return answer(opts.trackedError ? { data: null, error: { message: "x", code: "XX000" } } : { data: opts.symbols ?? ["ALPHA", "BETA"], error: null });
-      if (name === "store_uploaded_closes") return answer(opts.store ? { data: null, error: opts.store } : { data: (args?.p_rows as unknown[]).length, error: null });
+      if (name === "store_uploaded_closes") {
+        if (opts.store) return answer({ data: null, error: opts.store });
+        // The database says what it wrote and what it left as it was: `kept` of the matched rows are left.
+        const matched = (args?.p_rows as unknown[]).length;
+        const kept = Math.min(opts.kept ?? 0, matched);
+        const row = { stored: matched - kept, kept };
+        return answer({ data: opts.storeShape === "none" ? null : opts.storeShape === "list" ? [row] : row, error: null });
+      }
       if (name === "score_ideas") return answer(opts.score === "fail" ? { data: null, error: { message: "boom", code: "XX000" } } : { data: 2, error: null });
       throw new Error(`unexpected rpc ${name}`);
     },
@@ -38,6 +48,7 @@ const good = (): UploadInput => ({
   date: DAY,
   zip: zipOf(bhavCsv([{ symbol: "ALPHA", close: "1234.50", isin: "INE111A01011" }, { symbol: "BETA", close: "88.05" }, { symbol: "OTHER", close: "10.00" }])),
   index: enc(indexCsv([{ name: "Nifty 50", close: "22363.35" }])),
+  adminId: ADMIN,
 });
 
 let fake: ReturnType<typeof fakeDb>;
@@ -58,8 +69,9 @@ async function refused(input: UploadInput, db = fake, opts: { reachedStore?: boo
 
 describe("a good official file", () => {
   it("stores only the tracked closes, through the upload door, with the Nifty 50 close, then scores", async () => {
-    const result = await run(good());
-    expect(result).toEqual({ ok: true, tradeDate: DAY, stored: 2, tracked: 2, indexStored: true, scored: 2 });
+    const input = good();
+    const result = await run(input);
+    expect(result).toEqual({ ok: true, tradeDate: DAY, stored: 2, kept: 0, tracked: 2, indexStored: true, scored: 2 });
     expect(fake.stored()).toHaveLength(1);
     expect(fake.stored()[0]?.args).toEqual({
       p_trade_date: DAY,
@@ -68,6 +80,11 @@ describe("a good official file", () => {
         { symbol: "BETA", series: "EQ", isin: "INE000A01010", close: 88.05 },
       ],
       p_index_close: 22363.35,
+      p_admin: ADMIN,
+      p_zip_sha256: sha(input.zip),
+      p_zip_bytes: input.zip.byteLength,
+      p_index_sha256: sha(input.index!),
+      p_index_bytes: input.index!.byteLength,
     });
     expect(fake.calls.map((c) => c.name)).toEqual(["tracked_symbols", "store_uploaded_closes", "score_ideas"]);
   });
@@ -83,6 +100,45 @@ describe("a good official file", () => {
     expect(await run(good())).toMatchObject({ ok: true, stored: 2, scored: null });
   });
 
+  it("reports what the database WROTE and what it LEFT as it was: a drop over fetched rows is kept, never stored (upload review I-1)", async () => {
+    fake = fakeDb({ kept: 2 });
+    expect(await run(good())).toMatchObject({ ok: true, stored: 0, kept: 2, tracked: 2 });
+    fake = fakeDb({ kept: 1 });
+    expect(await run(good())).toMatchObject({ ok: true, stored: 1, kept: 1 });
+  });
+
+  it("reads the database's answer as a list of one row as well, and a missing answer as nothing stored (never as stored)", async () => {
+    fake = fakeDb({ kept: 1, storeShape: "list" });
+    expect(await run(good())).toMatchObject({ ok: true, stored: 1, kept: 1 });
+    fake = fakeDb({ storeShape: "none" });
+    expect(await run(good())).toMatchObject({ ok: true, stored: 0, kept: 0 });
+  });
+
+  it("sends the record of the upload: the checked admin, and the SHA-256 and size of the bytes it received (upload review I-2)", async () => {
+    const input = good();
+    await run(input);
+    const args = fake.stored()[0]!.args;
+    expect(args.p_admin).toBe(ADMIN);
+    expect(args.p_zip_sha256).toBe(sha(input.zip));
+    expect(args.p_zip_sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(args.p_zip_bytes).toBe(input.zip.byteLength);
+    expect(args.p_index_sha256).toBe(sha(input.index!));
+    expect(args.p_index_bytes).toBe(input.index!.byteLength);
+  });
+
+  it("without an index file the index hash and size are null", async () => {
+    await run({ ...good(), index: null });
+    expect(fake.stored()[0]!.args).toMatchObject({ p_index_sha256: null, p_index_bytes: null });
+  });
+
+  it("the hash is of the bytes the server was given, not of anything the browser says: a different file has a different hash", async () => {
+    const other = { ...good(), zip: zipOf(bhavCsv([{ symbol: "ALPHA", close: "1.00" }, { symbol: "BETA", close: "2.00" }])) };
+    await run(good());
+    await run(other);
+    const [first, second] = fake.stored().map((c) => c.args.p_zip_sha256);
+    expect(first).not.toBe(second);
+  });
+
   it("a symbol the file does not carry is simply absent", async () => {
     fake = fakeDb({ symbols: ["ALPHA", "BETA", "MISSING"] });
     expect(await run(good())).toMatchObject({ ok: true, stored: 2, tracked: 3 });
@@ -95,10 +151,16 @@ describe("what is refused before anything is read", () => {
     ["a date that is not a date", { date: "2026-02-30" }, "bad_date"],
     ["a date written another way", { date: "12-10-2026" }, "bad_date"],
     ["a date in the future", { date: "2026-10-15" }, "future_date"],
+    ["a date more than 400 days back (upload review M-3)", { date: "2025-09-08" }, "too_old"],
     ["an empty file in the zip box", { zip: new Uint8Array(0) }, "missing_zip"],
   ] as const)("%s", async (_name, change, code) => {
     expect((await refused({ ...good(), ...change })).code).toBe(code);
     expect(fake.calls).toEqual([]);
+  });
+
+  it("the 400th day back is still taken (9 Sep 2025 for 14 Oct 2026)", async () => {
+    const result = await run({ ...good(), date: "2025-09-09" });
+    expect(result).toMatchObject({ ok: false, code: "wrong_date" }); // it got past the date rule and failed only on the file's own date
   });
 
   it("a zip over the limit, and an index file over the limit, say 'too large' without reading either", async () => {

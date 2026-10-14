@@ -2,14 +2,14 @@ import Link from "next/link";
 import { ActionForm, type Correcting } from "@/components/desk/private/ledger/action-form";
 import { CloseForm } from "@/components/desk/private/ledger/close-form";
 import { ClosesCurrent, ClosesDays } from "@/components/desk/private/ledger/closes-days";
-import { HandCloses, RestatedScores } from "@/components/desk/private/ledger/closes-hand";
+import { HandCloses, RestatedScores, UploadRecords } from "@/components/desk/private/ledger/closes-hand";
 import { CorporateActions } from "@/components/desk/private/ledger/corporate-actions";
 import { FetchCloses } from "@/components/desk/private/ledger/fetch-closes";
 import { NseDrop } from "@/components/desk/private/ledger/nse-drop";
 import { istDate } from "@/lib/dates";
 import { errorText, noticeText } from "@/lib/messages";
 import {
-  ACTIONS_HEADING, CLOSES_DAYS_HEADING, CLOSES_INTRO, CLOSES_TITLE, DROP_HEADING, FETCH_HEADING, HAND_HEADING, RESTATED_HEADING, TYPE_HEADING,
+  ACTIONS_HEADING, CLOSES_DAYS_HEADING, CLOSES_INTRO, CLOSES_TITLE, DROP_HEADING, FETCH_HEADING, HAND_HEADING, RESTATED_HEADING, TYPE_HEADING, UPLOADS_HEADING,
 } from "@/lib/messages-closes";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
@@ -82,6 +82,9 @@ export default async function ClosesPage({ searchParams }: Props) {
       </Section>
       <Section id="hand" title={HAND_HEADING}>
         <HandCloses closes={page.hand} />
+      </Section>
+      <Section id="uploads" title={UPLOADS_HEADING}>
+        <UploadRecords uploads={page.uploads} />
       </Section>
       <Section id="restated" title={RESTATED_HEADING}>
         <RestatedScores items={page.restated} />

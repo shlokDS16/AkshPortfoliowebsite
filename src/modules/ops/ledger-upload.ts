@@ -1,11 +1,12 @@
 import "server-only";
-import { istDate } from "@/lib/dates";
+import { createHash } from "node:crypto";
+import { addDays, istDate } from "@/lib/dates";
 import { CsvError, parseBhavcopyCsv, parseIndexCsv } from "@/lib/providers/nse-bhavcopy";
 import { unzipSingle, ZipError, type ZipErrorCode } from "@/lib/providers/zip-one";
 import { jobDbError } from "@/lib/supabase/errors";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import type { Db } from "@/lib/supabase/types";
-import { UPLOAD_LIMITS, type UploadRefusal, type UploadResult } from "@/modules/ledger/client";
+import { CLOSE_LOOKBACK_DAYS, UPLOAD_LIMITS, type UploadRefusal, type UploadResult } from "@/modules/ledger/client";
 import { scoreIdeas } from "./ledger-prices";
 
 // The official NSE file Aksh downloaded and dropped on the Closes page, parsed here with the SAME readers the fetch uses
@@ -24,6 +25,8 @@ export type UploadInput = {
   zip: Uint8Array;
   /** The index CSV, as sent, or null. */
   index: Uint8Array | null;
+  /** The admin the route checked; recorded with the upload. */
+  adminId: string;
 };
 
 export type UploadDeps = {
@@ -64,6 +67,8 @@ const BAD_INDEX: Record<string, UploadRefusal> = {
   too_large: "too_many_rows",
 };
 
+const sha256 = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("hex");
+
 const realDate = (value: string): boolean => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!m) return false;
@@ -98,6 +103,7 @@ export async function uploadOfficialCloses(deps: UploadDeps, input: UploadInput)
   const { db } = deps;
   if (!realDate(input.date)) return refuse("bad_date");
   if (input.date > deps.today()) return refuse("future_date");
+  if (input.date < addDays(deps.today(), -CLOSE_LOOKBACK_DAYS)) return refuse("too_old");
   if (input.zip.byteLength === 0) return refuse("missing_zip");
   if (input.zip.byteLength > UPLOAD_LIMITS.zipBytes || (input.index?.byteLength ?? 0) > UPLOAD_LIMITS.indexBytes) return refuse("too_large");
   // Sniffed by content, never by name or declared type: a zip begins with the zip signature, whatever it was called.
@@ -149,7 +155,19 @@ export async function uploadOfficialCloses(deps: UploadDeps, input: UploadInput)
 
   // `p_index_close` is null when no index file was dropped; the database reads that as "no Nifty 50 close" (the day is then not
   // opened, and a shut day refuses the upload outright).
-  const stored = await db.rpc("store_uploaded_closes", { p_trade_date: input.date, p_rows: equity.closes, p_index_close: indexClose as number });
+  // The record of the upload (who, when, which bytes) is written by the same database call, in the same transaction. The hashes are
+  // computed here from the bytes this server received, never taken from the browser.
+  const indexSent = input.index && input.index.byteLength > 0 ? input.index : null;
+  const stored = await db.rpc("store_uploaded_closes", {
+    p_trade_date: input.date,
+    p_rows: equity.closes,
+    p_index_close: indexClose as number,
+    p_admin: input.adminId,
+    p_zip_sha256: sha256(input.zip),
+    p_zip_bytes: input.zip.byteLength,
+    p_index_sha256: (indexSent ? sha256(indexSent) : null) as string,
+    p_index_bytes: (indexSent ? indexSent.byteLength : null) as number,
+  });
   if (stored.error) {
     const code = storeRefusal(stored.error);
     if (code === "store_failed") console.error("ledger upload: storing failed", stored.error.code ?? "no code");
@@ -163,5 +181,9 @@ export async function uploadOfficialCloses(deps: UploadDeps, input: UploadInput)
   } catch {
     scored = null; // the closes are stored; the next daily run scores them
   }
-  return { ok: true, tradeDate: input.date, stored: stored.data ?? 0, tracked: symbols.length, indexStored: indexClose !== null, scored };
+  // The database answers with what it wrote and what it left as it was; a missing answer counts as nothing stored, never as stored.
+  const counts = (Array.isArray(stored.data) ? stored.data[0] : stored.data) as { stored?: unknown; kept?: unknown } | null | undefined;
+  const wrote = Number(counts?.stored ?? 0);
+  const left = Number(counts?.kept ?? 0);
+  return { ok: true, tradeDate: input.date, stored: wrote, kept: left, tracked: symbols.length, indexStored: indexClose !== null, scored };
 }

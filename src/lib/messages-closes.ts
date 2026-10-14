@@ -30,7 +30,7 @@ export const fetchStepText = (label: string, ok: boolean, detail: string): strin
 
 export const DROP_HEADING = "Drop NSE's official file";
 export const DROP_INTRO =
-  "When NSE does not answer the desk, download the day's files yourself and drop them here. The desk reads them the way it reads its own fetch and stores the closes of the companies you track as NSE's official file, dropped by you. The file itself is not kept.";
+  "When NSE does not answer the desk, download the day's files yourself and drop them here. The desk reads them the way it reads its own fetch and stores the closes of the companies you track as a file you uploaded as NSE's official file. The desk checks the file's layout and date; it cannot check that the file is NSE's. The file itself is not kept: the desk records only when you uploaded it, the trading date, the file's fingerprint (a SHA-256 hash) and size, and how many closes were stored.";
 export const DROP_DATE_LABEL = "Trading date of the files";
 export const DROP_ZIP_LABEL = "Equity file (the day's bhavcopy, a .zip)";
 export const DROP_INDEX_LABEL = "Index file (the day's indices, a .csv), optional";
@@ -47,6 +47,7 @@ export const UPLOAD_REFUSAL_TEXT = {
   missing_zip: "Choose the equity file (the day's bhavcopy zip) first. Nothing was stored.",
   bad_date: "Choose the trading date the files are for. Nothing was stored.",
   future_date: "That date is in the future. Nothing was stored.",
+  too_old: "That date is more than 400 days back. Closes can be dropped for a day in the last 400 days. Nothing was stored.",
   too_early: "The market has not closed yet for that date (15:30 India). Drop the files after the close. Nothing was stored.",
   not_zip: "The equity file is not a zip file. Choose the day's bhavcopy zip. Nothing was stored.",
   zip_damaged: "The zip file is damaged or cut short. Download it from NSE again. Nothing was stored.",
@@ -80,12 +81,24 @@ export function uploadRefusalText(code: keyof typeof UPLOAD_REFUSAL_TEXT, fileDa
   return base;
 }
 
-export function uploadDoneText(r: { tradeDate: string; stored: number; tracked: number; indexStored: boolean; scored: number | null }): string {
+/** What an upload did, by what the database wrote: a close it left as it was is said to be left, never stored (upload review I-1). */
+export function uploadDoneText(r: { tradeDate: string; stored: number; kept: number; tracked: number; indexStored: boolean; scored: number | null }): string {
+  const day = formatDate(r.tradeDate);
   const parts = [
-    `Stored ${formatCount(r.stored, "close")} for ${formatDate(r.tradeDate)} as NSE's official file, dropped by you.`,
-    r.indexStored ? "The Nifty 50 close is stored, so the day is open." : "No Nifty 50 close was stored, so the day is not open yet. Drop the index file too.",
+    r.stored > 0
+      ? `Stored ${formatCount(r.stored, "close")} for ${day} from a file you uploaded as NSE's official file.`
+      : `Nothing new was stored for ${day}.`,
   ];
-  if (r.tracked > r.stored) parts.push(`${formatCount(r.tracked - r.stored, "company", "companies")} you track had no row in the file.`);
+  if (r.kept > 0) {
+    parts.push(
+      r.kept === 1
+        ? "1 close in the file already had a close from NSE's fetched file or an earlier upload and was left as it was."
+        : `${r.kept} closes in the file already had a close from NSE's fetched file or an earlier upload and were left as they were.`,
+    );
+  }
+  parts.push(r.indexStored ? "The Nifty 50 close is stored, so the day is open." : "No Nifty 50 close was stored, so the day is not open yet. Drop the index file too.");
+  const matched = r.stored + r.kept;
+  if (r.tracked > matched) parts.push(`${formatCount(r.tracked - matched, "company", "companies")} you track had no row in the file.`);
   parts.push(r.scored === null ? "Scoring did not run; the daily run will score it." : `Scored ${formatCount(r.scored, "idea")}.`);
   return parts.join(" ");
 }
@@ -103,8 +116,15 @@ export const TYPE_INDEX_HINT = "A day is open only when its Nifty 50 close is st
 export const TYPE_BUTTON = "Store the close";
 
 export const HAND_HEADING = "Closes you typed or dropped";
-export const HAND_NOTE = "Closes that are not NSE's own fetched file, in the last 30 days. The fetched file replaces them when it arrives.";
-export const HAND_EMPTY = "None in the last 30 days.";
+export const HAND_NOTE = "Closes that are not NSE's own fetched file, over the last 400 days. The fetched file replaces them when it arrives, if the day is still inside its seven-day fetch window.";
+export const HAND_EMPTY = "None in the last 400 days.";
+
+export const UPLOADS_HEADING = "Files you uploaded";
+export const UPLOADS_NOTE =
+  "Every upload of an official file leaves a record that stays: the day and time you uploaded it, the trading date, the first 12 characters of the file's fingerprint (a SHA-256 hash of the zip as the desk received it), and how many closes were stored and how many were left as they were. The file itself is not kept. NSE's real file for a day has one fingerprint, so anyone holding that file can compare.";
+export const UPLOADS_EMPTY = "No file has been uploaded.";
+export const uploadLineText = (r: { stored: number; kept: number; indexGiven: boolean }): string =>
+  `stored ${r.stored}, kept ${r.kept}${r.indexGiven ? ", with the Nifty 50 close" : ", without the Nifty 50 close"}`;
 
 export const RESTATED_HEADING = "Scores restated lately";
 export const RESTATED_NOTE = "A stored close that changed an idea's fixed entry or final score leaves a dated row here.";

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { formatDate } from "@/lib/format";
-import { HAND_EMPTY, HAND_NOTE, RESTATED_EMPTY, RESTATED_NOTE } from "@/lib/messages-closes";
-import type { HandCloseLine, RestatedLine } from "@/modules/ledger/client";
+import { HAND_EMPTY, HAND_NOTE, RESTATED_EMPTY, RESTATED_NOTE, UPLOADS_EMPTY, UPLOADS_NOTE } from "@/lib/messages-closes";
+import type { HandCloseLine, RestatedLine, UploadLine } from "@/modules/ledger/client";
 
 /** Closes that are not NSE's own fetched file, each with where it came from. */
 export function HandCloses({ closes }: { closes: HandCloseLine[] }) {
@@ -21,6 +21,31 @@ export function HandCloses({ closes }: { closes: HandCloseLine[] }) {
                 <span className="block">
                   Close {c.close}, {c.sourceText}
                 </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Every official-file upload on record, newest first: when, for which trading date, the first 12 characters of the file's hash, what it did. */
+export function UploadRecords({ uploads }: { uploads: UploadLine[] }) {
+  return (
+    <div className="space-y-2">
+      <p className="max-w-[62ch] text-small text-ink-muted">{UPLOADS_NOTE}</p>
+      {uploads.length === 0 ? (
+        <p className="text-small text-ink-body">{UPLOADS_EMPTY}</p>
+      ) : (
+        <ul className="divide-y divide-rule border-y border-rule" aria-label="Files you uploaded">
+          {uploads.map((u) => (
+            <li key={u.id} data-upload className="grid grid-cols-[11rem_1fr] gap-x-3 py-2 text-small tabular-nums desk:text-small-desk">
+              <span className="text-ink">
+                {u.uploadedOn}, {u.uploadedAt}
+              </span>
+              <span className="text-ink-body">
+                For {formatDate(u.tradeDate)}, file <span className="font-mono text-mono-id text-ink">{u.hash12}</span>, {u.countsText}
               </span>
             </li>
           ))}

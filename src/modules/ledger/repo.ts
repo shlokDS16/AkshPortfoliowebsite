@@ -5,11 +5,11 @@ import { asRecord } from "@/lib/records";
 import { LedgerError, ledgerErrorFromDb } from "./errors";
 import type {
   ActionKind, AnchorStatus, ChainCheckRows, ClosesStatus, CloseReason, CorporateAction, Expects, Idea, IdeaEvent, IdeaEventKind, IdeaScore,
-  IdeaStatus, LedgerRepo, MarketDay, ProcessCall, ScoreChange, ScoreFlag, StoredClose,
+  IdeaStatus, LedgerRepo, MarketDay, ProcessCall, ScoreChange, ScoreFlag, StoredClose, UploadRecord,
 } from "./types";
 
 // Reads use the admin's cookie client (RLS, admin only). Named columns only: a '*' would also pull the sealed text and the
-// nonce of every event, which no screen needs. The only writes are the two event doors, the rescore and the item link.
+// nonce of every event, which no screen needs. The only writes are the two event doors, the rescore, the typed close and the corporate-action insert.
 const IDEA_COLUMNS = "id, company_id, item_id, expects, horizon_days, held, status, opened_at, closed_at, close_reason, process_call, created_at";
 const EVENT_COLUMNS = "id, seq, idea_id, kind, recorded_at, stance, body_md, hash, prev_hash";
 const SCORE_COLUMNS =
@@ -265,6 +265,20 @@ export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
       return rows.flatMap((r): StoredClose[] => (r.company_id ? [{ companyId: r.company_id, tradeDate: r.trade_date, close: Number(r.close), source: r.source }] : []));
     },
 
+    async listHandCloses(since) {
+      const rows = await readAll("ledger.listHandCloses", (from, to) =>
+        db.from("prices_daily").select("company_id, trade_date, close, source").not("company_id", "is", null).neq("source", "nse_fetch").gte("trade_date", since).order("trade_date").order("company_id").range(from, to),
+      );
+      return rows.flatMap((r): StoredClose[] => (r.company_id ? [{ companyId: r.company_id, tradeDate: r.trade_date, close: Number(r.close), source: r.source }] : []));
+    },
+
+    async listUploads(since) {
+      const rows = await readAll("ledger.listUploads", (from, to) =>
+        db.from("ledger_uploads").select("id, uploaded_at, trade_date, zip_sha256, stored, kept, index_given").gte("trade_date", since).order("id", { ascending: false }).range(from, to),
+      );
+      return rows.map((r): UploadRecord => ({ id: Number(r.id), uploadedAt: r.uploaded_at, tradeDate: r.trade_date, zipSha256: r.zip_sha256, stored: r.stored, kept: r.kept, indexGiven: r.index_given }));
+    },
+
     async listActions() {
       const rows = await readAll("ledger.listActions", (from, to) =>
         db.from("corporate_actions").select("id, company_id, ex_date, factor, kind, note, supersedes, created_at").order("created_at", { ascending: false }).order("id").range(from, to),
@@ -277,11 +291,13 @@ export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
     async enterClose(call) {
       // The source is never an argument: enter_closes always writes `manual` (spec s18). A row has no series and no ISIN.
       const rows: Json = [{ symbol: call.symbol, close: call.close }];
-      const stored = check(
+      const result = check(
         "ledger.enterClose",
         await db.rpc("enter_closes", { p_trade_date: call.tradeDate, p_rows: rows, p_index_close: (call.indexClose === null ? null : Number(call.indexClose)) as number }),
       );
-      return typeof stored === "number" ? stored : 0;
+      // The database answers with the rows it wrote and the rows it left as they were (final fix wave, upload review I-1).
+      const row = asRecord(Array.isArray(result) ? result[0] : result);
+      return { stored: Number(row?.stored ?? 0), kept: Number(row?.kept ?? 0) };
     },
 
     async addAction(call) {
@@ -298,10 +314,6 @@ export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
         throw ledgerErrorFromDb("ledger.addAction", result.error);
       }
       return result.data.id;
-    },
-
-    async setItemLink(ideaId, itemId) {
-      check("ledger.setItemLink", await db.from("ideas").update({ item_id: itemId }).eq("id", ideaId));
     },
   };
 }

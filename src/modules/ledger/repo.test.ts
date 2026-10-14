@@ -186,17 +186,11 @@ describe("checkChain calls both checks", () => {
   });
 });
 
-describe("rescore, links and status", () => {
+describe("rescore and status", () => {
   it("rescore calls rescore_ideas and returns the count", async () => {
     const { db, calls } = createFakeDb([{ data: 5 }]);
     expect(await createSupabaseLedgerRepo(db).rescore()).toBe(5);
     expect(calls[0]!.target).toBe("rpc:rescore_ideas");
-  });
-
-  it("setItemLink updates only item_id, the one column the admin may change", async () => {
-    const { db, calls } = createFakeDb([{ error: null }]);
-    await createSupabaseLedgerRepo(db).setItemLink("i1", "it1");
-    expect(calls[0]).toEqual({ target: "ideas", ops: [["update", { item_id: "it1" }], ["eq", "id", "i1"]] });
   });
 
   it("itemCompany reads the file's company, or null when there is no such file", async () => {

@@ -1,6 +1,7 @@
 import type { Db } from "@/lib/supabase/types";
 import { addDays, istDate } from "@/lib/dates";
 import { chainReport, type ChainReport } from "./chain";
+import { CLOSE_LOOKBACK_DAYS } from "./constants";
 import { buildClosesView, DAYS_SHOWN, RECENT_DAYS, type ClosesView } from "./closes";
 import { voidDeadline } from "./figures";
 import { lessonLines, type LessonLine } from "./journal-list";
@@ -96,9 +97,11 @@ export const getIdeaPage = (db: Db, id: string, now: Date = new Date()): Promise
 export type ClosesPage = ClosesView & { status: ClosesStatus | null };
 
 export async function buildClosesPage(repo: LedgerRepo, today: string): Promise<ClosesPage> {
-  const [days, closes, ideas, scores, actions, changes, companies, status] = await Promise.all([
+  const [days, closes, handCloses, uploads, ideas, scores, actions, changes, companies, status] = await Promise.all([
     repo.listMarketDays(addDays(today, -(DAYS_SHOWN + 5))),
     repo.listCloses(addDays(today, -RECENT_DAYS)),
+    repo.listHandCloses(addDays(today, -CLOSE_LOOKBACK_DAYS)),
+    repo.listUploads(addDays(today, -CLOSE_LOOKBACK_DAYS)),
     repo.listIdeas(),
     repo.listScores(),
     repo.listActions(),
@@ -106,7 +109,7 @@ export async function buildClosesPage(repo: LedgerRepo, today: string): Promise<
     repo.listPickable(),
     soft("closes", () => repo.closesStatus()),
   ]);
-  return { ...buildClosesView({ today, days, closes, ideas, scores, actions, changes, companies }), status };
+  return { ...buildClosesView({ today, days, closes, handCloses, uploads, ideas, scores, actions, changes, companies }), status };
 }
 
 export const getClosesPage = (db: Db, today: string): Promise<ClosesPage> => buildClosesPage(createSupabaseLedgerRepo(db), today);

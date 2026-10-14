@@ -63,7 +63,9 @@ export async function enterCloseAction(_previous: FormState, formData: FormData)
   await requireAdmin();
   try {
     const repo = createSupabaseLedgerRepo(await createSupabaseServerClient());
-    if (!(await enterClose(repo, enterCloseFromForm(formData), istDate(new Date())))) throw new LedgerError("ledger-close-not-stored");
+    const result = await enterClose(repo, enterCloseFromForm(formData), istDate(new Date()));
+    // What the database wrote is what the screen says (upload review I-1): a close left as it was is never reported as stored.
+    if (result.stored === 0) throw new LedgerError(result.kept > 0 ? "ledger-close-kept-official" : "ledger-close-not-stored");
     await refreshScores(repo);
   } catch (error) {
     return failState(error, "ledger");

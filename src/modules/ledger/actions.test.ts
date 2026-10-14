@@ -233,6 +233,17 @@ describe("the Closes page's two writes (Task 11)", () => {
     expect(JSON.stringify(repo.calls[1]!.args)).not.toMatch(/nse_fetch|source/);
   });
 
+  it("a close the database left as it was is said in words ('kept'), never as stored, and nothing is rescored (upload review I-1)", async () => {
+    state.repo = repo = createFakeLedgerRepo({ companies: [PICK], enterStored: 0, enterKept: 1 });
+    expect(await enterCloseAction(noState, form(close))).toEqual({ error: "ledger-close-kept-official" });
+    expect(methods()).not.toContain("rescore");
+  });
+
+  it("a date more than 400 days back is refused in words before the database", async () => {
+    expect(await enterCloseAction(noState, form({ ...close, date: "2025-01-01" }))).toEqual({ error: "ledger-close-too-old" });
+    expect(methods()).not.toContain("enterClose");
+  });
+
   it("no close stored (no idea on the company) is said in words, and nothing is rescored", async () => {
     state.repo = repo = createFakeLedgerRepo({ companies: [PICK], enterStored: 0 });
     expect(await enterCloseAction(noState, form(close))).toEqual({ error: "ledger-close-not-stored" });

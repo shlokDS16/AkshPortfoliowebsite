@@ -106,9 +106,20 @@ describe("enterClose and addCorporateAction (service)", () => {
   it("looks up the company's symbol, stores through the repo, and reports whether a close was stored", async () => {
     const repo = createFakeLedgerRepo({ companies: [pick] });
     const input = { companyId: COMPANY, tradeDate: "2026-10-12", close: "1234.50", indexClose: "22363.35" };
-    expect(await enterClose(repo, input, TODAY)).toBe(true);
+    expect(await enterClose(repo, input, TODAY)).toEqual({ stored: 1, kept: 0 });
     expect(repo.calls.at(-1)).toEqual({ method: "enterClose", args: [{ tradeDate: "2026-10-12", symbol: "ACME", close: "1234.50", indexClose: "22363.35" }] });
-    expect(await enterClose(createFakeLedgerRepo({ companies: [pick], enterStored: 0 }), input, TODAY)).toBe(false);
+    // What the database wrote is what is reported: a close left as it was is "kept", never "stored" (upload review I-1).
+    expect(await enterClose(createFakeLedgerRepo({ companies: [pick], enterStored: 0, enterKept: 1 }), input, TODAY)).toEqual({ stored: 0, kept: 1 });
+    expect(await enterClose(createFakeLedgerRepo({ companies: [pick], enterStored: 0 }), input, TODAY)).toEqual({ stored: 0, kept: 0 });
+  });
+
+  it("refuses a day more than 400 days back, with a plain message, before the database; the 400th day is still taken (upload review M-3)", async () => {
+    const repo = createFakeLedgerRepo({ companies: [pick] });
+    const input = (tradeDate: string) => ({ companyId: COMPANY, tradeDate, close: "10", indexClose: null });
+    // 400 days before 14 Oct 2026 is 9 Sep 2025.
+    await expect(enterClose(repo, input("2025-09-08"), TODAY)).rejects.toMatchObject({ code: "ledger-close-too-old" });
+    expect(repo.calls.some((c) => c.method === "enterClose")).toBe(false);
+    await expect(enterClose(repo, input("2025-09-09"), TODAY)).resolves.toEqual({ stored: 1, kept: 0 });
   });
 
   it("refuses a day after today before the database, a company that is not listed, and one with no symbol or still in review", async () => {
@@ -139,12 +150,19 @@ describe("enterClose and addCorporateAction (service)", () => {
 
 describe("the repo's new doors", () => {
   it("enterClose sends one row with no series and no ISIN, and never a source", async () => {
-    const { db, calls } = createFakeDb([{ data: 1 }]);
-    expect(await createSupabaseLedgerRepo(db).enterClose({ tradeDate: "2026-10-12", symbol: "ACME", close: "1234.50", indexClose: null })).toBe(1);
+    const { db, calls } = createFakeDb([{ data: { stored: 1, kept: 0 } }]);
+    expect(await createSupabaseLedgerRepo(db).enterClose({ tradeDate: "2026-10-12", symbol: "ACME", close: "1234.50", indexClose: null })).toEqual({ stored: 1, kept: 0 });
     expect(calls[0]).toEqual({
       target: "rpc:enter_closes",
       ops: [["args", { p_trade_date: "2026-10-12", p_rows: [{ symbol: "ACME", close: "1234.50" }], p_index_close: null }]],
     });
+  });
+
+  it("enterClose reports what the database wrote and what it kept (an object or a one-row list), and no answer is nothing written", async () => {
+    const call = { tradeDate: "2026-10-12", symbol: "ACME", close: "1", indexClose: null };
+    expect(await createSupabaseLedgerRepo(createFakeDb([{ data: { stored: 0, kept: 1 } }]).db).enterClose(call)).toEqual({ stored: 0, kept: 1 });
+    expect(await createSupabaseLedgerRepo(createFakeDb([{ data: [{ stored: 0, kept: 1 }] }]).db).enterClose(call)).toEqual({ stored: 0, kept: 1 });
+    expect(await createSupabaseLedgerRepo(createFakeDb([{ data: null }]).db).enterClose(call)).toEqual({ stored: 0, kept: 0 });
   });
 
   it("enterClose maps the database's refusals to plain codes", async () => {
@@ -195,7 +213,12 @@ describe("the Closes view", () => {
     { tradeDate: "2026-10-13", status: "shut" as const, source: "nse_fetch" },
   ];
   const view = (over: Partial<Parameters<typeof buildClosesView>[0]> = {}) =>
-    buildClosesView({ today: TODAY, days, closes: [], ideas: [acme, later], scores: [], actions: [], changes: [], companies: [pick, { id: OLD, name: "Later Ltd", symbol: "LATE", needsReview: false }], ...over });
+    buildClosesView({
+      today: TODAY, days, closes: [], uploads: [], ideas: [acme, later], scores: [], actions: [], changes: [],
+      companies: [pick, { id: OLD, name: "Later Ltd", symbol: "LATE", needsReview: false }],
+      handCloses: (over.closes ?? []).filter((c) => c.source !== "nse_fetch"),
+      ...over,
+    });
 
   it("lists the last ten days, weekends left out, each with its state and source in words", () => {
     const v = view();
@@ -204,7 +227,7 @@ describe("the Closes view", () => {
       ["2026-10-14", "today"], ["2026-10-13", "shut"], ["2026-10-12", "open"], ["2026-10-09", "open"],
       ["2026-10-08", "undecided"], ["2026-10-07", "undecided"], ["2026-10-06", "undecided"], ["2026-10-05", "undecided"],
     ]);
-    expect(v.days.find((d) => d.date === "2026-10-12")?.sourceText).toBe("NSE's official file, dropped by you");
+    expect(v.days.find((d) => d.date === "2026-10-12")?.sourceText).toBe("a file you uploaded as NSE's official file");
     expect(v.days.find((d) => d.date === "2026-10-09")?.sourceText).toBe("NSE's official file, fetched by the desk");
     expect(v.days.find((d) => d.date === "2026-10-13")?.stateText).toBe("Shut: no trading");
   });
@@ -231,12 +254,23 @@ describe("the Closes view", () => {
         { companyId: COMPANY, tradeDate: "2026-10-12", close: 101.5, source: "nse_upload" },
         { companyId: COMPANY, tradeDate: "2026-10-12", close: 7, source: "nse_fetch" },
         { companyId: COMPANY, tradeDate: "2026-08-01", close: 5, source: "manual" },
+        { companyId: COMPANY, tradeDate: "2025-08-01", close: 4, source: "manual" },
       ],
     });
+    // M-3: the list reaches 400 days back (the span a close may be stored for), so a close typed in August is still shown; one from
+    // before 9 September 2025 (more than 400 days before 14 October 2026) is not.
     expect(v.hand.map((h) => [h.date, h.close, h.sourceText])).toEqual([
-      ["2026-10-12", "101.50", "NSE's official file, dropped by you"],
+      ["2026-10-12", "101.50", "a file you uploaded as NSE's official file"],
       ["2026-10-09", "100.00", "a close you typed"],
+      ["2026-08-01", "5.00", "a close you typed"],
     ]);
+  });
+
+  it("lists the recorded uploads: India date and time, the trading date, 12 characters of the hash, stored and kept", () => {
+    const v = view({
+      uploads: [{ id: 3, uploadedAt: "2026-10-13T20:00:00.000Z", tradeDate: "2026-10-13", zipSha256: "ab".repeat(32), stored: 2, kept: 1, indexGiven: true }],
+    });
+    expect(v.uploads).toEqual([{ id: 3, uploadedOn: "14 Oct 2026", uploadedAt: "01:30", tradeDate: "2026-10-13", hash12: "abababababab", countsText: "stored 2, kept 1, with the Nifty 50 close" }]);
   });
 
   it("groups corporate actions by company, shows a replaced entry as replaced and links a correction to what it corrects", () => {

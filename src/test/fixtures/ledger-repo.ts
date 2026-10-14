@@ -1,7 +1,7 @@
 // A copy of the ledger module's own fake-repo for tests outside the module (a page test may import a module only through its
 // client entry). Keep the two in step. Every value is invented.
 import type {
-  AddActionCall, AddEventCall, AnchorStatus, ChainCheckRows, ClosesStatus, CorporateAction, EnterCloseCall, Idea, IdeaEvent, IdeaScore, LedgerRepo, MarketDay, OpenIdeaCall, PickCompany, ScoreChange, StoredClose,
+  AddActionCall, AddEventCall, AnchorStatus, ChainCheckRows, ClosesStatus, CorporateAction, EnterCloseCall, Idea, IdeaEvent, IdeaScore, LedgerRepo, MarketDay, OpenIdeaCall, PickCompany, ScoreChange, StoredClose, UploadRecord,
 } from "@/modules/ledger/client";
 
 export type FakeSeed = {
@@ -15,8 +15,13 @@ export type FakeSeed = {
   marketDays?: MarketDay[];
   storedCloses?: StoredClose[];
   actions?: CorporateAction[];
-  /** How many company closes `enterClose` reports stored (default 1). */
+  /** How many company closes `enterClose` reports written (default 1) and kept as they were (default 0). */
   enterStored?: number;
+  enterKept?: number;
+  /** Closes that are not NSE's own fetched file, for the hand list (default: none). */
+  handCloses?: StoredClose[];
+  /** Recorded official-file uploads (default: none). */
+  uploads?: UploadRecord[];
   /** Which company each file belongs to, by item id. */
   itemCompanies?: Record<string, string>;
   closes?: ClosesStatus;
@@ -59,9 +64,10 @@ export function createFakeLedgerRepo(seed: FakeSeed = {}): LedgerRepo & { calls:
     itemCompany: (itemId) => run("itemCompany", [itemId], () => seed.itemCompanies?.[itemId] ?? null),
     listMarketDays: (since) => run("listMarketDays", [since], () => (seed.marketDays ?? []).filter((d) => d.tradeDate >= since)),
     listCloses: (since) => run("listCloses", [since], () => (seed.storedCloses ?? []).filter((c) => c.tradeDate >= since)),
+    listHandCloses: (since) => run("listHandCloses", [since], () => (seed.handCloses ?? []).filter((c) => c.tradeDate >= since)),
+    listUploads: (since) => run("listUploads", [since], () => (seed.uploads ?? []).filter((u) => u.tradeDate >= since)),
     listActions: () => run("listActions", [], () => seed.actions ?? []),
-    enterClose: (call: EnterCloseCall) => run("enterClose", [call], () => seed.enterStored ?? 1),
+    enterClose: (call: EnterCloseCall) => run("enterClose", [call], () => ({ stored: seed.enterStored ?? 1, kept: seed.enterKept ?? 0 })),
     addAction: (call: AddActionCall) => run("addAction", [call], () => "action-new"),
-    setItemLink: (ideaId, itemId) => run("setItemLink", [ideaId, itemId], () => undefined),
   };
 }

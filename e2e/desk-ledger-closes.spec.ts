@@ -46,7 +46,7 @@ test("official file, typed close, corporate action and a lesson, from the owner'
   await expect(page).toHaveURL(/\/desk\/ledger\/closes$/);
   await expect(page.getByRole("heading", { level: 1, name: "Closes" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2 })).toHaveText([
-    "Recent days", "Fetch closes now", "Drop NSE's official file", "Type a close", "Closes you typed or dropped", "Scores restated lately", "Splits, bonuses and other actions",
+    "Recent days", "Fetch closes now", "Drop NSE's official file", "Type a close", "Closes you typed or dropped", "Files you uploaded", "Scores restated lately", "Splits, bonuses and other actions",
   ]);
   await hydrated(page);
 
@@ -76,13 +76,16 @@ test("official file, typed close, corporate action and a lesson, from the owner'
   await zipInput.setInputFiles({ name: "BhavCopy_NSE_CM_0_0_0_20261012_F_0000.csv.zip", mimeType: "application/zip", buffer: files.zip });
   await page.getByLabel(/Index file/).setInputFiles({ name: "ind_close_all_12102026.csv", mimeType: "text/csv", buffer: files.index });
   await send(page, "Store the official closes");
-  await expect(page.getByTestId("drop-result")).toContainText("as NSE's official file, dropped by you.");
+  await expect(page.getByTestId("drop-result")).toContainText("from a file you uploaded as NSE's official file.");
   await expect(page.getByTestId("drop-result")).toContainText("The Nifty 50 close is stored, so the day is open.");
   await expect(page.getByTestId("drop-result")).toHaveAttribute("role", "status");
-  await expect(day(uploadDay)).toContainText("Open: NSE's official file, dropped by you");
+  await expect(day(uploadDay)).toContainText("Open: a file you uploaded as NSE's official file");
   await expect(day(uploadDay).getByTestId("missing")).not.toContainText(company.name);
   const hand = page.locator("[data-hand]", { hasText: company.name });
-  await expect(hand).toContainText("Close 123.45, NSE's official file, dropped by you");
+  await expect(hand).toContainText("Close 123.45, a file you uploaded as NSE's official file");
+  // The upload left a record on the page: the trading date, a 12-character fingerprint, and what it did.
+  const record = page.locator("[data-upload]", { hasText: "stored 1, kept 0" }).first();
+  await expect(record).toContainText(/file [0-9a-f]{12},/);
   await expect(page.getByTestId("closes-line")).toContainText("rest on closes entered or dropped by hand");
 
   // Type a close by hand for the day before: stored as typed, listed with its source, and the day opens as typed.

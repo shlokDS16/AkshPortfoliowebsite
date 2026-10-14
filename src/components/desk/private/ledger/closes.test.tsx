@@ -9,7 +9,7 @@ import { event, closedIdea, idea } from "@/test/fixtures/ledger";
 import { ActionForm } from "./action-form";
 import { CloseForm } from "./close-form";
 import { ClosesCurrent, ClosesDays } from "./closes-days";
-import { HandCloses, RestatedScores } from "./closes-hand";
+import { HandCloses, RestatedScores, UploadRecords } from "./closes-hand";
 import { CorporateActions } from "./corporate-actions";
 import { FetchCloses, type FetchState } from "./fetch-closes";
 import { JournalList } from "./journal-list";
@@ -26,7 +26,10 @@ const TODAY = "2026-10-14";
 const view = (over: Partial<Parameters<typeof buildClosesView>[0]> = {}) =>
   buildClosesView({
     today: TODAY, days: [], closes: [], ideas: [idea({ id: "a", companyId: ACME.id, companyName: ACME.name, symbol: "ACME", openedAt: "2026-10-01T05:00:00.000Z" })],
-    scores: [], actions: [], changes: [], companies: [ACME, BETA], ...over,
+    scores: [], actions: [], changes: [], companies: [ACME, BETA], uploads: [],
+    // The hand list reads its own query (400 days); by default it holds the typed or dropped rows of `closes`.
+    handCloses: (over.closes ?? []).filter((c) => c.source !== "nse_fetch"),
+    ...over,
   });
 
 describe("ClosesCurrent", () => {
@@ -63,7 +66,7 @@ describe("ClosesDays", () => {
   it("shows each state in words with its source, never by colour alone", () => {
     render(<ClosesDays days={view({ days }).days} />);
     const row = (date: string) => document.querySelector(`[data-day="${date}"]`) as HTMLElement;
-    expect(row("2026-10-12")).toHaveTextContent("Open: NSE's official file, dropped by you");
+    expect(row("2026-10-12")).toHaveTextContent("Open: a file you uploaded as NSE's official file");
     expect(row("2026-10-09")).toHaveTextContent("Open: a close you typed");
     expect(row("2026-10-13")).toHaveTextContent("Shut: no trading");
     expect(row("2026-10-14")).toHaveTextContent("Today: NSE publishes its file after the close");
@@ -160,11 +163,12 @@ describe("NseDrop", () => {
   });
 
   it("posts the date and both files as a form to the owner-only route", async () => {
-    const fetchMock = answer(200, { ok: true, tradeDate: "2026-10-12", stored: 2, tracked: 3, indexStored: true, scored: 2 });
+    const fetchMock = answer(200, { ok: true, tradeDate: "2026-10-12", stored: 2, kept: 0, tracked: 3, indexStored: true, scored: 2 });
     vi.stubGlobal("fetch", fetchMock);
     await send({ index: new File(["a,b"], "ind.csv", { type: "text/csv" }) });
     const result = await screen.findByTestId("drop-result");
-    await waitFor(() => expect(result).toHaveTextContent("Stored 2 closes for 12 Oct 2026 as NSE's official file, dropped by you."));
+    await waitFor(() => expect(result).toHaveTextContent("Stored 2 closes for 12 Oct 2026 from a file you uploaded as NSE's official file."));
+    expect(result).not.toHaveTextContent(/left as/);
     expect(result).toHaveTextContent("The Nifty 50 close is stored, so the day is open.");
     expect(result).toHaveTextContent("1 company you track had no row in the file.");
     expect(result).toHaveTextContent("Scored 2 ideas.");
@@ -196,6 +200,22 @@ describe("NseDrop", () => {
     expect(UPLOAD_REFUSAL_TEXT.bad_close).toMatch(/type that close by hand/);
     expect(UPLOAD_REFUSAL_TEXT.bad_close).toMatch(/stored as typed/);
     expect(UPLOAD_REFUSAL_TEXT.day_shut).toMatch(/index file/);
+  });
+
+  it("a drop that wrote nothing says so, and says the closes were left as they were (never 'stored')", async () => {
+    vi.stubGlobal("fetch", answer(200, { ok: true, tradeDate: "2026-10-12", stored: 0, kept: 2, tracked: 2, indexStored: true, scored: 2 }));
+    await send();
+    const result = await screen.findByTestId("drop-result");
+    await waitFor(() => expect(result).toHaveTextContent("Nothing new was stored for 12 Oct 2026."));
+    expect(result).toHaveTextContent("2 closes in the file already had a close from NSE's fetched file or an earlier upload and were left as they were.");
+    expect(result).not.toHaveTextContent(/Stored \d/);
+  });
+
+  it("a drop that wrote some and left some says both numbers", async () => {
+    vi.stubGlobal("fetch", answer(200, { ok: true, tradeDate: "2026-10-12", stored: 3, kept: 1, tracked: 4, indexStored: false, scored: null }));
+    await send();
+    const result = await screen.findByTestId("drop-result");
+    await waitFor(() => expect(result).toHaveTextContent("Stored 3 closes for 12 Oct 2026 from a file you uploaded as NSE's official file. 1 close in the file already had a close from NSE's fetched file or an earlier upload and was left as it was."));
   });
 
   it("a file for another date says which date it is for", async () => {
@@ -418,7 +438,29 @@ describe("HandCloses and RestatedScores", () => {
     expect(document.querySelector("[data-hand]")).toHaveTextContent("Close 101.50, a close you typed");
     unmount();
     render(<HandCloses closes={[]} />);
-    expect(screen.getByText("None in the last 30 days.")).toBeInTheDocument();
+    expect(screen.getByText("None in the last 400 days.")).toBeInTheDocument();
+  });
+
+  it("lists every recorded upload with its India date and time, the first 12 characters of the hash and what it did", () => {
+    const hash = "0123456789abcdef".repeat(4);
+    const v = view({
+      uploads: [
+        { id: 7, uploadedAt: "2026-10-13T09:05:00.000Z", tradeDate: "2026-10-12", zipSha256: hash, stored: 0, kept: 2, indexGiven: true },
+        { id: 6, uploadedAt: "2026-09-02T04:30:00.000Z", tradeDate: "2026-09-01", zipSha256: "f".repeat(64), stored: 3, kept: 0, indexGiven: false },
+      ],
+    });
+    render(<UploadRecords uploads={v.uploads} />);
+    const rows = [...document.querySelectorAll("[data-upload]")];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("13 Oct 2026, 14:35");
+    expect(rows[0]).toHaveTextContent("For 12 Oct 2026, file 0123456789ab, stored 0, kept 2, with the Nifty 50 close");
+    expect(rows[0]!.textContent).not.toContain(hash);
+    expect(rows[1]).toHaveTextContent("stored 3, kept 0, without the Nifty 50 close");
+  });
+
+  it("with no upload on record it says so", () => {
+    render(<UploadRecords uploads={[]} />);
+    expect(screen.getByText("No file has been uploaded.")).toBeInTheDocument();
   });
 
   it("links a restated score to its idea and says 'restated on <date>' with the figure that moved", () => {

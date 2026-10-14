@@ -192,6 +192,12 @@ export type EnterCloseCall = {
   indexClose: string | null;
 };
 
+/** What a hand door wrote (`stored`) and what it left as it was because a close of an equal or higher source already stood (`kept`). */
+export type EnterCloseResult = { stored: number; kept: number };
+
+/** One official-file upload, as the database recorded it (`ledger_uploads`). The hash is the SHA-256 of the equity zip as the server received it. */
+export type UploadRecord = { id: number; uploadedAt: string; tradeDate: string; zipSha256: string; stored: number; kept: number; indexGiven: boolean };
+
 export type AddActionCall = {
   companyId: string;
   exDate: string;
@@ -221,16 +227,19 @@ export interface LedgerRepo {
   checkChain(): Promise<ChainCheckRows>;
   /** Recompute every score (`rescore_ideas()`), after a close or a corporate action was entered. */
   rescore(): Promise<number>;
-  setItemLink(ideaId: string, itemId: string | null): Promise<void>;
   /** The company a file belongs to, or null when there is no such file. */
   itemCompany(itemId: string): Promise<string | null>;
   /** The trading calendar from a date (YYYY-MM-DD) on, oldest first. */
   listMarketDays(since: string): Promise<MarketDay[]>;
   /** Every stored company close from a date on (the Nifty 50 rows are left out). */
   listCloses(since: string): Promise<StoredClose[]>;
+  /** Every stored company close from a date on that is NOT NSE's own fetched file (typed or dropped). */
+  listHandCloses(since: string): Promise<StoredClose[]>;
+  /** The official-file uploads recorded for trade dates from a date on, newest first. */
+  listUploads(since: string): Promise<UploadRecord[]>;
   listActions(): Promise<CorporateAction[]>;
-  /** Stores one typed close (and optionally the Nifty 50's) through `enter_closes`; returns the company closes stored (0 or 1). */
-  enterClose(call: EnterCloseCall): Promise<number>;
+  /** Stores one typed close (and optionally the Nifty 50's) through `enter_closes`; says whether the company close was written or left as it was. */
+  enterClose(call: EnterCloseCall): Promise<EnterCloseResult>;
   addAction(call: AddActionCall): Promise<string>;
 }
 

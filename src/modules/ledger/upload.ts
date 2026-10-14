@@ -25,6 +25,7 @@ export const UPLOAD_REFUSALS = [
   "bad_date",
   "future_date",
   "too_early",
+  "too_old",
   "not_zip",
   "zip_damaged",
   "zip_many",
@@ -51,8 +52,10 @@ export type UploadResult =
   | {
       ok: true;
       tradeDate: string;
-      /** Company closes stored. */
+      /** Company closes WRITTEN by this upload. */
       stored: number;
+      /** Company closes the file carried that were left as they were, because a close from NSE's fetched file or an earlier upload already stood. */
+      kept: number;
       /** Companies the desk tracks (an open idea, or a closed one not yet final on official closes). */
       tracked: number;
       /** Whether the Nifty 50 close was stored (it is what opens the day). */

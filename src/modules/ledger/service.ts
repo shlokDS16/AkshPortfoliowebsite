@@ -1,11 +1,11 @@
 import { addDays as addDaysIso } from "@/lib/dates";
 import { combineChecks } from "./chain";
-import { ACTION_AHEAD_DAYS } from "./constants";
+import { ACTION_AHEAD_DAYS, CLOSE_LOOKBACK_DAYS } from "./constants";
 import { LedgerError } from "./errors";
 import { journalGrid } from "./journal";
 import { corporateActionInput, enterCloseInput, eventInput, isLedgerId, openIdeaInput, toStance } from "./schema";
 import { summarise } from "./summary";
-import type { ChainStatus, GridCell, Idea, IdeaEvent, IdeaScore, LedgerRepo, ScoreChange, Summary } from "./types";
+import type { ChainStatus, EnterCloseResult, GridCell, Idea, IdeaEvent, IdeaScore, LedgerRepo, ScoreChange, Summary } from "./types";
 
 // The service validates first and calls the repo second: a refused input never reaches the database. The database's own
 // refusals come back from the repo as typed LedgerErrors (errors.ts), so nothing here rewrites them.
@@ -38,17 +38,18 @@ export async function addIdeaEvent(repo: LedgerRepo, ideaId: string, input: unkn
 
 /**
  * Stores a close he typed, for one company and one day (the source is always `manual`, the database sets it). Refuses a date after
- * `today` here; the database refuses a day before 15:30, a weekend and a shut day. Returns false when no close was stored (the
+ * `today` or more than CLOSE_LOOKBACK_DAYS back here; the database refuses a day before 15:30, a weekend and a shut day. Says how many
+ * closes it wrote and how many it left as they were (`stored` 0 with `kept` 1: an equal or higher source already stood; both 0: the
  * company has no idea on file). `input` is untrusted.
  */
-export async function enterClose(repo: LedgerRepo, input: unknown, today: string): Promise<boolean> {
+export async function enterClose(repo: LedgerRepo, input: unknown, today: string): Promise<EnterCloseResult> {
   const parsed = enterCloseInput.parse(input);
   if (parsed.tradeDate > today) throw new LedgerError("ledger-close-too-early");
+  if (parsed.tradeDate < addDaysIso(today, -CLOSE_LOOKBACK_DAYS)) throw new LedgerError("ledger-close-too-old");
   const company = (await repo.listPickable()).find((c) => c.id === parsed.companyId);
   if (!company) throw new LedgerError("ledger-not-found");
   if (company.needsReview || !company.symbol) throw new LedgerError("ledger-no-symbol");
-  const stored = await repo.enterClose({ tradeDate: parsed.tradeDate, symbol: company.symbol, close: parsed.close, indexClose: parsed.indexClose });
-  return stored > 0;
+  return repo.enterClose({ tradeDate: parsed.tradeDate, symbol: company.symbol, close: parsed.close, indexClose: parsed.indexClose });
 }
 
 /** Appends a corporate action, or (with `supersedes`) a correction that replaces an earlier one. Returns the new row's id. `input` is untrusted. */
@@ -86,10 +87,4 @@ export async function checkLedger(repo: LedgerRepo): Promise<ChainStatus> {
 /** Recomputes every score in SQL, after a close or a corporate action was entered. */
 export async function rescoreLedger(repo: LedgerRepo): Promise<number> {
   return repo.rescore();
-}
-
-/** Links an idea to a company file, or removes the link (null). The link is a private convenience, not sealed. */
-export async function linkIdeaToItem(repo: LedgerRepo, ideaId: string, itemId: string | null): Promise<void> {
-  if (!isLedgerId(ideaId) || (itemId !== null && !isLedgerId(itemId))) throw new LedgerError("ledger-bad-input");
-  await repo.setItemLink(ideaId, itemId);
 }

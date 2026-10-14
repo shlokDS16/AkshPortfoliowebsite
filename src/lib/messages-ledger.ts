@@ -116,7 +116,7 @@ export const LEDGER_PLAIN_FIGURES_NOTE = "Fewer than 5 closed ideas: no percenta
 
 export const LEDGER_SOURCE_TEXT = {
   nse_fetch: "NSE's official file, fetched by the desk",
-  nse_upload: "NSE's official file, dropped by you",
+  nse_upload: "a file you uploaded as NSE's official file",
   manual: "a close you typed",
 } as const;
 

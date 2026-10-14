@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { errorCode } from "@/lib/messages";
 import { LedgerError } from "./errors";
 import { createFakeLedgerRepo } from "./fake-repo";
-import { addIdeaEvent, checkLedger, linkIdeaToItem, loadIdea, loadLedger, openIdea, rescoreLedger } from "./service";
+import { addIdeaEvent, checkLedger, loadIdea, loadLedger, openIdea, rescoreLedger } from "./service";
 import { change, closedIdea, event, finalScore, idea, score } from "./test-fixtures";
 
 const COMPANY = "11111111-1111-4111-8111-111111111111";
@@ -171,24 +171,10 @@ describe("checkLedger: both checks", () => {
   });
 });
 
-describe("rescoreLedger and linkIdeaToItem", () => {
+describe("rescoreLedger", () => {
   it("rescore asks the database to recompute", async () => {
     const repo = createFakeLedgerRepo({ scores: [score({ ideaId: "a" })] });
     expect(await rescoreLedger(repo)).toBe(1);
     expect(repo.calls.map((c) => c.method)).toEqual(["rescore"]);
-  });
-
-  it("links an idea to a company file, or removes the link", async () => {
-    const repo = createFakeLedgerRepo();
-    await linkIdeaToItem(repo, IDEA, ITEM);
-    await linkIdeaToItem(repo, IDEA, null);
-    expect(repo.calls.map((c) => c.args)).toEqual([[IDEA, ITEM], [IDEA, null]]);
-  });
-
-  it("refuses ids that are not ids before any database call", async () => {
-    const repo = createFakeLedgerRepo();
-    await expect(linkIdeaToItem(repo, "x", ITEM)).rejects.toBeInstanceOf(LedgerError);
-    await expect(linkIdeaToItem(repo, IDEA, "x")).rejects.toBeInstanceOf(LedgerError);
-    expect(repo.calls).toEqual([]);
   });
 });

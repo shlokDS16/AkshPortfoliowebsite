@@ -6,8 +6,8 @@ const SITE = "https://desk.example.com";
 const URL_ = `${SITE}/desk/ledger/closes/upload`;
 const admin = { userId: "u-1", email: "aksh@example.com" };
 const getAdmin = vi.fn();
-const upload = vi.fn<(input: { date: string; zip: Uint8Array; index: Uint8Array | null }) => Promise<UploadResult>>();
-const OK: UploadResult = { ok: true, tradeDate: "2026-10-12", stored: 2, tracked: 2, indexStored: true, scored: 2 };
+const upload = vi.fn<(input: { date: string; zip: Uint8Array; index: Uint8Array | null; adminId: string }) => Promise<UploadResult>>();
+const OK: UploadResult = { ok: true, tradeDate: "2026-10-12", stored: 2, kept: 0, tracked: 2, indexStored: true, scored: 2 };
 
 const handler = () => createUploadHandler({ getAdmin, siteUrl: () => `${SITE}/`, upload });
 const file = (bytes: Uint8Array | string, name = "x.bin", type = "application/octet-stream") => new File([bytes as BlobPart], name, { type });
@@ -34,6 +34,7 @@ describe("the owner's official-file route", () => {
     expect(upload).toHaveBeenCalledTimes(1);
     const input = upload.mock.calls[0]![0];
     expect(input.date).toBe("2026-10-12");
+    expect(input.adminId).toBe("u-1"); // the checked admin travels with the bytes, for the upload record
     expect([...input.zip]).toEqual([0x50, 0x4b, 3, 4, 1, 2, 3]);
     expect(input.index).not.toBeNull();
     expect(res.headers.get("cache-control")).toBe("no-store");

@@ -25,6 +25,8 @@ export const LEDGER_ERROR_TEXT = {
   "ledger-close-too-early": "The market has not closed yet for that date (15:30 India). A close can be typed after it.",
   "ledger-close-weekend": "NSE has no session on a Saturday or Sunday, so a close cannot be typed for it.",
   "ledger-close-not-stored": "That close was not stored: only a company that has an idea on file (not a withdrawn one) takes a close.",
+  "ledger-close-kept-official": "That day already has a close for this company from NSE's fetched file or from a file you uploaded, so the typed close was not stored and the earlier close stands.",
+  "ledger-close-too-old": "That date is more than 400 days back. A close can be typed or dropped for a day in the last 400 days.",
   "ledger-bad-factor": "The factor must be a number from 0.001 to 1000, and not 1 for a split, bonus or other action. For 'No action needed' leave it at 1.",
   "ledger-action-duplicate": "That action is already entered. To change it, choose 'Correct this entry' on the earlier one.",
   "ledger-note-too-long": "That note is over 500 characters. Shorten it.",
