@@ -1,8 +1,10 @@
 import "server-only";
 import { serverEnv } from "@/lib/env.server";
 import { createAlertMailer } from "@/lib/providers";
+import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { alertEmail, type AlertDeps } from "./alert-email";
+import { readQueueAge } from "./health";
 import { createSupabaseHeartbeatRepo } from "./heartbeat";
 import type { Step } from "./steps";
 
@@ -18,6 +20,8 @@ export function buildAlertDeps(): AlertDeps {
   return {
     db,
     repo: createSupabaseHeartbeatRepo(db),
+    // The same door as /api/health: queue_age is not granted to service_role (migration 0006).
+    queueAge: () => readQueueAge(createSupabasePublicClient()),
     mailer: () => createAlertMailer(serverEnv()),
     now: () => new Date(),
     origin: serverEnv().NEXT_PUBLIC_SITE_URL,

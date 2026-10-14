@@ -18,7 +18,8 @@ function fakeDb(script: Script = {}) {
   const db = {
     rpc: async (name: string, args?: Record<string, unknown>) => {
       calls.push({ name, args });
-      if (name === "queue_age") return { data: script.queueAge ?? null, error: null };
+      // As in production: migration 0006 grants queue_age to anon and authenticated only, never to service_role.
+      if (name === "queue_age") return { data: null, error: { message: "permission denied for function queue_age", code: "42501" } };
       if (name === "alert_step") return script.stepError ? { data: null, error: { message: "boom 123 secret row", code: "XX000" } } : { data: script.stepRows ?? [], error: null };
       if (name === "alert_sent") return script.sentError ? { data: null, error: { message: "boom", code: "XX000" } } : { data: null, error: null };
       throw new Error(`unexpected rpc ${name}`);
@@ -40,7 +41,8 @@ function repoWith(overrides: Record<string, LatestRun | null> = {}): HeartbeatRe
 function deps(over: Partial<AlertDeps> & { script?: Script; mailer?: AlertDeps["mailer"] } = {}) {
   const fake = fakeDb(over.script);
   const mailer = createFixtureAlertMailer();
-  const built: AlertDeps = { db: fake.db, repo: repoWith(), mailer: () => mailer, now: () => NOW, origin: ORIGIN, ...over };
+  const queueAge = async () => over.script?.queueAge ?? null;
+  const built: AlertDeps = { db: fake.db, repo: repoWith(), queueAge, mailer: () => mailer, now: () => NOW, origin: ORIGIN, ...over };
   return { deps: built, mailer, ...fake };
 }
 const row = (over: Partial<StepRow> = {}): StepRow => ({ incident_id: 3, kind: "open", keys: ["heartbeat:pump"], opened_at: "2026-10-14T03:30:00.000Z", ...over });
@@ -75,6 +77,8 @@ describe("alerts:email: the red set", () => {
     const healthy = deps();
     expect(await alertEmail(healthy.deps)).toBe("no incident");
     expect(healthy.named("alert_step")[0].args).toEqual({ p_red: [] });
+    // Regression (production, 2026-10-14): the secret-key client may not run queue_age (42501); the queue age has its own door.
+    expect(healthy.named("queue_age")).toEqual([]);
     const stale = deps({ repo: pumpStale, script: { queueAge: 8 * 3600 } });
     await alertEmail(stale.deps);
     expect(stale.named("alert_step")[0].args).toEqual({ p_red: ["heartbeat:pump", "queue"] });
