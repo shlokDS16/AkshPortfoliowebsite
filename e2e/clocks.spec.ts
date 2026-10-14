@@ -42,6 +42,7 @@ test.describe("job routes", () => {
         { job: "ledger:score", ok: true },
         { job: "ledger:anchor", ok: true },
         { job: "ingestion:sweep", ok: true },
+        { job: "alerts:email", ok: true },
       ],
     });
     const pump = await request.post("/api/jobs/run", { headers });
@@ -51,6 +52,7 @@ test.describe("job routes", () => {
       results: [
         { job: "heartbeat:pump", ok: true },
         { job: "ingestion:drain", ok: true },
+        { job: "alerts:email", ok: true },
       ],
     });
 
@@ -212,6 +214,7 @@ test.describe("the daily run with an idea on file (fixture market data)", () => 
         { job: "ledger:score", ok: true },
         { job: "ledger:anchor", ok: true },
         { job: "ingestion:sweep", ok: true },
+        { job: "alerts:email", ok: true },
       ],
     });
 
