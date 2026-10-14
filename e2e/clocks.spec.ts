@@ -14,6 +14,18 @@ test.afterAll(async () => {
 });
 
 test.describe("job routes", () => {
+  test("the database clock's door refuses a missing, malformed or unknown ticket, uncached, and runs nothing", async ({ request }) => {
+    clearHeartbeats();
+    const attempts: Record<string, string>[] = [{}, { "x-pump-ticket": "not-a-uuid" }, { "x-pump-ticket": "66666666-6666-4666-8666-666666666666" }];
+    for (const headers of attempts) {
+      const response = await request.post("/api/jobs/tick", { headers });
+      expect(response.status()).toBe(401);
+      expect(response.headers()["cache-control"]).toBe("no-store");
+    }
+    expect((await request.get("/api/jobs/tick")).status()).toBe(405);
+    expect((await request.get("/api/health")).status()).toBe(500); // no heartbeat was written
+  });
+
   test("both refuse a call without the bearer secret, uncached, and write nothing", async ({ request }) => {
     clearHeartbeats();
     const daily = await request.get("/api/cron/daily");
