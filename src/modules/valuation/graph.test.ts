@@ -159,3 +159,25 @@ describe("the reference graph: taint", () => {
     expect(tainted(g, ["S!C1"])).toEqual(["S!C1", "S!D1"]);
   });
 });
+
+describe("the reference graph: the engine-time estimate", () => {
+  it("charges a whole-column SUM for the cells filled, and a whole-column MAX for every row it walks", () => {
+    const cells: Spec[] = Array.from({ length: 100 }, (_, i) => [`A${i + 1}`, null] as Spec);
+    const sum = buildGraph(book({ S: [...cells, ["B1", "SUM(A:A)"]] }), tokenizer);
+    const max = buildGraph(book({ S: [...cells, ["B1", "MAX(A:A)"]] }), tokenizer);
+    expect(sum.estimatedEvalMs).toBeCloseTo((100 * 60) / 1e6, 6);
+    expect(max.estimatedEvalMs).toBeGreaterThan(40);
+  });
+
+  it("charges an OFFSET cell for the whole workbook, and a constant formula for nothing", () => {
+    const cells: Spec[] = Array.from({ length: 100 }, (_, i) => [`A${i + 1}`, null] as Spec);
+    const g = buildGraph(book({ S: [...cells, ["B1", "OFFSET(A1,1,1)"], ["B2", "0.5"]] }), tokenizer);
+    expect(g.estimatedEvalMs).toBeCloseTo((102 * 60) / 1e6, 6);
+  });
+
+  it("is the sum over formulas, and identical ranges are charged each time they are read", () => {
+    const cells: Spec[] = Array.from({ length: 10 }, (_, i) => [`A${i + 1}`, null] as Spec);
+    const formulas: Spec[] = Array.from({ length: 40 }, (_, i) => [`B${i + 1}`, "SUM($A$1:$A$10)"] as Spec);
+    expect(buildGraph(book({ S: [...cells, ...formulas] }), tokenizer).estimatedEvalMs).toBeCloseTo((40 * 10 * 60) / 1e6, 6);
+  });
+});

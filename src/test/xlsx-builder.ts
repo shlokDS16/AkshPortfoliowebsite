@@ -20,6 +20,8 @@ export type CellSpec = {
   shared?: { si: number; ref?: string };
   /** Array formula over this range (the anchor cell carries `f`). */
   array?: string;
+  /** An Excel data table (What-If Analysis): the attributes of the `<f t="dataTable" .../>` element, for example 'ref="B2:C3" dt2D="1" dtr="1" r1="A1" r2="A2"'. */
+  dataTable?: string;
 };
 
 export type SheetSpec = { name: string; cells: CellSpec[] };
@@ -81,7 +83,10 @@ export function buildXlsx(spec: XlsxSpec): Uint8Array {
       const s = xfFor(cell.fmt);
       let attrs = `r="${cell.addr}"${s ? ` s="${s}"` : ""}`;
       let inner = "";
-      if (cell.f !== undefined || cell.shared || cell.array) {
+      if (cell.dataTable) {
+        inner += `<f t="dataTable" ${cell.dataTable}/>`;
+        if (cell.v !== undefined) inner += `<v>${esc(String(cell.v))}</v>`;
+      } else if (cell.f !== undefined || cell.shared || cell.array) {
         const shared = cell.shared ? ` t="shared" si="${cell.shared.si}"${cell.shared.ref ? ` ref="${cell.shared.ref}"` : ""}` : "";
         const array = cell.array ? ` t="array" ref="${cell.array}"` : "";
         inner += cell.f !== undefined || !cell.shared ? `<f${shared}${array}>${esc(cell.f ?? "")}</f>` : `<f${shared}/>`;

@@ -21,6 +21,7 @@ export const REFUSAL_MESSAGES = {
   too_many_names: "This workbook has more than 500 named ranges. Delete the ones that are not used (Formulas > Name Manager) and upload again.",
   external_name: "A named range points outside this workbook. In Excel: Formulas > Name Manager, delete it, save and upload again.",
   model_too_large: "This workbook is too large to keep as a model. Remove sheets the valuation does not use and upload again.",
+  data_tables: "This workbook uses an Excel data table (What-If Analysis). The desk cannot compute it. Copy the table's cells and Paste Special > Values, then save and upload again.",
   too_complex: "The formulas in this workbook reference too many cells at once to be checked. Simplify the biggest ranges and upload again.",
   too_slow: "This workbook is too large to read in one go. Remove sheets the valuation does not use and upload again.",
   engine_failed: "The calculation engine could not open this workbook. Save a copy from Excel as .xlsx and upload again.",

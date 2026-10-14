@@ -6,6 +6,10 @@ import {
   MAX_DEFINED_NAMES,
   MAX_FORMULA_CHARS,
   MAX_FORMULAS,
+  MAX_NAME_CHARS,
+  MAX_NUMBER_FORMAT_CHARS,
+  MAX_SHEET_NAME_CHARS,
+  MODEL_OBJECT_MAX_BYTES,
   MAX_SHEET_ROWS,
   MAX_SHEETS,
   MAX_STRING_CHARS,
@@ -51,7 +55,9 @@ function savedValue(cell: CellObject): { v: number | string | boolean | null; t:
   return { v: text, t: "s", cut: false };
 }
 
-function readSheet(name: string, ws: WorkSheet, totals: { cells: number; formulas: number; cut: number }): IndexSheet {
+type Totals = { cells: number; formulas: number; cut: number; stored: number };
+
+function readSheet(name: string, ws: WorkSheet, totals: Totals): IndexSheet {
   const rows = (ws as unknown as { "!data"?: (CellObject | undefined | null)[][] })["!data"] ?? [];
   const cells: IndexCell[] = [];
   const arrays = new Set<string>();
@@ -73,8 +79,14 @@ function readSheet(name: string, ws: WorkSheet, totals: { cells: number; formula
       const saved = savedValue(cell);
       if (saved.cut) totals.cut++;
       const addr = formatAddr(r + 1, c + 1);
-      const z = typeof cell.z === "string" && cell.z !== "General" ? cell.z : null;
-      cells.push([addr, formula ? formula.replace(XLFN, "") : null, saved.v, saved.t, z]);
+      // Excel's own limit for a number format is 255 characters; a longer one is not a format the desk would show.
+      const z = typeof cell.z === "string" && cell.z !== "General" && cell.z.length <= MAX_NUMBER_FORMAT_CHARS ? cell.z : null;
+      const text = formula ? formula.replace(XLFN, "") : null;
+      // What the cell will take in the stored model object, counted as it is read, so a workbook of long strings and long formulas is refused
+      // here and not after the engine has run over it.
+      totals.stored += addr.length + (text?.length ?? 0) + (typeof saved.v === "string" ? saved.v.length : 8) + (z?.length ?? 0) + 16;
+      if (totals.stored > MODEL_OBJECT_MAX_BYTES) throw new XlsxRefusal("model_too_large");
+      cells.push([addr, text, saved.v, saved.t, z]);
     }
   }
   return { name, cells, arrays: [...arrays] };
@@ -89,7 +101,8 @@ function readNames(wb: WorkBook): IndexName[] {
     if (ref.length > MAX_FORMULA_CHARS) throw new XlsxRefusal("formula_too_long");
     if (EXTERNAL_REF.test(ref)) throw new XlsxRefusal("external_name");
     // Excel's own bookkeeping names (print areas, filters) carry no value the model uses.
-    if (typeof n.Name !== "string" || n.Name.startsWith("_xlnm.")) continue;
+    if (typeof n.Name !== "string" || n.Name.length > MAX_NAME_CHARS) throw new XlsxRefusal("zip_damaged");
+    if (n.Name.startsWith("_xlnm.")) continue;
     const local = typeof n.Sheet === "number" ? (wb.SheetNames[n.Sheet] ?? null) : null;
     out.push({ name: n.Name, ref, sheet: local });
   }
@@ -97,9 +110,10 @@ function readNames(wb: WorkBook): IndexName[] {
 }
 
 /** Magic bytes, size, zip scan, then SheetJS; returns the sheet index. Throws XlsxRefusal with a code for anything it will not read. */
-export function readWorkbook(bytes: Uint8Array): SheetIndex {
+export function readWorkbook(bytes: Uint8Array, opts: { checkpoint?: (stage: "scan" | "parse") => void } = {}): SheetIndex {
   if (bytes.byteLength > XLSX_MAX_BYTES) throw new XlsxRefusal("too_big");
   scanXlsxZip(bytes);
+  opts.checkpoint?.("scan");
 
   let wb: WorkBook;
   try {
@@ -123,12 +137,15 @@ export function readWorkbook(bytes: Uint8Array): SheetIndex {
   } catch {
     throw new XlsxRefusal("zip_damaged");
   }
+  opts.checkpoint?.("parse");
   if (wb.Workbook?.WBProps?.date1904) throw new XlsxRefusal("date_1904");
   if (wb.SheetNames.length > MAX_SHEETS) throw new XlsxRefusal("too_many_sheets");
 
-  const totals = { cells: 0, formulas: 0, cut: 0 };
+  const totals: Totals = { cells: 0, formulas: 0, cut: 0, stored: 0 };
   const sheets: IndexSheet[] = [];
   for (const name of wb.SheetNames) {
+    // Excel allows 31 characters. A longer name is not from Excel, and it is repeated in the key of every cell of its sheet.
+    if (name.length === 0 || name.length > MAX_SHEET_NAME_CHARS) throw new XlsxRefusal("zip_damaged");
     const ws = wb.Sheets[name];
     if (ws) sheets.push(readSheet(name, ws, totals));
   }

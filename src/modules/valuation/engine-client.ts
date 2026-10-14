@@ -76,7 +76,14 @@ export async function loadEngine(
         if (!Number.isFinite(input.value) || Math.abs(input.value) > MAX_SCENARIO_VALUE) throw new RangeError("value out of range");
         return { ...position(input), value: input.value };
       });
-      for (const { sheet, row, col, value } of checked) model.setUserInput(sheet, row, col, String(value));
+      // wasm 0.8.4's Model recalculates on every setUserInput unless evaluation is paused (measured: at the caps that is a second 190 ms
+      // pass per input). Paused, a change costs the one explicit evaluate() the caller makes next.
+      model.pauseEvaluation();
+      try {
+        for (const { sheet, row, col, value } of checked) model.setUserInput(sheet, row, col, String(value));
+      } finally {
+        model.resumeEvaluation();
+      }
     },
     evaluate: () => model.evaluate(),
     readResults: (cells) => cells.map((cell) => readOne(model, cell)),

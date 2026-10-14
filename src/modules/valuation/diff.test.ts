@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { classifyCell, diffWorkbook, numbersEqual } from "./diff";
-import type { CellClass, EngineValue, IndexCell, SheetIndex } from "./types";
+import type { CellClass, EngineValue, SavedType, SheetIndex } from "./types";
 
 const n = (v: number): EngineValue => ({ kind: "n", v });
 const err = (error: "DIV" | "NAME" | "NIMPL" | "CIRC" | "SPILL" | "REF" | "NA", text = "#X"): EngineValue => ({ kind: "e", error, text });
-const cls = (saved: Pick<IndexCell, 1 | 2 | 3>, engine: EngineValue, functions: string[] = [], inArray = false): CellClass =>
+const cls = (saved: [f: string | null, v: number | string | boolean | null, t: SavedType], engine: EngineValue, functions: string[] = [], inArray = false): CellClass =>
   classifyCell({ saved: { f: saved[0], v: saved[1], t: saved[2] }, engine, functions, inArray });
 
 describe("numbersEqual: a relative tolerance of 1e-9 against the larger of 1 and the two magnitudes", () => {

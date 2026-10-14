@@ -129,8 +129,26 @@ function inflate(zip: Uint8Array, entry: Entry): Uint8Array {
   return out;
 }
 
-const CELL_TAG = /<(?:[A-Za-z0-9]+:)?c[ >/]/g;
-const ROW_TAG = /<(?:[A-Za-z0-9]+:)?row\b[^>]*?\sr=["'](\d+)["']/g;
+/**
+ * Whether [Content_Types].xml declares anything macro-bearing: a macro-enabled workbook type, a VBA project part, or an Excel 4.0 macro
+ * sheet. The ".bin" extension mapping is left out of the check: SheetJS (and some other writers) put a vbaProject / binary-workbook
+ * mapping for ".bin" in every file they write, and a real VBA part is refused by name (xl/vbaProject.bin) before this runs.
+ */
+function hasMacroContentType(xml: string): boolean {
+  const declared = xml.replace(/<Default\s{1,8}Extension\s{0,8}=\s{0,8}["']bin["'][^>]{0,300}>/gi, "").toLowerCase();
+  return declared.includes("macroenabled") || declared.includes("vbaproject") || declared.includes("macrosheet");
+}
+
+/** The workbook's relationships naming a VBA project, wherever the part is called. */
+const hasVbaRelationship = (xml: string): boolean => xml.toLowerCase().includes("vbaproject");
+
+/** The content-type list and the workbook's relationships are a few KB in any real file; more than this is not one. */
+const SMALL_PART_BYTES = 1024 * 1024;
+
+const CELL_TAG =/<(?:[A-Za-z0-9]+:)?c[ >/]/g;
+// The attribute window is bounded (a row tag has a handful of short attributes) so that a file of a million "<row " with no ">" cannot make
+// the search quadratic; the same bound is on the content-type pattern above.
+const ROW_TAG = /<(?:[A-Za-z0-9]+:)?row\b[^>]{0,300}?\sr=["'](\d+)["']/g;
 
 /**
  * A cheap look at one worksheet part before SheetJS parses it: how many cell tags it holds and whether any row lies past the row cap.
@@ -153,7 +171,7 @@ export function scanXlsxZip(zip: Uint8Array): ZipScanResult {
   const entries = readEntries(zip);
 
   for (const { name } of entries) {
-    if (name === "xl/vbaproject.bin") throw new XlsxRefusal("macros");
+    if (name === "xl/vbaproject.bin" || name.startsWith("xl/macrosheets/")) throw new XlsxRefusal("macros");
     if (name.startsWith("xl/activex/")) throw new XlsxRefusal("active_x");
     if (name.startsWith("xl/externallinks/")) throw new XlsxRefusal("external_links");
     if (name === "xl/connections.xml") throw new XlsxRefusal("data_connections");
@@ -170,10 +188,9 @@ export function scanXlsxZip(zip: Uint8Array): ZipScanResult {
       cellTags += countSheetShapes(bytes, MAX_CELL_TAGS);
       if (cellTags > MAX_CELL_TAGS) throw new XlsxRefusal("too_many_cells");
     }
-    if (entry === contentTypes) {
-      const types = Buffer.from(bytes).toString("latin1").toLowerCase();
-      if (types.includes("macroenabled") || types.includes("vbaproject")) throw new XlsxRefusal("macros");
-    }
+    if ((entry === contentTypes || entry.name === "xl/_rels/workbook.xml.rels") && bytes.byteLength > SMALL_PART_BYTES) throw new XlsxRefusal("zip_damaged");
+    if (entry === contentTypes && hasMacroContentType(Buffer.from(bytes).toString("latin1"))) throw new XlsxRefusal("macros");
+    if (entry.name === "xl/_rels/workbook.xml.rels" && hasVbaRelationship(Buffer.from(bytes).toString("latin1"))) throw new XlsxRefusal("macros");
   }
   return { entries: entries.length, totalBytes, cellTags };
 }

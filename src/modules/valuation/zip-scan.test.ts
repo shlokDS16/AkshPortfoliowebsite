@@ -132,6 +132,36 @@ describe("scanXlsxZip: the sheet shapes counted before any parse", () => {
   });
 });
 
+describe("scanXlsxZip: patterns that must stay linear on hostile text", () => {
+  const sheet = (xml: string): ZipEntrySpec => ({ name: "xl/worksheets/sheet1.xml", data: new TextEncoder().encode(xml) });
+
+  it("two million row openers with no closing bracket are read in well under a second", () => {
+    const start = performance.now();
+    scanXlsxZip(buildZip([...cleanEntries(), sheet("<worksheet><sheetData>" + "<row ".repeat(2_000_000))]));
+    expect(performance.now() - start).toBeLessThan(2000);
+  });
+
+  it("a million bin-mapping openers with no closing bracket in the content types are read quickly too", () => {
+    const hostile = '<Types>' + '<Default Extension="bin" '.repeat(40_000);
+    const start = performance.now();
+    const entries = cleanEntries();
+    entries[0] = { name: "[Content_Types].xml", data: new TextEncoder().encode(hostile) };
+    scanXlsxZip(buildZip(entries));
+    expect(performance.now() - start).toBeLessThan(2000);
+  });
+
+  it("a content-type list or relationship part over 1 MB is not a real one", () => {
+    const big = (name: string) => buildZip([...cleanEntries().filter((e) => e.name !== name), { name, data: new Uint8Array(1024 * 1024 + 1).fill(32) }]);
+    expect(refused(() => scanXlsxZip(big("[Content_Types].xml")))).toBe("zip_damaged");
+    expect(refused(() => scanXlsxZip(buildZip([...cleanEntries(), { name: "xl/_rels/workbook.xml.rels", data: new Uint8Array(1024 * 1024 + 1).fill(32) }])))).toBe("zip_damaged");
+  });
+
+  it("a relationship to a VBA project is a macro whatever the part is called", () => {
+    const rels = '<Relationships><Relationship Id="rId9" Type="http://schemas.microsoft.com/office/2006/relationships/vbaProject" Target="foo.bin"/></Relationships>';
+    expect(refused(() => scanXlsxZip(buildZip([...cleanEntries(), { name: "xl/_rels/workbook.xml.rels", data: new TextEncoder().encode(rels) }])))).toBe("macros");
+  });
+});
+
 describe("scanXlsxZip: shapes it does not read", () => {
   it("zip64", () => {
     expect(refused(() => scanXlsxZip(buildZip(cleanEntries(), { zip64Locator: true })))).toBe("zip_damaged");
@@ -177,6 +207,17 @@ describe("scanXlsxZip: refused parts, each with its own code", () => {
     expect(refused(() => scanXlsxZip(zip))).toBe("macros");
     const extra = withParts([], { contentTypesExtra: '<Override PartName="/xl/vbaProject.bin" ContentType="application/vnd.ms-office.vbaProject"/>' });
     expect(refused(() => scanXlsxZip(extra))).toBe("macros");
+  });
+
+  it("Excel 4.0 macro sheets, by part name and by content type", () => {
+    expect(refused(() => scanXlsxZip(withParts([{ name: "xl/macrosheets/sheet1.xml", data: "<m/>" }])))).toBe("macros");
+    const typed = withParts([], { contentTypesExtra: '<Override PartName="/xl/foo.xml" ContentType="application/vnd.ms-excel.macrosheet+xml"/>' });
+    expect(refused(() => scanXlsxZip(typed))).toBe("macros");
+  });
+
+  it("the bin mapping that SheetJS writes into every file is not a macro by itself", () => {
+    const harmless = withParts([], { contentTypesExtra: '<Default Extension="bin" ContentType="application/vnd.ms-excel.sheet.binary.macroEnabled.main"/>' });
+    expect(scanXlsxZip(harmless).entries).toBe(7);
   });
 
   it("anything under xl/externalLinks/", () => {

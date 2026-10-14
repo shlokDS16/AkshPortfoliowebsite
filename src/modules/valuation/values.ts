@@ -22,22 +22,16 @@ const KINDS: Record<string, EngineErrorKind> = {
 
 export const errorKind = (text: string): EngineErrorKind => KINDS[text] ?? "OTHER";
 
-/** A number as short text that reads back to the same number (for the report and the tests). */
-export const plainNumber = (n: number): string => String(n);
-
-/** What a value looks like in the report, in plain text. */
-export function describeValue(v: EngineValue | { kind: "saved"; text: string } | null): string | null {
-  if (v === null) return null;
+/** An engine value as plain text for the report; long strings are shortened. */
+export function describeValue(v: EngineValue): string {
   switch (v.kind) {
     case "n":
-      return plainNumber(v.v);
+      return String(v.v);
     case "s":
       return v.v.length > 60 ? `${v.v.slice(0, 59)}…` : v.v;
     case "b":
       return v.v ? "TRUE" : "FALSE";
     case "e":
-      return v.text;
-    case "saved":
       return v.text;
     default:
       return "(empty)";

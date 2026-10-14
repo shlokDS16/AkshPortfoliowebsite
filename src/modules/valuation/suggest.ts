@@ -2,7 +2,7 @@ import { parseAddr } from "./addr";
 import { isDateFormat } from "./format";
 import type { Graph } from "./graph";
 import { MAX_LABEL_CHARS, MAX_SUGGESTIONS } from "./limits";
-import type { IndexCell, InputSuggestion, OutputSuggestion, SheetIndex, Suggestions } from "./types";
+import type { IndexCell, SheetIndex, Suggestions } from "./types";
 
 // Suggestions by rule, no LLM (spec s5.6). Candidate inputs are numeric constants that formulas read; candidate outputs are untainted
 // numeric formula cells. Everything here is machine-read text and numbers: the sheet label is shown as "sheet says", never stored as
@@ -84,31 +84,32 @@ const isNumber = (cell: IndexCell): cell is [string, string | null, number, "n",
 /** Up to 40 inputs and 40 outputs, nothing pre-ticked (the caller decides what is ticked). */
 export function suggest(index: SheetIndex, graph: Graph, taint: Uint8Array): Suggestions {
   const lookup = buildLookup(index);
-  const inputs: (InputSuggestion & { order: number })[] = [];
-  const outputs: (OutputSuggestion & { order: number; leaf: boolean })[] = [];
+  type Candidate = { sheet: string; addr: string; value: number; z: string | null; order: number; count: number; leaf: boolean };
+  const inputs: Candidate[] = [];
+  const outputs: Candidate[] = [];
   for (const sheet of index.sheets) {
     for (const cell of sheet.cells) {
       if (!isNumber(cell)) continue;
       const [addr, f, value, , z] = cell;
       const id = graph.id(`${sheet.name}!${addr}`);
       if (id === undefined || isDateFormat(z) || lookup.inArray(sheet.name, addr)) continue;
+      const base = { sheet: sheet.name, addr, value, z, order: id };
       if (f === null) {
         const dependents = graph.dependents(id);
-        if (dependents > 0) inputs.push({ sheet: sheet.name, addr, value, z, dependents, label: null, order: id });
+        if (dependents > 0) inputs.push({ ...base, count: dependents, leaf: false });
       } else if (!taint[id]) {
         const precedents = graph.precedents(id);
         // A formula that reads nothing (=0.5) is an input in disguise, not a result; one that reads cells the desk cannot follow stays.
-        if (precedents > 0 || graph.isDynamic(id)) outputs.push({ sheet: sheet.name, addr, value, z, precedents, label: null, order: id, leaf: graph.dependents(id) === 0 });
+        if (precedents > 0 || graph.isDynamic(id)) outputs.push({ ...base, count: precedents, leaf: graph.dependents(id) === 0 });
       }
     }
   }
-  inputs.sort((a, b) => b.dependents - a.dependents || a.order - b.order);
+  inputs.sort((a, b) => b.count - a.count || a.order - b.order);
   // Results nothing else uses come first (they are what a model is for), then the cells with the most behind them.
-  outputs.sort((a, b) => Number(b.leaf) - Number(a.leaf) || b.precedents - a.precedents || a.order - b.order);
-  const label = <T extends { sheet: string; addr: string }>({ order: _order, ...rest }: T & { order: number }) => ({ ...rest, label: lookup.labelFor(rest.sheet, rest.addr) });
+  outputs.sort((a, b) => Number(b.leaf) - Number(a.leaf) || b.count - a.count || a.order - b.order);
   return {
-    inputs: inputs.slice(0, MAX_SUGGESTIONS).map((i) => label(i) as InputSuggestion),
-    outputs: outputs.slice(0, MAX_SUGGESTIONS).map(({ leaf: _leaf, ...o }) => label(o) as OutputSuggestion),
+    inputs: inputs.slice(0, MAX_SUGGESTIONS).map((c) => ({ sheet: c.sheet, addr: c.addr, value: c.value, z: c.z, dependents: c.count, label: lookup.labelFor(c.sheet, c.addr) })),
+    outputs: outputs.slice(0, MAX_SUGGESTIONS).map((c) => ({ sheet: c.sheet, addr: c.addr, value: c.value, z: c.z, precedents: c.count, label: lookup.labelFor(c.sheet, c.addr) })),
   };
 }
 

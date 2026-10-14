@@ -1,4 +1,5 @@
 import { parseAddr } from "./addr";
+import { estimateFormulaNs } from "./cost";
 import { MAX_GRAPH_MEMBERS } from "./limits";
 import { XlsxRefusal } from "./refusal";
 import type { FormulaRefs, Tokenizer } from "./tokens";
@@ -25,6 +26,8 @@ export type Graph = {
   precedents(id: number): number;
   /** Formulas that read the cell directly or through a range. */
   dependents(id: number): number;
+  /** Estimated milliseconds the engine will take over every formula (cost.ts), known before it runs. */
+  readonly estimatedEvalMs: number;
   /** 1 for every source and every cell reachable forward from one (dynamic cells excepted, unless they are sources). */
   taint(sources: Iterable<number>): Uint8Array;
 };
@@ -109,6 +112,7 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
   const rangeIds = new Map<string, number>();
   const rangeMembers: Int32Array[] = [];
   const rangeUsers: number[][] = [];
+  const rangeDeclared: number[] = [];
   let memberTotal = 0;
   const rangeNode = (s: number, row1: number, col1: number, row2: number, col2: number): number => {
     const k = `${s}:${row1}:${col1}:${row2}:${col2}`;
@@ -135,6 +139,7 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
     node = rangeMembers.length;
     rangeMembers.push(Int32Array.from(list));
     rangeUsers.push([]);
+    rangeDeclared.push((row2 - row1 + 1) * (col2 - col1 + 1));
     rangeIds.set(k, node);
     return node;
   };
@@ -144,8 +149,9 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
   const dynamic = new Uint8Array(size);
   const fns: string[][] = new Array(size);
   const precedentCount = new Int32Array(size);
+  let estimatedNs = 0;
 
-  const gather = (f: number, s: number, refs: FormulaRefs, depth: number, cells: Set<number>, ranges: Set<number>): void => {
+  const gather = (f: number, s: number, refs: FormulaRefs, depth: number, cells: Set<number>, ranges: Set<number>, uses: number[]): void => {
     if (refs.dynamic) dynamic[f] = 1;
     for (const ref of refs.cells) {
       const target = ref.sheet === null ? s : sheetByName.get(ref.sheet.toLowerCase());
@@ -162,7 +168,9 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
         dynamic[f] = 1;
         continue;
       }
-      ranges.add(rangeNode(target, r.row1, r.col1, r.row2, r.col2));
+      const node = rangeNode(target, r.row1, r.col1, r.row2, r.col2);
+      ranges.add(node);
+      uses.push(node);
     }
     for (const name of refs.names) {
       const found = lookupName(name, index.sheets[s].name);
@@ -171,7 +179,7 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
         dynamic[f] = 1;
         continue;
       }
-      gather(f, s, found.refs, depth + 1, cells, ranges);
+      gather(f, s, found.refs, depth + 1, cells, ranges, uses);
     }
   };
 
@@ -187,7 +195,8 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
     fns[f] = refs.functions;
     const cells = new Set<number>();
     const ranges = new Set<number>();
-    gather(f, sheetOf[f], refs, 0, cells, ranges);
+    const uses: number[] = []; // every reading of a range, repeats included: the engine pays for each
+    gather(f, sheetOf[f], refs, 0, cells, ranges, uses);
     cells.delete(f);
     cellPre[f] = [...cells];
     rangePre[f] = [...ranges];
@@ -195,6 +204,12 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
     let count = cells.size;
     for (const r of ranges) count += rangeMembers[r].length;
     precedentCount[f] = count;
+    estimatedNs += estimateFormulaNs({
+      functions: refs.functions,
+      ranges: uses.map((r) => ({ declared: rangeDeclared[r], present: rangeMembers[r].length })),
+      dynamic: dynamic[f] === 1,
+      totalCells: size,
+    });
   }
 
   // 4. Inverse maps: formulas that read a cell directly, and (compressed) the range nodes that contain it.
@@ -219,6 +234,7 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
 
   return {
     size,
+    estimatedEvalMs: estimatedNs / 1e6,
     key: (id) => keys[id],
     id: (key) => idByKey.get(key),
     isFormula: (id) => formulaOf[id] !== null,

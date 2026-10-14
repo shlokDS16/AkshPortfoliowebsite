@@ -7,7 +7,7 @@ import { runNodeEngine } from "./engine-node";
 import { readWorkbook } from "./read-workbook";
 import { XlsxRefusal } from "./refusal";
 import type { EngineValue } from "./types";
-import { ENGINE_VERSIONS } from "./versions";
+import { ENGINE_VERSIONS, WASM_PUBLIC_PATH } from "./versions";
 
 let dir: string;
 beforeEach(() => {
@@ -93,5 +93,13 @@ describe("the engine versions on record", () => {
     expect(await read("xlsx")).toBe(ENGINE_VERSIONS.sheetjs);
     expect(await read("@ironcalc/nodejs")).toBe(ENGINE_VERSIONS.ironcalcNode);
     expect(await read("@ironcalc/wasm")).toBe(ENGINE_VERSIONS.ironcalcWasm);
+  });
+
+  it("name the wasm file the postinstall script copies into public/vendor, byte for byte", async () => {
+    const { readFile } = await import("node:fs/promises");
+    expect(WASM_PUBLIC_PATH).toBe(`/vendor/ironcalc-${ENGINE_VERSIONS.ironcalcWasm}.wasm`);
+    const served = await readFile(new URL(`../../../public${WASM_PUBLIC_PATH}`, import.meta.url));
+    const packaged = await readFile(new URL("../../../node_modules/@ironcalc/wasm/wasm_bg.wasm", import.meta.url));
+    expect(served.equals(packaged)).toBe(true);
   });
 });

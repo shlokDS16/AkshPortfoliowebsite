@@ -169,6 +169,24 @@ describe("readWorkbook: refusals, each with its own code", () => {
     expect(refused(() => readWorkbook(one([{ addr: "A20001", v: 1 }])))).toBe("too_many_rows");
   });
 
+  it("a sheet name over Excel's 31 characters, and a defined name over 255", () => {
+    expect(refused(() => readWorkbook(buildXlsx({ sheets: [{ name: "x".repeat(32), cells: [{ addr: "A1", v: 1 }] }] })))).toBe("zip_damaged");
+    expect(readWorkbook(buildXlsx({ sheets: [{ name: "x".repeat(31), cells: [{ addr: "A1", v: 1 }] }] })).counts.sheets).toBe(1);
+    expect(refused(() => readWorkbook(one([{ addr: "A1", v: 1 }], { definedNames: [{ name: "n".repeat(256), ref: "Sheet1!$A$1" }] })))).toBe("zip_damaged");
+  });
+
+  it("a number format over 255 characters is left out, not stored", () => {
+    const long = "0." + "0".repeat(300);
+    const cells = cellsOf(one([{ addr: "A1", v: 1, fmt: long }, { addr: "A2", v: 1, fmt: "0.00" }]));
+    expect(cells[0][4]).toBeNull();
+    expect(cells[1][4]).toBe("0.00");
+  });
+
+  it("long strings that would not fit the stored model object are refused while reading", { timeout: 60_000 }, () => {
+    const cells = Array.from({ length: 6500 }, (_, i) => ({ addr: `A${i + 1}`, v: `${i}:${"x".repeat(1990)}` }));
+    expect(refused(() => readWorkbook(one(cells)))).toBe("model_too_large");
+  });
+
   it("the refusal carries no text from the file", () => {
     try {
       readWorkbook(one([{ addr: "A1", v: 1 }], { definedNames: [{ name: "SECRET_NAME", ref: "[1]SecretSheet!$A$1" }] }));

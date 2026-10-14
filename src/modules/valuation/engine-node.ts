@@ -48,8 +48,10 @@ function openModel(bytes: Uint8Array, opts: NodeEngineOptions): Model {
   try {
     writeFileSync(path, bytes, { mode: 0o600 });
     return Model.fromXlsx(path, LOCALE, TIME_ZONE, LANGUAGE);
-  } catch {
-    throw new XlsxRefusal("engine_failed");
+  } catch (error) {
+    // IronCalc 0.8.3 refuses Excel data tables with one fixed message of its own. It is matched here and never echoed: any other failure is
+    // reported with a code and no text.
+    throw new XlsxRefusal(error instanceof Error && error.message.includes("data table formulas") ? "data_tables" : "engine_failed");
   } finally {
     try {
       unlinkSync(path);
@@ -95,4 +97,32 @@ export function runNodeEngine(bytes: Uint8Array, index: SheetIndex, opts: NodeEn
   const engineBytes = model.toBytes();
   opts.checkpoint?.("read");
   return { values, engineBytes, version: ENGINE_VERSIONS.ironcalcNode };
+}
+
+const FUNCTION_NAME = /^[A-Z][A-Z0-9._]{0,39}$/;
+
+/**
+ * The names (of those given) that the engine cannot compute: unknown to it (#NAME?) or known and not implemented (#N/IMPL). Asked of a
+ * scratch workbook with each name called with no arguments; a name that is not a plain function name is never put into a formula.
+ */
+export function probeFunctions(names: string[]): string[] {
+  const candidates = [...new Set(names.filter((n) => FUNCTION_NAME.test(n)))];
+  if (candidates.length === 0) return [];
+  const model = new Model("probe", LOCALE, "UTC", LANGUAGE);
+  const missing: string[] = [];
+  candidates.forEach((name, i) => {
+    try {
+      model.setUserInput(0, i + 1, 1, `=${name}()`);
+    } catch {
+      // a name the parser refuses is not one the engine computes
+      missing.push(name);
+    }
+  });
+  model.evaluate();
+  candidates.forEach((name, i) => {
+    if (missing.includes(name) || model.getCellType(0, i + 1, 1) !== TYPE_ERROR) return;
+    const kind = errorKind(String(model.getCellValue(0, i + 1, 1) ?? ""));
+    if (kind === "NAME" || kind === "NIMPL") missing.push(name);
+  });
+  return missing;
 }

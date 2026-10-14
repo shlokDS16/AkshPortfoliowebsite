@@ -16,6 +16,10 @@ export const MAX_FORMULAS = 20_000;
 export const MAX_DEFINED_NAMES = 500;
 export const MAX_FORMULA_CHARS = 8_192;
 export const MAX_STRING_CHARS = 2_000;
+/** Excel's own limits: a sheet name, a defined name and a number format. Anything longer did not come from Excel. */
+export const MAX_SHEET_NAME_CHARS = 31;
+export const MAX_NAME_CHARS = 255;
+export const MAX_NUMBER_FORMAT_CHARS = 255;
 /** Cell tags (filled or only formatted) over all sheets, counted before the parse; a safety bound well above MAX_CELLS. */
 export const MAX_CELL_TAGS = 500_000;
 /** SheetJS stops reading a sheet after this many rows; a sheet that has more is refused, never silently cut. */
@@ -38,3 +42,9 @@ export const DIFF_TOLERANCE = 1e-9;
 
 /** Largest absolute scenario value (the database check, s6). */
 export const MAX_SCENARIO_VALUE = 1e15;
+
+/**
+ * The most time the engine's single evaluate() may be estimated to take (cost.ts), checked before it runs. A third of the 60 s ceiling the
+ * spec sets, because the estimate is an upper bound but not a guarantee and the call cannot be interrupted.
+ */
+export const MAX_EVAL_ESTIMATE_MS = 30_000;
