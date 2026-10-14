@@ -13,7 +13,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
   2. Before the first real idea: record NO test ideas on the live site (an entry can never be removed); the public copy stays OFF (ADR-005 addendum, Q26).
   3. Pending Shlok (none blocks the release): wording approvals (spec sections 16 onward in the Phase 2 and Phase 3 specs, `docs/design/decisions.md` picks); Q22-Q35 in `docs/project-memory/unanswered-questions.md`; legal review of the publishing rules (SEBI circulars not yet saved in `docs/compliance/`); whether the uptime monitor that emails Shlok and Aksh exists; the 4 visual baselines.
   4. After the release: only items Shlok names from the deferred list (each needs a spec or a detailed plan first), and the deferred minors in `docs/specs/technical-debt.md` and the build ledger.
-- **Blocked on:** Shlok's two clicks/commands for the Phase 3a release (hosted migration push, PR #3 merge). Nothing blocks the code.
+- **Update 2026-10-14 06:00Z:** PR #3 MERGED (0f5cb0f) and deployed, but hosted migrations 0010-0014 were NOT yet pushed, so the live Ledger screens fail until Shlok runs the push command. The scheduled pump has not fired since it was enabled (only manual runs), so /api/health shows the pump as stale. Aksh's quick guide: `docs/guide/aksh-quick-guide.md`, published at https://claude.ai/artifact/CKBfq1NnZBpxTS8DXpGTKD. Exact next steps: last lines of the build ledger.
+- **Blocked on:** Shlok's hosted migration push (0010-0014). Nothing blocks the code.
 
 ## Phase 0 - Kickoff and planning
 - [x] Brainstorm: goal, user, workflow, maintainer, budget (2026-10-04)
