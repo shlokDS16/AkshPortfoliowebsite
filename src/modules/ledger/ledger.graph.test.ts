@@ -75,17 +75,22 @@ describe("the ledger module's boundaries", () => {
     expect(actions).toMatch(/import \{ requireAdmin \} from "@\/modules\/identity";/);
   });
 
-  it("the module writes nothing but through the two event doors, the item link and the rescore", () => {
+  it("the module writes nothing but through the two event doors, the item link, the rescore, the typed-close door and the corporate-action log", () => {
+    // The one table the module may INSERT into is corporate_actions: the admin's own column-granted, append-only log (a correction
+    // is a new row; no UPDATE or DELETE exists for any role). Prices, calendar, scores and anchors are never written from here.
     for (const [file, source] of sources) {
-      expect(source, rel(file)).not.toMatch(/\.from\("(idea_events|idea_scores|prices_daily|market_days|ledger_anchors|idea_score_changes|corporate_actions)"\)\s*\.(insert|update|upsert|delete)/);
+      expect(source, rel(file)).not.toMatch(/\.from\("(idea_events|idea_scores|prices_daily|market_days|ledger_anchors|idea_score_changes)"\)\s*\.(insert|update|upsert|delete)/);
+      expect(source, rel(file)).not.toMatch(/\.from\("corporate_actions"\)\s*\.(update|upsert|delete)/);
     }
+    const inserts = sources.filter(([, source]) => /\.from\("corporate_actions"\)\s*\.insert/.test(source)).map(([f]) => rel(f));
+    expect(inserts).toEqual(["repo.ts"]);
   });
 
   it("the only database functions the module calls are the ones on this list, each named by a literal", () => {
     // open_idea and add_idea_event are the two event doors; rescore_ideas recomputes scores in SQL; the two check functions
     // only read. Adding any other function (enter_closes, store_fetched_closes, a sealing function) is a decision, not a drive-by.
     // ledger_gate_facts (migration 0014) only reads: it is the publish gate's own view of one company, for the checklist.
-    const ALLOWED_RPC = ["add_idea_event", "check_ledger_anchors", "check_ledger_chain", "ledger_gate_facts", "open_idea", "rescore_ideas"];
+    const ALLOWED_RPC = ["add_idea_event", "check_ledger_anchors", "check_ledger_chain", "enter_closes", "ledger_gate_facts", "open_idea", "rescore_ideas"];
     const used = new Set<string>();
     for (const [file, source] of sources) {
       for (const match of source.matchAll(/\.rpc\(\s*([^,)\s]*)/g)) {

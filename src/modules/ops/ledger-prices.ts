@@ -206,7 +206,7 @@ const REFUSALS = new Set(["chain_broken", "anchor_mismatch", "projection_mismatc
 export const SCORE_BUDGET_MS = 5000;
 
 /** ledger:score. The database function is the only writer of scores; a refusal writes nothing and fails the step. */
-export async function scoreIdeas(deps: LedgerJobDeps, budgetMs = SCORE_BUDGET_MS): Promise<string> {
+export async function scoreIdeas(deps: Pick<LedgerJobDeps, "db">, budgetMs = SCORE_BUDGET_MS): Promise<string> {
   const signal = AbortSignal.timeout(budgetMs);
   const { data, error } = await deps.db.rpc("score_ideas").abortSignal(signal);
   if (error) {

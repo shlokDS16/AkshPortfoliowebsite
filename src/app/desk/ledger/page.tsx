@@ -2,32 +2,20 @@ import Link from "next/link";
 import { EmptyState } from "@/components/desk/empty-state";
 import { IdeaTable } from "@/components/desk/private/ledger/idea-table";
 import { LedgerNeeds } from "@/components/desk/private/ledger/ledger-needs";
-import { LedgerStatus, type JobRun } from "@/components/desk/private/ledger/ledger-status";
+import { LedgerStatus } from "@/components/desk/private/ledger/ledger-status";
 import { LedgerTiles } from "@/components/desk/private/ledger/ledger-tiles";
 import { buttonVariants } from "@/components/ui/button";
 import { istDate } from "@/lib/dates";
 import { errorText, noticeText } from "@/lib/messages";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Db } from "@/lib/supabase/types";
 import { requireAdmin } from "@/modules/identity";
 import { getLedgerHome } from "@/modules/ledger";
 import { LEDGER_EMPTY_TEXT, windowOf } from "@/modules/ledger/client";
-import { createSupabaseHeartbeatRepo } from "@/modules/ops";
+import { readRuns } from "./runs";
 
 const JOBS = ["ledger:prices", "ledger:score", "ledger:anchor"] as const;
 const OPEN_WINDOW = 50;
 const CLOSED_WINDOW = 25;
-
-/** The daily steps' last runs, from the heartbeat table (the admin's session may read it). A failure to read is no row, not a crash. */
-async function readRuns(db: Db): Promise<JobRun[] | null> {
-  try {
-    const latest = await createSupabaseHeartbeatRepo(db).latestRuns(JOBS);
-    return JOBS.map((job) => ({ job, ranAt: latest[job]?.ranAt ?? null, ok: latest[job]?.ok ?? null, detail: latest[job]?.detail }));
-  } catch (error) {
-    console.error("ledger page: could not read the daily steps", error instanceof Error ? error.name : typeof error);
-    return null;
-  }
-}
 
 type Props = { searchParams: Promise<{ error?: string; notice?: string; open?: string; closed?: string }> };
 
@@ -35,7 +23,7 @@ export default async function LedgerPage({ searchParams }: Props) {
   await requireAdmin();
   const params = await searchParams;
   const db = await createSupabaseServerClient();
-  const [home, runs] = await Promise.all([getLedgerHome(db, istDate(new Date())), readRuns(db)]);
+  const [home, runs] = await Promise.all([getLedgerHome(db, istDate(new Date())), readRuns(db, JOBS)]);
   const openLimit = windowOf(params.open, OPEN_WINDOW);
   const closedLimit = windowOf(params.closed, CLOSED_WINDOW);
   const more = (key: "open" | "closed") =>
@@ -51,6 +39,14 @@ export default async function LedgerPage({ searchParams }: Props) {
           Record an idea
         </Link>
       </div>
+      <nav aria-label="Ledger pages" className="flex flex-wrap gap-x-5 gap-y-1 text-small">
+        <Link href="/desk/ledger/closes" className="underline decoration-1 underline-offset-3">
+          Closes and corporate actions
+        </Link>
+        <Link href="/desk/ledger/journal" className="underline decoration-1 underline-offset-3">
+          What I learned
+        </Link>
+      </nav>
       {message ? (
         <p role="alert" className="rounded-sm border border-bad bg-bad-wash px-3 py-2 text-small text-ink">
           {message}

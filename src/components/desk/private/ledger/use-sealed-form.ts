@@ -14,8 +14,10 @@ import type { FormState } from "@/modules/ledger/actions";
  */
 const subscribeNothing = (): (() => void) => () => {};
 
-export function useSealedForm(action: (previous: FormState, data: FormData) => Promise<FormState>) {
-  const [state, formAction, pending] = useActionState(action, { error: null } as FormState);
+export function useSealedForm<S extends FormState = FormState>(action: (previous: S, data: FormData) => Promise<S>, initial: S = { error: null } as S) {
+  const [awaited, formAction, pending] = useActionState(action as unknown as (previous: Awaited<S>, data: FormData) => Promise<Awaited<S>>, initial as Awaited<S>);
+  const state = awaited as S;
+  const send = formAction as unknown as (data: FormData) => void;
   const ready = useSyncExternalStore(subscribeNothing, () => true, () => false); // false while rendering on the server and hydrating
   const sending = useRef(false);
   useEffect(() => {
@@ -26,7 +28,7 @@ export function useSealedForm(action: (previous: FormState, data: FormData) => P
     if (pending || sending.current) return;
     sending.current = true;
     const data = new FormData(event.currentTarget);
-    startTransition(() => formAction(data));
+    startTransition(() => send(data));
   };
   return { state, pending, ready, onSubmit };
 }

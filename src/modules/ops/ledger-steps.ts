@@ -46,7 +46,30 @@ export function ledgerDailySteps(make: () => LedgerJobDeps = buildLedgerDeps, ma
 
 export const LEDGER_DAILY_STEPS: readonly Step[] = ledgerDailySteps();
 
-/** The same steps for the admin's "Fetch closes now" button: each writes its own heartbeat, like the cron does. */
-export function runLedgerNow(repo: HeartbeatRepo = createJobHeartbeatRepo()): Promise<StepResult[]> {
-  return runSteps(LEDGER_DAILY_STEPS, (beat) => repo.record(beat));
+/** The two steps the admin's "Fetch closes now" button runs: the closes, then the scores. Never `ledger:anchor`. */
+export function ledgerNowSteps(make: () => LedgerJobDeps = buildLedgerDeps): Step[] {
+  return [
+    { job: "ledger:prices", run: () => fetchCloses(make()) },
+    { job: "ledger:score", run: () => scoreIdeas(make()) },
+  ];
+}
+
+const NOW_STEPS: readonly Step[] = ledgerNowSteps();
+let running: Promise<StepResult[]> | null = null;
+
+/**
+ * "Fetch closes now": `ledger:prices`, then `ledger:score`, each with its own heartbeat like the cron. `ledger:anchor` is
+ * left to the daily cron alone: a manual run that overlapped the cron's anchor step at midnight could corrupt the published
+ * copy's bookkeeping (task 9 review M-1; the single-flight lease is Q35). One run at a time in this process: a second click
+ * while one is running gets `null` ("already running") instead of a second run. (Another server instance would not see this
+ * guard; both steps are safe to run twice, so the worst case is a repeated, harmless fetch.)
+ */
+export async function runLedgerNow(repo: HeartbeatRepo = createJobHeartbeatRepo(), steps: readonly Step[] = NOW_STEPS): Promise<StepResult[] | null> {
+  if (running) return null;
+  running = runSteps(steps, (beat) => repo.record(beat));
+  try {
+    return await running;
+  } finally {
+    running = null;
+  }
 }

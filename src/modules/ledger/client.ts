@@ -1,16 +1,22 @@
 // Browser-safe entry point: types, constants, copy and the pure arithmetic. No database client, no server-only import.
 export type {
-  AddEventCall, AnchorReason, AnchorStatus, ChainCheckRows, ChainProblem, ChainSource, ChainStatus, CloseReason, ClosesStatus, Expects, GridCell,
-  Idea, IdeaEvent, IdeaEventKind, IdeaScore, IdeaStatus, LedgerRepo, MistakeTag, OpenIdeaCall, PickCompany, ProcessCall, ScoreChange, ScoreFlag, Summary,
+  ActionKind, AddActionCall, AddEventCall, AnchorReason, AnchorStatus, ChainCheckRows, ChainProblem, ChainSource, ChainStatus, CloseReason, ClosesStatus, CorporateAction, EnterCloseCall, Expects, GridCell,
+  Idea, IdeaEvent, IdeaEventKind, IdeaScore, IdeaStatus, LedgerRepo, MarketDay, MistakeTag, OpenIdeaCall, PickCompany, ProcessCall, ScoreChange, ScoreFlag, StoredClose, Summary,
 } from "./types";
 export {
-  ADD_EVENT_KINDS, BENIGN_FLAGS, BODY_MAX, CLOSE_REASONS, EVENT_KINDS, EXPECTS, HORIZON_CHOICES, HORIZON_MAX_DAYS, HORIZON_MIN_DAYS,
+  ACTION_AHEAD_DAYS, ACTION_FIRST_DATE, ACTION_KINDS, ACTION_NOTE_MAX, ADD_EVENT_KINDS, BENIGN_FLAGS, FACTOR_MAX, FACTOR_MIN, BODY_MAX, CLOSE_REASONS, EVENT_KINDS, EXPECTS, HORIZON_CHOICES, HORIZON_MAX_DAYS, HORIZON_MIN_DAYS,
   MIN_CLOSED_FOR_PERCENT, MISTAKE_TAGS, PROCESS_CALLS,
 } from "./constants";
 export { needsCheck } from "./flags";
 export { windowOf, WINDOW_MAX } from "./window";
+export { UPLOAD_LIMITS, UPLOAD_REFUSALS, type UploadRefusal, type UploadResult } from "./upload";
 export { summarise } from "./summary";
 export { journalGrid } from "./journal";
+export { lessonLines, type LessonLine } from "./journal-list";
+export {
+  buildClosesView, DAYS_SHOWN, RECENT_DAYS, trackedIdeas, type ActionGroup, type ActionLine, type ClosesView, type DayLine, type DayState, type HandCloseLine,
+  type RestatedLine,
+} from "./closes";
 export { datesToFetch, FETCH_WINDOW_DAYS, isWeekday, lastOpenDate, unsettledWeekdays, weekdaysBehind, type MarketDayRow } from "./trading-days";
 export { chainLines, chainReport, combineChecks, type ChainReport } from "./chain";
 export { LEDGER_ERROR_TEXT, type LedgerErrorCode } from "./errors";

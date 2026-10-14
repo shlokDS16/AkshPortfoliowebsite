@@ -1,5 +1,5 @@
 import type {
-  AddEventCall, AnchorStatus, ChainCheckRows, ClosesStatus, Idea, IdeaEvent, IdeaScore, LedgerRepo, OpenIdeaCall, PickCompany, ScoreChange,
+  AddActionCall, AddEventCall, AnchorStatus, ChainCheckRows, ClosesStatus, CorporateAction, EnterCloseCall, Idea, IdeaEvent, IdeaScore, LedgerRepo, MarketDay, OpenIdeaCall, PickCompany, ScoreChange, StoredClose,
 } from "./types";
 
 export type FakeSeed = {
@@ -10,6 +10,11 @@ export type FakeSeed = {
   chain?: ChainCheckRows["chain"];
   anchors?: ChainCheckRows["anchors"];
   companies?: PickCompany[];
+  marketDays?: MarketDay[];
+  storedCloses?: StoredClose[];
+  actions?: CorporateAction[];
+  /** How many company closes `enterClose` reports stored (default 1). */
+  enterStored?: number;
   /** Which company each file belongs to, by item id. */
   itemCompanies?: Record<string, string>;
   closes?: ClosesStatus;
@@ -50,6 +55,11 @@ export function createFakeLedgerRepo(seed: FakeSeed = {}): LedgerRepo & { calls:
       })),
     rescore: () => run("rescore", [], () => (seed.scores ?? []).length),
     itemCompany: (itemId) => run("itemCompany", [itemId], () => seed.itemCompanies?.[itemId] ?? null),
+    listMarketDays: (since) => run("listMarketDays", [since], () => (seed.marketDays ?? []).filter((d) => d.tradeDate >= since)),
+    listCloses: (since) => run("listCloses", [since], () => (seed.storedCloses ?? []).filter((c) => c.tradeDate >= since)),
+    listActions: () => run("listActions", [], () => seed.actions ?? []),
+    enterClose: (call: EnterCloseCall) => run("enterClose", [call], () => seed.enterStored ?? 1),
+    addAction: (call: AddActionCall) => run("addAction", [call], () => "action-new"),
     setItemLink: (ideaId, itemId) => run("setItemLink", [ideaId, itemId], () => undefined),
   };
 }

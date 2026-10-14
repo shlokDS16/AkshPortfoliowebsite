@@ -601,8 +601,12 @@ insert into public.companies (id, slug, name, nse_symbol, isin, visibility)
 select pg_temp.item('LI1', 'learning', null, null);
 select pg_temp.item('LI2', 'learning', pg_temp.co('LK2'), 'no');
 select pg_temp.item('LI3', 'learning', null, null);                  -- never linked
-select public.open_idea(pg_temp.co('LK'), 'outperform', 365, true, 'Linked to a learning note', pg_temp.co('I_LI1'));
-select public.open_idea(pg_temp.co('LK'), 'outperform', 365, true, 'Linked to a second note', pg_temp.co('I_LI2'));
+-- Task 11 step 0 (task 10 review I3): open_idea() now refuses a file of another company, so these two links are made the other way
+-- (the admin's own column update of ideas.item_id, which still exists), to keep exercising the gate's reading of a wrong link.
+insert into pg_temp.ids select 'LK_A', public.open_idea(pg_temp.co('LK'), 'outperform', 365, true, 'Linked to a learning note');
+insert into pg_temp.ids select 'LK_B', public.open_idea(pg_temp.co('LK'), 'outperform', 365, true, 'Linked to a second note');
+update public.ideas set item_id = pg_temp.co('I_LI1') where id = (select idea from pg_temp.ids where sym = 'LK_A');
+update public.ideas set item_id = pg_temp.co('I_LI2') where id = (select idea from pg_temp.ids where sym = 'LK_B');
 select is(pg_temp.vd('LI1'), 'fail', 'linked item: a note that names no company is refused while the idea it is linked to is fresh');
 select is(pg_temp.lc('LI1'), 'ledger_recent_entry', 'linked item: with the rule 4 code');
 select is(pg_temp.vd('LI2'), 'fail', 'linked item: an item on another company is also refused for the linked idea');

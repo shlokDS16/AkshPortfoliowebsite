@@ -25,6 +25,34 @@ function horizon(data: FormData, key = "horizon"): number | undefined {
 
 const yesNo = (raw: string | undefined): boolean | undefined => (raw === "yes" ? true : raw === "no" ? false : undefined);
 
+/** A decimal typed as digits with an optional point and fraction; anything else is NaN (the schema refuses NaN). */
+const decimal = (raw: string | undefined, fraction: number): number =>
+  raw !== undefined && new RegExp(`^\\d{1,6}(\\.\\d{1,${fraction}})?$`).test(raw.trim()) ? Number(raw.trim()) : Number.NaN;
+
+const blank = (raw: string | undefined): boolean => raw === undefined || raw.trim() === "";
+
+/** The "type a close" form: the company, the day, the close, and the Nifty 50's close when typed. Numbers stay text here (the schema checks them). */
+export function enterCloseFromForm(data: FormData): unknown {
+  const index = field(data, "indexClose");
+  return { companyId: field(data, "companyId"), tradeDate: field(data, "date"), close: field(data, "close"), indexClose: blank(index) ? null : index };
+}
+
+/** The corporate-action form. `none` takes no factor (it is 1); the others need one. His note keeps its text (CRLF to LF only). */
+export function corporateActionFromForm(data: FormData): unknown {
+  const kind = field(data, "kind");
+  const raw = field(data, "factor");
+  const factor = kind === "none" ? (blank(raw) || raw?.trim() === "1" ? 1 : Number.NaN) : decimal(raw, 6);
+  const note = words(data, "note");
+  return {
+    companyId: field(data, "companyId"),
+    kind,
+    exDate: field(data, "exDate"),
+    factor,
+    note: note === undefined || note === "" ? null : note,
+    supersedes: field(data, "supersedes") || null,
+  };
+}
+
 export function openIdeaFromForm(data: FormData): unknown {
   return {
     companyId: field(data, "companyId"),

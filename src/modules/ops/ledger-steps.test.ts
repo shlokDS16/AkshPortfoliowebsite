@@ -1,9 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearFixtureAnchorDirectory, fixtureAnchorDirectory, seedFixtureAnchor } from "@/lib/providers/fixture-anchor";
+import { clearFixtureAnchorDirectory, createFixtureAnchor, fixtureAnchorDirectory, seedFixtureAnchor } from "@/lib/providers/fixture-anchor";
 import type { Db } from "@/lib/supabase/types";
 import type { HeartbeatRepo } from "./heartbeat";
 import { fakeAnchorDb, fileOf, rowsFor } from "./ledger-anchor-test-kit";
-import { buildAnchorDeps, buildLedgerDeps, ledgerDailySteps, LEDGER_DAILY_STEPS, runLedgerNow } from "./ledger-steps";
+import { buildAnchorDeps, buildLedgerDeps, ledgerDailySteps, LEDGER_DAILY_STEPS, ledgerNowSteps, runLedgerNow } from "./ledger-steps";
 import { fakeLedgerDb } from "./ledger-test-kit";
 import { runSteps, type Step } from "./steps";
 
@@ -69,42 +69,85 @@ describe("the ledger's daily steps", () => {
   });
 });
 
-describe("runLedgerNow (the same steps, each with its own heartbeat)", () => {
-  it("with nothing tracked records all three steps as ok", async () => {
-    const { beats, repo } = heartbeats();
-    const results = await runLedgerNow(repo);
-    expect(results.map((r) => [r.job, r.ok, r.detail])).toEqual([
-      ["ledger:prices", true, "nothing to fetch"],
-      ["ledger:score", true, "scored 0 ideas"],
-      ["ledger:anchor", true, "sealed 0 days; no finished day to publish yet"],
-    ]);
-    expect(beats.map((b) => b.job)).toEqual(["ledger:prices", "ledger:score", "ledger:anchor"]);
+/** The daily cron's three steps with a heartbeat each (what /api/cron/daily does for the ledger). */
+const runDaily = (repo: HeartbeatRepo) => runSteps(ledgerDailySteps(), (b) => repo.record(b));
+
+describe("runLedgerNow (the admin's button: the closes and the scores, never the public copy)", () => {
+  it("is ledger:prices then ledger:score, and no ledger:anchor", () => {
+    expect(ledgerNowSteps().map((s) => s.job)).toEqual(["ledger:prices", "ledger:score"]);
   });
 
-  it("a fixture adapter pointed at a hosted database fails ledger:prices and ledger:anchor with a plain reason, and ledger:score still runs", async () => {
+  it("with nothing tracked records both steps as ok, and writes no anchor heartbeat", async () => {
+    const { beats, repo } = heartbeats();
+    const results = await runLedgerNow(repo);
+    expect(results?.map((r) => [r.job, r.ok, r.detail])).toEqual([
+      ["ledger:prices", true, "nothing to fetch"],
+      ["ledger:score", true, "scored 0 ideas"],
+    ]);
+    expect(beats.map((b) => b.job)).toEqual(["ledger:prices", "ledger:score"]);
+  });
+
+  it("never reads the anchor tables or the public copy, even when it has sealed days waiting", async () => {
+    const anchor = fakeAnchorDb({ rows: rowsFor("2026-10-01") });
+    const anchorTouched = vi.fn();
+    mocks.db = {
+      rpc: (name: string, args?: Record<string, unknown>) => {
+        if (name === "seal_ledger_days") anchorTouched(name);
+        return bothDb(anchor).rpc(name as never, args as never);
+      },
+      from: (table: string) => {
+        if (table === "ledger_anchors") anchorTouched(table);
+        return bothDb(anchor).from(table as never);
+      },
+    } as unknown as Db;
+    await runLedgerNow(heartbeats().repo);
+    expect(anchorTouched).not.toHaveBeenCalled();
+    expect(await createFixtureAnchor({ directory: GIST_DIR }).readAll()).toMatchObject({ kind: "ok" });
+  });
+
+  it("a fixture adapter pointed at a hosted database fails ledger:prices with a plain reason, and ledger:score still runs", async () => {
     mocks.env = { LLM_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: "https://abcdefgh.supabase.co" };
     const { beats, repo } = heartbeats();
     const results = await runLedgerNow(repo);
-    expect(results.map((r) => [r.job, r.ok])).toEqual([
+    expect(results?.map((r) => [r.job, r.ok])).toEqual([
       ["ledger:prices", false],
       ["ledger:score", true],
-      ["ledger:anchor", false],
     ]);
     expect(beats[0]?.detail).toMatch(/not set up correctly/);
     expect(beats[0]?.detail).not.toContain("abcdefgh");
-    expect(beats[2]?.detail).toMatch(/^the public copy is not set up correctly/);
-    expect(beats[2]?.detail).not.toContain("abcdefgh");
   });
 
   it("a refusal to score (broken chain) fails ledger:score only", async () => {
     mocks.db = bothDb(fakeAnchorDb({}), fakeLedgerDb({ today: "2026-10-14", symbols: [], score: { error: { message: "ledger:chain_broken", code: "P0001" } } }).db);
     const results = await runLedgerNow(heartbeats().repo);
-    expect(results.map((r) => [r.job, r.ok])).toEqual([
+    expect(results?.map((r) => [r.job, r.ok])).toEqual([
       ["ledger:prices", true],
       ["ledger:score", false],
-      ["ledger:anchor", true],
     ]);
-    expect(results[1]?.detail).toContain("chain_broken");
+    expect(results?.[1]?.detail).toContain("chain_broken");
+  });
+
+  it("runs one at a time: a second click while one runs gets 'already running' and starts nothing", async () => {
+    let release: () => void = () => {};
+    const slow: Step[] = [{ job: "ledger:prices", run: () => new Promise<string>((resolve) => (release = () => resolve("done"))) }];
+    const { beats, repo } = heartbeats();
+    const first = runLedgerNow(repo, slow);
+    expect(await runLedgerNow(repo, slow)).toBeNull();
+    release();
+    expect((await first)?.map((r) => r.job)).toEqual(["ledger:prices"]);
+    expect(beats).toHaveLength(1);
+    // After it finished, the next click runs again.
+    const again = runLedgerNow(repo, slow);
+    release();
+    expect(await again).not.toBeNull();
+  });
+
+  it("lets the next click through even when a run threw", async () => {
+    const { repo } = heartbeats();
+    const failingRepo: HeartbeatRepo = { ...repo, record: async () => { throw new Error("heartbeat table down"); } };
+    const results = await runLedgerNow(failingRepo, [{ job: "ledger:prices", run: async () => "ok" }]);
+    expect(results?.[0]?.ok).toBe(false);
+    expect(await runLedgerNow(repo, [{ job: "ledger:prices", run: async () => "ok" }])).not.toBeNull();
   });
 });
 
@@ -112,7 +155,7 @@ describe("ledger:anchor writes a heartbeat on EVERY run (the /api/health check g
   const anchorBeat = async (anchorDb: ReturnType<typeof fakeAnchorDb>) => {
     mocks.db = bothDb(anchorDb);
     const { beats, repo } = heartbeats();
-    await runLedgerNow(repo);
+    await runDaily(repo);
     return beats.filter((b) => b.job === "ledger:anchor");
   };
 

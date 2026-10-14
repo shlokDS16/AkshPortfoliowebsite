@@ -1,7 +1,9 @@
 import type { Db } from "@/lib/supabase/types";
-import { istDate } from "@/lib/dates";
+import { addDays, istDate } from "@/lib/dates";
 import { chainReport, type ChainReport } from "./chain";
+import { buildClosesView, DAYS_SHOWN, RECENT_DAYS, type ClosesView } from "./closes";
 import { voidDeadline } from "./figures";
+import { lessonLines, type LessonLine } from "./journal-list";
 import { eventLine, ideaLine, needsYou, type EventLine, type IdeaLine, type NeedsYou } from "./lines";
 import { createSupabaseLedgerRepo } from "./repo";
 import { checkLedger, loadIdea, loadLedger } from "./service";
@@ -89,6 +91,33 @@ export async function buildIdeaPage(repo: LedgerRepo, id: string, now: Date): Pr
 }
 
 export const getIdeaPage = (db: Db, id: string, now: Date = new Date()): Promise<IdeaPage | null> => buildIdeaPage(createSupabaseLedgerRepo(db), id, now);
+
+/** The Closes page: the recent days, the typed and dropped closes, the corporate actions and the lately restated scores. A failed read throws (never an empty page). */
+export type ClosesPage = ClosesView & { status: ClosesStatus | null };
+
+export async function buildClosesPage(repo: LedgerRepo, today: string): Promise<ClosesPage> {
+  const [days, closes, ideas, scores, actions, changes, companies, status] = await Promise.all([
+    repo.listMarketDays(addDays(today, -(DAYS_SHOWN + 5))),
+    repo.listCloses(addDays(today, -RECENT_DAYS)),
+    repo.listIdeas(),
+    repo.listScores(),
+    repo.listActions(),
+    repo.listScoreChanges(),
+    repo.listPickable(),
+    soft("closes", () => repo.closesStatus()),
+  ]);
+  return { ...buildClosesView({ today, days, closes, ideas, scores, actions, changes, companies }), status };
+}
+
+export const getClosesPage = (db: Db, today: string): Promise<ClosesPage> => buildClosesPage(createSupabaseLedgerRepo(db), today);
+
+/** The Journal: every lesson he wrote, newest first, with its idea. Paging is the page's (a window over this list). */
+export async function buildJournal(repo: LedgerRepo): Promise<LessonLine[]> {
+  const [lessons, ideas] = await Promise.all([repo.listLessons(), repo.listIdeas()]);
+  return lessonLines(lessons, ideas);
+}
+
+export const getJournal = (db: Db): Promise<LessonLine[]> => buildJournal(createSupabaseLedgerRepo(db));
 
 /** The company a file belongs to (null when there is no such file): the New idea page fixes the company to it. */
 export const getItemCompany = (db: Db, itemId: string): Promise<string | null> => createSupabaseLedgerRepo(db).itemCompany(itemId);

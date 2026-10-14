@@ -21,6 +21,15 @@ export const HORIZON_CHOICES = [
   { label: "3 years", days: 1095 },
 ] as const;
 
+/** What a corporate action can be (spec s5.4). `none` is "I looked at this move; no action explains it" and has factor exactly 1. */
+export const ACTION_KINDS = ["split", "bonus", "other", "none"] as const;
+export const FACTOR_MIN = 0.001;
+export const FACTOR_MAX = 1000;
+export const ACTION_NOTE_MAX = 500;
+/** An ex-date may be entered up to this many days ahead (a split announced for next month); never earlier than the first date below. */
+export const ACTION_AHEAD_DAYS = 366;
+export const ACTION_FIRST_DATE = "2000-01-01";
+
 /** A percentage of closed ideas is not shown below this many (decision D13). */
 export const MIN_CLOSED_FOR_PERCENT = 5;
 

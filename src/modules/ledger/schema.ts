@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
-  BODY_MAX, CLOSE_REASONS, EXPECTS, HORIZON_MAX_DAYS, HORIZON_MIN_DAYS, MISTAKE_TAGS, PROCESS_CALLS,
+  ACTION_FIRST_DATE, ACTION_KINDS, ACTION_NOTE_MAX, BODY_MAX, CLOSE_REASONS, EXPECTS, FACTOR_MAX, FACTOR_MIN, HORIZON_MAX_DAYS, HORIZON_MIN_DAYS,
+  MISTAKE_TAGS, PROCESS_CALLS,
 } from "./constants";
 import { LEDGER_ERROR_TEXT } from "./errors";
 
@@ -74,6 +75,52 @@ export function toStance(input: EventInput): Record<string, unknown> {
       return {};
   }
 }
+
+// ---- Closes and corporate actions (Task 11). The same fixed texts; a refusal never carries a value.
+const BAD_CLOSE = LEDGER_ERROR_TEXT["ledger-bad-close"];
+const BAD_DATE = LEDGER_ERROR_TEXT["ledger-bad-date"];
+const BAD_FACTOR = LEDGER_ERROR_TEXT["ledger-bad-factor"];
+const NOTE_LONG = LEDGER_ERROR_TEXT["ledger-note-too-long"];
+
+/** A real calendar date written YYYY-MM-DD. */
+export function isRealDate(value: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return false;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return d.getUTCFullYear() === Number(m[1]) && d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3]);
+}
+
+const dayText = (error: string) => z.string({ error }).refine(isRealDate, { error });
+/** A price as the database keeps it: up to ten whole digits and four decimals, above zero, no sign, no comma, no exponent. */
+const price = z
+  .string({ error: BAD_CLOSE })
+  .trim()
+  .regex(/^\d{1,10}(\.\d{1,4})?$/, { error: BAD_CLOSE })
+  .refine((s) => Number(s) > 0, { error: BAD_CLOSE });
+
+export const enterCloseInput = strict({
+  companyId: id,
+  tradeDate: dayText(BAD_DATE),
+  close: price,
+  indexClose: price.nullable(),
+});
+export type EnterCloseInput = z.output<typeof enterCloseInput>;
+
+const noteText = z
+  .string({ error: BAD })
+  .refine((s) => s.length <= ACTION_NOTE_MAX || [...s].length <= ACTION_NOTE_MAX, { error: NOTE_LONG })
+  .nullable();
+
+/** One shape for all kinds; the factor rules are the database's check (`none` is exactly 1, every other kind is not 1). */
+export const corporateActionInput = strict({
+  companyId: id,
+  kind: z.enum(ACTION_KINDS, { error: BAD }),
+  exDate: dayText(BAD_DATE).refine((s) => s >= ACTION_FIRST_DATE, { error: BAD_DATE }),
+  factor: z.number({ error: BAD_FACTOR }).min(FACTOR_MIN, BAD_FACTOR).max(FACTOR_MAX, BAD_FACTOR),
+  note: noteText,
+  supersedes: id.nullable(),
+}).refine((a) => (a.kind === "none") === (a.factor === 1), { error: BAD_FACTOR, path: ["factor"] });
+export type CorporateActionInput = z.output<typeof corporateActionInput>;
 
 export function isLedgerId(value: unknown): value is string {
   return typeof value === "string" && id.safeParse(value).success;

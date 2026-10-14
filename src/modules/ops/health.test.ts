@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Db } from "@/lib/supabase/types";
 import { QUEUE_STALE_SECONDS } from "@/modules/ingestion/client";
 import type { LatestRun } from "./heartbeat";
-import { describeNotes, describeQueue, describeStale, evaluateHealth, evaluatePublicHealth, getPublicHealth, readQueueAge } from "./health";
+import { describeNotes, describeQueue, describeStale, evaluateHealth, evaluatePublicHealth, getHealthReport, getPublicHealth, readQueueAge } from "./health";
 
 const NOW = new Date("2026-10-04T12:00:00Z");
 const PUMP = "heartbeat:pump";
@@ -275,6 +275,61 @@ describe("a failed ledger:score run is seen (review I-5)", () => {
   it("a note is not shown for a failed run (the red sentence already carries the reason)", () => {
     const failed = evaluateHealth({ ...fresh, [PRICES]: minutesAgo(60, false, "1 of 3 companies had no row; x") }, NOW, null);
     expect(describeNotes(failed)).toEqual([]);
+  });
+
+  describe("the public copy's last failed run stays on the strip for 30 days, even after a green run (Task 11)", () => {
+    const failedAt = (hours: number, detail?: string): LatestRun => secondsAgo(hours * 3600, false, detail);
+
+    it("a green latest run with a failed run 3 days ago adds a quiet note with the step's own reason, and nothing turns red", () => {
+      const strip = evaluateHealth(
+        { ...fresh, [ANCHOR]: minutesAgo(60) }, NOW, null,
+        { [ANCHOR]: failedAt(72, "the public file ledger-2026.jsonl differs from the ledger at line 2 (2026-10-02); nothing was published") },
+      );
+      expect(strip.ok).toBe(true);
+      expect(describeStale(strip)).toEqual([]);
+      expect(describeNotes(strip)).toEqual([
+        "the public copy's last failed run was 3 days ago: the public file ledger-2026.jsonl differs from the ledger at line 2 (2026-10-02); nothing was published",
+      ]);
+    });
+
+    it("says hours under two days, and nothing when there was no failure on record", () => {
+      const recent = evaluateHealth({ ...fresh, [ANCHOR]: minutesAgo(10) }, NOW, null, { [ANCHOR]: failedAt(5) });
+      expect(describeNotes(recent)).toEqual(["the public copy's last failed run was 5 h ago"]);
+      expect(describeNotes(evaluateHealth({ ...fresh, [ANCHOR]: minutesAgo(10) }, NOW, null, { [ANCHOR]: null }))).toEqual([]);
+      expect(describeNotes(evaluateHealth({ ...fresh, [ANCHOR]: minutesAgo(10) }, NOW, null))).toEqual([]);
+    });
+
+    it("is not added when the latest run is itself the failure (the red sentence has the reason), or the step never ran", () => {
+      const failing = evaluateHealth({ ...fresh, [ANCHOR]: minutesAgo(10, false, "x") }, NOW, null, { [ANCHOR]: failedAt(0.1, "x") });
+      expect(describeNotes(failing)).toEqual([]);
+      expect(describeStale(failing)).toEqual(["the public copy's last run failed 10 min ago: x"]);
+      expect(describeNotes(evaluateHealth(fresh, NOW, null, { [ANCHOR]: failedAt(72, "x") }))).toEqual([]);
+    });
+
+    it("is only for the public copy: another step's earlier failure is not shown", () => {
+      const strip = evaluateHealth({ ...fresh, [PRICES]: minutesAgo(10), [ANCHOR]: minutesAgo(10) }, NOW, null, { [PRICES]: failedAt(72, "old"), [SCORE]: failedAt(72, "old") });
+      expect(describeNotes(strip)).toEqual([]);
+    });
+
+    it("the public monitor carries none of it", () => {
+      const monitor = evaluatePublicHealth(base, null);
+      expect(JSON.stringify(monitor)).not.toMatch(/failed run|days ago/);
+    });
+
+    it("getHealthReport reads the failed runs of the public-copy step only, 30 days back, and a failed read does not hide the clocks", async () => {
+      const asked: { jobs: readonly string[]; since: string }[] = [];
+      const repo = {
+        record: async () => undefined,
+        latestRuns: async () => ({ ...fresh, [ANCHOR]: minutesAgo(10) }),
+        lastFailedRuns: async (jobs: readonly string[], since: string) => (asked.push({ jobs, since }), { [ANCHOR]: failedAt(48, "reason") }),
+      };
+      const report = await getHealthReport(repo, NOW, null);
+      expect(asked).toEqual([{ jobs: [ANCHOR], since: "2026-09-04T12:00:00.000Z" }]);
+      expect(describeNotes(report)).toEqual(["the public copy's last failed run was 2 days ago: reason"]);
+      const broken = await getHealthReport({ ...repo, lastFailedRuns: async () => Promise.reject(new Error("down")) }, NOW, null);
+      expect(broken.ok).toBe(true);
+      expect(describeNotes(broken)).toEqual([]);
+    });
   });
 
   it("the public monitor never carries the note or the reason", () => {

@@ -1,7 +1,9 @@
+import { addDays as addDaysIso } from "@/lib/dates";
 import { combineChecks } from "./chain";
+import { ACTION_AHEAD_DAYS } from "./constants";
 import { LedgerError } from "./errors";
 import { journalGrid } from "./journal";
-import { eventInput, isLedgerId, openIdeaInput, toStance } from "./schema";
+import { corporateActionInput, enterCloseInput, eventInput, isLedgerId, openIdeaInput, toStance } from "./schema";
 import { summarise } from "./summary";
 import type { ChainStatus, GridCell, Idea, IdeaEvent, IdeaScore, LedgerRepo, ScoreChange, Summary } from "./types";
 
@@ -32,6 +34,28 @@ export async function addIdeaEvent(repo: LedgerRepo, ideaId: string, input: unkn
   const parsed = eventInput.parse(input);
   if (!isLedgerId(ideaId)) throw new LedgerError("ledger-bad-input");
   return repo.addEvent({ ideaId, kind: parsed.kind, bodyMd: parsed.bodyMd, stance: toStance(parsed) });
+}
+
+/**
+ * Stores a close he typed, for one company and one day (the source is always `manual`, the database sets it). Refuses a date after
+ * `today` here; the database refuses a day before 15:30, a weekend and a shut day. Returns false when no close was stored (the
+ * company has no idea on file). `input` is untrusted.
+ */
+export async function enterClose(repo: LedgerRepo, input: unknown, today: string): Promise<boolean> {
+  const parsed = enterCloseInput.parse(input);
+  if (parsed.tradeDate > today) throw new LedgerError("ledger-close-too-early");
+  const company = (await repo.listPickable()).find((c) => c.id === parsed.companyId);
+  if (!company) throw new LedgerError("ledger-not-found");
+  if (company.needsReview || !company.symbol) throw new LedgerError("ledger-no-symbol");
+  const stored = await repo.enterClose({ tradeDate: parsed.tradeDate, symbol: company.symbol, close: parsed.close, indexClose: parsed.indexClose });
+  return stored > 0;
+}
+
+/** Appends a corporate action, or (with `supersedes`) a correction that replaces an earlier one. Returns the new row's id. `input` is untrusted. */
+export async function addCorporateAction(repo: LedgerRepo, input: unknown, today: string): Promise<string> {
+  const parsed = corporateActionInput.parse(input);
+  if (parsed.exDate > addDaysIso(today, ACTION_AHEAD_DAYS)) throw new LedgerError("ledger-bad-date");
+  return repo.addAction(parsed);
 }
 
 /** Everything the Ledger page and the Journal page need. `today` is an India date (YYYY-MM-DD). */

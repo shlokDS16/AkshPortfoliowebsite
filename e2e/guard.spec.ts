@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { ensureUser, requireStack, tokenHashFor } from "./support/auth";
 import { adminDb, hydrated } from "./support/desk";
-import { createLedgerCompany } from "./support/ledger";
+import { createLedgerCompany, syntheticOfficialFiles, weekdayBack } from "./support/ledger";
 import { captureAction, replayWithoutSession, sentToLogin } from "./support/replay";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
 
@@ -27,6 +27,10 @@ test.describe("signed out", () => {
     "/desk/ledger",
     "/desk/ledger/new",
     "/desk/ledger/00000000-0000-4000-8000-000000000000",
+    // Closes, corporate actions and the journal (Plan 3a Task 11).
+    "/desk/ledger/closes",
+    "/desk/ledger/closes?correct=00000000-0000-4000-8000-000000000000",
+    "/desk/ledger/journal",
   ]) {
     test(`${path} sends the visitor to the sign-in page`, async ({ page }) => {
       await page.goto(path);
@@ -135,6 +139,93 @@ test("the ledger's server actions called with no session are refused and write n
     await page.goto(ideaUrl);
     await expect(page.getByText(`anon-probe-1 ${RUN}`)).toHaveCount(0);
     await expect(page.getByText(`anon-probe-2 ${RUN}`)).toHaveCount(0);
+  } finally {
+    await adminContext.close();
+  }
+});
+
+// Task 11's writes: the official-file route (a plain POST that reads a file), and the three server actions of the Closes page.
+test("the Closes page's route and actions called with no session are refused and store nothing", async ({ browser, baseURL, request }) => {
+  test.setTimeout(180_000);
+  const stack = requireStack();
+  const db = await adminDb();
+  const company = await createLedgerCompany(db, "H");
+  const open = await db.rpc("open_idea", { p_company_id: company.id, p_expects: "outperform", p_horizon_days: 365, p_held: false, p_body_md: `guard idea ${RUN}` });
+  if (open.error) throw open.error;
+  const day = weekdayBack(1);
+
+  // The upload route: no cookie is a 401 whatever the body, and a real-looking drop stores nothing.
+  const files = syntheticOfficialFiles(day, [{ symbol: company.symbol, close: "55.55" }]);
+  const refusedUpload = await request.post("/desk/ledger/closes/upload", {
+    multipart: { date: day, bhavcopy: { name: "BhavCopy.csv.zip", mimeType: "application/zip", buffer: files.zip }, index: { name: "ind.csv", mimeType: "text/csv", buffer: files.index } },
+    headers: { origin: baseURL! },
+    maxRedirects: 0,
+  });
+  expect(refusedUpload.status()).toBe(401);
+  expect(await refusedUpload.json()).toEqual({ ok: false, error: "not-signed-in" });
+  const stored = await db.from("prices_daily").select("trade_date, source").eq("company_id", company.id);
+  if (stored.error) throw stored.error;
+  expect(stored.data).toEqual([]);
+  // Another site's page cannot use the owner's cookie either: a request with a foreign Origin is turned away by the route itself.
+  const adminContext = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 } });
+  try {
+    const page = await adminContext.newPage();
+    await page.goto(`/auth/confirm?token_hash=${await tokenHashFor(stack, E2E_ADMIN_EMAIL)}&type=magiclink&next=/desk/ledger/closes`);
+    await expect(page).toHaveURL(/\/desk\/ledger\/closes$/);
+    await hydrated(page);
+    const foreign = await adminContext.request.post("/desk/ledger/closes/upload", {
+      multipart: { date: day, bhavcopy: { name: "x.zip", mimeType: "application/zip", buffer: files.zip } },
+      headers: { origin: "https://evil.example" },
+      maxRedirects: 0,
+    });
+    expect(foreign.status()).toBe(403);
+    // Over the size limit: refused before the files are read, with the limit stated by the route's code.
+    const huge = await adminContext.request.post("/desk/ledger/closes/upload", {
+      multipart: { date: day, bhavcopy: { name: "x.zip", mimeType: "application/zip", buffer: Buffer.alloc(2_700_000) } },
+      headers: { origin: baseURL! },
+      maxRedirects: 0,
+    });
+    expect(huge.status()).toBe(413);
+    expect(await huge.json()).toEqual({ ok: false, code: "too_large" });
+
+    // The three actions: the admin's browser sends each once (kept), and the same request with no cookie is sent to the sign-in page.
+    const hand = weekdayBack(2);
+    await page.locator("#close-company").selectOption({ label: `${company.name} (${company.symbol})` });
+    await page.getByLabel("Trading date", { exact: true }).fill(hand);
+    await page.getByLabel("Closing price of the company").fill("66.66");
+    const close = await captureAction(page, () => page.getByRole("button", { name: "Store the close" }).click());
+    await expect(page.getByText("Close stored as typed.")).toBeVisible();
+    const refusedClose = await replayWithoutSession(request, close, baseURL!, (b) => b.replace("66.66", "77.77"));
+    expect(sentToLogin(refusedClose), `status ${refusedClose.status()}`).toBe(true);
+
+    await hydrated(page);
+    await page.locator("#action-company").selectOption({ label: `${company.name} (${company.symbol})` });
+    await page.getByLabel("Split", { exact: true }).check();
+    await page.getByLabel("Ex-date").fill(hand);
+    await page.getByLabel(/Factor/).fill("5");
+    await page.getByLabel(/Note, optional/).fill(`admin-action ${RUN}`);
+    const action = await captureAction(page, () => page.getByRole("button", { name: "Enter the action" }).click());
+    await expect(page.getByText("Action entered.")).toBeVisible();
+    const refusedAction = await replayWithoutSession(request, action, baseURL!, (b) => b.replace(`admin-action ${RUN}`, `anon-action ${RUN}`));
+    expect(sentToLogin(refusedAction), `status ${refusedAction.status()}`).toBe(true);
+
+    await hydrated(page);
+    const fetchNow = await captureAction(page, () => page.getByRole("button", { name: "Fetch closes now" }).click());
+    await expect(page.getByTestId("fetch-result")).toBeVisible();
+    const beforeBeats = await db.from("heartbeats").select("id", { count: "exact", head: true }).eq("job", "ledger:prices");
+    const refusedFetch = await replayWithoutSession(request, fetchNow, baseURL!);
+    expect(sentToLogin(refusedFetch), `status ${refusedFetch.status()}`).toBe(true);
+    const afterBeats = await db.from("heartbeats").select("id", { count: "exact", head: true }).eq("job", "ledger:prices");
+    expect(afterBeats.count).toBe(beforeBeats.count); // the refused request ran no step
+
+    // Only the admin's own writes are on the books.
+    const closes = await db.from("prices_daily").select("close, source").eq("company_id", company.id);
+    if (closes.error) throw closes.error;
+    expect(closes.data.map((c) => [Number(c.close), c.source])).toContainEqual([66.66, "manual"]);
+    expect(closes.data.some((c) => Number(c.close) === 77.77)).toBe(false);
+    const actions = await db.from("corporate_actions").select("note").eq("company_id", company.id);
+    if (actions.error) throw actions.error;
+    expect(actions.data.map((a) => a.note)).toEqual([`admin-action ${RUN}`]);
   } finally {
     await adminContext.close();
   }

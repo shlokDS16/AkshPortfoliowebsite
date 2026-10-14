@@ -162,6 +162,45 @@ export type AnchorStatus = {
   latestPublishedDate: string | null;
 };
 
+/** A day of the trading calendar: open (a Nifty 50 close is stored) or shut (no trading), and the strongest source that decided it. */
+export type MarketDay = { tradeDate: string; status: "open" | "shut"; source: "nse_fetch" | "nse_upload" | "manual" | string };
+
+/** A stored close of a company, with where it came from (`nse_fetch`, `nse_upload`, or `manual` for a close he typed). */
+export type StoredClose = { companyId: string; tradeDate: string; close: number; source: string };
+
+export type ActionKind = "split" | "bonus" | "other" | "none";
+
+/** A split, bonus or note he entered by hand. Append-only: a correction is a new row that `supersedes` the old one. */
+export type CorporateAction = {
+  id: string;
+  companyId: string;
+  exDate: string;
+  /** New shares per old share (5 for a 1:5 split); exactly 1 for kind `none`. */
+  factor: number;
+  kind: ActionKind;
+  note: string | null;
+  supersedes: string | null;
+  createdAt: string;
+};
+
+export type EnterCloseCall = {
+  tradeDate: string;
+  symbol: string;
+  /** Decimal text as validated (up to four decimals). */
+  close: string;
+  /** The Nifty 50 close for the same day, when he typed it. */
+  indexClose: string | null;
+};
+
+export type AddActionCall = {
+  companyId: string;
+  exDate: string;
+  factor: number;
+  kind: ActionKind;
+  note: string | null;
+  supersedes: string | null;
+};
+
 /** Nothing here reads or writes by itself: the Supabase implementation is in repo.ts, a fake is in tests. */
 export interface LedgerRepo {
   openIdea(input: OpenIdeaCall): Promise<string>;
@@ -185,6 +224,14 @@ export interface LedgerRepo {
   setItemLink(ideaId: string, itemId: string | null): Promise<void>;
   /** The company a file belongs to, or null when there is no such file. */
   itemCompany(itemId: string): Promise<string | null>;
+  /** The trading calendar from a date (YYYY-MM-DD) on, oldest first. */
+  listMarketDays(since: string): Promise<MarketDay[]>;
+  /** Every stored company close from a date on (the Nifty 50 rows are left out). */
+  listCloses(since: string): Promise<StoredClose[]>;
+  listActions(): Promise<CorporateAction[]>;
+  /** Stores one typed close (and optionally the Nifty 50's) through `enter_closes`; returns the company closes stored (0 or 1). */
+  enterClose(call: EnterCloseCall): Promise<number>;
+  addAction(call: AddActionCall): Promise<string>;
 }
 
 export type OpenIdeaCall = {

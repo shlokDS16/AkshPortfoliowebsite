@@ -2,10 +2,10 @@ import type { Json, Tables } from "@/lib/supabase/database.types";
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 import { asRecord } from "@/lib/records";
-import { ledgerErrorFromDb } from "./errors";
+import { LedgerError, ledgerErrorFromDb } from "./errors";
 import type {
-  AnchorStatus, ChainCheckRows, ClosesStatus, CloseReason, Expects, Idea, IdeaEvent, IdeaEventKind, IdeaScore, IdeaStatus, LedgerRepo,
-  ProcessCall, ScoreChange, ScoreFlag,
+  ActionKind, AnchorStatus, ChainCheckRows, ClosesStatus, CloseReason, CorporateAction, Expects, Idea, IdeaEvent, IdeaEventKind, IdeaScore,
+  IdeaStatus, LedgerRepo, MarketDay, ProcessCall, ScoreChange, ScoreFlag, StoredClose,
 } from "./types";
 
 // Reads use the admin's cookie client (RLS, admin only). Named columns only: a '*' would also pull the sealed text and the
@@ -249,6 +249,55 @@ export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
     async itemCompany(itemId) {
       const row = check("ledger.itemCompany", await db.from("items").select("company_id").eq("id", itemId).maybeSingle());
       return row?.company_id ?? null;
+    },
+
+    async listMarketDays(since) {
+      const rows = await readAll("ledger.listMarketDays", (from, to) =>
+        db.from("market_days").select("trade_date, status, source").gte("trade_date", since).order("trade_date").range(from, to),
+      );
+      return rows.flatMap((r): MarketDay[] => (r.status === "open" || r.status === "shut" ? [{ tradeDate: r.trade_date, status: r.status, source: r.source }] : []));
+    },
+
+    async listCloses(since) {
+      const rows = await readAll("ledger.listCloses", (from, to) =>
+        db.from("prices_daily").select("company_id, trade_date, close, source").not("company_id", "is", null).gte("trade_date", since).order("trade_date").order("company_id").range(from, to),
+      );
+      return rows.flatMap((r): StoredClose[] => (r.company_id ? [{ companyId: r.company_id, tradeDate: r.trade_date, close: Number(r.close), source: r.source }] : []));
+    },
+
+    async listActions() {
+      const rows = await readAll("ledger.listActions", (from, to) =>
+        db.from("corporate_actions").select("id, company_id, ex_date, factor, kind, note, supersedes, created_at").order("created_at", { ascending: false }).order("id").range(from, to),
+      );
+      return rows.map((r): CorporateAction => ({
+        id: r.id, companyId: r.company_id, exDate: r.ex_date, factor: Number(r.factor), kind: r.kind as ActionKind, note: r.note, supersedes: r.supersedes, createdAt: r.created_at,
+      }));
+    },
+
+    async enterClose(call) {
+      // The source is never an argument: enter_closes always writes `manual` (spec s18). A row has no series and no ISIN.
+      const rows: Json = [{ symbol: call.symbol, close: call.close }];
+      const stored = check(
+        "ledger.enterClose",
+        await db.rpc("enter_closes", { p_trade_date: call.tradeDate, p_rows: rows, p_index_close: (call.indexClose === null ? null : Number(call.indexClose)) as number }),
+      );
+      return typeof stored === "number" ? stored : 0;
+    },
+
+    async addAction(call) {
+      const result = await db
+        .from("corporate_actions")
+        .insert({ company_id: call.companyId, ex_date: call.exDate, factor: call.factor, kind: call.kind, note: call.note, supersedes: call.supersedes })
+        .select("id")
+        .single();
+      if (result.error) {
+        // The unique indexes and the guard trigger speak in Postgres codes; the screen gets a fixed message for each.
+        if (result.error.code === "23505") throw new LedgerError("ledger-action-duplicate");
+        if (result.error.code === "23514") throw new LedgerError("ledger-bad-factor");
+        if (result.error.code === "23503" || result.error.code === "P0001") throw new LedgerError("ledger-bad-input");
+        throw ledgerErrorFromDb("ledger.addAction", result.error);
+      }
+      return result.data.id;
     },
 
     async setItemLink(ideaId, itemId) {

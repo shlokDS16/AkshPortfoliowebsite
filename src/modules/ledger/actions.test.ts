@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("./repo", () => ({ createSupabaseLedgerRepo: () => state.repo }));
 
-import { addIdeaEventAction, openIdeaAction } from "./actions";
+import { addCorporateActionAction, addIdeaEventAction, enterCloseAction, openIdeaAction } from "./actions";
 
 const COMPANY = "11111111-1111-4111-8111-111111111111";
 const IDEA = "33333333-3333-4333-8333-333333333333";
@@ -194,5 +194,109 @@ describe("addIdeaEventAction", () => {
       repo.addEvent = () => Promise.reject(new LedgerError(code));
       expect(await addIdeaEventAction(noState, form({ ideaId: IDEA, kind: "note", bodyMd: "W" }))).toEqual({ error: code });
     }
+  });
+});
+
+describe("the Closes page's two writes (Task 11)", () => {
+  const PICK = { id: COMPANY, name: "Acme Ltd", symbol: "ACME", needsReview: false };
+  const close = { companyId: COMPANY, date: "2026-10-12", close: "1234.50", indexClose: "" };
+  const action = { companyId: COMPANY, kind: "split", exDate: "2026-09-01", factor: "5", note: "" };
+  const methods = () => repo.calls.map((c) => c.method);
+  beforeEach(() => {
+    state.repo = repo = createFakeLedgerRepo({ companies: [PICK] });
+  });
+
+  for (const [name, run] of [
+    ["enterCloseAction", () => enterCloseAction(noState, form(close))],
+    ["addCorporateActionAction", () => addCorporateActionAction(noState, form(action))],
+  ] as const) {
+    it(`${name} checks the admin first and reaches nothing when that fails`, async () => {
+      requireAdmin.mockImplementationOnce(async () => {
+        throw new Error("NEXT_REDIRECT:/login");
+      });
+      await expect(run()).rejects.toThrow("NEXT_REDIRECT:/login");
+      expect(order).not.toContain("client");
+      expect(repo.calls).toEqual([]);
+    });
+  }
+
+  it("a typed close is stored, the scores are refreshed, and the page shows the notice", async () => {
+    const to = await redirected(() => enterCloseAction(noState, form(close)));
+    expect(to).toBe("/desk/ledger/closes?notice=close-entered#typed");
+    expect(methods()).toEqual(["listPickable", "enterClose", "rescore"]);
+    expect(repo.calls[1]!.args[0]).toEqual({ tradeDate: "2026-10-12", symbol: "ACME", close: "1234.50", indexClose: null });
+    expect(revalidatePath).toHaveBeenCalledWith("/desk/ledger", "layout");
+  });
+
+  it("a form can name no source: whatever is sent beyond the fields is ignored, and the call carries none", async () => {
+    await redirected(() => enterCloseAction(noState, form({ ...close, source: "nse_fetch" })));
+    expect(JSON.stringify(repo.calls[1]!.args)).not.toMatch(/nse_fetch|source/);
+  });
+
+  it("no close stored (no idea on the company) is said in words, and nothing is rescored", async () => {
+    state.repo = repo = createFakeLedgerRepo({ companies: [PICK], enterStored: 0 });
+    expect(await enterCloseAction(noState, form(close))).toEqual({ error: "ledger-close-not-stored" });
+    expect(methods()).not.toContain("rescore");
+  });
+
+  it.each([
+    ["a close of zero", { close: "0" }, "ledger-bad-close"],
+    ["a close with a comma", { close: "1,234.50" }, "ledger-bad-close"],
+    ["no date", { date: "" }, "ledger-bad-date"],
+    ["a date in the future", { date: "2999-01-01" }, "ledger-close-too-early"],
+    ["a company that is not an id", { companyId: "x" }, "ledger-bad-input"],
+  ] as const)("%s: %s", async (_name, change, code) => {
+    expect(await enterCloseAction(noState, form({ ...close, ...change }))).toEqual({ error: code });
+    expect(methods()).not.toContain("enterClose");
+  });
+
+  it("the database's refusals come back as plain codes: too early, a weekend, a shut day", async () => {
+    for (const code of ["ledger-close-too-early", "ledger-close-weekend", "ledger-day-shut"] as const) {
+      repo.enterClose = () => Promise.reject(new LedgerError(code));
+      expect(await enterCloseAction(noState, form(close))).toEqual({ error: code });
+    }
+  });
+
+  it("a failed refresh of the scores does not undo or hide the stored close", async () => {
+    repo.rescore = () => Promise.reject(new Error("rescore down SECRET"));
+    expect(await redirected(() => enterCloseAction(noState, form(close)))).toContain("notice=close-entered");
+    expect(JSON.stringify((console.error as unknown as { mock: { calls: unknown[] } }).mock.calls)).not.toContain("SECRET");
+  });
+
+  it("a corporate action is appended and the scores refreshed", async () => {
+    const to = await redirected(() => addCorporateActionAction(noState, form(action)));
+    expect(to).toBe("/desk/ledger/closes?notice=action-added#actions");
+    expect(methods()).toEqual(["addAction", "rescore"]);
+    expect(repo.calls[0]!.args[0]).toEqual({ companyId: COMPANY, exDate: "2026-09-01", factor: 5, kind: "split", note: null, supersedes: null });
+  });
+
+  it("a correction names the entry it replaces", async () => {
+    const OLD = "22222222-2222-4222-8222-222222222222";
+    await redirected(() => addCorporateActionAction(noState, form({ ...action, factor: "4", supersedes: OLD })));
+    expect(repo.calls[0]!.args[0]).toMatchObject({ factor: 4, supersedes: OLD });
+  });
+
+  it.each([
+    ["a factor of 1 for a split", { factor: "1" }, "ledger-bad-factor"],
+    ["a factor of zero", { factor: "0" }, "ledger-bad-factor"],
+    ["a factor above 1000", { factor: "1001" }, "ledger-bad-factor"],
+    ["a negative factor", { factor: "-2" }, "ledger-bad-factor"],
+    ["'no action' with a factor of 2", { kind: "none", factor: "2" }, "ledger-bad-factor"],
+    ["a date in the far future", { exDate: "2999-01-01" }, "ledger-bad-date"],
+    ["no date", { exDate: "" }, "ledger-bad-date"],
+    ["a note over 500 characters", { note: "x".repeat(501) }, "ledger-note-too-long"],
+  ] as const)("%s: %s", async (_name, change, code) => {
+    expect(await addCorporateActionAction(noState, form({ ...action, ...change }))).toEqual({ error: code });
+    expect(methods()).not.toContain("addAction");
+  });
+
+  it("an entry already made is said in words", async () => {
+    repo.addAction = () => Promise.reject(new LedgerError("ledger-action-duplicate"));
+    expect(await addCorporateActionAction(noState, form(action))).toEqual({ error: "ledger-action-duplicate" });
+  });
+
+  it("'no action needed' needs no factor", async () => {
+    await redirected(() => addCorporateActionAction(noState, form({ ...action, kind: "none", factor: "" })));
+    expect(repo.calls[0]!.args[0]).toMatchObject({ kind: "none", factor: 1 });
   });
 });

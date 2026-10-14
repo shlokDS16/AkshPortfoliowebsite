@@ -85,6 +85,15 @@ const ERRORS = {
   "ledger-opposite-open": "An open idea on this company expects the opposite. Close or withdraw it first.",
   "ledger-not-found": "This idea or company could not be found.",
   "ledger-integrity": "The ledger failed its own check. Nothing was saved. Run the integrity check on the Ledger page.",
+  "ledger-bad-close": "Type the close as a plain number such as 1234.50 (up to four decimals, no commas).",
+  "ledger-bad-date": "Choose a real date that is not in the future.",
+  "ledger-close-too-early": "The market has not closed yet for that date (15:30 India). A close can be typed after it.",
+  "ledger-close-weekend": "NSE has no session on a Saturday or Sunday, so a close cannot be typed for it.",
+  "ledger-close-not-stored": "That close was not stored: only a company that has an idea on file (not a withdrawn one) takes a close.",
+  "ledger-bad-factor": "The factor must be a number from 0.001 to 1000, and not 1 for a split, bonus or other action. For 'No action needed' leave it at 1.",
+  "ledger-action-duplicate": "That action is already entered. To change it, choose 'Correct this entry' on the earlier one.",
+  "ledger-note-too-long": "That note is over 500 characters. Shorten it.",
+  "ledger-fetch-busy": "A fetch is already running. Wait for it to finish, then reload this page.",
   "ledger-item-other-company": "That file is about a different company. Open the idea from the company's own file, or without a link to a file.",
   "ledger-day-shut": "NSE had no trading on that date, so a closing price cannot be typed for it. If NSE did trade that day, upload NSE's official file for it instead.",
 } as const;
@@ -162,6 +171,15 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "ledger-not-found": "ledger-not-found",
   "ledger-integrity": "ledger-integrity",
   "ledger-day-shut": "ledger-day-shut",
+  "ledger-bad-close": "ledger-bad-close",
+  "ledger-bad-date": "ledger-bad-date",
+  "ledger-close-too-early": "ledger-close-too-early",
+  "ledger-close-weekend": "ledger-close-weekend",
+  "ledger-close-not-stored": "ledger-close-not-stored",
+  "ledger-bad-factor": "ledger-bad-factor",
+  "ledger-action-duplicate": "ledger-action-duplicate",
+  "ledger-note-too-long": "ledger-note-too-long",
+  "ledger-fetch-busy": "ledger-fetch-busy",
   "ledger-item-other-company": "ledger-item-other-company",
 };
 
@@ -207,6 +225,9 @@ const NOTICES = {
   // Ledger (Plan 3a Task 10, spec s28). Pending Shlok's approval.
   "idea-recorded": "Idea recorded and sealed.",
   "entry-added": "Entry added and sealed.",
+  // Closes page and corporate actions (Plan 3a Task 11, spec s31). Pending Shlok's approval.
+  "close-entered": "Close stored as typed. It is marked on every score that uses it.",
+  "action-added": "Action entered. It is marked on every score whose period it falls in.",
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-saved-readings-missing":

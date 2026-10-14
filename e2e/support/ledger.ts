@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import type { Db } from "@/lib/supabase/types";
 import { addDays, istDate, istTime, istWeekday } from "@/lib/dates";
+import { bhavCsv, indexCsv } from "@/test/nse-files";
+import { buildZip } from "@/test/zip-builder";
 import type { LocalStack } from "./stack";
 
 // Test setup only, for the Ledger specs. Each run makes its own company (a unique NSE symbol), so no other spec's file is
@@ -63,4 +65,48 @@ export function clearRecentCloses(now = new Date()): void {
       shell: process.platform === "win32",
     });
   }
+}
+
+/** The `back`-th weekday before today in India (1 = the last one). Saturdays and Sundays are skipped. */
+export function weekdayBack(back: number, now = new Date()): string {
+  let date = istDate(now);
+  for (let left = back; left > 0; ) {
+    date = addDays(date, -1);
+    const day = istWeekday(new Date(`${date}T12:00:00Z`));
+    if (day !== "Sat" && day !== "Sun") left -= 1;
+  }
+  return date;
+}
+
+/** A synthetic official pair for one date (the real header rows, invented symbols and prices; never a real NSE file). */
+export function syntheticOfficialFiles(date: string, rows: { symbol: string; close: string }[], niftyClose = "22000.50") {
+  const [y, m, d] = date.split("-") as [string, string, string];
+  const csv = bhavCsv([...rows.map((r) => ({ symbol: r.symbol, close: r.close, date })), { symbol: "NOTTRACKED", close: "10.00", date }]);
+  return {
+    zip: Buffer.from(buildZip([{ data: new TextEncoder().encode(csv) }])),
+    index: Buffer.from(indexCsv([{ name: "Nifty 50", date: `${d}-${m}-${y}`, close: niftyClose }, { name: "Nifty Bank", date: `${d}-${m}-${y}`, close: "48000" }])),
+  };
+}
+
+/**
+ * Stores today's close for the company as a TYPED close, through the database owner (setup only: the screen refuses a typed
+ * close for today before 15:30 India, and an idea opened now takes today's close as its entry, so this is the one way a test
+ * run in the morning can reach a score that rests on a close he typed). The market-closed clock is moved a day on.
+ */
+export function seedTypedTodayCloses(symbol: string): void {
+  const sql =
+    `select private.put_hand_closes((now() at time zone 'Asia/Kolkata')::date, ` +
+    `jsonb_build_array(jsonb_build_object('symbol', '${symbol}', 'close', '100.00')), 20000, 'manual', now() + interval '1 day')`;
+  execFileSync("pnpm", ["exec", "supabase", "db", "query", "--local", process.platform === "win32" ? `"${sql}"` : sql], {
+    stdio: "ignore",
+    shell: process.platform === "win32",
+  });
+}
+
+/** True when today is a weekday in India and the market has closed (15:30), so a typed close for today is accepted. */
+export function typedCloseForTodayAllowed(now = new Date()): boolean {
+  const weekday = istWeekday(now);
+  if (weekday === "Sat" || weekday === "Sun") return false;
+  const [h, m] = istTime(now).split(":").map(Number) as [number, number];
+  return h * 60 + m >= 15 * 60 + 35;
 }

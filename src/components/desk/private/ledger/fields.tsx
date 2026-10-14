@@ -5,7 +5,7 @@ import { errorText, type ErrorCode } from "@/lib/messages";
 import { cn } from "@/lib/utils";
 
 /** Which field a refusal is about. Anything not tied to one field (a state rule, an integrity failure) is about the form as a whole. */
-export type FieldName = "company" | "horizon" | "body";
+export type FieldName = "company" | "horizon" | "body" | "close" | "date" | "factor" | "note";
 const FIELD_OF: Partial<Record<ErrorCode, FieldName>> = {
   "ledger-no-symbol": "company",
   "ledger-company-not-ready": "company",
@@ -14,6 +14,13 @@ const FIELD_OF: Partial<Record<ErrorCode, FieldName>> = {
   "ledger-bad-horizon": "horizon",
   "ledger-words-required": "body",
   "ledger-body-too-long": "body",
+  "ledger-bad-close": "close",
+  "ledger-bad-date": "date",
+  "ledger-close-too-early": "date",
+  "ledger-close-weekend": "date",
+  "ledger-day-shut": "date",
+  "ledger-bad-factor": "factor",
+  "ledger-note-too-long": "note",
 };
 export const errorField = (code: ErrorCode | null): FieldName | null => (code ? (FIELD_OF[code] ?? null) : null);
 
