@@ -8,3 +8,4 @@ export { DAILY_STEPS, PUMP_STEPS, runDaily, runPump } from "./schedule";
 export { aiReadingOn, drainFor, SERVER_DAILY_STEPS, SERVER_PUMP_STEPS } from "./drain";
 export { runLedgerNow } from "./ledger-steps";
 export { buildUploadDeps, uploadOfficialCloses, type UploadInput } from "./ledger-upload";
+export { tickPost } from "./tick-route";

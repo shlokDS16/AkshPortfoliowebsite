@@ -37,6 +37,7 @@ test.describe("job routes", () => {
     expect(await daily.json()).toEqual({
       ok: true,
       results: [
+        { job: "clock:register", ok: true },
         { job: "heartbeat:daily", ok: true },
         { job: "ledger:prices", ok: true },
         { job: "ledger:score", ok: true },
@@ -50,6 +51,7 @@ test.describe("job routes", () => {
     expect(await pump.json()).toEqual({
       ok: true,
       results: [
+        { job: "clock:register", ok: true },
         { job: "heartbeat:pump", ok: true },
         { job: "ingestion:drain", ok: true },
         { job: "alerts:email", ok: true },
@@ -209,6 +211,7 @@ test.describe("the daily run with an idea on file (fixture market data)", () => 
     expect(await first.json()).toEqual({
       ok: true,
       results: [
+        { job: "clock:register", ok: true },
         { job: "heartbeat:daily", ok: true },
         { job: "ledger:prices", ok: true },
         { job: "ledger:score", ok: true },
