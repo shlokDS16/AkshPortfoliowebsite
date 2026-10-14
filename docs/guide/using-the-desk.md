@@ -369,7 +369,7 @@ Some words, once:
 - **Nifty 50** is the index of India's 50 large listed companies. The Ledger compares each share with it.
 - **A close** is a share's closing price on a trading day. NSE is the National Stock Exchange of India; it publishes official closing files after each day.
 - **Horizon** is how long you expect the idea to take, from 30 days to about 10 years.
-- **Sealed** means the desk stamps your entry with its own date and time and links it to the entries before. Changes after the fact are meant to be detectable. The site's word for the result is "consistent with itself", explained below.
+- **Sealed** means the desk stamps your entry with its own date and time and links it to the entries before. Changes after the fact are meant to be detectable by the desk's own daily comparison, not by anyone outside the desk. The site's word for the result is "consistent with itself", explained below.
 
 The Ledger is **private**. Nothing in it is shown on the public side. It is not advice and nothing on it is a recommendation.
 
@@ -462,7 +462,7 @@ A **mark** is a plain sentence under a score that tells you something about how 
 | Mark | What it means |
 |---|---|
 | "Entry will be set at the next close." / "Exit will be set at the next close." | Waiting for a price. |
-| "Includes a close that was entered by hand." | A price you typed or an NSE file you dropped is used, not the desk's own fetch. |
+| "Includes a close that was entered by hand." | A price you typed or a file you uploaded as NSE's official file is used, not the desk's own fetch. |
 | "Includes a split, bonus or note about a price move that you entered by hand." | You entered a corporate action that falls inside the idea's period. |
 | "The latest close is three or more weekdays old." | The score is stale. |
 | "Needs a check: the price moved sharply. Was there a split or bonus?" | Enter the corporate action (below), or enter "No action needed" if nothing explains the move. |
@@ -480,13 +480,13 @@ A score that needs a check shows its sentence where the result would be, and it 
 
 In the status box at the top of the Ledger page is the check. When it passes, it says: "Consistent with itself: N entries, M sealed days." Right below it, always: "This checks that the entries and the sealed days agree with each other. It does not show that nothing could have been changed."
 
-This is the strongest thing the site says about the record. The desk writes down a fingerprint of each day's entries (a "sealed day"). The check recomputes the fingerprints and compares them with the entries. Changes after the fact are meant to be detectable. It is a check that the record agrees with itself. It is not an outside audit.
+This is the strongest thing the site says about the record. The desk writes down a fingerprint of each day's entries (a "sealed day"). The check recomputes the fingerprints and compares them with the entries. Changes after the fact are meant to be detectable by this daily comparison. While the public copy is switched off (it is, in this version: see the next heading and section 7), the comparison is made only against the desk's own database, so someone with access to the database itself could change the record without it showing. It is a check that the record agrees with itself. It is not an outside audit.
 
 If it fails, a red box says **The ledger failed its own check** and names which check found it: **Entry chain check** ("The ledger chain is broken at entry N.") or **Sealed-day check** ("The sealed days and the entries disagree from <date> (<reason>). This check changed nothing. Tell Shlok."). Do not try to fix anything. Tell Shlok.
 
 If the check could not run, you see: "Could not check: the integrity check did not run just now. This says nothing about the ledger either way. Reload to try again." Reload the page. If it keeps saying that, tell Shlok.
 
-A failing check also stops you from saving new entries ("The ledger failed its own check. Nothing was saved.") and blocks publishing any file about a company (section 5).
+A failing check does not stop you from recording an idea or adding an entry: those never run it. It stops the scores from being recomputed (the scores already stored stay as they were), it stops new days from being sealed, and it blocks publishing any file about a company (section 5). If a screen says "The ledger failed its own check. Nothing was saved.", the same applies: tell Shlok.
 
 #### The public copy line
 
@@ -500,19 +500,20 @@ The desk fetches closes each morning. A day's close is normally in the desk the 
 
 Sections, in order:
 
-1. **Recent days.** Each of the last days with its state: "Open" (with where the price came from: "NSE's official file, fetched by the desk", "NSE's official file, dropped by you", or "a close you typed"), "Shut: no trading", "Not decided yet", or "Today: NSE publishes its file after the close". An open day lists any company you track that has no close for it: "No close yet for Acme Ltd, Beta Ltd and 2 others.", or "Every company you track has a close." A day is marked shut only when NSE has no file for it and a later day is open.
+1. **Recent days.** Each of the last days with its state: "Open" (with where the price came from: "NSE's official file, fetched by the desk", "a file you uploaded as NSE's official file", or "a close you typed"), "Shut: no trading", "Not decided yet", or "Today: NSE publishes its file after the close". An open day lists any company you track that has no close for it: "No close yet for Acme Ltd, Beta Ltd and 2 others.", or "Every company you track has a close." A day is marked shut only when NSE has no file for it and a later day is open.
 2. **Fetch closes now.** "Asks NSE for the days that are not decided yet, then scores the ideas. The public copy is left to the daily run." Press **Fetch closes now** (it says "Fetching..."). The result shows one line per step, such as "Closing prices: stored 2 dates, 4 closes". If a fetch is already running: "A fetch is already running. Wait for it to finish, then reload this page."
 3. **Drop NSE's official file.** For when NSE does not answer the desk. Download the day's files from NSE yourself, then fill in:
    - **Trading date of the files**
    - **Equity file (the day's bhavcopy, a .zip)**
    - **Index file (the day's indices, a .csv), optional**. Drop it too: the Nifty 50 close opens the day. On a day marked shut, the index file is required.
-   Press **Store the official closes** ("Reading the files..."). The desk reads them the way it reads its own fetch and stores the closes of the companies you track as "NSE's official file, dropped by you". The file itself is not kept. Limits: the equity zip up to 2 MB, the index file up to 512 KB, both together up to 2.5 MB. The real files are about 210 KB and 20 KB.
-   - Success reads like: "Stored 4 closes for 12 Oct 2026 as NSE's official file, dropped by you. The Nifty 50 close is stored, so the day is open. Scored 3 ideas."
-   - If the file is refused, the message says why and always ends "Nothing was stored." The common ones: "Choose the equity file (the day's bhavcopy zip) first.", "Choose the trading date the files are for.", "The market has not closed yet for that date (15:30 India). Drop the files after the close.", "The equity file is not a zip file. Choose the day's bhavcopy zip.", "The equity file is for 9 Oct 2026, not the date you chose.", and "A closing price the desk needs (a company you track) is blank or not a plain number, so the whole file was refused and nothing was stored. To go on, type that close by hand below ...". If you see a message you do not understand, send it to Shlok. If it says "You are signed out", sign in again and drop the files again.
-4. **Type a close.** For one company and one day, when the official file is not available. Choose **Company** (one that has an idea), **Trading date**, **Closing price of the company**, and optionally **Nifty 50 close for the same day, optional**. Press **Store the close**. You see: "Close stored as typed. It is marked on every score that uses it." Rules: not before 15:30 India on the day, not on a weekend, not on a day marked shut. A day is open only when its Nifty 50 close is stored, and a score needs both closes.
-5. **Closes you typed or dropped.** The last 30 days. "The fetched file replaces them when it arrives."
-6. **Scores restated lately.** A stored close changed an idea's score, so a dated row is listed here, with the figure that moved.
-7. **Splits, bonuses and other actions.** See next.
+   Press **Store the official closes** ("Reading the files..."). The desk reads them the way it reads its own fetch and stores the closes of the companies you track as "a file you uploaded as NSE's official file". The desk checks the file's layout and date; it cannot check that the file is NSE's. The file itself is not kept; the desk records only when you uploaded it, the trading date, the file's fingerprint (a SHA-256 hash) and size, and how many closes were stored. The date must be within the last 400 days. Limits: the equity zip up to 2 MB, the index file up to 512 KB, both together up to 2.5 MB. The real files are about 210 KB and 20 KB.
+   - Success reads like: "Stored 4 closes for 12 Oct 2026 from a file you uploaded as NSE's official file. The Nifty 50 close is stored, so the day is open. Scored 3 ideas." The number is what was actually written. A close that already had one from NSE's fetched file or from an earlier upload is left as it was and counted separately: "Stored 3 closes for 12 Oct 2026 from a file you uploaded as NSE's official file. 1 close in the file already had a close from NSE's fetched file or an earlier upload and was left as it was." If nothing was written it says "Nothing new was stored for 12 Oct 2026." The first upload for a day stands: dropping a corrected file for the same day does not replace it.
+   - If the file is refused, the message says why and always ends "Nothing was stored." The common ones: "Choose the equity file (the day's bhavcopy zip) first.", "That date is more than 400 days back. Closes can be dropped for a day in the last 400 days. Nothing was stored.", "Choose the trading date the files are for.", "The market has not closed yet for that date (15:30 India). Drop the files after the close.", "The equity file is not a zip file. Choose the day's bhavcopy zip.", "The equity file is for 9 Oct 2026, not the date you chose.", and "A closing price the desk needs (a company you track) is blank or not a plain number, so the whole file was refused and nothing was stored. To go on, type that close by hand below ...". If you see a message you do not understand, send it to Shlok. If it says "You are signed out", sign in again and drop the files again.
+4. **Type a close.** For one company and one day, when the official file is not available. Choose **Company** (one that has an idea), **Trading date**, **Closing price of the company**, and optionally **Nifty 50 close for the same day, optional**. Press **Store the close**. You see: "Close stored as typed. It is marked on every score that uses it." If the day already has a close for that company from NSE's fetched file or from a file you uploaded, the typed close is not stored and the page says so (see the messages below). Rules: not before 15:30 India on the day, not on a weekend, not on a day marked shut, and not for a day more than 400 days back. A day is open only when its Nifty 50 close is stored, and a score needs both closes.
+5. **Closes you typed or dropped.** Every close that is not NSE's own fetched file, over the last 400 days. "The fetched file replaces them when it arrives, if the day is still inside its seven-day fetch window."
+6. **Files you uploaded.** One line for every official file you have uploaded, kept for good: the day and time (India time) you uploaded it, the trading date, the first 12 characters of the file's fingerprint (a SHA-256 hash of the zip as the desk received it), and "stored N, kept M" (with or without the Nifty 50 close). The file itself is not kept. NSE's real file for a day has one fingerprint, so anyone holding that file can compare. A refused upload leaves no line.
+7. **Scores restated lately.** A stored close changed an idea's score, so a dated row is listed here, with the figure that moved.
+8. **Splits, bonuses and other actions.** See next.
 
 **Closes: messages**
 
@@ -524,6 +525,8 @@ Sections, in order:
 | "NSE has no session on a Saturday or Sunday, so a close cannot be typed for it." | As it says. |
 | "NSE had no trading on that date, so a closing price cannot be typed for it. If NSE did trade that day, upload NSE's official file for it instead." | Drop the official file with the index file. |
 | "That close was not stored: only a company that has an idea on file (not a withdrawn one) takes a close." | Pick a company with an idea. |
+| "That day already has a close for this company from NSE's fetched file or from a file you uploaded, so the typed close was not stored and the earlier close stands." | Nothing to do. The earlier close is the one in use. |
+| "That date is more than 400 days back. A close can be typed or dropped for a day in the last 400 days." | Choose a later date. |
 
 #### Corporate actions (splits and bonuses)
 
@@ -638,7 +641,7 @@ Find the symptom, read what it means, do the step. If the last step is "tell Shl
 | A grey line: "The latest closing-prices run found no row for 1 of 3 companies in NSE's file." | One of your companies has no closing price in a day's file. This is a note, not a failure. | Look at **Recent days** on the Closes page. If a company keeps missing, type its close. |
 | A grey line: "the public copy's last failed run was 3 days ago: ..." | The public copy of the ledger's fingerprints failed once in the last 30 days. | Ignore for now. Tell Shlok if the public copy is switched on (it is not, in this version). |
 | Ledger page: "Could not check: the integrity check did not run just now. This says nothing about the ledger either way. Reload to try again." | The consistency check did not run. It did not find a problem either. | Reload. If it repeats, tell Shlok. |
-| Ledger page: red box "The ledger failed its own check" | The entries and the sealed days do not agree. | Do not try to fix it. Tell Shlok. Saving is stopped until it is looked at. |
+| Ledger page: red box "The ledger failed its own check" | The entries and the sealed days do not agree. | Do not try to fix it. Tell Shlok. Scoring, sealing and publishing a file about a company are stopped until it is looked at; you can still record ideas and entries. |
 | Ledger page: "Could not read how current the closes are." / "Could not read the public copy's state." | The page could not read that item. | Reload. |
 | A score line: "Includes a close that was entered by hand." | A typed or dropped price is in use. | Nothing to do. It is replaced when the official fetch arrives. |
 | A score line: "Includes a split, bonus or note about a price move that you entered by hand." | An action you entered falls inside this idea. | Nothing to do. |
@@ -743,6 +746,13 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 - **Voice notes.** `VOICE_NOTES` is unset. The drop bar hides voice notes and nothing is sent to Groq. To switch on you need Aksh's agreement (ADR-004 s8), and the open item about discarded transcript text staying in the database (Q22, debt M-4) needs its migration first. Its planned number, 0010, has since been taken by the ledger, so it will have a later number. Then set `VOICE_NOTES=on`.
 - **The public copy of the ledger's daily fingerprints.** `GITHUB_GIST_TOKEN` and `LEDGER_ANCHOR_GIST_ID` are unset. Days are still sealed in the database and wait. To switch on you need the owner decision (Q26: which GitHub account owns the gist), a public gist created by hand, and a fine-grained token with only the "Gists: write" permission. The file is public and shows the number of entries per day and their fingerprints (no names, words or prices). Do not put either value on Vercel until the owner has agreed. **Once any line is published, switching it off again turns the `ledger:anchor` step red** ("the public copy is switched off, but lines were published before"). The file is dated by GitHub. Its owner can still edit or delete it. The run compares the whole public file with every sealed line each day.
 - **The pump workflow** needs `DESK_URL` and `CRON_SECRET` repository secrets to run. The last progress note says it was enabled on 14 October.
+
+### Before the first real idea (read this before Aksh records anything)
+
+- **No test ideas on the live site, ever.** An entry can never be removed. A withdrawn test idea stays in the chain and on the screen for good, and so does every note added to it. Try things on the local stack, not on the live site. Tell Aksh the same.
+- **The public copy is off in this release.** While the public copy is off, the ledger is checked only against itself, so an owner with database access could change it without that being detectable from outside. Every idea recorded before the public copy is switched on can only ever be publicly dated to the day it is switched on. (The full note is the addendum at the end of `docs/architecture/ADR-005-ledger-integrity-and-price-source.md`.) Switching it on later is one-way and needs Q26 and Q35 settled first.
+- **The first idea can wait up to three daily runs for its entry price.** Each daily run stores two trading dates, oldest first, and after the first idea the run first stores the days before it (closes no idea can use) and only then the entry day. Pressing **Fetch closes now** on the Closes page brings it forward; press it up to three times and read the result line.
+- Publish any waiting revision of a public company file before recording an idea on that company: an idea on a company holds back new revisions of its file for 30 India days.
 
 ### Known open questions
 
