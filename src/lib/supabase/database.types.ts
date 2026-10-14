@@ -191,6 +191,300 @@ export type Database = {
           },
         ]
       }
+      document_digests: {
+        Row: {
+          claim: string
+          created_at: string
+          document_id: string
+          extraction_id: string
+          id: string
+          line: string
+          on_page: boolean
+          ord: number
+          page_no: number
+          section: string
+        }
+        Insert: {
+          claim: string
+          created_at?: string
+          document_id: string
+          extraction_id: string
+          id?: string
+          line: string
+          on_page: boolean
+          ord: number
+          page_no: number
+          section: string
+        }
+        Update: {
+          claim?: string
+          created_at?: string
+          document_id?: string
+          extraction_id?: string
+          id?: string
+          line?: string
+          on_page?: boolean
+          ord?: number
+          page_no?: number
+          section?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_digests_document_id_page_no_fkey"
+            columns: ["document_id", "page_no"]
+            isOneToOne: false
+            referencedRelation: "document_pages"
+            referencedColumns: ["document_id", "page_no"]
+          },
+          {
+            foreignKeyName: "document_digests_extraction_id_fkey"
+            columns: ["extraction_id"]
+            isOneToOne: false
+            referencedRelation: "extractions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_pages: {
+        Row: {
+          basis: string | null
+          char_count: number | null
+          created_at: string
+          document_id: string
+          first_line: string | null
+          is_scan: boolean | null
+          kind: string | null
+          ocr: boolean
+          page_no: number
+          score: number
+          search: unknown
+          selected: boolean
+          selected_by: string | null
+          text: string
+        }
+        Insert: {
+          basis?: string | null
+          char_count?: never
+          created_at?: string
+          document_id: string
+          first_line?: never
+          is_scan?: never
+          kind?: string | null
+          ocr?: boolean
+          page_no: number
+          score?: number
+          search?: never
+          selected?: boolean
+          selected_by?: string | null
+          text: string
+        }
+        Update: {
+          basis?: string | null
+          char_count?: never
+          created_at?: string
+          document_id?: string
+          first_line?: never
+          is_scan?: never
+          kind?: string | null
+          ocr?: boolean
+          page_no?: number
+          score?: number
+          search?: never
+          selected?: boolean
+          selected_by?: string | null
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_pages_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          basis: string
+          bytes: number
+          company_id: string | null
+          created_at: string
+          fetched_from: string | null
+          filed_on: string | null
+          id: string
+          kind: string
+          llm_page_budget: number
+          original_deleted_at: string | null
+          page_count: number | null
+          sha256: string
+          source_type: string
+          source_url: string | null
+          status: string
+          storage_path: string | null
+          title: string
+          transcript_status: string | null
+          updated_at: string
+        }
+        Insert: {
+          basis?: string
+          bytes: number
+          company_id?: string | null
+          created_at?: string
+          fetched_from?: string | null
+          filed_on?: string | null
+          id?: string
+          kind?: string
+          llm_page_budget?: number
+          original_deleted_at?: string | null
+          page_count?: number | null
+          sha256: string
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          storage_path?: string | null
+          title: string
+          transcript_status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          basis?: string
+          bytes?: number
+          company_id?: string | null
+          created_at?: string
+          fetched_from?: string | null
+          filed_on?: string | null
+          id?: string
+          kind?: string
+          llm_page_budget?: number
+          original_deleted_at?: string | null
+          page_count?: number | null
+          sha256?: string
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          storage_path?: string | null
+          title?: string
+          transcript_status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extractions: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          input_hash: string
+          model: string
+          output: NonNullable<Json>
+          page_no: number
+          prompt_version: string
+          tokens_used: number
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          input_hash: string
+          model: string
+          output: NonNullable<Json>
+          page_no: number
+          prompt_version: string
+          tokens_used?: number
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          input_hash?: string
+          model?: string
+          output?: NonNullable<Json>
+          page_no?: number
+          prompt_version?: string
+          tokens_used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extractions_document_id_page_no_fkey"
+            columns: ["document_id", "page_no"]
+            isOneToOne: false
+            referencedRelation: "document_pages"
+            referencedColumns: ["document_id", "page_no"]
+          },
+        ]
+      }
+      fact_provenance: {
+        Row: {
+          created_at: string
+          edited: boolean
+          fact_id: string
+          id: string
+          proposal_id: string
+          revision_id: string
+        }
+        Insert: {
+          created_at?: string
+          edited: boolean
+          fact_id: string
+          id?: string
+          proposal_id: string
+          revision_id: string
+        }
+        Update: {
+          created_at?: string
+          edited?: boolean
+          fact_id?: string
+          id?: string
+          proposal_id?: string
+          revision_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fact_provenance_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["revision_id"]
+          },
+        ]
+      }
       gate_decisions: {
         Row: {
           created_at: string
@@ -466,6 +760,112 @@ export type Database = {
           },
         ]
       }
+      job_steps: {
+        Row: {
+          args: NonNullable<Json>
+          created_at: string
+          id: string
+          job_id: string
+          kind: string
+          last_error: string | null
+          lease_expiries: number
+          lease_owner: string | null
+          locked_until: string | null
+          not_before: string
+          page_no: number | null
+          pass: number
+          provider_failures: number
+          result: Json | null
+          schema_failures: number
+          status: string
+          updated_at: string
+          wait_reason: string | null
+        }
+        Insert: {
+          args?: NonNullable<Json>
+          created_at?: string
+          id?: string
+          job_id: string
+          kind: string
+          last_error?: string | null
+          lease_expiries?: number
+          lease_owner?: string | null
+          locked_until?: string | null
+          not_before?: string
+          page_no?: number | null
+          pass?: number
+          provider_failures?: number
+          result?: Json | null
+          schema_failures?: number
+          status?: string
+          updated_at?: string
+          wait_reason?: string | null
+        }
+        Update: {
+          args?: NonNullable<Json>
+          created_at?: string
+          id?: string
+          job_id?: string
+          kind?: string
+          last_error?: string | null
+          lease_expiries?: number
+          lease_owner?: string | null
+          locked_until?: string | null
+          not_before?: string
+          page_no?: number | null
+          pass?: number
+          provider_failures?: number
+          result?: Json | null
+          schema_failures?: number
+          status?: string
+          updated_at?: string
+          wait_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_steps_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          cancelled_at: string | null
+          created_at: string
+          document_id: string
+          id: string
+          kind: string
+          updated_at: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          kind: string
+          updated_at?: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          kind?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lint_allowances: {
         Row: {
           created_at: string
@@ -525,6 +925,276 @@ export type Database = {
           role?: string
         }
         Relationships: []
+      }
+      proposals: {
+        Row: {
+          accepted_value: Json | null
+          created_at: string
+          decided_at: string | null
+          dedupe_key: string
+          document_id: string
+          extraction_id: string
+          flags: string[]
+          id: string
+          item_id: string | null
+          machine_value: NonNullable<Json>
+          page_no: number
+          reason: string
+          revision_id: string | null
+          status: string
+          superseded: boolean
+          updated_at: string
+        }
+        Insert: {
+          accepted_value?: Json | null
+          created_at?: string
+          decided_at?: string | null
+          dedupe_key: string
+          document_id: string
+          extraction_id: string
+          flags?: string[]
+          id?: string
+          item_id?: string | null
+          machine_value: NonNullable<Json>
+          page_no: number
+          reason: string
+          revision_id?: string | null
+          status?: string
+          superseded?: boolean
+          updated_at?: string
+        }
+        Update: {
+          accepted_value?: Json | null
+          created_at?: string
+          decided_at?: string | null
+          dedupe_key?: string
+          document_id?: string
+          extraction_id?: string
+          flags?: string[]
+          id?: string
+          item_id?: string | null
+          machine_value?: NonNullable<Json>
+          page_no?: number
+          reason?: string
+          revision_id?: string | null
+          status?: string
+          superseded?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_extraction_id_fkey"
+            columns: ["extraction_id"]
+            isOneToOne: false
+            referencedRelation: "extractions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["revision_id"]
+          },
+        ]
+      }
+      provider_usage: {
+        Row: {
+          at: string
+          block_reason: string | null
+          blocked_until: string | null
+          bucket: string
+          id: string
+          kind: string
+          remaining_requests: number | null
+          remaining_tokens: number | null
+          retry_after_s: number | null
+          status: string | null
+          tokens_est: number | null
+          tokens_used: number | null
+        }
+        Insert: {
+          at?: string
+          block_reason?: string | null
+          blocked_until?: string | null
+          bucket: string
+          id?: string
+          kind: string
+          remaining_requests?: number | null
+          remaining_tokens?: number | null
+          retry_after_s?: number | null
+          status?: string | null
+          tokens_est?: number | null
+          tokens_used?: number | null
+        }
+        Update: {
+          at?: string
+          block_reason?: string | null
+          blocked_until?: string | null
+          bucket?: string
+          id?: string
+          kind?: string
+          remaining_requests?: number | null
+          remaining_tokens?: number | null
+          retry_after_s?: number | null
+          status?: string | null
+          tokens_est?: number | null
+          tokens_used?: number | null
+        }
+        Relationships: []
+      }
+      reading_proposals: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          document_id: string
+          extraction_id: string
+          id: string
+          item_id: string | null
+          item_id_hint: string | null
+          machine_value: NonNullable<Json>
+          page_no: number
+          pass: number
+          revision_id: string | null
+          status: string
+          superseded: boolean
+          test_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          document_id: string
+          extraction_id: string
+          id?: string
+          item_id?: string | null
+          item_id_hint?: string | null
+          machine_value: NonNullable<Json>
+          page_no: number
+          pass?: number
+          revision_id?: string | null
+          status?: string
+          superseded?: boolean
+          test_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          document_id?: string
+          extraction_id?: string
+          id?: string
+          item_id?: string | null
+          item_id_hint?: string | null
+          machine_value?: NonNullable<Json>
+          page_no?: number
+          pass?: number
+          revision_id?: string | null
+          status?: string
+          superseded?: boolean
+          test_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_proposals_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_extraction_id_fkey"
+            columns: ["extraction_id"]
+            isOneToOne: false
+            referencedRelation: "extractions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_hint_fkey"
+            columns: ["item_id_hint"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_hint_fkey"
+            columns: ["item_id_hint"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["revision_id"]
+          },
+        ]
       }
       themes: {
         Row: {
@@ -704,12 +1374,53 @@ export type Database = {
           day: string
         }[]
       }
+      claim_job_step: {
+        Args: { p_lease_seconds?: number; p_owner: string }
+        Returns: {
+          args: NonNullable<Json>
+          created_at: string
+          id: string
+          job_id: string
+          kind: string
+          last_error: string | null
+          lease_expiries: number
+          lease_owner: string | null
+          locked_until: string | null
+          not_before: string
+          page_no: number | null
+          pass: number
+          provider_failures: number
+          result: Json | null
+          schema_failures: number
+          status: string
+          updated_at: string
+          wait_reason: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "job_steps"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       heartbeat_ages: {
         Args: Record<PropertyKey, never>
         Returns: {
           age_seconds: number
           job: string
           ok: boolean
+        }[]
+      }
+      prune_provider_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      public_fact_checks: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          fact_id: string
+          item_id: string
+          page_no: number
         }[]
       }
       publish_revision: {
@@ -737,9 +1448,50 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      queue_age: { Args: Record<PropertyKey, never>; Returns: number }
       remove_lint_allowance: {
         Args: { p_actor: string; p_item_id: string; p_sentence_hash: string }
         Returns: boolean
+      }
+      reserve_units: {
+        Args: {
+          p_bucket: string
+          p_day_cap: number
+          p_hour_cap: number
+          p_minute_cap: number
+          p_rpd: number
+          p_rpm: number
+          p_units: number
+        }
+        Returns: {
+          not_before: string
+          ok: boolean
+          reason: string
+          reservation_id: string
+        }[]
+      }
+      reserve_usage: {
+        Args: {
+          p_bucket: string
+          p_rpd: number
+          p_rpm: number
+          p_tokens: number
+          p_tpd: number
+          p_tpm: number
+        }
+        Returns: {
+          not_before: string
+          ok: boolean
+          reason: string
+          reservation_id: string
+        }[]
+      }
+      storage_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          database_bytes: number
+          storage_bytes: number
+        }[]
       }
       unpublish_item: {
         Args: { p_actor: string; p_item_id: string }

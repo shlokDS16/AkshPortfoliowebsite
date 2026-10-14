@@ -18,6 +18,8 @@ export type SourceCard = {
   source: SourceRef;
   asOf: ISODate;
   withheldUntil: ISODate | null;
+  /** Public file only: the page this figure was filed from after a check (R19 line). Absent on the desk and on a withheld card. */
+  checkedPage?: number | null;
 };
 export type SourceChipData = { chipId: string; label: string; card: SourceCard }; // label "S1 p. 131"
 export type ViewInline = string | { chip: SourceChipData };
@@ -28,13 +30,14 @@ export type ViewBlockData =
 export type FactRow = {
   id: string;
   label: string;
+  period: string | null; // set only when the row sits in a topic group (the group title is then the topic, not the period)
   value: string | null;
   unit: string | null;
   prior: string | null;
   source: SourceRef;
   withheldUntil: ISODate | null;
 };
-export type FactGroup = { title: string; asOf: ISODate; rows: FactRow[] };
+export type FactGroup = { title: string; asOf: ISODate; rows: FactRow[] }; // title: the topic, or the period for facts with none
 export type SourceListItem = SourceRef & { type: SourceType };
 export type MeterData = {
   min: number;

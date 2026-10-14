@@ -5,9 +5,10 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate } from "@/lib/format";
 import { FactsForm } from "./facts-form";
+import type { RowMarks } from "./marks";
 import type { FactsMode, FactsState } from "./use-facts-state";
 
-type Props = { facts: FactsState; bodyMd: string; figuresTo: string | null };
+type Props = { facts: FactsState; bodyMd: string; figuresTo: string | null; marks?: RowMarks };
 
 const MODES = [
   { value: "form", label: "Form" },
@@ -15,7 +16,7 @@ const MODES = [
 ];
 
 /** Form (default) or the pipe-delimited text sheet; both write the one factsSheet field the save action parses. */
-export function FactsEditor({ facts: s, bodyMd, figuresTo }: Props) {
+export function FactsEditor({ facts: s, bodyMd, figuresTo, marks }: Props) {
   const fileErrors = [...(s.rows.file ?? []), ...(s.rows.O ?? [])];
   return (
     <section aria-labelledby="facts-heading" className="space-y-3">
@@ -74,7 +75,7 @@ export function FactsEditor({ facts: s, bodyMd, figuresTo }: Props) {
       ) : s.draft ? (
         <>
           <input type="hidden" name="factsSheet" value={s.sheetText} />
-          <FactsForm draft={s.draft} update={s.update} fields={s.fields} rows={s.rows} bodyMd={bodyMd} loaded={s.loaded} />
+          <FactsForm draft={s.draft} update={s.update} fields={s.fields} rows={s.rows} bodyMd={bodyMd} loaded={s.loaded} marks={marks} />
           <div aria-live="polite" className="space-y-1 text-small text-bad">
             {fileErrors.map((e) => (
               <p key={e}>{e}</p>

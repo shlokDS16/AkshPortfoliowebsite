@@ -1,8 +1,12 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const SRC = resolve(__dirname, "../..");
+
+/** `x.json` is itself; `x` is `x.ts`, or a folder module's `x/index.ts` (@/modules/ingestion, @/lib/providers). */
+const asFile = (base: string) =>
+  base.endsWith(".json") ? base : existsSync(`${base}.ts`) ? `${base}.ts` : join(base, "index.ts");
 
 /** Every file reachable from an entry through relative imports and "@/" aliases (runtime imports only). */
 function reachable(entry: string): Map<string, string> {
@@ -15,8 +19,8 @@ function reachable(entry: string): Map<string, string> {
     files.set(file, source);
     for (const match of source.matchAll(/^(?:import|export)\s+(?!type\b)[^;]*?from\s+"([^"]+)"/gms)) {
       const spec = match[1];
-      if (spec.startsWith("./") || spec.startsWith("../")) queue.push(resolve(dirname(file), `${spec}.ts`));
-      else if (spec.startsWith("@/")) queue.push(resolve(SRC, `${spec.slice(2)}.ts`));
+      if (spec.startsWith("./") || spec.startsWith("../")) queue.push(asFile(resolve(dirname(file), spec)));
+      else if (spec.startsWith("@/")) queue.push(asFile(resolve(SRC, spec.slice(2))));
     }
   }
   return files;

@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/format";
+import { checkedAgainstPageText } from "@/lib/messages";
 import type { SourceCard } from "@/lib/view-types";
 import { AsOf, Withheld } from "./as-of";
 import { IdMark } from "./id-mark";
@@ -42,6 +43,11 @@ export function SourceFactCard({ card, id }: { card: SourceCard; id: string }) {
         <IdMark kind="source" value={card.source.id} /> {card.source.doc}, {card.source.locator}
         {card.source.filedOn ? `, filed ${formatDate(card.source.filedOn)}` : ""} · <AsOf date={card.asOf} prefix="as of" />
       </p>
+      {!withheld && card.checkedPage ? (
+        <p className="mt-1 text-caption text-ink-muted" data-testid="checked-line">
+          {checkedAgainstPageText(card.checkedPage, card.source.doc)}
+        </p>
+      ) : null}
     </div>
   );
 }

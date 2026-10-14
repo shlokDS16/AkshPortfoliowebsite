@@ -1,3 +1,5 @@
 *.sql text eol=lf
 *.ts text eol=lf
 *.sh text eol=lf
+# The test PDFs are byte-exact (their xref tables count bytes): never convert line endings.
+*.pdf binary

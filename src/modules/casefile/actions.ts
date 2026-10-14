@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ItemNotFoundError } from "@/lib/errors";
+import { errorShape, ItemNotFoundError } from "@/lib/errors";
 import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
+import { parseStaging, recordFiledFacts, recordFiledReadings } from "@/modules/ingestion";
 import { addRevision, createSupabaseResearchRepo, getItemWithHistory, isItemId, updateItemMeta } from "@/modules/research";
 import { FactsSheetError, NoFigureDateError } from "./errors";
+import type { CaseFile } from "./schema";
 import { latestFigureDate } from "./figure-dates";
 import { parseFactsSheet } from "./sheet";
 
@@ -18,30 +20,59 @@ export async function saveCaseFileRevisionAction(itemId: string, formData: FormD
   const body = formData.get("bodyMd");
   const reason = formData.get("changeReason");
   const sheet = formData.get("factsSheet");
-  let pendingGate: boolean;
+  let saved: Awaited<ReturnType<typeof addRevision>>;
+  let caseFile: CaseFile | null = null;
+  let db: Awaited<ReturnType<typeof createSupabaseServerClient>>;
   try {
-    const repo = createSupabaseResearchRepo(await createSupabaseServerClient());
+    db = await createSupabaseServerClient();
+    const repo = createSupabaseResearchRepo(db);
     let structured: Record<string, unknown>;
     if (typeof sheet === "string") {
-      const { caseFile, errors } = parseFactsSheet(sheet);
-      if (errors.length > 0) throw new FactsSheetError();
-      structured = caseFile;
+      const parsed = parseFactsSheet(sheet);
+      if (parsed.errors.length > 0) throw new FactsSheetError();
+      caseFile = parsed.caseFile;
+      structured = parsed.caseFile;
     } else {
       structured = (await getItemWithHistory(repo, itemId))?.revisions[0]?.structured ?? {};
     }
-    pendingGate = (
-      await addRevision(repo, {
-        itemId,
-        bodyMd: typeof body === "string" ? body : "",
-        structured,
-        changeReason: typeof reason === "string" && reason.trim() !== "" ? reason.trim() : null,
-      })
-    ).pendingGate;
+    saved = await addRevision(repo, {
+      itemId,
+      bodyMd: typeof body === "string" ? body : "",
+      structured,
+      changeReason: typeof reason === "string" && reason.trim() !== "" ? reason.trim() : null,
+    });
   } catch (error) {
     failTo(back, error, "casefile");
   }
+  // Where the staged figures came from is evidence about this save, never a condition of it (ADR-004 s4.7): the
+  // revision is stored; if the record cannot be written the figures stay staged and are skipped as duplicates next time.
+  let provenanceMissing = false;
+  let readingsMissing = false;
+  const staging = parseStaging(formData.get("provenance"));
+  if (caseFile && (staging.provenance.length > 0 || staging.staged.length > 0)) {
+    try {
+      await recordFiledFacts(db, { itemId, revisionId: saved.revision.id, structured: caseFile, provenance: staging.provenance, staged: staging.staged });
+    } catch (error) {
+      provenanceMissing = true;
+      console.error("casefile provenance failed", errorShape(error));
+    }
+  }
+  // Staged test readings have their own step (R4); one failing never strands the other.
+  if (caseFile && staging.stagedReadings.length > 0) {
+    try {
+      await recordFiledReadings(db, { itemId, revisionId: saved.revision.id, structured: caseFile, pairs: staging.stagedReadings });
+    } catch (error) {
+      readingsMissing = true;
+      console.error("casefile readings failed", errorShape(error));
+    }
+  }
   revalidatePath(back);
-  doneTo(back, pendingGate ? "revision-pending-gate" : "revision-saved");
+  const gate = saved.pendingGate;
+  // R25: on a public item the gate notice is never replaced; a failure to record is a second line. The figures' record and the
+  // readings' record each have their own sentence; when both failed the second shows as the second line (or the first, past the gate).
+  const failed = [...(provenanceMissing ? (["revision-saved-provenance-missing"] as const) : []), ...(readingsMissing ? (["revision-saved-readings-missing"] as const) : [])];
+  if (failed.length === 0) doneTo(back, gate ? "revision-pending-gate" : "revision-saved");
+  doneTo(back, gate ? "revision-pending-gate" : failed[0], "", gate ? failed[0] : failed[1]);
 }
 
 /**

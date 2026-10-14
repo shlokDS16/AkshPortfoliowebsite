@@ -11,6 +11,7 @@ const SOURCE = "Pick a source from the list above.";
 const PIPE = "Take out the | character; the sheet uses it to split columns.";
 const RULE_9 = "Rule 9: public scenario tables show operating figures only, never a value, price or target.";
 const SLUG = "Use the note's slug: lower-case words joined by hyphens.";
+const TOPIC = "Keep the topic under 40 characters.";
 
 export function fieldErrors(d: Draft): FieldErrors {
   const out: FieldErrors = {};
@@ -33,6 +34,7 @@ export function fieldErrors(d: Draft): FieldErrors {
     day(`${f.id}.asOf`, f.asOf);
     if (!sources.has(f.sourceId)) set(`${f.id}.sourceId`, SOURCE);
     need(`${f.id}.locator`, f.locator, "page or locator");
+    if (f.topic.trim().length > 40) set(`${f.id}.topic`, TOPIC);
     if (f.priorLabel.trim() !== "" || f.priorValue.trim() !== "") {
       period(`${f.id}.priorLabel`, f.priorLabel);
       num(`${f.id}.priorValue`, f.priorValue);

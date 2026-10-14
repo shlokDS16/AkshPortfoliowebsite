@@ -17,35 +17,35 @@ afterEach(() => {
 });
 
 describe("DeskShell", () => {
-  it("marks the surface private, shows Capture · Items · Names with the names count, and the current tab", () => {
+  it("marks the surface private, shows Capture · Inbox · Items · Names with the inbox and names counts, and the current tab", () => {
     renderWithMotion(
-      <DeskShell names={3} liveness={{ status: "ok" }} signOut={async () => {}}>
+      <DeskShell names={3} inbox={2} liveness={{ status: "ok" }} signOut={async () => {}}>
         <p>body</p>
       </DeskShell>,
     );
     expect(screen.getByText("private")).toHaveClass("font-mono");
     const tabs = screen.getAllByRole("navigation", { name: "Desk sections" })[0];
-    expect(within(tabs).getAllByRole("link").map((l) => l.textContent)).toEqual(["Capture", "Items", "Names 3"]);
+    expect(within(tabs).getAllByRole("link").map((l) => l.textContent)).toEqual(["Capture", "Inbox 2", "Items", "Names 3"]);
     expect(within(tabs).getByRole("link", { name: /Names/ })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("main")).toHaveTextContent("body");
-    expect(screen.queryByText(/Inbox/)).toBeNull();
     expectTokenOnly(document.body);
   });
 
   it("renders both bars, top tabs for desktop and bottom tabs for the phone, and sign out", () => {
     renderWithMotion(
-      <DeskShell names={0} liveness={{ status: "ok" }} signOut={async () => {}}>
+      <DeskShell names={0} inbox={0} liveness={{ status: "ok" }} signOut={async () => {}}>
         <p>body</p>
       </DeskShell>,
     );
     expect(screen.getAllByRole("navigation", { name: "Desk sections" })).toHaveLength(2);
     expect(screen.getAllByRole("link", { name: "Names" })).toHaveLength(2); // no count when zero
+    expect(screen.getAllByRole("link", { name: "Inbox" })).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   });
 
   it("places the capture dock in the top bar", () => {
     renderWithMotion(
-      <DeskShell names={0} liveness={{ status: "ok" }} signOut={async () => {}} capture={<button type="button">Capture dock</button>}>
+      <DeskShell names={0} inbox={0} liveness={{ status: "ok" }} signOut={async () => {}} capture={<button type="button">Capture dock</button>}>
         <p>body</p>
       </DeskShell>,
     );
@@ -68,6 +68,23 @@ describe("LivenessStrip", () => {
     );
     expect(within(alert).queryByRole("button")).toBeNull();
     expect(alert).toHaveClass("bg-bad-wash", "border-bad");
+  });
+
+  it("a queue that has not moved gets its own clause: uploads are safe, said once, and the monitor has emailed", () => {
+    render(<LivenessStrip state={{ status: "late", problems: [], queue: "Documents have not moved for 7 h; your uploads are safe" }} />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Documents have not moved for 7 h; your uploads are safe. The uptime monitor has emailed Shlok and Aksh.");
+    expect(alert.textContent).not.toMatch(/Background jobs are late/);
+    expect(alert.textContent?.match(/safe/g)).toHaveLength(1);
+  });
+
+  it("late clocks and a stuck queue together still say safe once", () => {
+    render(<LivenessStrip state={{ status: "late", problems: ["the 15-minute pump last ran 5 h ago"], queue: "Documents have not moved for 7 h; your uploads are safe" }} />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Background jobs are late: the 15-minute pump last ran 5 h ago. Documents have not moved for 7 h; your uploads are safe. The uptime monitor has emailed Shlok and Aksh.",
+    );
+    expect(alert.textContent?.match(/safe/g)).toHaveLength(1);
   });
 
   it("says plainly when the database cannot be reached, with a fixed text", () => {

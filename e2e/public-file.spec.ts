@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const KAVERI = "Kaveri Pumps (fictional)";
@@ -10,6 +11,8 @@ test("the file reads in B+ order with its strip, dateline, view, tests, facts, h
   await expect(page.getByText("R2 of 2")).toBeVisible();
   await page.getByRole("button", { name: "S1 p. 131" }).click();
   await expect(page.getByRole("region", { name: "Source for ₹1,284 cr" })).toContainText("Revenue from operations rose to ₹1,284 crore.");
+  // F1 was typed by hand, so no filed page backs it: its card claims nothing (Task 9, R19).
+  await expect(page.getByTestId("checked-line")).toHaveCount(0);
   await expect(page.getByLabel("0 met, 1 watching, 1 not met, 1 no data")).toBeVisible();
   await expect(page.getByRole("img", { name: /Receivable days, FY22 to FY26: from 81 days in FY22 to 142 days in FY26/ })).toBeAttached();
   await expect(page.locator("#disclosure")).toContainText("Position in the security discussed: No.");
@@ -21,6 +24,21 @@ test("the file reads in B+ order with its strip, dateline, view, tests, facts, h
   } else {
     await expect(page.getByRole("navigation", { name: "Site" }).getByRole("link", { name: /^Tests/ })).toHaveAttribute("href", "#tests");
   }
+});
+
+test("the source card says which page a filed figure was printed on, and only for the figure that has a provenance record", async ({ page }) => {
+  await page.goto("/companies/kavpump");
+  // F2 (Gross margin, p. 140) was filed from a document page through the inbox's own path (e2e/support/checked-fact.ts).
+  await page.getByRole("button", { name: "S1 p. 140" }).click();
+  const card = page.getByRole("region", { name: /^Source for 31\.4/ });
+  await expect(card.getByTestId("checked-line")).toHaveText("Printed on p. 140 of Annual report 2025-26 (fictional seed data); matched by the desk and accepted by the analyst.");
+  const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
+  // F1 (p. 131) and F3 (p. 152) have no record: no line, and only the one card is open.
+  await expect(page.getByTestId("checked-line")).toHaveCount(1);
+  await page.getByRole("button", { name: "S1 p. 131" }).click();
+  await expect(page.getByRole("region", { name: "Source for ₹1,284 cr" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Source for ₹1,284 cr" }).getByTestId("checked-line")).toHaveCount(0);
 });
 
 test("no threshold-meter label overlaps another or leaves its meter", async ({ page }) => {

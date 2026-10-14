@@ -91,11 +91,14 @@ const sourceSchema = z.object({
 const factSchema = z.object({
   id: id("F"), label: text(80), value: num, unit: z.string().trim().max(12), period: z.string().regex(PERIOD_RE),
   asOf: date, sourceId: id("S"), locator: text(40), prior: z.object({ label: z.string().regex(PERIOD_RE), value: num }).nullable(),
+  topic: z.string().trim().min(1).max(40).nullable().default(null),
 });
 const testSchema = z
   .object({
     id: id("T"), current: num.nullable(), unit: z.string().trim().max(12), readingAsOf: date.nullable(), lastChecked: date,
     status: z.enum(TEST_STATUSES), min: num, max: num, threshold: num, direction: z.enum(["above", "below"]), prior: num.nullable(),
+    // The fact label this test reads its value from (Plan 2b Task 8, ADR-004 s4.13); additive, null for every older file.
+    metric: z.string().trim().min(1).max(80).nullable().default(null),
   })
   .refine((t) => t.min < t.max && t.threshold >= t.min && t.threshold <= t.max, { message: "the threshold must sit between min and max" });
 const exhibitSchema = z.object({

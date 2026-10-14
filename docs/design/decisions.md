@@ -22,6 +22,8 @@ Each entry: segment, options shown, choice, reason, date. Never redo a decided s
 - **PROVISIONAL (controller, Shlok in class; confirm or overturn):** B's exhibit frame for every figure block; exhibit 1 opens on A's ledger table with the sticky phone key row as its Table tab; C's distance-to-threshold meters for kill criteria; B's large figures with unit squares for the register-home stat tiles; B's heatmap only in the private valuation panel.
 - **Compliance ruling (rule 9):** public scenario tables never show equity value or per-share value; operating outputs only. Equity/per-share values live in the private panel.
 - **Status:** CONFIRMED by Shlok 2026-10-05.
+- **Topic groups (2026-10-07, Plan 2a Task 2, E10):** facts may carry a topic (G rows). Options: A topic heading, the period after each metric ("Receivable days · FY26"), as-of once per group, untopiced facts keep their period groups after the topics; B topic heading with period sub-captions above each run of rows. A built as the E10 default; B exists only as a static mock. Screenshots: `.superpowers/sdd/2026-10-07-phase-2a-ingestion/task-2-shots/`.
+- **Topic groups status:** DECIDED 2026-10-07: Shlok picked A (period after each metric, e.g. "Gross margin · FY26"); B (period captions above rows) not built.
 
 ## Segment 6: motion (pulled forward at Shlok's request)
 - **Options shown (2026-10-05):** Instrument (snap/tick/roll, 120-220 ms, one ease-out), Paper (glide/draw/settle, 160-300 ms, shared-element morph), Terminal (draw/count/stamp, instant feedback). `comparisons/06-motion.html` (CSS + Web Animations API, no library; CLS 0 measured), brief `segment-06-motion-brief.md`. Research: `docs/research/2026-10-05-motion-landscape.md`.
@@ -43,3 +45,9 @@ Each entry: segment, options shown, choice, reason, date. Never redo a decided s
 - **Status:** DECIDED 2026-10-05 (Shlok).
 
 ## All six segments decided (2026-10-05). Next: `design-dna.md` tokens + component inventory, then Plan 1B.
+
+## Task 9 (Plan 2b): "checked against page" line on the public source card
+- **Options:** A one line in the source card only; B a small mark in the facts table plus the card line.
+- **DECIDED (controller pick under Shlok's delegation, 2026-10-12, pending Shlok's approval): A.** One line at the foot of the source card, no facts-table mark, so the table stays a pure reference and the claim sits beside the quote it is about. No visual options round was run.
+- **Wording (R19, pending Shlok's approval):** "Printed on p. N of <source name>; matched by the desk and accepted by the analyst." It says what happened, not that a person read every figure (verified rows are pre-ticked). The source name is the case file's own source name already on the card; with none, "the filing".
+- **Status:** controller pick 2026-10-12; Shlok to approve or reword (open question Q23).

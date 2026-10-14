@@ -216,3 +216,63 @@ describe("Facts form (Form is the default; Text sheet stays for pasting)", () =>
     expect(sheetValue()).toMatch(/^F1 \| Net revenue \|/m);
   });
 });
+
+describe("Facts form topics (E10): lossless both ways", () => {
+  const cf0 = parseFactsSheet(sheet).caseFile;
+  const TOPIC: Record<string, string> = { F1: "P&L", F2: "P&L", F3: "Working capital" };
+  const topical = serializeFactsSheet({ ...cf0, facts: cf0.facts.map((f) => ({ ...f, topic: TOPIC[f.id] ?? null })) });
+  const hidden = (c: HTMLElement) => (c.querySelector('input[name="factsSheet"]') as HTMLInputElement).value;
+  const topic = (id: string) => group(`Fact ${id}`).getByLabelText("Topic (optional)");
+
+  it("writes a typed topic as a G row, and the Form save sends it", async () => {
+    const { action, container } = open();
+    await userEvent.type(topic("F2"), "Working capital");
+    expect(hidden(container)).toMatch(/^G \| Working capital \| F2$/m);
+    await userEvent.click(save());
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    expect(String((action.mock.calls[0][0] as FormData).get("factsSheet"))).toMatch(/^G \| Working capital \| F2$/m);
+  });
+
+  it("opens a sheet saved in Text mode with topics, offers them as suggestions, and saves them unchanged from the Form", async () => {
+    const { action } = open(vi.fn(), bodyMd, topical);
+    expect(topic("F3")).toHaveValue("Working capital");
+    expect(topic("F4")).toHaveValue("");
+    expect(topic("F1")).toHaveAttribute("list", "ff-topics");
+    const options = [...document.querySelectorAll("datalist#ff-topics option")].map((o) => o.getAttribute("value"));
+    expect(options).toEqual(["P&L", "Working capital"]);
+    await userEvent.click(save());
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    expect((action.mock.calls[0][0] as FormData).get("factsSheet")).toBe(topical);
+  });
+
+  it("keeps topics typed in Text mode through Form and back to Text", async () => {
+    open();
+    await toText();
+    fireEvent.change(screen.getByLabelText("Facts sheet"), { target: { value: topical } });
+    await toForm();
+    expect(topic("F1")).toHaveValue("P&L");
+    await userEvent.type(topic("F4"), "Working capital");
+    await toText();
+    expect(sheetValue()).toContain("G | P&L | F1 F2\nG | Working capital | F3 F4");
+  });
+
+  it("marks a topic over 40 characters, or holding a | or a tab, and blocks Save", async () => {
+    open();
+    fireEvent.change(topic("F1"), { target: { value: "x".repeat(41) } });
+    expect(group("Fact F1").getByText("Keep the topic under 40 characters.")).toBeInTheDocument();
+    expect(topic("F1")).toHaveAttribute("aria-invalid", "true");
+    expect(save()).toBeDisabled();
+    fireEvent.change(topic("F1"), { target: { value: "x".repeat(40) } });
+    expect(save()).toBeEnabled();
+    for (const bad of ["P|L", "P\tL"]) {
+      fireEvent.change(topic("F1"), { target: { value: bad } });
+      expect(group("Fact F1").getByText(/Take out the \| character/)).toBeInTheDocument();
+      expect(save()).toBeDisabled();
+    }
+  });
+
+  it("lists Notes as a source type", () => {
+    open();
+    expect(within(group("Source S1").getByLabelText("Type")).getByRole("option", { name: "Notes" })).toBeInTheDocument();
+  });
+});

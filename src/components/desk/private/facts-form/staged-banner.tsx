@@ -1,0 +1,123 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { errorText } from "@/lib/messages";
+import { formatCount } from "@/lib/format";
+import { CASEFILE_LIMITS } from "@/modules/casefile/client";
+import type { ActionResult, StagedReading, StagedRow } from "@/modules/ingestion/client";
+
+type Props = {
+  staged: StagedRow[];
+  /** Staged figures the form opened with, and the ones still in it. */
+  mergedIds: string[];
+  presentIds: string[];
+  /** Staged figures that could not be shown because the text sheet does not parse. */
+  unseen: number;
+  /** Staged test readings (Plan 2b Task 8): all of them, the ones applied to a test, the ones whose test is still in the file, and those hidden by a sheet that does not parse. */
+  readings?: StagedReading[];
+  readingsApplied?: string[];
+  readingsPresent?: string[];
+  unseenReadings?: number;
+  sendBack?: (documentId: string) => Promise<ActionResult>;
+};
+
+/** Says how many machine-read figures wait in the form, and lets Aksh send a document's figures back to its review screen (or drop them, when the document is done or skipped). */
+export function StagedBanner({ staged, mergedIds, presentIds, unseen, readings = [], readingsApplied = [], readingsPresent = [], unseenReadings = 0, sendBack }: Props) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const merged = new Set(mergedIds);
+  const present = new Set(presentIds);
+  const applied = new Set(readingsApplied);
+  const readingsOn = new Set(readingsPresent);
+  const docs = [...new Map([...staged, ...readings].map((s) => [s.document.id, s.document.title])).entries()];
+  const closed = new Set([...staged, ...readings].filter((s) => s.document.status === "done" || s.document.status === "skipped").map((s) => s.document.id));
+  if (docs.length === 0) return null;
+
+  async function back(documentId: string) {
+    if (!sendBack) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await sendBack(documentId);
+      if (!result.ok) return setError(result.message);
+      // A closed document has no review screen to go back to: its figures are dropped, so the page just reloads without them.
+      if (closed.has(documentId)) router.refresh();
+      else router.push(`/desk/inbox/${documentId}/review`);
+    } catch {
+      setError(errorText("save-failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section aria-label="Staged figures" data-testid="staged-banner" className="space-y-3 rounded-sm border border-rule bg-surface px-3 py-3 text-small text-ink">
+      {docs.map(([id, title]) => {
+        const mine = staged.filter((s) => s.document.id === id);
+        const shown = mine.filter((s) => present.has(s.proposalId)).length;
+        const left = mine.filter((s) => !merged.has(s.proposalId)).length;
+        const hidden = unseen > 0 ? mine.length : 0;
+        const mineReadings = readings.filter((r) => r.document.id === id);
+        const shownReadings = mineReadings.filter((r) => readingsOn.has(r.proposalId)).length;
+        const leftReadings = mineReadings.filter((r) => !applied.has(r.proposalId)).length;
+        const hiddenReadings = unseenReadings > 0 ? mineReadings.length : 0;
+        return (
+          <div key={id} className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              {hidden > 0 || hiddenReadings > 0 ? (
+                <p>
+                  Fix the text sheet to see the {[hidden > 0 ? formatCount(hidden, "staged figure") : null, hiddenReadings > 0 ? formatCount(hiddenReadings, "staged test reading") : null].filter(Boolean).join(" and ")} from {title}.
+                </p>
+              ) : (
+                <>
+                  {shown > 0 ? (
+                    <p>
+                      {formatCount(shown, "figure")} from {title} {shown === 1 ? "is" : "are"} staged below. Check them, write your change reason and save.
+                    </p>
+                  ) : mine.length > left ? (
+                    <p>
+                      You removed every staged figure from {title}. {closed.has(id) ? "Saving drops them, because you marked the document done or skipped." : "Saving sends them back to the review list."}
+                    </p>
+                  ) : null}
+                  {left > 0 ? (
+                    <p className="text-ink-muted">
+                      {formatCount(left, "more figure")} from {title} {left === 1 ? "is" : "are"} not shown: already in this file, or over the {CASEFILE_LIMITS.facts}-fact limit.
+                    </p>
+                  ) : null}
+                  {shownReadings > 0 ? (
+                    <p>
+                      {formatCount(shownReadings, "test reading")} from {title} {shownReadings === 1 ? "is" : "are"} staged below.{" "}
+                      {shownReadings === 1 ? "It sets the reading, its date and the prior; the status stays yours." : "They set the readings, their dates and the priors; each status stays yours."}
+                    </p>
+                  ) : mineReadings.length > leftReadings ? (
+                    <p>
+                      You removed every staged test reading from {title}. {closed.has(id) ? "Saving drops them, because you marked the document done or skipped." : "Saving sends them back to the review list."}
+                    </p>
+                  ) : null}
+                  {leftReadings > 0 ? (
+                    <p className="text-ink-muted">
+                      {formatCount(leftReadings, "more test reading")} from {title} {leftReadings === 1 ? "is" : "are"} not shown: the file has no such test, or the test already has a reading as new or newer.
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </div>
+            {sendBack ? (
+              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => back(id)} aria-label={docs.length > 1 ? `${closed.has(id) ? "Drop these figures" : "Send back to review"}, ${title}` : undefined}>
+                {closed.has(id) ? "Drop these figures" : "Send back to review"}
+              </Button>
+            ) : null}
+          </div>
+        );
+      })}
+      {error ? (
+        <p role="alert" className="text-bad">
+          {error}
+        </p>
+      ) : null}
+    </section>
+  );
+}

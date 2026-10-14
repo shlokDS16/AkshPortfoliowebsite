@@ -5,3 +5,4 @@ import "server-only";
 export { withCronAuth } from "./cron-auth";
 export { createJobHeartbeatRepo } from "./job-deps";
 export { DAILY_STEPS, PUMP_STEPS, runDaily, runPump } from "./schedule";
+export { aiReadingOn, drainFor, SERVER_DAILY_STEPS, SERVER_PUMP_STEPS } from "./drain";

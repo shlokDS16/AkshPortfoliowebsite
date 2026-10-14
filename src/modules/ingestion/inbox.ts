@@ -1,0 +1,240 @@
+import { dbError } from "@/lib/supabase/errors";
+import type { Db } from "@/lib/supabase/types";
+import { createSupabaseDocumentsRepo, type Basis, type DocumentKind, type DocumentStatus } from "@/modules/documents";
+import { GROQ_CAPS, TOKENS_PER_PAGE_DEFAULT } from "./caps";
+import { estimateReadyBy, formatReadyBy } from "./eta";
+import { listedPages, readInboxPages, type InboxPageRow, type ListedPage } from "./inbox-pages";
+import { readDigestCounts } from "./digest-read";
+import { readTranscripts } from "./inbox-transcripts";
+import { readUnsortedPages, unsortedStillOpen } from "./unsorted-read";
+import { PAGE_STEP_KINDS } from "./page-steps";
+import { tallyPending } from "./proposal-counts";
+import { trayFor, type DocState, type TrayView } from "./trays";
+import type { StepKind, StepStatus, WaitReason } from "./types";
+
+// The inbox's read side: every document that is not finished plus the last few that are, each with the tray it sits in.
+
+export type InboxDoc = {
+  id: string;
+  title: string;
+  /** The company's symbol without the "$", or null. */
+  company: string | null;
+  createdAt: string;
+  status: DocumentStatus;
+  kind: DocumentKind;
+  pageCount: number | null;
+  budget: number;
+  /** Figures waiting for Aksh's check, and the flagged ones among them. */
+  pending: number;
+  flagged: number;
+  /** Figures Aksh has already accepted, edited, dropped or filed. */
+  decided: number;
+  /**
+   * A voice note's transcript while it waits for Aksh (his own words, typed out, to edit and save as a capture); null for
+   * every other document and once he has decided. The one place a page's text reaches this list.
+   */
+  transcript: string | null;
+  view: TrayView;
+  /**
+   * Statement pages and ticked pages, plus every scan page (so Aksh can tick them), never page text: `firstLine` is the first
+   * line of the page, at most 120 characters. A photo is one page and has no list. `read` is true once the page's figures are read.
+   */
+  pages: ListedPage[];
+};
+
+const FINISHED_SHOWN = 10;
+const COLUMNS = "id, title, company_id, created_at, status, page_count, llm_page_budget, basis, kind, transcript_status";
+
+type DocRow = {
+  id: string; title: string; company_id: string | null; created_at: string; status: string; page_count: number | null; llm_page_budget: number; basis: string; kind: string;
+  transcript_status: string | null;
+};
+type StepRow = {
+  kind: string; status: string; not_before: string; wait_reason: string | null; page_no: number | null; pass: number; last_error: string | null; lease_owner: string | null;
+};
+const STEP_COLUMNS = "kind, status, not_before, wait_reason, page_no, pass, last_error, lease_owner";
+
+/** The tray state of a job's steps: a page read again has a row per pass, and only its newest pass counts (migration 0008, R2). */
+export const toSteps = (all: StepRow[]): DocState["steps"] => {
+  const newest = new Map<string, StepRow>();
+  for (const r of all) {
+    const key = `${r.kind}:${r.page_no}`;
+    const seen = newest.get(key);
+    if (!seen || r.pass > seen.pass) newest.set(key, r);
+  }
+  return [...newest.values()].map((r) => ({
+    kind: r.kind as StepKind,
+    status: r.status as StepStatus,
+    notBefore: r.not_before,
+    waitReason: r.wait_reason as WaitReason | null,
+    pageNo: r.page_no,
+    lastError: r.last_error,
+    everClaimed: r.lease_owner !== null || r.status !== "queued",
+  }));
+};
+
+/** The pages whose figures are read: the page's newest extract_page step is done. A page being read again is not in it until the new pass finishes. */
+export function readPageNumbers(all: StepRow[]): Set<number> {
+  const newest = new Map<number, StepRow>();
+  for (const r of all) {
+    if (r.kind !== "extract_page" || r.page_no === null) continue;
+    const seen = newest.get(r.page_no);
+    if (!seen || r.pass > seen.pass) newest.set(r.page_no, r);
+  }
+  return new Set([...newest].flatMap(([pageNo, r]) => (r.status === "done" ? [pageNo] : [])));
+}
+
+/**
+ * "ready by 11:40" for the pages still to read (a scan is counted once; its figures follow it); the day's allowance is
+ * treated as spent when a step waits on it.
+ */
+export function etaFor(steps: DocState["steps"], now: Date): string | null {
+  const left = steps.filter((s) => PAGE_STEP_KINDS.includes(s.kind) && (s.status === "queued" || s.status === "running")).length;
+  if (left === 0) return null;
+  const dayWait = steps.some((s) => s.waitReason === "groq_day" && new Date(s.notBefore) > now);
+  const eta = estimateReadyBy({
+    pagesLeft: left,
+    tokensPerPage: TOKENS_PER_PAGE_DEFAULT,
+    usedToday: dayWait ? GROQ_CAPS.tpd : 0,
+    caps: { tpm: GROQ_CAPS.tpm, tpd: GROQ_CAPS.tpd },
+    now,
+    tabOpen: true, // this list is read while the inbox tab is open and keeps reading
+  });
+  return formatReadyBy(eta, now);
+}
+
+export async function listInbox(
+  db: Db,
+  now: Date,
+  aiOn: boolean,
+): Promise<{ docs: InboxDoc[]; usage: { storageBytes: number; databaseBytes: number }; aiOn: boolean }> {
+  const [open, finished, usage] = await Promise.all([
+    db.from("documents").select(COLUMNS).in("status", ["uploading", "active"]).order("created_at", { ascending: false }),
+    db.from("documents").select(COLUMNS).in("status", ["done", "skipped"]).order("updated_at", { ascending: false }).limit(FINISHED_SHOWN),
+    createSupabaseDocumentsRepo(db).usage(),
+  ]);
+  if (open.error) throw dbError("inbox.listOpen", open.error);
+  if (finished.error) throw dbError("inbox.listFinished", finished.error);
+  const rows: DocRow[] = [...open.data, ...finished.data];
+  const openIds = open.data.map((d) => d.id);
+  const activeIds = open.data.filter((d) => d.status === "active").map((d) => d.id);
+  const companyIds = [...new Set(rows.flatMap((d) => (d.company_id ? [d.company_id] : [])))];
+
+  // Voice notes that wait for Aksh to check what was typed out (the document is open and he has not decided).
+  const voiceIds = open.data.filter((d) => d.kind === "audio" && d.status === "active" && d.transcript_status === "pending").map((d) => d.id);
+  const [jobs, pages, companies, proposals, transcripts, digests, unsorted] = await Promise.all([
+    activeIds.length === 0
+      ? { data: [], error: null }
+      : db
+          .from("jobs")
+          .select(`document_id, job_steps(${STEP_COLUMNS})`)
+          .in("document_id", activeIds)
+          .is("cancelled_at", null),
+    readInboxPages(db, activeIds),
+    companyIds.length === 0 ? { data: [], error: null } : db.from("companies").select("id, nse_symbol").in("id", companyIds),
+    // At most 60 per document (MAX_PROPOSALS_PER_DOCUMENT). The reading is needed to leave out the standalone repeats
+    // of a consolidated line, as the review screen does; filed ones are read only to count as decided.
+    activeIds.length === 0
+      ? { data: [], error: null }
+      : db
+          .from("proposals")
+          .select("id, document_id, flags, status, machine_value, accepted_value, dedupe_key, superseded")
+          .in("document_id", activeIds),
+    readTranscripts(db, voiceIds),
+    readDigestCounts(db, activeIds),
+    readUnsortedPages(db, activeIds),
+  ]);
+  if (jobs.error) throw dbError("inbox.listSteps", jobs.error);
+  if (companies.error) throw dbError("inbox.listCompanies", companies.error);
+  if (proposals.error) throw dbError("inbox.listProposals", proposals.error);
+  const waiting = tallyPending(proposals.data, new Map(rows.map((d) => [d.id, d.basis as Basis])));
+
+  const stepsOf = new Map<string, StepRow[]>(jobs.data.map((j) => [j.document_id, j.job_steps]));
+  const symbolOf = new Map(companies.data.map((c) => [c.id, c.nse_symbol]));
+  const pagesOf = new Map<string, InboxPageRow[]>();
+  for (const p of pages) pagesOf.set(p.document_id, [...(pagesOf.get(p.document_id) ?? []), p]);
+
+  // How far the PDF read has got: the pages stored so far, asked only of documents still being read.
+  const reading = new Set(
+    [...stepsOf].filter(([, steps]) => steps.some((s) => (s.kind === "pdf_text" || s.kind === "text_pages") && (s.status === "queued" || s.status === "running"))).map(([id]) => id),
+  );
+  const readCounts = new Map<string, number>();
+  await Promise.all(
+    openIds
+      .filter((id) => reading.has(id))
+      .map(async (id) => {
+        const { count, error } = await db.from("document_pages").select("page_no", { count: "exact", head: true }).eq("document_id", id);
+        if (error) throw dbError("inbox.countPages", error);
+        readCounts.set(id, count ?? 0);
+      }),
+  );
+
+  const docs = rows.map((d): InboxDoc => {
+    const steps = toSteps(stepsOf.get(d.id) ?? []);
+    const scans = (pagesOf.get(d.id) ?? []).filter((p) => p.is_scan).length;
+    // A let-go page stops counting once it is ticked or its figures are read (the card's "choose the pages yourself" line clears).
+    const chosenOrRead = new Set([...(pagesOf.get(d.id) ?? []).filter((p) => p.selected).map((p) => p.page_no), ...readPageNumbers(stepsOf.get(d.id) ?? [])]);
+    const state: DocState = {
+      status: d.status as DocumentStatus,
+      pageCount: d.page_count,
+      pagesRead: readCounts.get(d.id) ?? 0,
+      scanPages: scans,
+      aiOn,
+      photo: d.kind === "image",
+      transcript: transcripts.has(d.id),
+      pending: waiting.get(d.id)?.pending ?? 0,
+      flagged: waiting.get(d.id)?.flagged ?? 0,
+      decided: waiting.get(d.id)?.decided ?? 0,
+      digestClaims: digests.get(d.id) ?? 0,
+      unsortedPages: unsortedStillOpen(unsorted.get(d.id), chosenOrRead),
+      steps,
+    };
+    return {
+      id: d.id,
+      title: d.title,
+      company: d.company_id ? (symbolOf.get(d.company_id) ?? null) : null,
+      createdAt: d.created_at,
+      status: state.status,
+      kind: d.kind as DocumentKind,
+      pageCount: d.page_count,
+      budget: d.llm_page_budget,
+      pending: state.pending,
+      flagged: state.flagged,
+      decided: state.decided,
+      transcript: transcripts.get(d.id) ?? null,
+      view: trayFor(state, now, etaFor(steps, now)),
+      // A photo is one page: nothing to tick. Every other document lists its scans, so a mixed one can have them read too.
+      pages: listedPages(d.kind, pagesOf.get(d.id) ?? [], readPageNumbers(stepsOf.get(d.id) ?? [])),
+    };
+  });
+  return { docs, usage, aiOn };
+}
+
+/** Existing companies the drop bar can file an upload under (screened or not: the upload only needs the link). */
+export async function listCompanyOptions(db: Db): Promise<{ id: string; symbol: string }[]> {
+  const { data, error } = await db.from("companies").select("id, nse_symbol").is("archived_at", null).not("nse_symbol", "is", null).order("nse_symbol");
+  if (error) throw dbError("inbox.companyOptions", error);
+  return data.flatMap((c) => (c.nse_symbol ? [{ id: c.id, symbol: c.nse_symbol }] : []));
+}
+
+/**
+ * The Inbox tab's badge: documents in Ready for you or Needs attention. Two small reads, so every desk page can ask;
+ * the tray rules are the inbox's own (pages read and proposals do not change which of the two a document is in).
+ */
+export async function countInbox(db: Db, now: Date): Promise<number> {
+  const open = await db.from("documents").select("id, status").eq("status", "active");
+  if (open.error) throw dbError("inbox.countOpen", open.error);
+  if (open.data.length === 0) return 0;
+  const jobs = await db
+    .from("jobs")
+    .select(`document_id, job_steps(${STEP_COLUMNS})`)
+    .in("document_id", open.data.map((d) => d.id))
+    .is("cancelled_at", null);
+  if (jobs.error) throw dbError("inbox.countSteps", jobs.error);
+  const stepsOf = new Map<string, StepRow[]>(jobs.data.map((j) => [j.document_id, j.job_steps]));
+  return open.data.filter((d) => {
+    const state: DocState = { status: "active", pageCount: null, pagesRead: 0, scanPages: 0, aiOn: true, pending: 0, flagged: 0, decided: 0, steps: toSteps(stepsOf.get(d.id) ?? []) };
+    const { tray } = trayFor(state, now, null);
+    return tray === "ready" || tray === "attention";
+  }).length;
+}

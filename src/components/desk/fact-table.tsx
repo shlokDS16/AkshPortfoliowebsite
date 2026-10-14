@@ -4,7 +4,10 @@ import { AsOf, Withheld } from "./as-of";
 import { EmptyState } from "./empty-state";
 import { IdMark } from "./id-mark";
 
-/** Source facts (spec SourceFacts): as-of once per group, units column, tabular figures; two-line rows on phone. */
+/**
+ * Source facts (spec SourceFacts): as-of once per group, units column, tabular figures; two-line rows on phone.
+ * A group is a topic or a period; under a topic each metric names its period after the label (E10).
+ */
 export function FactTable({ groups }: { groups: FactGroup[] }) {
   if (groups.length === 0) {
     return (
@@ -36,7 +39,10 @@ export function FactTable({ groups }: { groups: FactGroup[] }) {
           <tbody className="max-desk:block">
             {group.rows.map((row) => (
               <TR key={row.id} className="max-desk:grid max-desk:grid-cols-[minmax(0,1fr)_auto_auto_auto] max-desk:gap-x-3 max-desk:py-2">
-                <TD className="max-desk:col-span-4 max-desk:p-0">{row.label}</TD>
+                <TD className="max-desk:col-span-4 max-desk:p-0">
+                  {row.label}
+                  {row.period ? <span className="whitespace-nowrap text-ink-muted"> · {row.period}</span> : null}
+                </TD>
                 <TD numeric className="max-desk:p-0">
                   {row.withheldUntil !== null ? <Withheld availableOn={row.withheldUntil} /> : (row.value ?? "—")}
                 </TD>

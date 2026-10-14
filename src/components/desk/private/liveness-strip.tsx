@@ -14,8 +14,19 @@ export function LivenessStrip({ state }: { state: LivenessState }) {
         <TriangleAlert aria-hidden strokeWidth={1.5} className="mt-0.5 size-4 shrink-0 text-bad" />
         {state.status === "late" ? (
           <span>
-            <strong className="font-semibold text-bad">Background jobs are late:</strong> {state.problems.join("; ")}. Your notes are safe; documents wait
-            until the jobs run. The uptime monitor has emailed Shlok and Aksh.
+            {state.problems.length > 0 ? (
+              <>
+                <strong className="font-semibold text-bad">Background jobs are late:</strong> {state.problems.join("; ")}.{" "}
+                {/* One safe-sentence only: with a stuck queue its clause carries the reassurance. */}
+                {state.queue ? null : "Your notes are safe; documents wait until the jobs run. "}
+              </>
+            ) : null}
+            {state.queue ? (
+              <>
+                <strong className="font-semibold text-bad">{state.queue.split("; ")[0]};</strong> {state.queue.split("; ").slice(1).join("; ")}.{" "}
+              </>
+            ) : null}
+            The uptime monitor has emailed Shlok and Aksh.
           </span>
         ) : (
           <span>

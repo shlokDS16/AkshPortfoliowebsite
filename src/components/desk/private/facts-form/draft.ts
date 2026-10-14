@@ -6,11 +6,13 @@ import { CASEFILE_SCHEMA, serializeFactsSheet, type CaseFile, type SheetCaseFile
 export type SourceDraft = { id: string; doc: string; type: SourceType; filedOn: string; url: string };
 export type FactDraft = {
   id: string; label: string; value: string; unit: string; period: string; asOf: string; sourceId: string; locator: string;
-  priorLabel: string; priorValue: string; quote: string;
+  priorLabel: string; priorValue: string; quote: string; topic: string;
 };
 export type TestDraft = {
   id: string; current: string; unit: string; readingAsOf: string; lastChecked: string; status: TestStatus;
   min: string; max: string; threshold: string; direction: "above" | "below"; prior: string;
+  /** The fact label this test reads its value from; "" for none. */
+  metric: string;
 };
 export type PointDraft = { period: string; value: string };
 export type ExhibitDraft = { id: string; title: string; unit: string; sourceId: string; testId: string; points: PointDraft[] };
@@ -32,10 +34,11 @@ export function toDraft(cf: CaseFile): Draft {
     facts: cf.facts.map((f) => ({
       id: f.id, label: f.label, value: str(f.value), unit: f.unit, period: f.period, asOf: f.asOf, sourceId: f.sourceId, locator: f.locator,
       priorLabel: f.prior?.label ?? "", priorValue: str(f.prior?.value), quote: cf.sources.find((s) => s.id === f.sourceId)?.quote[f.id] ?? "",
+      topic: f.topic ?? "",
     })),
     tests: cf.tests.map((t) => ({
       id: t.id, current: str(t.current), unit: t.unit, readingAsOf: t.readingAsOf ?? "", lastChecked: t.lastChecked, status: t.status,
-      min: str(t.min), max: str(t.max), threshold: str(t.threshold), direction: t.direction, prior: str(t.prior),
+      min: str(t.min), max: str(t.max), threshold: str(t.threshold), direction: t.direction, prior: str(t.prior), metric: t.metric ?? "",
     })),
     exhibits: cf.exhibits.map((x) => ({
       id: x.id, title: x.title, unit: x.unit, sourceId: x.sourceId, testId: x.testId ?? "", points: x.points.map((p) => ({ period: p.period, value: str(p.value) })),
@@ -61,10 +64,11 @@ export function draftToSheet(d: Draft): string {
     facts: d.facts.map((f) => ({
       id: f.id, label: f.label, value: f.value, unit: f.unit, period: f.period, asOf: f.asOf, sourceId: f.sourceId, locator: f.locator,
       prior: f.priorLabel.trim() === "" && f.priorValue.trim() === "" ? null : { label: f.priorLabel, value: f.priorValue },
+      topic: orNull(f.topic),
     })),
     tests: d.tests.map((t) => ({
       id: t.id, current: orNull(t.current), unit: t.unit, readingAsOf: orNull(t.readingAsOf), lastChecked: t.lastChecked, status: t.status,
-      min: t.min, max: t.max, threshold: t.threshold, direction: t.direction, prior: orNull(t.prior),
+      min: t.min, max: t.max, threshold: t.threshold, direction: t.direction, prior: orNull(t.prior), metric: orNull(t.metric),
     })),
     exhibits: d.exhibits.map((x) => ({
       id: x.id, title: x.title, unit: x.unit, sourceId: x.sourceId, testId: orNull(x.testId), points: x.points.map((p) => ({ period: p.period, value: orNull(p.value) })),
@@ -89,10 +93,10 @@ export const draftIds = (d: Draft): string[] => [...d.sources, ...d.facts, ...d.
 
 export const blankSource = (id: string): SourceDraft => ({ id, doc: "", type: "Annual report", filedOn: "", url: "" });
 export const blankFact = (id: string, sourceId: string): FactDraft => ({
-  id, label: "", value: "", unit: "", period: "", asOf: "", sourceId, locator: "", priorLabel: "", priorValue: "", quote: "",
+  id, label: "", value: "", unit: "", period: "", asOf: "", sourceId, locator: "", priorLabel: "", priorValue: "", quote: "", topic: "",
 });
 export const blankTest = (id: string, today: string): TestDraft => ({
-  id, current: "", unit: "", readingAsOf: "", lastChecked: today, status: "no_data", min: "", max: "", threshold: "", direction: "above", prior: "",
+  id, current: "", unit: "", readingAsOf: "", lastChecked: today, status: "no_data", min: "", max: "", threshold: "", direction: "above", prior: "", metric: "",
 });
 export const blankExhibit = (id: string, sourceId: string): ExhibitDraft => ({
   id, title: "", unit: "", sourceId, testId: "", points: [{ period: "", value: "" }, { period: "", value: "" }],

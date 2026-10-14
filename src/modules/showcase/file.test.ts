@@ -5,6 +5,7 @@ import { lintText } from "@/modules/compliance";
 import { figureDates, parseFactsSheet } from "@/modules/casefile/client";
 import { KAVERI } from "@/test/fixtures/casefile";
 import { buildFiguresAfterDataAsOfSnapshot, buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
+import { checkedAgainstPageText } from "@/lib/messages";
 import { buildFileView, buildShareCard } from "./file";
 import type { PublicSnapshot } from "./types";
 
@@ -167,5 +168,64 @@ describe("a realistic file: today at least 30 days after dataAsOf, every figure 
     expect(cf.facts.length).toBe(4);
     expect(view.factGroups.flatMap((g) => g.rows).every((r) => r.value !== null && r.withheldUntil === null)).toBe(true);
     expect(json).toContain("2,150");
+  });
+});
+
+describe("checked-against-page line (Plan 2b Task 9, R5 and R19)", () => {
+  const chip = (file: ReturnType<typeof live>, id: string) => chipsOf(file.view).find((c) => c.chipId === id);
+
+  it("a chip carries the checked page only when the fact's own locator names the same page", () => {
+    const file = live();
+    expect(chip(file, "F1")?.card.checkedPage).toBe(131);
+    expect(chip(file, "F3")?.card.checkedPage).toBe(152);
+    expect(chip(file, "F2")?.card.checkedPage ?? null).toBeNull(); // checked on p. 99, now sourced to p. 140
+    expect(chip(file, "F4")?.card.checkedPage ?? null).toBeNull(); // never filed from a document
+  });
+
+  it("a locator that is not a plain page number gets no line, and neither does a file with no checks", () => {
+    const slide: PublicSnapshot = {
+      ...s,
+      factChecks: [{ itemId: "i1", factId: "F1", pageNo: 7 }],
+      items: s.items.map((i) => {
+        if (i.id !== "i1") return i;
+        const cf = i.structured as { facts: { id: string; locator: string }[] };
+        return { ...i, structured: { ...cf, facts: cf.facts.map((f) => (f.id === "F1" ? { ...f, locator: "slide 7" } : f)) } };
+      }),
+    };
+    expect(chip(buildFileView(slide, "kavpump")!, "F1")?.card.checkedPage ?? null).toBeNull();
+    const none = buildFileView({ ...s, factChecks: [] }, "kavpump")!;
+    expect(chipsOf(none.view).every((c) => (c.card.checkedPage ?? null) === null)).toBe(true);
+  });
+
+  it("another file's check never lands on this file, and a withheld card carries none", () => {
+    expect(chip(live(), "F1")?.card.checkedPage).toBe(131); // file 02 also has an F1 (p. 44)
+    expect(chipsOf(buildFileView(s, "sahcold")!.view).find((c) => c.chipId === "F1")?.card.checkedPage).toBe(44);
+    const early = buildFileView({ ...buildFiguresAfterDataAsOfSnapshot(), factChecks: s.factChecks }, "kavpump")!;
+    const withheld = chipsOf(early.view).filter((c) => c.card.withheldUntil !== null);
+    expect(withheld.length).toBeGreaterThan(0);
+    expect(withheld.every((c) => (c.card.checkedPage ?? null) === null)).toBe(true);
+  });
+
+  it("a snapshot cached before factChecks existed (field missing) builds the file with no line and does not throw", () => {
+    const old: Partial<PublicSnapshot> = { ...s };
+    delete old.factChecks;
+    const file = buildFileView(old as PublicSnapshot, "kavpump")!;
+    expect(chipsOf(file.view).length).toBeGreaterThan(0);
+    expect(chipsOf(file.view).every((c) => (c.card.checkedPage ?? null) === null)).toBe(true);
+  });
+
+  it("the view model carries a page number and nothing else from the checks (no machine value, no edited flag)", () => {
+    const json = JSON.stringify(live());
+    expect(json).not.toContain("machine");
+    expect(json).not.toContain("edited");
+  });
+
+  it("the fixed sentence passes the publishing lint as public body text", () => {
+    const lint = lintText({
+      revisionId: "r", kind: "thesis", title: "T", slug: "t", learningObjective: "Learn to read a file.", bodyMd: checkedAgainstPageText(131, "Annual report 2025-26"),
+      structured: {}, changeReason: null, companyName: null, companyOneLiner: null, themeName: null,
+      companyId: "c1", holdsPosition: "no", dataAsOf: "2026-08-22", today: "2026-10-06", allowances: new Set(),
+    });
+    expect(lint.findings.filter((f) => f.rule !== "structure")).toEqual([]); // the structure rule is about a whole file, not this line
   });
 });

@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ViewBlockData } from "@/lib/view-types";
-import { CHIP_F1, FACT_GROUPS, READ_FIRST, SOURCES, USED_IN, VIEW_BLOCKS } from "@/test/fixtures/desk-ui";
+import { CHIP_F1, FACT_GROUPS, FACT_GROUPS_BY_TOPIC, READ_FIRST, SOURCES, USED_IN, VIEW_BLOCKS } from "@/test/fixtures/desk-ui";
 import { expectNoMotion, expectTokenOnly, mockMatchMedia, renderWithMotion } from "@/test/ui";
 import { BlockHeader } from "./block-header";
 import { FactTable } from "./fact-table";
@@ -55,6 +55,20 @@ describe("ViewBlock", () => {
     expectTokenOnly(container);
   });
 
+  it("R19: a checked card says what happened, in fixed words with the page and the document; an unchecked card says nothing", async () => {
+    mockMatchMedia();
+    const checked: ViewBlockData[] = [{ kind: "p", inline: ["Revenue ", { chip: { ...CHIP_F1, card: { ...CHIP_F1.card, checkedPage: 131 } } }, "."] }];
+    const { unmount } = renderWithMotion(<ViewBlock blocks={checked} />);
+    await userEvent.click(screen.getByRole("button", { name: "S1 p. 131" }));
+    expect(screen.getByRole("region", { name: "Source for ₹1,284 cr" })).toHaveTextContent(
+      "Printed on p. 131 of Annual report 2025-26 (fictional seed data); matched by the desk and accepted by the analyst.",
+    );
+    unmount();
+    renderWithMotion(<ViewBlock blocks={VIEW_BLOCKS} />);
+    await userEvent.click(screen.getByRole("button", { name: "S1 p. 131" }));
+    expect(screen.getByRole("region", { name: "Source for ₹1,284 cr" })).not.toHaveTextContent("matched by the desk");
+  });
+
   it("a withheld card never prints the figure, the prior or the quote, in the DOM or the accessible name (rule 3)", async () => {
     mockMatchMedia();
     const withheld: ViewBlockData[] = [
@@ -102,6 +116,16 @@ describe("FactTable and SourceList", () => {
     expect(tr).toHaveTextContent("[withheld until 25 Oct 2026]");
     expect(tr.textContent).not.toContain("977");
     expect(within(tr).getAllByText("—")).toHaveLength(1);
+  });
+
+  it("under a topic heading, names each metric's period after it; period groups do not repeat it", () => {
+    const { container } = render(<FactTable groups={FACT_GROUPS_BY_TOPIC} />);
+    expect(screen.getByText("Working capital")).toBeInTheDocument();
+    expect(screen.getByText("Receivable days").closest("td")).toHaveTextContent(/^Receivable days · FY26$/);
+    expect(screen.getByText("Order book").closest("td")).toHaveTextContent(/^Order book · Q1 FY27$/);
+    expect(screen.getByText("Dealer count").closest("td")).toHaveTextContent(/^Dealer count$/);
+    expect(screen.getByText("as of 25 Sep 2026")).toBeInTheDocument();
+    expectTokenOnly(container);
   });
 
   it("two groups with the same title render without a key collision", () => {

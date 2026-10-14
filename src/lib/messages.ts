@@ -29,6 +29,47 @@ const ERRORS = {
   "choose-sector": "Choose a sector from the list.",
   "name-on-public-item": "A public item names this. Unpublish that item before changing what this name is.",
   "no-figure-date": "This file has no dated figure yet, so there is nothing to set Figures to.",
+  // Uploads (= DOCUMENT_ERROR_TEXT in modules/documents/errors.ts; a test keeps them equal).
+  "upload-duplicate": "You uploaded this file before. Open the earlier copy.",
+  "upload-too-large": "Over 50 MB. Upload the financial statements section, or compress the file.",
+  "upload-unsupported": "Drop a PDF, a photo or a voice note.",
+  "upload-image-too-large": "This photo is still over 1 MB after shrinking; crop it to the table.",
+  "upload-storage-full": "Storage is over 90% full. Mark finished documents as done to free space.",
+  "upload-missing": "The upload did not arrive complete. Upload the file again.",
+  "voice-off": "Voice notes are not switched on yet.",
+  // The two voice limits are derived in modules/documents/errors.ts from limits.ts; a test keeps these equal to that.
+  "voice-too-large": "This voice note is over 25 MB. Record a shorter one.",
+  "voice-too-long": "This voice note is longer than 90 minutes. Record a shorter one.",
+  // Links and pasted text (= DOCUMENT_ERROR_TEXT likewise).
+  "link-invalid": "Use a full link that starts with https:// and has no user name, password or port number.",
+  "link-blocked": "That link points somewhere the desk will not open.",
+  "link-failed": "The desk could not open that link. Check it, or paste the text instead.",
+  "link-redirects": "That link sends the desk through too many other links. Open it in your browser and paste the final link.",
+  "link-too-large": "That link is over 50 MB. Download the part you need and upload it.",
+  "link-timeout": "That link took longer than 30 seconds to answer. Try again, or paste the text instead.",
+  "link-unsupported": "That link is not a web page or a PDF. Upload the file instead.",
+  "link-empty": "No readable text was found at that link. Paste the text instead.",
+  "text-too-short": "Paste a little more, at least 50 characters.",
+  "text-too-long": "That is over 200,000 characters. Paste the part with the figures.",
+  // Inbox actions (= INBOX_ERROR_TEXT in modules/ingestion/errors.ts; a test keeps them equal).
+  "page-budget-reached": "This document is at its page limit. Raise the limit to read more pages.",
+  "budget-range": "Choose a page limit from 1 to 40.",
+  "ai-off": "AI reading is off, so figures cannot be read yet. Pages are still read and searchable.",
+  "reread-closed": "You marked this document done or skipped, so its pages are not read again.",
+  "reread-not-ready": "This page is not ready to be read again. Wait for its first reading to finish.",
+  "reread-limit": "This page has been read as many times as the desk allows.",
+  // Review screen (= REVIEW_ERROR_TEXT in modules/ingestion/errors.ts; a test keeps them equal).
+  "type-value-first": "Type the value from the page first.",
+  "figure-incomplete": "Add the period, the as-of date and the unit.",
+  "figure-not-a-number": "Type the figure as printed on the page, for example 41.20.",
+  "figure-filed": "This figure is already filed. Change it in the file's Facts form.",
+  "filed-on-required": "Add the date the document was filed.",
+  "checks-left": "Check the flagged figures first.",
+  "not-this-file": "That is not this company's file. Reload and try again.",
+  "no-company": "This document is not linked to a company, so there is no file to put its figures in.",
+  "nothing-to-file": "Tick at least one figure to file.",
+  "company-locked": "Some of this document's figures are already in its company's file, so the company cannot be changed.",
+  "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -50,6 +91,45 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   NAME_NOT_SCREENED: "name-not-screened",
   NAME_ON_PUBLIC_ITEM: "name-on-public-item",
   NO_FIGURE_DATE: "no-figure-date",
+  // DocumentError carries the message code itself.
+  "upload-duplicate": "upload-duplicate",
+  "upload-too-large": "upload-too-large",
+  "upload-unsupported": "upload-unsupported",
+  "upload-image-too-large": "upload-image-too-large",
+  "upload-storage-full": "upload-storage-full",
+  "upload-missing": "upload-missing",
+  "voice-off": "voice-off",
+  "voice-too-large": "voice-too-large",
+  "voice-too-long": "voice-too-long",
+  "link-invalid": "link-invalid",
+  "link-blocked": "link-blocked",
+  "link-failed": "link-failed",
+  "link-redirects": "link-redirects",
+  "link-too-large": "link-too-large",
+  "link-timeout": "link-timeout",
+  "link-unsupported": "link-unsupported",
+  "link-empty": "link-empty",
+  "text-too-short": "text-too-short",
+  "text-too-long": "text-too-long",
+  // InboxError likewise.
+  "page-budget-reached": "page-budget-reached",
+  "budget-range": "budget-range",
+  "ai-off": "ai-off",
+  "reread-closed": "reread-closed",
+  "reread-not-ready": "reread-not-ready",
+  "reread-limit": "reread-limit",
+  // ReviewError likewise.
+  "type-value-first": "type-value-first",
+  "figure-incomplete": "figure-incomplete",
+  "figure-not-a-number": "figure-not-a-number",
+  "figure-filed": "figure-filed",
+  "filed-on-required": "filed-on-required",
+  "checks-left": "checks-left",
+  "not-this-file": "not-this-file",
+  "no-company": "no-company",
+  "nothing-to-file": "nothing-to-file",
+  "document-closed": "document-closed",
+  "company-locked": "company-locked",
 };
 
 /**
@@ -91,6 +171,10 @@ const NOTICES = {
   "figures-to-set": "Figures to updated to the latest figure date. Run the publishing gate again.",
   refiled: "Filed.",
   "name-saved": "Saved. The name is screened.",
+  "revision-saved-provenance-missing":
+    "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
+  "revision-saved-readings-missing":
+    "Saved. The test readings could not be marked as filed; they stay staged, and are left out next time because the tests already have them.",
   "revision-pending-gate":
     "Revision saved. This item is public, so the new revision is waiting for the publishing gate; the public page still shows the previous one.",
 } as const;
@@ -100,3 +184,30 @@ export type ItemNoticeCode = keyof typeof NOTICES;
 export function noticeText(code: string | undefined): string | null {
   return code !== undefined && Object.hasOwn(NOTICES, code) ? NOTICES[code as ItemNoticeCode] : null;
 }
+
+/**
+ * Public file, source card (Plan 2b Task 9, R19): says what happened and no more. Verified rows are pre-ticked, so it
+ * does not claim a person read the figure. `doc` is the already-public source name of the published fact (the text the
+ * card already prints, gated at publish); nothing is read from `documents`. The facts form may have filled that name from
+ * the uploaded document's title (facts-form/staged.ts), which Aksh then saved and published. Wording is the controller's
+ * pick, pending Shlok's approval (spec s16.14).
+ */
+export const CHECKED_SOURCE_FALLBACK = "the filing";
+export function checkedAgainstPageText(page: number, doc: string): string {
+  return `Printed on p. ${page} of ${doc.trim() === "" || doc === "Source not listed" ? CHECKED_SOURCE_FALLBACK : doc}; matched by the desk and accepted by the analyst.`;
+}
+
+/**
+ * Scan reader, third refusal in a row while our own count of the day is under its cap (final review M-2). OCR.space's free
+ * limit is counted per internet address, so the desk cannot tell a shared-address limit from a key problem; it says so and
+ * blames neither Aksh nor the key. Wording is the build's pick, pending Shlok's approval (spec s16.15).
+ */
+export const OCR_SERVICE_REFUSED =
+  "The scan reader has refused three requests in a row. Its free daily limit is counted per internet address, so this may be that shared limit or the desk's key. Try again later, or upload a text PDF instead.";
+
+/**
+ * Classifier gave up on some pages (live smoke S3): the pages stay unselected and Aksh is told once, on the document's
+ * reading state. Pending Shlok's approval, spec s16.15.
+ */
+export const pagesNotSortedText = (pages: number): string =>
+  `${pages === 1 ? "1 page" : `${pages} pages`} could not be sorted by the desk. You can choose the pages to read yourself.`;

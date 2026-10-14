@@ -6,16 +6,17 @@ import { istDate } from "@/lib/dates";
 import { CASEFILE_LIMITS as MAX, splitThesisBody } from "@/modules/casefile/client";
 import { blankExhibit, blankFact, blankSource, blankTest, nextId, type Draft } from "./draft";
 import { ExhibitRow } from "./exhibit-row";
-import { FactRow } from "./fact-row";
+import { FactRow, TOPICS_LIST } from "./fact-row";
 import { TextField } from "./field";
 import { neighbour, useFocusNext } from "./focus";
+import type { RowMarks } from "./marks";
 import { FormSection, RowFrame } from "./row-frame";
 import { ScenarioSection } from "./scenario-section";
 import { SourceRow } from "./source-row";
 import { TestRow } from "./test-row";
 import { citedFacts, type FieldErrors } from "./validate";
 
-type Props = { draft: Draft; update(fn: (d: Draft) => Draft): void; fields: FieldErrors; rows: Record<string, string[]>; bodyMd: string; loaded: string[] };
+type Props = { draft: Draft; update(fn: (d: Draft) => Draft): void; fields: FieldErrors; rows: Record<string, string[]>; bodyMd: string; loaded: string[]; marks?: RowMarks };
 
 type ListKey = "sources" | "facts" | "tests" | "exhibits";
 const FIRST: Record<ListKey, string> = { sources: "doc", facts: "label", tests: "current", exhibits: "title" };
@@ -23,7 +24,7 @@ const ADD_ID: Record<ListKey, string> = { sources: "ff-add-sources", facts: "ff-
 const full = (n: number, max: number, noun: string) => (n >= max ? `That is the most a file can hold: ${max} ${noun}.` : null);
 
 /** The facts sheet as a form, section by section. It edits the structured facts only; Aksh's words stay in the body field. */
-export function FactsForm({ draft: d, update, fields, rows, bodyMd, loaded }: Props) {
+export function FactsForm({ draft: d, update, fields, rows, bodyMd, loaded, marks = {} }: Props) {
   const [notice, setNotice] = useState("");
   const focus = useFocusNext();
   const conditions = useMemo(() => splitThesisBody(bodyMd).conditions, [bodyMd]);
@@ -58,6 +59,7 @@ export function FactsForm({ draft: d, update, fields, rows, bodyMd, loaded }: Pr
   };
   const firstSource = d.sources[0]?.id ?? "";
   const missing = conditions.filter((c) => !d.tests.some((t) => t.id === c.id));
+  const topics = [...new Set(d.facts.map((f) => f.topic.trim()).filter(Boolean))];
   return (
     <div className="space-y-(--block-gap)">
       <FormSection title="Company line">
@@ -83,8 +85,13 @@ export function FactsForm({ draft: d, update, fields, rows, bodyMd, loaded }: Pr
         fullNote={full(d.facts.length, MAX.facts, "facts")}
         onAdd={() => add("facts", blankFact(freshId("facts", "F"), firstSource))}
       >
+        <datalist id={TOPICS_LIST}>
+          {topics.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
         {d.facts.map((f) => (
-          <FactRow key={f.id} row={f} sources={d.sources} onChange={patch("facts", f.id)} onRemove={remove("facts", f.id)} errors={fields} rowErrors={rows[f.id]} cited={cited.includes(f.id)} />
+          <FactRow key={f.id} row={f} sources={d.sources} onChange={patch("facts", f.id)} onRemove={remove("facts", f.id)} errors={fields} rowErrors={rows[f.id]} cited={cited.includes(f.id)} mark={marks[f.id]} />
         ))}
       </FormSection>
 
@@ -94,10 +101,12 @@ export function FactsForm({ draft: d, update, fields, rows, bodyMd, loaded }: Pr
             key={t.id}
             row={t}
             condition={conditions.find((c) => c.id === t.id)?.text ?? null}
+            labels={d.facts.map((f) => f.label)}
             onChange={patch("tests", t.id)}
             onRemove={remove("tests", t.id, `ff-add-reading-${t.id}`)}
             errors={fields}
             rowErrors={rows[t.id]}
+            mark={marks[t.id]}
           />
         ))}
         {missing.map((c) => (

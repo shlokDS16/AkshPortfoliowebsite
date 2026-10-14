@@ -97,21 +97,25 @@ export function buildKillTests(conditions: Condition[], cf: CaseFile, today: ISO
   });
 }
 
+/** Topic groups first (first-seen order), then period groups for facts with no topic; a topic row carries its period. */
 export function buildFactGroups(cf: CaseFile, today: ISODate): FactGroup[] {
   assertDate(today, "today");
-  const groups = new Map<string, FactGroup>();
+  const byTopic = new Map<string, FactGroup>();
+  const byPeriod = new Map<string, FactGroup>();
   for (const f of datedFacts(cf)) {
     const hold = withheldUntil(f.asOf, today);
-    const group = groups.get(f.period) ?? { title: f.period, asOf: f.asOf, rows: [] };
+    const groups = f.topic ? byTopic : byPeriod;
+    const key = f.topic ?? f.period;
+    const group = groups.get(key) ?? { title: key, asOf: f.asOf, rows: [] };
     if (f.asOf > group.asOf) group.asOf = f.asOf;
     group.rows.push({
-      id: f.id, label: f.label, unit: f.unit || null, withheldUntil: hold,
+      id: f.id, label: f.label, period: f.topic ? f.period : null, unit: f.unit || null, withheldUntil: hold,
       value: hold ? null : formatNumber(f.value), prior: hold || !f.prior ? null : formatNumber(f.prior.value),
       source: sourceRef(cf.sources.find((s) => s.id === f.sourceId), f.sourceId, f.locator),
     });
-    groups.set(f.period, group);
+    groups.set(key, group);
   }
-  return [...groups.values()];
+  return [...byTopic.values(), ...byPeriod.values()];
 }
 
 export function buildSourceList(cf: CaseFile): SourceListItem[] {

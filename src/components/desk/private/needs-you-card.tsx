@@ -1,10 +1,10 @@
-import { Info, TriangleAlert, WifiOff } from "lucide-react";
+import { Info, TriangleAlert, WifiOff, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { PendingButton } from "./pending-button";
 
 type Tone = "bad" | "warn" | "neutral";
-type Base = { tone: Tone; stateWord: string; title: string; body: string };
+type Base = { tone: Tone; stateWord: string; title: string; body: string; /** Replaces the tone's default glyph. */ icon?: LucideIcon };
 type Props = Base &
   (
     | { /** A link to where the problem is fixed. */ action?: { label: string; href: string }; form?: never }
@@ -16,8 +16,8 @@ const WORD: Record<Tone, string> = { bad: "text-bad", warn: "text-warn", neutral
 const ICON = { bad: TriangleAlert, warn: Info, neutral: WifiOff } as const;
 
 /** One card per problem, one action each. "Publish stopped" links to the editor; there is no override. */
-export function NeedsYouCard({ tone, stateWord, title, body, action, form }: Props) {
-  const Icon = ICON[tone];
+export function NeedsYouCard({ tone, stateWord, title, body, icon, action, form }: Props) {
+  const Icon = icon ?? ICON[tone];
   return (
     <article className={cn("rounded-sm border border-l-4 border-rule bg-paper p-4", RULE[tone])}>
       <p className={cn("inline-flex items-center gap-1.5 font-mono text-mono-label uppercase", WORD[tone])}>

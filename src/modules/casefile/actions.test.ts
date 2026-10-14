@@ -5,6 +5,8 @@ import { latestFigureDate } from "./figure-dates";
 import { parseFactsSheet } from "./sheet";
 
 const state = vi.hoisted(() => ({ repo: null as unknown }));
+const recordFiledFacts = vi.hoisted(() => vi.fn());
+const recordFiledReadings = vi.hoisted(() => vi.fn());
 const redirect = vi.fn((to: string) => {
   throw new Error(`NEXT_REDIRECT:${to}`);
 });
@@ -15,6 +17,8 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/modules/identity", () => ({ requireAdmin: () => requireAdmin() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => ({}) }));
 vi.mock("@/modules/research", async (original) => ({ ...(await original<typeof import("@/modules/research")>()), createSupabaseResearchRepo: () => state.repo }));
+
+vi.mock("@/modules/ingestion", async () => ({ parseStaging: (await import("@/modules/ingestion/provenance")).parseStaging, recordFiledFacts, recordFiledReadings }));
 
 import { saveCaseFileRevisionAction, setFiguresToAction } from "./actions";
 
@@ -45,6 +49,8 @@ beforeEach(() => {
   repo = createMemoryResearchRepo();
   state.repo = repo;
   redirect.mockClear();
+  recordFiledFacts.mockReset().mockResolvedValue({ filed: 0 });
+  recordFiledReadings.mockReset().mockResolvedValue({ filed: 0, back: 0 });
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => vi.restoreAllMocks());
@@ -87,6 +93,138 @@ describe("saveCaseFileRevisionAction", () => {
 
   it("maps a malformed id to the not-found code", async () => {
     expect(param(await target(() => saveCaseFileRevisionAction("nope", form({ bodyMd: "x" }))), "error")).toBe("item-not-found");
+  });
+});
+
+describe("saveCaseFileRevisionAction: provenance of staged figures", () => {
+  const P1 = "00000001-0000-4000-8000-000000000001";
+  const P2 = "00000002-0000-4000-8000-000000000002";
+  const save = (id: string, extra: Record<string, string> = {}) =>
+    target(() => saveCaseFileRevisionAction(id, form({ bodyMd: KAVERI.revisions[1].bodyMd, factsSheet: KAVERI.revisions[1].sheet, ...extra })));
+  const field = JSON.stringify({ staged: [P1, P2], provenance: [{ factId: "F2", proposalId: P1 }] });
+
+  it("records the filing after the revision is stored, with the new revision's id and the parsed facts", async () => {
+    const id = await thesis();
+    expect(await save(id, { provenance: field })).toBe(`/desk/items/${id}?notice=revision-saved`);
+    expect(recordFiledFacts).toHaveBeenCalledTimes(1);
+    expect(recordFiledFacts.mock.calls[0][1]).toEqual({
+      itemId: id,
+      revisionId: repo.revisions.at(-1)!.id,
+      structured: parseFactsSheet(KAVERI.revisions[1].sheet).caseFile,
+      provenance: [{ factId: "F2", proposalId: P1 }],
+      staged: [P1, P2],
+    });
+  });
+
+  it("sends the staged figures back to review when every staged row was deleted (no pairs left)", async () => {
+    const id = await thesis();
+    await save(id, { provenance: JSON.stringify({ staged: [P1], provenance: [] }) });
+    expect(recordFiledFacts.mock.calls[0][1]).toMatchObject({ provenance: [], staged: [P1] });
+  });
+
+  it.each([
+    ["not JSON", "{nope"],
+    ["more than 80 pairs", JSON.stringify({ staged: [], provenance: Array.from({ length: 81 }, (_, i) => ({ factId: `F${i + 1}`, proposalId: P1 })) })],
+    ["a bad fact id", JSON.stringify({ staged: [], provenance: [{ factId: "../x", proposalId: P1 }] })],
+    ["a bad proposal id", JSON.stringify({ staged: [], provenance: [{ factId: "F1", proposalId: "x" }] })],
+  ])("ignores a malformed field (%s) and still saves", async (_name, bad) => {
+    const id = await thesis();
+    expect(await save(id, { provenance: bad })).toBe(`/desk/items/${id}?notice=revision-saved`);
+    expect(recordFiledFacts).not.toHaveBeenCalled();
+    expect(repo.revisions).toHaveLength(1);
+  });
+
+  it("does not call it without a field, or for a note (no facts sheet)", async () => {
+    const id = await thesis();
+    await save(id);
+    const note = await repo.insertItem({ kind: "learning", title: "Note", companyId: null, themeId: null, learningObjective: "Learn." });
+    await target(() => saveCaseFileRevisionAction(note.id, form({ bodyMd: "b", provenance: field })));
+    expect(recordFiledFacts).not.toHaveBeenCalled();
+  });
+
+  it("still saves, with the provenance-missing notice, when recording it throws", async () => {
+    recordFiledFacts.mockRejectedValueOnce(new Error("db down"));
+    const id = await thesis();
+    const to = await save(id, { provenance: field });
+    expect(to).toBe(`/desk/items/${id}?notice=revision-saved-provenance-missing`);
+    expect(repo.revisions).toHaveLength(1);
+  });
+
+  it("keeps the publishing-gate notice on a public item and adds the provenance warning as a second line (R25)", async () => {
+    recordFiledFacts.mockRejectedValueOnce(new Error("db down"));
+    const id = await thesis();
+    await repo.insertRevision({ itemId: id, bodyMd: "v1", structured: {}, changeReason: null, author: "aksh" });
+    repo.setVisibility(id, "public");
+    const to = await save(id, { provenance: field });
+    expect(param(to, "notice")).toBe("revision-pending-gate");
+    expect(param(to, "also")).toBe("revision-saved-provenance-missing");
+  });
+
+  describe("staged test readings (Plan 2b Task 8, R4)", () => {
+    const R1 = "00000011-0000-4000-8000-000000000011";
+    const readings = JSON.stringify({ staged: [], provenance: [], stagedReadings: [{ testId: "T1", proposalId: R1 }] });
+
+    it("files them by their own step, with the new revision's id and the parsed file, and never through the fact step", async () => {
+      const id = await thesis();
+      expect(await save(id, { provenance: readings })).toBe(`/desk/items/${id}?notice=revision-saved`);
+      expect(recordFiledReadings).toHaveBeenCalledTimes(1);
+      expect(recordFiledReadings.mock.calls[0][1]).toEqual({
+        itemId: id,
+        revisionId: repo.revisions.at(-1)!.id,
+        structured: parseFactsSheet(KAVERI.revisions[1].sheet).caseFile,
+        pairs: [{ testId: "T1", proposalId: R1 }],
+      });
+      expect(recordFiledFacts).not.toHaveBeenCalled();
+    });
+
+    it("runs both steps when both were staged, and does not call the reading step for figures alone", async () => {
+      const id = await thesis();
+      await save(id, { provenance: JSON.stringify({ staged: [P1], provenance: [{ factId: "F2", proposalId: P1 }], stagedReadings: [{ testId: "T1", proposalId: R1 }] }) });
+      expect(recordFiledFacts).toHaveBeenCalledTimes(1);
+      expect(recordFiledReadings).toHaveBeenCalledTimes(1);
+      recordFiledReadings.mockClear();
+      await save(id, { provenance: field });
+      expect(recordFiledReadings).not.toHaveBeenCalled();
+    });
+
+    it("still tries the readings when the figures' record fails, and each failure has its own sentence (the figures first, the readings second)", async () => {
+      const both = JSON.stringify({ staged: [P1], provenance: [], stagedReadings: [{ testId: "T1", proposalId: R1 }] });
+      recordFiledFacts.mockRejectedValueOnce(new Error("db down"));
+      const id = await thesis();
+      expect(await save(id, { provenance: both })).toBe(`/desk/items/${id}?notice=revision-saved-provenance-missing`);
+      expect(recordFiledReadings).toHaveBeenCalledTimes(1);
+      recordFiledFacts.mockRejectedValueOnce(new Error("db down"));
+      recordFiledReadings.mockRejectedValueOnce(new Error("db down"));
+      const twice = await save(id, { provenance: both });
+      expect(param(twice, "notice")).toBe("revision-saved-provenance-missing");
+      expect(param(twice, "also")).toBe("revision-saved-readings-missing");
+      expect(repo.revisions).toHaveLength(2);
+    });
+
+    it("a readings failure alone says it is about the readings, not the figures, and past the publishing gate it is the second line", async () => {
+      recordFiledReadings.mockRejectedValueOnce(new Error("db down"));
+      const id = await thesis();
+      expect(await save(id, { provenance: readings })).toBe(`/desk/items/${id}?notice=revision-saved-readings-missing`);
+      await repo.insertRevision({ itemId: id, bodyMd: "v1", structured: {}, changeReason: null, author: "aksh" });
+      repo.setVisibility(id, "public");
+      recordFiledReadings.mockRejectedValueOnce(new Error("db down"));
+      const to = await save(id, { provenance: readings });
+      expect(param(to, "notice")).toBe("revision-pending-gate");
+      expect(param(to, "also")).toBe("revision-saved-readings-missing");
+    });
+
+    it("does not file readings for a note (no facts sheet)", async () => {
+      const note = await repo.insertItem({ kind: "learning", title: "Note", companyId: null, themeId: null, learningObjective: "Learn." });
+      await target(() => saveCaseFileRevisionAction(note.id, form({ bodyMd: "b", provenance: readings })));
+      expect(recordFiledReadings).not.toHaveBeenCalled();
+    });
+  });
+
+  it("never reaches the provenance step when the save itself fails", async () => {
+    const id = await thesis();
+    const to = await target(() => saveCaseFileRevisionAction(id, form({ bodyMd: "x", factsSheet: "Z1 | ?", provenance: field })));
+    expect(param(to, "error")).toBe("facts-sheet-invalid");
+    expect(recordFiledFacts).not.toHaveBeenCalled();
   });
 });
 

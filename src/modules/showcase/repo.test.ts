@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Db } from "@/lib/supabase/types";
-import { COMPANY_COLUMNS, createSupabaseShowcaseRepo, ITEM_COLUMNS, REVISION_COLUMNS } from "./repo";
+import { COMPANY_COLUMNS, createSupabaseShowcaseRepo, ITEM_COLUMNS, loadSnapshot, REVISION_COLUMNS } from "./repo";
 
-function fakeDb(rows: Record<string, unknown[]>) {
+function fakeDb(rows: Record<string, unknown[]>, failingRpc: string[] = []) {
   const calls: { target: string; columns: string }[] = [];
   const db = {
     from(target: string) {
@@ -16,6 +16,7 @@ function fakeDb(rows: Record<string, unknown[]>) {
     },
     async rpc(fn: string, args: unknown) {
       calls.push({ target: fn, columns: JSON.stringify(args) });
+      if (failingRpc.includes(fn)) return { data: null, error: { message: "Could not find the function public.public_fact_checks", code: "PGRST202" } };
       return { data: rows[fn] ?? [], error: null };
     },
   } as unknown as Db;
@@ -28,15 +29,16 @@ const itemRow = {
 };
 
 describe("showcase repo", () => {
-  it("reads only the four public views and one RPC, always with explicit column lists (rule 9)", async () => {
+  it("reads only the three public views and two RPCs, always with explicit column lists (rule 9)", async () => {
     const { db, calls } = fakeDb({ capture_days: [{ day: "2026-10-05" }] });
     const repo = createSupabaseShowcaseRepo(db);
-    await Promise.all([repo.listItems(), repo.listRevisions(), repo.listCompanies(), repo.captureDays(30)]);
+    await Promise.all([repo.listItems(), repo.listRevisions(), repo.listCompanies(), repo.captureDays(30), repo.factChecks()]);
     expect(calls).toEqual([
       { target: "public_items", columns: ITEM_COLUMNS },
       { target: "public_item_revisions", columns: REVISION_COLUMNS },
       { target: "public_companies", columns: COMPANY_COLUMNS },
       { target: "capture_days", columns: '{"p_days":30}' },
+      { target: "public_fact_checks", columns: "{}" },
     ]);
     for (const c of calls) expect(c.columns).not.toContain("*");
   });
@@ -69,5 +71,49 @@ describe("showcase repo", () => {
     expect(items[0]).toMatchObject({ dataAsOf: null, holdsPosition: null });
     expect((await repo.listRevisions()).map((r) => r.id)).toEqual(["r2"]);
     expect(await repo.captureDays(30)).toEqual(["2026-10-05"]);
+  });
+
+  it("maps public_fact_checks rows to item, fact and page and drops anything malformed", async () => {
+    const { db } = fakeDb({
+      public_fact_checks: [
+        { item_id: "i1", fact_id: "F1", page_no: 131 },
+        { item_id: null, fact_id: "F2", page_no: 4 },
+        { item_id: "i1", fact_id: "F3", page_no: 0 },
+        { item_id: "i1", fact_id: "F4", page_no: 2.5 },
+        { item_id: "i1", fact_id: "F5", page_no: null },
+      ],
+    });
+    expect(await createSupabaseShowcaseRepo(db).factChecks()).toEqual([{ itemId: "i1", factId: "F1", pageNo: 131 }]);
+  });
+
+  it("a failing public_fact_checks call degrades to no checks, logs only the code, and never throws", async () => {
+    const { db } = fakeDb({}, ["public_fact_checks"]);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(await createSupabaseShowcaseRepo(db).factChecks()).toEqual([]);
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(log.mock.calls)).toContain("PGRST202");
+      expect(JSON.stringify(log.mock.calls)).not.toContain("Could not find");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("the public snapshot still builds when the check read fails, with the three views and capture days intact", async () => {
+    const { db } = fakeDb({ public_items: [itemRow], capture_days: [{ day: "2026-10-05" }] }, ["public_fact_checks"]);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const snap = await loadSnapshot(createSupabaseShowcaseRepo(db), "2026-10-12");
+      expect(snap.factChecks).toEqual([]);
+      expect(snap.items.map((i) => i.id)).toEqual(["i1"]);
+      expect(snap.captureDays).toEqual(["2026-10-05"]);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("the other reads stay strict: a failing capture_days call still rejects the snapshot", async () => {
+    const { db } = fakeDb({}, ["capture_days"]);
+    await expect(loadSnapshot(createSupabaseShowcaseRepo(db), "2026-10-12")).rejects.toThrow();
   });
 });

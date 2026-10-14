@@ -30,10 +30,22 @@ test.describe("job routes", () => {
     const headers = { authorization: `Bearer ${CRON_SECRET}` };
     const daily = await request.get("/api/cron/daily", { headers });
     expect(daily.status()).toBe(200);
-    expect(await daily.json()).toEqual({ ok: true, results: [{ job: "heartbeat:daily", ok: true }] });
+    expect(await daily.json()).toEqual({
+      ok: true,
+      results: [
+        { job: "heartbeat:daily", ok: true },
+        { job: "ingestion:sweep", ok: true },
+      ],
+    });
     const pump = await request.post("/api/jobs/run", { headers });
     expect(pump.status()).toBe(200);
-    expect(await pump.json()).toEqual({ ok: true, results: [{ job: "heartbeat:pump", ok: true }] });
+    expect(await pump.json()).toEqual({
+      ok: true,
+      results: [
+        { job: "heartbeat:pump", ok: true },
+        { job: "ingestion:drain", ok: true },
+      ],
+    });
 
     const health = await request.get("/api/health");
     expect(health.status()).toBe(200);
@@ -41,7 +53,7 @@ test.describe("job routes", () => {
 });
 
 test.describe("/api/health", () => {
-  test("is 200 with ages only when both clocks are fresh", async ({ request }) => {
+  test("is 200 with ages only when both clocks are fresh and the queue is moving", async ({ request }) => {
     clearHeartbeats();
     seedHeartbeatsDbTime([
       { job: "heartbeat:pump", minutesAgo: 5 },
@@ -50,11 +62,12 @@ test.describe("/api/health", () => {
     const response = await request.get("/api/health");
     expect(response.status()).toBe(200);
     expect(response.headers()["cache-control"]).toBe("no-store");
-    const body = (await response.json()) as { ok: boolean; checks: { job: string; ageSeconds: number; ok: boolean }[] };
+    const body = (await response.json()) as { ok: boolean; checks: { job: string; ageSeconds: number | null; ok: boolean }[] };
     expect(body.ok).toBe(true);
     expect(body.checks.map((c) => [c.job, c.ok, Object.keys(c).join()])).toEqual([
       ["heartbeat:pump", true, "job,ageSeconds,ok"],
       ["heartbeat:daily", true, "job,ageSeconds,ok"],
+      ["queue", true, "job,ageSeconds,ok"],
     ]);
     // Seeded and aged by the same (database) clock, so the age is the seed offset plus the few
     // seconds this test took; no skew allowance is needed.
@@ -73,7 +86,7 @@ test.describe("/api/health", () => {
     ]);
     const response = await request.get("/api/health");
     expect(response.status()).toBe(500);
-    expect(((await response.json()) as { checks: { ok: boolean }[] }).checks.map((c) => c.ok)).toEqual([false, true]);
+    expect(((await response.json()) as { checks: { ok: boolean }[] }).checks.map((c) => c.ok)).toEqual([false, true, true]);
   });
 
   test("is 500 when the pump has been silent for more than 2 hours", async ({ request }) => {
@@ -84,6 +97,6 @@ test.describe("/api/health", () => {
     ]);
     const response = await request.get("/api/health");
     expect(response.status()).toBe(500);
-    expect(((await response.json()) as { checks: { ok: boolean }[] }).checks.map((c) => c.ok)).toEqual([false, true]);
+    expect(((await response.json()) as { checks: { ok: boolean }[] }).checks.map((c) => c.ok)).toEqual([false, true, true]);
   });
 });
