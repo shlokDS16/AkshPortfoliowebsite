@@ -48,8 +48,8 @@ select is_empty($$
      and p.proname not in ('publish_revision', 'unpublish_item', 'add_lint_allowance', 'remove_lint_allowance', 'claim_job_step',
                            'reserve_usage', 'prune_provider_usage', 'reserve_units', 'verify_ledger_chain',
                            'store_fetched_closes', 'store_uploaded_closes', 'mark_market_day_shut', 'score_ideas', 'tracked_symbols',
-                           'seal_ledger_days', 'verify_ledger_anchors')
-$$, 'service_role can execute no function in public except the four gate functions, claim_job_step, the usage ledger trio, verify_ledger_chain (0010), the five market functions (0011: store_fetched_closes, store_uploaded_closes, mark_market_day_shut, score_ideas, tracked_symbols) and the two anchor functions (0013: seal_ledger_days, verify_ledger_anchors)');
+                           'seal_ledger_days', 'verify_ledger_anchors', 'alert_step', 'alert_sent')
+$$, 'service_role can execute no function in public except the four gate functions, claim_job_step, the usage ledger trio, verify_ledger_chain (0010), the five market functions (0011: store_fetched_closes, store_uploaded_closes, mark_market_day_shut, score_ideas, tracked_symbols) and the two anchor functions (0013: seal_ledger_days, verify_ledger_anchors) and the two alert functions (0015: alert_step, alert_sent)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
