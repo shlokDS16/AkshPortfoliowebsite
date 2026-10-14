@@ -2,7 +2,7 @@ import { istDateTime } from "@/lib/dates";
 import type { AlertMailer, AlertMessage, AlertSend } from "@/lib/providers/alert-mailer";
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
-import { describeQueue, describeStale, getHealthReport, HEALTH_RULES, readQueueAge, type HealthReport } from "./health";
+import { describeQueue, describeStale, getHealthReport, HEALTH_RULES, type HealthReport } from "./health";
 import type { HeartbeatRepo } from "./heartbeat";
 
 // alerts:email, the last step of both server clocks (docs/specs/2026-10-14-alert-email-design.md). Job code: it reads the
@@ -18,6 +18,8 @@ export type AlertDeps = {
   db: Db;
   /** Reads the latest heartbeat per clock, with its detail (the secret-key client bypasses RLS, like the desk's admin session). */
   repo: HeartbeatRepo;
+  /** Age of the oldest runnable step. NOT through `db`: public.queue_age() is granted to anon and authenticated only (0006). */
+  queueAge: () => Promise<number | null>;
   /** Builds the mailer when the step runs: null while alerts are off, and a bad setting throws (it fails this step only). */
   mailer: () => AlertMailer | null;
   now: () => Date;
@@ -86,7 +88,7 @@ export async function alertEmail(deps: AlertDeps): Promise<string> {
   const mailer = deps.mailer();
   if (!mailer) return "email off: RESEND_API_KEY or ALERT_EMAIL is not set";
 
-  const report = await getHealthReport(deps.repo, deps.now(), await readQueueAge(deps.db));
+  const report = await getHealthReport(deps.repo, deps.now(), await deps.queueAge());
   const keys = redKeys(report);
   const { data, error } = await deps.db.rpc("alert_step", { p_red: keys });
   if (error) throw dbError("ops.alertStep", error);
