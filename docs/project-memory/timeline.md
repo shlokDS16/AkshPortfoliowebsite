@@ -132,3 +132,10 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - Scope cut by Shlok on 2026-10-14: release = Phases 1, 2, 3a and a user guide; public case studies, the spreadsheet valuation page, alert emails, the learning graph, distribution, the public gist copy, voice notes and client logins deferred.
 - Evidence at 0306abb: pgTAP 1752, unit 4114, build OK, e2e 290 passed / 9 skipped / 0 failed. PR #3 open. User guide written and published as a private page.
 - Next: Shlok pushes migrations 0010-0014 and merges PR #3; then the first live run confirms NSE answers Vercel's servers.
+
+## 2026-10-14 (later) - Phase 3a released; pump schedule fix; 2.9 alert email built
+- Shlok pushed migrations 0010-0014; the hosted dry run says up to date (14 of 14). /api/health is green with six entries.
+- The GitHub pump schedule (*/15) never fired in the 5 hours after it was enabled, while the daily backup schedule did. It moved to off-peak minutes 7, 22, 37, 52 (PR #4, with the quick guide and the resume note).
+- The NSE-from-Vercel check (Q29) cannot run yet: the daily step only fetches companies with an open idea, and there are none. The first daily run after Aksh's first real idea is the check.
+- 2.9 alert email built on request: one email when something goes red and one all-clear, held for 30 minutes, decided in the database under a lock, sent through Resend, and off until the key and the address are set. Aksh gets it only once a domain is verified (Q36).
+- Next: Shlok merges PR #4, then pushes migration 0015 and merges the 2.9 PR, then sets the two Vercel env values; confirm a scheduled pump run within 2 hours of the PR #4 merge.
