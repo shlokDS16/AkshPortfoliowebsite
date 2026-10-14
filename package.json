@@ -21,7 +21,9 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts && prettier --no-semi --write src/lib/supabase/database.types.ts",
-    "db:push": "supabase db push"
+    "db:push": "supabase db push",
+    "fixtures:models": "node scripts/fixtures/make-models.ts",
+    "postinstall": "node scripts/copy-ironcalc-wasm.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
