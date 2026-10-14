@@ -20,7 +20,11 @@ export type IdeaDetail = { idea: Idea; events: IdeaEvent[]; score: IdeaScore | n
 
 /** Records a new idea (the `open` entry is sealed with it). Returns the idea's id. `input` is untrusted. */
 export async function openIdea(repo: LedgerRepo, input: unknown): Promise<string> {
-  return repo.openIdea(openIdeaInput.parse(input));
+  const parsed = openIdeaInput.parse(input);
+  // The link follows the company: the publish gate reads ideas.item_id and nothing unlinks it, so a file of another company
+  // (or no file at all) is refused here before the database is reached; open_idea() refuses it again, and has the last word.
+  if (parsed.itemId !== null && (await repo.itemCompany(parsed.itemId)) !== parsed.companyId) throw new LedgerError("ledger-item-other-company");
+  return repo.openIdea(parsed);
 }
 
 /** Adds a note, revision, resize, close, lesson or withdrawal to an idea. Returns the entry's id. `input` is untrusted. */

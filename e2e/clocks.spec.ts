@@ -3,6 +3,7 @@ import { createFixtureAnchor, fixtureAnchorDirectory } from "../src/lib/provider
 import { requireStack } from "./support/auth";
 import { seedEmptyFinishedDays } from "./support/anchors";
 import { adminDb } from "./support/desk";
+import { clearRecentCloses } from "./support/ledger";
 import { clearHeartbeats, resetToFreshHeartbeats, seedHeartbeats, seedHeartbeatsDbTime } from "./support/heartbeats";
 import { E2E_CRON_SECRET as CRON_SECRET } from "./support/stack";
 
@@ -182,6 +183,9 @@ test.describe("/api/health and the ledger's clocks (Plan 3a Task 7)", () => {
 test.describe("the daily run with an idea on file (fixture market data)", () => {
   test("stores the closes and a score row, marks both ledger steps ok, and a settled repeat changes nothing", async ({ request }) => {
     test.setTimeout(180_000);
+    // The run stores the week's closes only for days still undecided: start from an empty week, so a second run of the suite
+    // (no db:reset) finds the same state as the first and the new company below gets its close.
+    clearRecentCloses();
     const db = await adminDb();
     const symbol = `LGR${Date.now().toString(36).toUpperCase()}`;
     const company = await db.from("companies").insert({ slug: symbol.toLowerCase(), name: `${symbol} Ltd`, nse_symbol: symbol }).select("id").single();

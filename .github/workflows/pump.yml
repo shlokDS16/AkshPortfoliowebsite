@@ -22,7 +22,7 @@ concurrency:
 jobs:
   pump:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 6
     steps:
       - name: POST /api/jobs/run
         env:
@@ -32,7 +32,7 @@ jobs:
           set -euo pipefail
           : "${DESK_URL:?repository secret DESK_URL is not set}"
           : "${CRON_SECRET:?repository secret CRON_SECRET is not set}"
-          curl -sS --fail-with-body --max-time 60 -X POST \
+          curl -sS --fail-with-body --max-time 280 -X POST \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             "${DESK_URL%/}/api/jobs/run"
           echo

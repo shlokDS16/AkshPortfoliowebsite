@@ -18,6 +18,7 @@ describe("each database code becomes a desk message", () => {
     ["ledger:opposite_open", "ledger-opposite-open"],
     ["ledger:bad_horizon", "ledger-bad-horizon"],
     ["ledger:day_shut", "ledger-day-shut"],
+    ["ledger:item_other_company", "ledger-item-other-company"],
     ["ledger:bad_stance", "ledger-bad-input"],
     ["ledger:bad_kind", "ledger-bad-input"],
   ])("%s -> %s", (message, key) => {

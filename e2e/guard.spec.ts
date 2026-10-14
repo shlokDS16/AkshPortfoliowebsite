@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { ensureUser, requireStack, tokenHashFor } from "./support/auth";
+import { adminDb, hydrated } from "./support/desk";
+import { createLedgerCompany } from "./support/ledger";
+import { captureAction, replayWithoutSession, sentToLogin } from "./support/replay";
 import { E2E_ADMIN_EMAIL } from "./support/stack";
 
 const OUTSIDER = "guard-outsider@desk.test";
@@ -85,6 +88,53 @@ test("a server action called with no session is refused and changes nothing", as
     await page.goto("/desk/items");
     await expect(page.getByRole("link", { name: allowedTitle })).toBeVisible();
     await expect(page.getByText(refusedTitle)).toHaveCount(0);
+  } finally {
+    await adminContext.close();
+  }
+});
+
+// The two ledger writes are server actions sent by script (no hidden action id in the page). The admin's browser sends each
+// once and the request is kept; the same request sent with no cookie must be turned away at the sign-in page and write nothing.
+test("the ledger's server actions called with no session are refused and write nothing (Task 10 review I1)", async ({ browser, baseURL, request }) => {
+  test.setTimeout(120_000);
+  const stack = requireStack();
+  const db = await adminDb();
+  const company = await createLedgerCompany(db, "G");
+  const adminContext = await browser.newContext({ baseURL, viewport: { width: 1280, height: 800 } });
+  try {
+    const page = await adminContext.newPage();
+    await page.goto(`/auth/confirm?token_hash=${await tokenHashFor(stack, E2E_ADMIN_EMAIL)}&type=magiclink&next=/desk/ledger/new`);
+    await expect(page).toHaveURL(/\/desk\/ledger\/new$/);
+    await hydrated(page);
+
+    // openIdeaAction: the control is the admin's own request; the probe is the same request with a different marker and no cookie.
+    await page.getByLabel("Company").selectOption({ label: `${company.name} (${company.symbol})` });
+    await page.getByLabel("Expects to do better than the Nifty 50").check();
+    await page.getByLabel("1 year").check();
+    await page.getByLabel("No, I do not hold it").check();
+    await page.getByLabel("Why do you think so, and what would change your mind?").fill(`admin-control ${RUN}`);
+    const open = await captureAction(page, () => page.getByRole("button", { name: "Record the idea" }).click());
+    await expect(page).toHaveURL(/\/desk\/ledger\/[0-9a-f-]{36}\?notice=idea-recorded/);
+    const ideaUrl = page.url().split("?")[0] as string;
+    const refusedOpen = await replayWithoutSession(request, open, baseURL!, (b) => b.replace(`admin-control ${RUN}`, `anon-probe-1 ${RUN}`));
+    expect(sentToLogin(refusedOpen), `status ${refusedOpen.status()} ${JSON.stringify(refusedOpen.headers())}`).toBe(true);
+    const ideas = await db.from("ideas").select("id").eq("company_id", company.id);
+    if (ideas.error) throw ideas.error;
+    expect(ideas.data).toHaveLength(1);
+
+    // addIdeaEventAction, on that idea.
+    await hydrated(page);
+    await page.getByLabel("Your note").fill(`admin-note ${RUN}`);
+    const note = await captureAction(page, () => page.getByRole("button", { name: "Add the note" }).click());
+    await expect(page.getByText("Entry added and sealed.")).toBeVisible();
+    const refusedNote = await replayWithoutSession(request, note, baseURL!, (b) => b.replace(`admin-note ${RUN}`, `anon-probe-2 ${RUN}`));
+    expect(sentToLogin(refusedNote), `status ${refusedNote.status()}`).toBe(true);
+    const events = await db.from("idea_events").select("body_md").eq("idea_id", ideas.data[0]!.id);
+    if (events.error) throw events.error;
+    expect(events.data.map((e) => e.body_md).sort()).toEqual([`admin-control ${RUN}`, `admin-note ${RUN}`]);
+    await page.goto(ideaUrl);
+    await expect(page.getByText(`anon-probe-1 ${RUN}`)).toHaveCount(0);
+    await expect(page.getByText(`anon-probe-2 ${RUN}`)).toHaveCount(0);
   } finally {
     await adminContext.close();
   }

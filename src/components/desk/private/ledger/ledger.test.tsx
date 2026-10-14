@@ -38,7 +38,18 @@ describe("LedgerTiles", () => {
     const tile = screen.getByText("Closed ideas").parentElement!;
     expect(tile).toHaveTextContent("3 of 4");
     expect(tile.textContent).not.toMatch(/%/);
-    expect(tile).toHaveTextContent("Fewer than 5 closed ideas: no percentage is shown.");
+    expect(tile).toHaveTextContent("Fewer than 5 closed ideas: no percentage and no median are shown.");
+  });
+
+  it("shows no median under five closed ideas, and one from five up (task 10 review M3)", () => {
+    const few = render(<LedgerTiles summary={closedSet(4, 3)} asOf="2026-10-12" />);
+    const medianTile = () => screen.getByText("Median result, closed ideas").parentElement!;
+    expect(medianTile()).toHaveTextContent("none yet");
+    expect(medianTile().textContent).not.toMatch(/pp/);
+    few.unmount();
+    render(<LedgerTiles summary={closedSet(5, 3)} asOf="2026-10-12" />);
+    expect(medianTile().textContent).toMatch(/pp/);
+    expect(medianTile().textContent).not.toMatch(/none yet/);
   });
 
   it("names the closed ideas the figure leaves out, right beside it", () => {
@@ -59,7 +70,7 @@ describe("LedgerTiles", () => {
     const scores = [score({ ideaId: "a", excess: 0.03 }), score({ ideaId: "b", excess: 0.02 })];
     const { container } = render(<LedgerTiles summary={summaryOf(ideas, scores)} asOf="2026-10-12" />);
     expect(container).toHaveTextContent("as expected so far");
-    expect(container).toHaveTextContent("1 idea expecting to do better than the Nifty 50, 1 expecting to do worse.");
+    expect(container).toHaveTextContent("1 idea expecting to do better than the Nifty 50, 1 idea expecting to do worse.");
     expect(container).toHaveTextContent("an idea that expected to do worse than the Nifty 50 counts as expected when it did");
     expect(container.textContent).not.toMatch(FORBIDDEN);
     expect(container).toHaveTextContent("Figures to 12 Oct 2026");
@@ -312,7 +323,7 @@ async function fillIdea(user: ReturnType<typeof userEvent.setup>, body: string) 
   await user.click(screen.getByLabelText("Expects to do worse than the Nifty 50"));
   await user.click(screen.getByLabelText("1 year"));
   await user.click(screen.getByLabelText("No, I do not hold it"));
-  await user.click(screen.getByLabelText("Why do you think so, and what would prove you wrong?"));
+  await user.click(screen.getByLabelText("Why do you think so, and what would change your mind?"));
   await user.paste(body);
 }
 
@@ -361,7 +372,7 @@ describe("IdeaForm", () => {
       const alert = await screen.findByRole("alert");
       expect(alert.textContent?.length).toBeGreaterThan(10);
       expect(alert.textContent).not.toMatch(/ledger:|relation|violates|P0001/);
-      expect(screen.getByLabelText("Why do you think so, and what would prove you wrong?")).toHaveValue("My long thesis stays.");
+      expect(screen.getByLabelText("Why do you think so, and what would change your mind?")).toHaveValue("My long thesis stays.");
       expect(screen.getByLabelText("Company")).toHaveValue(COMPANIES[0]!.id);
       expect(screen.getByLabelText("Expects to do worse than the Nifty 50")).toBeChecked();
       expect(screen.getByLabelText("1 year")).toBeChecked();
@@ -379,7 +390,7 @@ describe("IdeaForm", () => {
     await user.click(screen.getByLabelText("A number of days"));
     await user.type(screen.getByLabelText("Days (30 to 3650)"), "10");
     await user.click(screen.getByLabelText("Yes, I hold a position"));
-    await user.click(screen.getByLabelText("Why do you think so, and what would prove you wrong?"));
+    await user.click(screen.getByLabelText("Why do you think so, and what would change your mind?"));
     await user.paste("Words");
     await user.click(screen.getByRole("button", { name: "Record the idea" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Choose a horizon from 30 days to 10 years.");

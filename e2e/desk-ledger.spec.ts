@@ -56,7 +56,7 @@ test("an idea's whole life: recorded, sealed, noted, scored, closed, learned fro
   await choose(page, "Expects to do worse than the Nifty 50");
   await choose(page, "1 year");
   await choose(page, "No, I do not hold it");
-  await page.getByLabel("Why do you think so, and what would prove you wrong?").focus();
+  await page.getByLabel("Why do you think so, and what would change your mind?").focus();
   await page.keyboard.type(THESIS);
   await expect(page.getByRole("button", { name: "Record the idea" })).toBeEnabled();
   await page.keyboard.press("Tab");

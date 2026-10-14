@@ -290,6 +290,13 @@ begin
               where i.company_id = p_company_id and i.status = 'open' and i.expects <> p_expects) then
     perform private.ledger_fail('opposite_open');
   end if;
+  -- Task 10 review I3: the publish gate follows ideas.item_id and there is no unlink, so a wrong link could hold back an
+  -- unrelated file for 30 days. An idea is linked only to a file of its own company; a file that does not exist counts as
+  -- another company's (the same refusal, nothing to learn from the difference).
+  if p_item_id is not null
+     and not exists (select 1 from public.items it where it.id = p_item_id and it.company_id = p_company_id) then
+    perform private.ledger_fail('item_other_company');
+  end if;
 
   insert into public.ideas (company_id, item_id, expects, horizon_days, held)
   values (p_company_id, p_item_id, p_expects, p_horizon_days, p_held)

@@ -44,7 +44,6 @@ export default async function IdeaPage({ params, searchParams }: Props) {
           {STATUS[idea.status]}
           {line.closedOn ? ` on ${formatDate(line.closedOn)}${line.closeReasonText ? `: ${line.closeReasonText.toLowerCase()}` : ""}` : ""}
           {page.sealedAt ? ` · ${sealedLineText(page.sealedAt)}` : ""}
-          {line.state === "waiting" && idea.status === "open" ? ` ${line.headline}` : ""}
         </p>
         <p className="flex flex-wrap gap-x-4 text-small">
           {idea.itemId ? (
@@ -64,7 +63,11 @@ export default async function IdeaPage({ params, searchParams }: Props) {
           {message}
         </p>
       ) : null}
-      {noticeMessage ? <p className="rounded-sm border border-rule px-3 py-2 text-small text-ink">{noticeMessage}</p> : null}
+      {noticeMessage ? (
+        <p role="status" className="rounded-sm border border-rule px-3 py-2 text-small text-ink">
+          {noticeMessage}
+        </p>
+      ) : null}
       <IdeaScoreBlock line={line} score={page.score} />
       <IdeaTimeline events={page.events} />
       <section aria-labelledby="add-h" id="new-entry" className="space-y-3">

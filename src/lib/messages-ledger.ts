@@ -104,13 +104,15 @@ export const LEDGER_EMPTY_TEXT = "No ideas yet. Write the first one when you hav
 /** Beside the all-ideas figure: open ideas have not ended, so the words are "so far" (LEDGER_OUTCOME_TEXT is for closed ideas). */
 export const LEDGER_ALL_OUTCOME_TEXT = "as expected so far";
 export const LEDGER_RESULT_WORD = { yes: "as expected", no: "not as expected" } as const;
+/** The same words for a result that is still moving: an open idea's figure is not a verdict. */
+export const LEDGER_RESULT_SO_FAR = { yes: "as expected so far", no: "not as expected so far" } as const;
 export const LEDGER_DIRECTION_NOTE =
   "Each idea is judged in the direction of its own call: an idea that expected to do worse than the Nifty 50 counts as expected when it did.";
 /** An open idea whose entry close is in but that has not been held a day yet (the summary also leaves it out). */
 export const entrySetText = (on: string): string => `Entry: close of ${formatDate(on)}. The first result appears after the next close.`;
 export const LEDGER_NO_RESULT_TEXT = "No result yet: waiting for a close.";
 export const LEDGER_PRICE_ONLY_TEXT = "Price return only: dividends are left out on both sides.";
-export const LEDGER_PLAIN_FIGURES_NOTE = "Fewer than 5 closed ideas: no percentage is shown.";
+export const LEDGER_PLAIN_FIGURES_NOTE = "Fewer than 5 closed ideas: no percentage and no median are shown.";
 
 export const LEDGER_SOURCE_TEXT = {
   nse_fetch: "NSE's official file, fetched by the desk",
@@ -121,6 +123,8 @@ export const LEDGER_SOURCE_TEXT = {
 export const entryLateText = (days: number): string => `Entry taken ${formatCount(days, "trading day")} late: the share had no close on the days before it.`;
 export const exitLateText = (days: number): string => `Exit taken ${formatCount(days, "trading day")} late: the share had no close on the days before it.`;
 export const restatedText = (on: string): string => `Restated on ${formatDate(on)}.`;
+/** A restatement that changed a column with no label of its own (flags, sources): the date is never shown with an empty body. */
+export const LEDGER_OTHER_CHANGE_TEXT = "Another part of the score changed.";
 export const LEDGER_REMOVED_TEXT = "The idea was withdrawn, so its score was removed.";
 /** Names of the fields a restatement can show, by the database's column name. A field not listed is not shown, only the date. */
 export const LEDGER_FIELD_TEXT = {
@@ -186,7 +190,7 @@ export const LEDGER_WORDS_LABEL = {
   review: "What you learned",
   void: "Why you are withdrawing it",
 } as const;
-export const LEDGER_SEALED_WARNING = "Once saved, an entry cannot be edited or deleted, and the desk sets its date. Write it the way you would stand behind it.";
+export const LEDGER_SEALED_WARNING = "Once saved, this screen has no way to edit or delete an entry, and the desk sets its date. Write it the way you would stand behind it.";
 export const LEDGER_CLOSE_HINT = "The exit is set at the next close. A closed idea cannot be reopened.";
 export const voidHintText = (until: string): string =>
   `You can withdraw this idea until ${formatDate(until)}, ${formatTime(until)}. After that its entry price is fixed and you can only close it.`;

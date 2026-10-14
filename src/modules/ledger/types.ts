@@ -183,6 +183,8 @@ export interface LedgerRepo {
   /** Recompute every score (`rescore_ideas()`), after a close or a corporate action was entered. */
   rescore(): Promise<number>;
   setItemLink(ideaId: string, itemId: string | null): Promise<void>;
+  /** The company a file belongs to, or null when there is no such file. */
+  itemCompany(itemId: string): Promise<string | null>;
 }
 
 export type OpenIdeaCall = {

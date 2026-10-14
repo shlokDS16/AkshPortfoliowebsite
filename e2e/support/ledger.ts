@@ -1,6 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import type { Db } from "@/lib/supabase/types";
-import { istDate, istTime, istWeekday } from "@/lib/dates";
+import { addDays, istDate, istTime, istWeekday } from "@/lib/dates";
 import type { LocalStack } from "./stack";
 
 // Test setup only, for the Ledger specs. Each run makes its own company (a unique NSE symbol), so no other spec's file is
@@ -45,4 +46,21 @@ export async function seedTodayCloses(stack: LocalStack, symbol: string): Promis
   });
   if (error) throw error;
   return today;
+}
+
+/**
+ * Empties the trading calendar and every stored close of the last 10 days (owner SQL through the CLI: service_role has no
+ * DELETE grant, by design). A daily run only fetches days that are still undecided, so a spec that wants the run to store the
+ * week's closes for a company it has just made must start from an empty week, or a second run of the suite (no `db:reset`)
+ * finds the week already stored and the new company gets no close. Later specs seed what they need themselves.
+ */
+export function clearRecentCloses(now = new Date()): void {
+  const from = addDays(istDate(now), -10);
+  for (const table of ["market_days", "prices_daily"]) {
+    const sql = `delete from public.${table} where trade_date >= '${from}'`; // one statement per call: the CLI prepares each query
+    execFileSync("pnpm", ["exec", "supabase", "db", "query", "--local", process.platform === "win32" ? `"${sql}"` : sql], {
+      stdio: "ignore",
+      shell: process.platform === "win32",
+    });
+  }
 }

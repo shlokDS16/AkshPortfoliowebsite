@@ -118,6 +118,20 @@ describe("openIdeaAction", () => {
     });
   }
 
+  describe("linking the idea to a file (task 10 review I3)", () => {
+    const ITEM = "22222222-2222-4222-8222-222222222222";
+    it("a file of another company is refused in the action, nothing is opened", async () => {
+      state.repo = repo = createFakeLedgerRepo({ itemCompanies: { [ITEM]: "99999999-9999-4999-8999-999999999999" } });
+      expect(await openIdeaAction(noState, form({ ...idea, itemId: ITEM }))).toEqual({ error: "ledger-item-other-company" });
+      expect(repo.calls.map((c) => c.method)).toEqual(["itemCompany"]);
+    });
+    it("a file of the chosen company is linked", async () => {
+      state.repo = repo = createFakeLedgerRepo({ itemCompanies: { [ITEM]: COMPANY } });
+      await redirected(() => openIdeaAction(noState, form({ ...idea, itemId: ITEM })));
+      expect(repo.calls.at(-1)).toMatchObject({ method: "openIdea", args: [{ itemId: ITEM }] });
+    });
+  });
+
   it("every database refusal returns its plain code, never the raw message", async () => {
     for (const code of Object.keys(LEDGER_ERROR_TEXT) as LedgerErrorCode[]) {
       repo.openIdea = () => Promise.reject(new LedgerError(code));

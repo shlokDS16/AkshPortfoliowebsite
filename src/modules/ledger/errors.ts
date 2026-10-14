@@ -19,6 +19,7 @@ export const LEDGER_ERROR_TEXT = {
   "ledger-opposite-open": "An open idea on this company expects the opposite. Close or withdraw it first.",
   "ledger-not-found": "This idea or company could not be found.",
   "ledger-integrity": "The ledger failed its own check. Nothing was saved. Run the integrity check on the Ledger page.",
+  "ledger-item-other-company": "That file is about a different company. Open the idea from the company's own file, or without a link to a file.",
   "ledger-day-shut": "NSE had no trading on that date, so a closing price cannot be typed for it. If NSE did trade that day, upload NSE's official file for it instead.",
 } as const;
 
@@ -45,6 +46,7 @@ const SQL_CODES: Record<string, LedgerErrorCode> = {
   opposite_open: "ledger-opposite-open",
   bad_horizon: "ledger-bad-horizon",
   day_shut: "ledger-day-shut",
+  item_other_company: "ledger-item-other-company",
   bad_stance: "ledger-bad-input",
   bad_kind: "ledger-bad-input",
   chain_broken: "ledger-integrity",

@@ -199,6 +199,14 @@ describe("rescore, links and status", () => {
     expect(calls[0]).toEqual({ target: "ideas", ops: [["update", { item_id: "it1" }], ["eq", "id", "i1"]] });
   });
 
+  it("itemCompany reads the file's company, or null when there is no such file", async () => {
+    const { db, calls } = createFakeDb([{ data: { company_id: "c1" } }, { data: null }]);
+    const repo = createSupabaseLedgerRepo(db);
+    expect(await repo.itemCompany("it1")).toBe("c1");
+    expect(await repo.itemCompany("gone")).toBeNull();
+    expect(calls[0]!.target).toBe("items");
+  });
+
   it("closesStatus reads the trading calendar", async () => {
     const { db } = createFakeDb([{ data: [{ trade_date: "2026-10-12" }] }, { data: [{ trade_date: "2026-10-09" }] }, { count: 3, data: null }]);
     expect(await createSupabaseLedgerRepo(db).closesStatus()).toEqual({ latestOpenDay: "2026-10-12", latestOfficialDay: "2026-10-09", handEnteredDays: 3 });

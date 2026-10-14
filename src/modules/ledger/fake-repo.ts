@@ -10,6 +10,8 @@ export type FakeSeed = {
   chain?: ChainCheckRows["chain"];
   anchors?: ChainCheckRows["anchors"];
   companies?: PickCompany[];
+  /** Which company each file belongs to, by item id. */
+  itemCompanies?: Record<string, string>;
   closes?: ClosesStatus;
   anchorStatus?: AnchorStatus;
   /** Every call that reaches the database throws this. */
@@ -47,6 +49,7 @@ export function createFakeLedgerRepo(seed: FakeSeed = {}): LedgerRepo & { calls:
         anchors: seed.anchors ?? { ok: true, days: 0, firstBadDate: null, reason: null },
       })),
     rescore: () => run("rescore", [], () => (seed.scores ?? []).length),
+    itemCompany: (itemId) => run("itemCompany", [itemId], () => seed.itemCompanies?.[itemId] ?? null),
     setItemLink: (ideaId, itemId) => run("setItemLink", [ideaId, itemId], () => undefined),
   };
 }

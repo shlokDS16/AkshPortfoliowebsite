@@ -1,6 +1,6 @@
 import { formatDate } from "@/lib/format";
 import {
-  entryLateText, exitLateText, LEDGER_FIELD_TEXT, LEDGER_FLAG_TEXT, LEDGER_REMOVED_TEXT, LEDGER_UNKNOWN_FLAG_TEXT, restatedText,
+  entryLateText, exitLateText, LEDGER_FIELD_TEXT, LEDGER_FLAG_TEXT, LEDGER_OTHER_CHANGE_TEXT, LEDGER_REMOVED_TEXT, LEDGER_UNKNOWN_FLAG_TEXT, restatedText,
 } from "@/lib/messages-ledger";
 import { BENIGN_FLAGS } from "./constants";
 import { formatClose, formatMove, formatPoints } from "./figures";
@@ -41,7 +41,7 @@ function figure(field: string, value: unknown): string {
   return formatClose(value);
 }
 
-/** The restatement log of one idea or of all, in the order given. A field it has no words for is left out; the date is not. */
+/** The restatement log of one idea or of all, in the order given. A field it has no words for is named once as "another part changed"; the old and new raw values are never printed. */
 export function restatements(changes: readonly ScoreChange[]): Restated[] {
   return changes.map((c) => {
     const lines = c.changed.flatMap((field) => {
@@ -49,6 +49,7 @@ export function restatements(changes: readonly ScoreChange[]): Restated[] {
       if (!Object.hasOwn(LEDGER_FIELD_TEXT, field)) return [];
       return [`${LEDGER_FIELD_TEXT[field as keyof typeof LEDGER_FIELD_TEXT]}: was ${figure(field, c.was[field])}, now ${figure(field, c.became[field])}.`];
     });
+    if (c.changed.some((f) => f !== "void" && !Object.hasOwn(LEDGER_FIELD_TEXT, f))) lines.push(LEDGER_OTHER_CHANGE_TEXT);
     return { id: c.id, headline: restatedText(c.changedAt), lines };
   });
 }

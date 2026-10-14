@@ -90,4 +90,7 @@ export async function buildIdeaPage(repo: LedgerRepo, id: string, now: Date): Pr
 
 export const getIdeaPage = (db: Db, id: string, now: Date = new Date()): Promise<IdeaPage | null> => buildIdeaPage(createSupabaseLedgerRepo(db), id, now);
 
+/** The company a file belongs to (null when there is no such file): the New idea page fixes the company to it. */
+export const getItemCompany = (db: Db, itemId: string): Promise<string | null> => createSupabaseLedgerRepo(db).itemCompany(itemId);
+
 export const listPickCompanies = (db: Db): Promise<PickCompany[]> => createSupabaseLedgerRepo(db).listPickable();

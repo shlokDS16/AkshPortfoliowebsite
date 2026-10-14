@@ -35,6 +35,8 @@ const points = (v: number | null) => (v === null ? "none yet" : formatPoints(v))
 export function LedgerTiles({ summary, asOf }: { summary: Summary; asOf: string | null }) {
   const { closed, all, byDirection, holdingDays, withdrawn } = summary;
   const mixed = byDirection.outperform > 0 && byDirection.underperform > 0;
+  // The note beside the closed count promises no median below 5 closed ideas; the tile keeps that promise.
+  const showMedian = closed.showPercent;
   const percent = closed.showPercent && closed.total > 0 ? ` (${Math.round((closed.asExpected / closed.total) * 100)}%)` : "";
   return (
     <section aria-label="Ledger figures" className="space-y-3">
@@ -58,9 +60,9 @@ export function LedgerTiles({ summary, asOf }: { summary: Summary; asOf: string 
         </Tile>
         <Tile
           label="Median result, closed ideas"
-          note={<Caption>all ideas, to the latest close: {points(summary.medianExcessAll)}</Caption>}
+          note={<Caption>all ideas, to the latest close: {showMedian ? points(summary.medianExcessAll) : "none yet"}</Caption>}
         >
-          <span className="text-figure-md desk:text-figure-md-desk">{points(summary.medianExcessClosed)}</span>
+          <span className="text-figure-md desk:text-figure-md-desk">{showMedian ? points(summary.medianExcessClosed) : "none yet"}</span>
         </Tile>
         <Tile
           label="Median days held"
@@ -72,7 +74,7 @@ export function LedgerTiles({ summary, asOf }: { summary: Summary; asOf: string 
       <div className="space-y-1 text-small text-ink-muted">
         {all.total > 0 ? (
           <p>
-            Counted: {formatCount(byDirection.outperform, "idea")} expecting to do better than the Nifty 50, {byDirection.underperform} expecting to do worse.
+            Counted: {formatCount(byDirection.outperform, "idea")} expecting to do better than the Nifty 50, {formatCount(byDirection.underperform, "idea")} expecting to do worse.
             {mixed ? ` ${LEDGER_DIRECTION_NOTE}` : ""}
           </p>
         ) : null}

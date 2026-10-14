@@ -72,11 +72,11 @@ describe("restatements: the log is shown with the old and the new figure", () =>
     expect(list.map((r) => r.id)).toEqual([9, 3]);
   });
 
-  it("shows only the date for a field it has no words for, and never raw text", () => {
+  it("says 'another part changed' for a field it has no words for, once, and never raw text (task 10 review M5)", () => {
     const [r] = restatements([
       change({ ideaId: "a", changed: ["flags", "entry_source"], was: { flags: ["x"], entry_source: "SECRET" }, became: { flags: [], entry_source: "DB TEXT" } }),
     ]);
-    expect(r!.lines).toEqual([]);
+    expect(r!.lines).toEqual(["Another part of the score changed."]);
     expect(JSON.stringify(r)).not.toMatch(/SECRET|DB TEXT/);
   });
 

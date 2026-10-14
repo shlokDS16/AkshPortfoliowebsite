@@ -9,11 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import type { FormState } from "@/modules/ledger/actions";
 import { HORIZON_CHOICES, LEDGER_EXPECTS_TEXT, LEDGER_SEALED_WARNING, type PickCompany } from "@/modules/ledger/client";
 import { WordingGuide } from "../wording-guide";
-import { FormError, Hint, RadioGroup, SELECT } from "./fields";
+import { errorProps, FormError, Hint, RadioGroup, SELECT } from "./fields";
 import { useSealedForm } from "./use-sealed-form";
 
-type Props = { companies: PickCompany[]; action: (previous: FormState, data: FormData) => Promise<FormState>; companyId?: string; itemId?: string };
+type Props = {
+  companies: PickCompany[];
+  action: (previous: FormState, data: FormData) => Promise<FormState>;
+  companyId?: string;
+  /** A file to link the idea to. It is only sent together with a company that is the file's own, which is then fixed. */
+  itemId?: string;
+};
 
+const ERROR_ID = "idea-form-error";
 const HORIZONS = [...HORIZON_CHOICES.map((c) => ({ value: String(c.days), label: c.label })), { value: "other", label: "A number of days" }];
 const EXPECTS = [
   { value: "outperform", label: LEDGER_EXPECTS_TEXT.outperform },
@@ -35,43 +42,63 @@ export function IdeaForm({ companies, action, companyId = "", itemId }: Props) {
   const [days, setDays] = useState("");
   const [held, setHeld] = useState("");
   const [body, setBody] = useState("");
+  // A linked idea belongs to the file's company: the company cannot be changed here (the database refuses a mismatch as well).
+  const linked = itemId !== undefined && companies.some((c) => c.id === companyId && !unavailable(c)) ? companies.find((c) => c.id === companyId) : undefined;
   const pickable = companies.filter((c) => !unavailable(c));
   const blocked = companies.filter((c) => unavailable(c));
   return (
     <form method="post" onSubmit={onSubmit} data-ready={ready ? "" : undefined} className="grid gap-6 desk:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="space-y-5">
-        {itemId ? <input type="hidden" name="itemId" value={itemId} /> : null}
-        <div className="space-y-1">
-          <Label htmlFor="idea-company">Company</Label>
-          <select id="idea-company" name="companyId" required value={company} onChange={(e) => setCompany(e.target.value)} className={SELECT}>
-            <option value="" disabled>
-              Choose a company
-            </option>
-            {pickable.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.symbol})
+        {linked ? (
+          <>
+            <input type="hidden" name="itemId" value={itemId} />
+            <input type="hidden" name="companyId" value={linked.id} />
+            <p className="text-small text-ink-body" data-testid="linked-file">
+              Linked to the file for {linked.name}. The company is fixed while the idea is linked to a file.
+            </p>
+          </>
+        ) : null}
+        {linked ? null : (
+          <div className="space-y-1">
+            <Label htmlFor="idea-company">Company</Label>
+            <select
+              id="idea-company"
+              name="companyId"
+              required
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              className={SELECT}
+              {...errorProps(state.error, "company", ERROR_ID)}
+            >
+              <option value="" disabled>
+                Choose a company
               </option>
-            ))}
-            {blocked.map((c) => (
-              <option key={c.id} value={c.id} disabled>
-                {c.name}: {unavailable(c)}
-              </option>
-            ))}
-          </select>
-          {blocked.length > 0 ? (
-            <Hint>
-              Companies that cannot be picked yet are listed but disabled. Add a symbol or settle a name under{" "}
-              <Link href="/desk/names" className="underline decoration-1 underline-offset-3">Names</Link>.
-            </Hint>
-          ) : null}
-        </div>
+              {pickable.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.symbol})
+                </option>
+              ))}
+              {blocked.map((c) => (
+                <option key={c.id} value={c.id} disabled>
+                  {c.name}: {unavailable(c)}
+                </option>
+              ))}
+            </select>
+            {blocked.length > 0 ? (
+              <Hint>
+                Companies that cannot be picked yet are listed but disabled. Add a symbol or settle a name under{" "}
+                <Link href="/desk/names" className="underline decoration-1 underline-offset-3">Names</Link>.
+              </Hint>
+            ) : null}
+          </div>
+        )}
         <RadioGroup legend="What do you expect?" name="expects" value={expects} onChange={setExpects} options={EXPECTS} />
         <div>
-          <RadioGroup legend="Over what horizon?" name="horizon" value={horizon} onChange={setHorizon} options={HORIZONS} />
+          <RadioGroup legend="Over what horizon?" name="horizon" value={horizon} onChange={setHorizon} options={HORIZONS} describedBy={errorProps(state.error, "horizon", ERROR_ID)["aria-describedby"]} />
           {horizon === "other" ? (
             <div className="mt-1 max-w-48 space-y-1">
               <Label htmlFor="idea-days">Days (30 to 3650)</Label>
-              <Input id="idea-days" name="horizonOther" inputMode="numeric" required value={days} onChange={(e) => setDays(e.target.value)} />
+              <Input id="idea-days" name="horizonOther" inputMode="numeric" required value={days} onChange={(e) => setDays(e.target.value)} {...errorProps(state.error, "horizon", ERROR_ID)} />
             </div>
           ) : null}
         </div>
@@ -83,7 +110,7 @@ export function IdeaForm({ companies, action, companyId = "", itemId }: Props) {
           options={[{ value: "yes", label: "Yes, I hold a position" }, { value: "no", label: "No, I do not hold it" }]}
         />
         <div className="space-y-1">
-          <Label htmlFor="idea-body">Why do you think so, and what would prove you wrong?</Label>
+          <Label htmlFor="idea-body">Why do you think so, and what would change your mind?</Label>
           <Textarea
             id="idea-body"
             name="bodyMd"
@@ -91,12 +118,12 @@ export function IdeaForm({ companies, action, companyId = "", itemId }: Props) {
             rows={8}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            aria-describedby="idea-body-hint"
+            {...errorProps(state.error, "body", ERROR_ID, "idea-body-hint")}
           />
           <Hint id="idea-body-hint">{LEDGER_SEALED_WARNING}</Hint>
         </div>
-        <FormError code={state.error} id="idea-form-error" />
-        <Button type="submit" disabled={!ready || pending} aria-disabled={!ready || pending}>
+        <FormError code={state.error} id={ERROR_ID} submitted={state} />
+        <Button type="submit" disabled={!ready} aria-disabled={!ready || pending}>
           {pending ? "Recording..." : "Record the idea"}
         </Button>
       </div>

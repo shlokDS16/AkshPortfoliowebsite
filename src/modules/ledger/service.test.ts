@@ -32,6 +32,33 @@ describe("openIdea: validate, then call the repo", () => {
     expect(repo.calls).toEqual([]);
   });
 
+  describe("a link to a file (task 10 review I3)", () => {
+    const OTHER = "44444444-4444-4444-8444-444444444444";
+    const linked = { ...good, itemId: ITEM };
+
+    it("is passed on when the file belongs to the chosen company", async () => {
+      const repo = createFakeLedgerRepo({ itemCompanies: { [ITEM]: COMPANY } });
+      expect(await openIdea(repo, linked)).toBe("idea-new");
+      expect(repo.calls.map((c) => c.method)).toEqual(["itemCompany", "openIdea"]);
+    });
+
+    it.each([
+      ["another company's file", { [ITEM]: OTHER }],
+      ["a file that does not exist", {}],
+    ])("refuses %s before the idea is opened", async (_name, itemCompanies) => {
+      const repo = createFakeLedgerRepo({ itemCompanies });
+      const error = await openIdea(repo, linked).catch((e: unknown) => e);
+      expect(errorCode(error)).toBe("ledger-item-other-company");
+      expect(repo.calls.map((c) => c.method)).toEqual(["itemCompany"]);
+    });
+
+    it("looks nothing up when there is no link", async () => {
+      const repo = createFakeLedgerRepo();
+      await openIdea(repo, good);
+      expect(repo.calls.map((c) => c.method)).toEqual(["openIdea"]);
+    });
+  });
+
   it("lets the database's own refusal through as a typed error", async () => {
     const repo = createFakeLedgerRepo({ failWith: new LedgerError("ledger-no-symbol") });
     const error = await openIdea(repo, good).catch((e: unknown) => e);

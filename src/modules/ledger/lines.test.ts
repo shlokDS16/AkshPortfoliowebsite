@@ -7,18 +7,24 @@ describe("ideaLine: the machine's figures and Aksh's choices, kept apart", () =>
     const line = ideaLine(idea({ id: "a", companyName: "Acme" }), score({ ideaId: "a", ideaReturn: 0.123, indexReturn: 0.05, excess: 0.073, holdingDays: 40 }), [], false);
     expect(line).toMatchObject({
       state: "figures", name: "Acme", entryDate: "2026-01-06", markDate: "2026-06-02", daysHeld: 40,
-      shareMove: "+12.3%", indexMove: "+5.0%", result: "+7.3 pp", resultWord: "as expected", headline: null,
+      shareMove: "+12.3%", indexMove: "+5.0%", result: "+7.3 pp", resultWord: "as expected so far", headline: null,
     });
   });
 
   it("an idea that expects to do worse shows its direction in words and a positive result still means the call was right", () => {
     const line = ideaLine(idea({ id: "a", expects: "underperform" }), score({ ideaId: "a", ideaReturn: -0.1, indexReturn: 0.02, excess: 0.12 }), [], false);
     expect(line.expectsText).toBe("Expects to do worse than the Nifty 50");
-    expect(line).toMatchObject({ shareMove: "−10.0%", indexMove: "+2.0%", result: "+12.0 pp", resultWord: "as expected" });
+    expect(line).toMatchObject({ shareMove: "−10.0%", indexMove: "+2.0%", result: "+12.0 pp", resultWord: "as expected so far" });
   });
 
-  it("level is not as expected", () => {
-    expect(ideaLine(idea({ id: "a" }), score({ ideaId: "a", excess: 0 }), [], false)).toMatchObject({ result: "0.0 pp", resultWord: "not as expected" });
+  it("level is not as expected so far while open, and not as expected once the score is final", () => {
+    expect(ideaLine(idea({ id: "a" }), score({ ideaId: "a", excess: 0 }), [], false)).toMatchObject({ result: "0.0 pp", resultWord: "not as expected so far" });
+    expect(ideaLine(closedIdea({ id: "a" }), finalScore({ ideaId: "a", excess: 0 }), [], false)).toMatchObject({ result: "0.0 pp", resultWord: "not as expected" });
+  });
+
+  it("a final score that went the way of the call says plain 'as expected', an open one says 'so far' (task 10 review M2)", () => {
+    expect(ideaLine(closedIdea({ id: "a" }), finalScore({ ideaId: "a", excess: 0.05 }), [], false).resultWord).toBe("as expected");
+    expect(ideaLine(idea({ id: "a" }), score({ ideaId: "a", excess: 0.05 }), [], false).resultWord).toBe("as expected so far");
   });
 
   it("a flagged idea shows the flag's sentence in place of its result, and no figure", () => {

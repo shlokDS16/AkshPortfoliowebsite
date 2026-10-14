@@ -246,6 +246,11 @@ export function createSupabaseLedgerRepo(db: Db): LedgerRepo {
       return typeof n === "number" ? n : 0;
     },
 
+    async itemCompany(itemId) {
+      const row = check("ledger.itemCompany", await db.from("items").select("company_id").eq("id", itemId).maybeSingle());
+      return row?.company_id ?? null;
+    },
+
     async setItemLink(ideaId, itemId) {
       check("ledger.setItemLink", await db.from("ideas").update({ item_id: itemId }).eq("id", ideaId));
     },

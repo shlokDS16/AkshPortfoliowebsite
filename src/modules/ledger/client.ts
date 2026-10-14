@@ -8,6 +8,7 @@ export {
   MIN_CLOSED_FOR_PERCENT, MISTAKE_TAGS, PROCESS_CALLS,
 } from "./constants";
 export { needsCheck } from "./flags";
+export { windowOf, WINDOW_MAX } from "./window";
 export { summarise } from "./summary";
 export { journalGrid } from "./journal";
 export { datesToFetch, FETCH_WINDOW_DAYS, isWeekday, lastOpenDate, unsettledWeekdays, weekdaysBehind, type MarketDayRow } from "./trading-days";
@@ -24,5 +25,5 @@ export { formatClose, formatMove, formatPoints, horizonText, voidDeadline } from
 export {
   CHAIN_CHECK_LABEL, CHAIN_UNREADABLE_TEXT, closesLineText, LEDGER_ACTION_TEXT, LEDGER_CLOSE_HINT, LEDGER_SEALED_WARNING, LEDGER_SUBMIT_TEXT,
   LEDGER_WORDS_LABEL, voidHintText, copyLineText, LEDGER_ALL_OUTCOME_TEXT, LEDGER_DIRECTION_NOTE, LEDGER_EMPTY_TEXT,
-  LEDGER_JOB_LABEL, LEDGER_NO_RESULT_TEXT, LEDGER_PLAIN_FIGURES_NOTE, LEDGER_PRICE_ONLY_TEXT, LEDGER_RESULT_WORD, LEDGER_SOURCE_TEXT, sealedLineText,
+  LEDGER_JOB_LABEL, LEDGER_NO_RESULT_TEXT, LEDGER_PLAIN_FIGURES_NOTE, LEDGER_PRICE_ONLY_TEXT, LEDGER_RESULT_SO_FAR, LEDGER_RESULT_WORD, LEDGER_SOURCE_TEXT, sealedLineText,
 } from "@/lib/messages-ledger";

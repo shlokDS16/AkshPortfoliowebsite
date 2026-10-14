@@ -11,7 +11,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Db } from "@/lib/supabase/types";
 import { requireAdmin } from "@/modules/identity";
 import { getLedgerHome } from "@/modules/ledger";
-import { LEDGER_EMPTY_TEXT } from "@/modules/ledger/client";
+import { LEDGER_EMPTY_TEXT, windowOf } from "@/modules/ledger/client";
 import { createSupabaseHeartbeatRepo } from "@/modules/ops";
 
 const JOBS = ["ledger:prices", "ledger:score", "ledger:anchor"] as const;
@@ -28,12 +28,6 @@ async function readRuns(db: Db): Promise<JobRun[] | null> {
     return null;
   }
 }
-
-/** A list window from the address: a whole number at least the base, else the base. */
-const windowOf = (raw: string | undefined, base: number): number => {
-  const n = Number(raw);
-  return Number.isInteger(n) && n >= base && n <= 5000 ? n : base;
-};
 
 type Props = { searchParams: Promise<{ error?: string; notice?: string; open?: string; closed?: string }> };
 
@@ -62,7 +56,11 @@ export default async function LedgerPage({ searchParams }: Props) {
           {message}
         </p>
       ) : null}
-      {notice ? <p className="rounded-sm border border-rule px-3 py-2 text-small text-ink">{notice}</p> : null}
+      {notice ? (
+        <p role="status" className="rounded-sm border border-rule px-3 py-2 text-small text-ink">
+          {notice}
+        </p>
+      ) : null}
       <LedgerStatus closes={home.closes} anchors={home.anchors} chain={home.chain} runs={runs} />
       <LedgerTiles summary={home.summary} asOf={home.closes?.latestOpenDay ?? null} />
       {empty ? (

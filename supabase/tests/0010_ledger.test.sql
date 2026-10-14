@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(250);
+select plan(254);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -19,7 +19,8 @@ insert into public.companies (id, slug, name, nse_symbol, isin, needs_review, ar
   ('cccccccc-0000-4000-8000-000000000004', 'stub', 'Stub Ltd', 'STUBX', null, true, null),
   ('cccccccc-0000-4000-8000-000000000005', 'merged', 'Merged Ltd', 'MERGEDX', null, false, now());
 insert into public.items (id, kind, title, company_id, learning_objective) values
-  ('a1000000-0000-4000-8000-000000000001', 'thesis', 'Kaveri file', 'cccccccc-0000-4000-8000-000000000001', 'Learn.');
+  ('a1000000-0000-4000-8000-000000000001', 'thesis', 'Kaveri file', 'cccccccc-0000-4000-8000-000000000001', 'Learn.'),
+  ('a1000000-0000-4000-8000-000000000002', 'thesis', 'Beta file', 'cccccccc-0000-4000-8000-000000000003', 'Learn.');
 
 -- ids made inside the functions are parked here so later statements can name them
 create temp table ctx (k text primary key, v uuid);
@@ -269,6 +270,12 @@ select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-00000000000
   'P0001', 'ledger:company_not_ready', 'a company already merged away (archived) is refused');
 select throws_ok($$ select public.open_idea(gen_random_uuid(), 'outperform', 365, true, 'x') $$,
   'P0002', null, 'an unknown company is P0002');
+-- Task 11 step 0 (task 10 review I3): the publish gate follows ideas.item_id and nothing unlinks it, so an idea may be linked
+-- only to a file of ITS OWN company. The database decides; the action checks too.
+select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 365, true, 'x', 'a1000000-0000-4000-8000-000000000002') $$,
+  'P0001', 'ledger:item_other_company', 'an idea on one company cannot be linked to a file of another company');
+select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 365, true, 'x', gen_random_uuid()) $$,
+  'P0001', 'ledger:item_other_company', 'an idea cannot be linked to a file that does not exist');
 select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000001', 'sideways', 365, true, 'x') $$,
   'P0001', 'ledger:bad_stance', 'an unknown direction is refused');
 select throws_ok($$ select public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 29, true, 'x') $$,
@@ -895,6 +902,15 @@ reset role;
 select ok((select e.recorded_at >= p.recorded_at from public.idea_events e join public.idea_events p on p.seq = e.seq - 1
             where e.seq = (select max(seq) from public.idea_events)),
   'the new event is dated no earlier than the one before it');
+
+-- Task 11 step 0: a file of the idea's own company is accepted, and the link is set. (Last in the file: it writes an event.)
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select lives_ok($$ insert into ctx select 'i9', public.open_idea('cccccccc-0000-4000-8000-000000000001', 'outperform', 365, true, 'Linked to its own file.', 'a1000000-0000-4000-8000-000000000001') $$,
+  'an idea can be linked to a file of its own company');
+reset role;
+select is((select i.item_id from public.ideas i where i.id = (select v from ctx where k = 'i9')),
+  'a1000000-0000-4000-8000-000000000001'::uuid, 'and the link is set');
 
 select * from finish();
 rollback;

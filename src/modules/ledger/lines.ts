@@ -1,7 +1,7 @@
 import { addDays, istDate } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
 import {
-  entrySetText, LEDGER_CLOSE_REASON_TEXT, LEDGER_EXPECTS_TEXT, LEDGER_KIND_TEXT, LEDGER_NO_RESULT_TEXT, LEDGER_PROCESS_TEXT, LEDGER_RESULT_WORD, LEDGER_TAG_TEXT,
+  entrySetText, LEDGER_CLOSE_REASON_TEXT, LEDGER_EXPECTS_TEXT, LEDGER_KIND_TEXT, LEDGER_NO_RESULT_TEXT, LEDGER_PROCESS_TEXT, LEDGER_RESULT_SO_FAR, LEDGER_RESULT_WORD, LEDGER_TAG_TEXT,
 } from "@/lib/messages-ledger";
 import { endedAsExpected, needsCheck } from "./flags";
 import { formatMove, formatPoints, horizonText } from "./figures";
@@ -79,7 +79,7 @@ export function ideaLine(idea: Idea, score: IdeaScore | null, changes: readonly 
     shareMove: showFigures && score.ideaReturn !== null ? formatMove(score.ideaReturn) : null,
     indexMove: showFigures && score.indexReturn !== null ? formatMove(score.indexReturn) : null,
     result: showFigures ? formatPoints(score.excess as number) : null,
-    resultWord: showFigures ? LEDGER_RESULT_WORD[endedAsExpected(score.excess as number) ? "yes" : "no"] : null,
+    resultWord: showFigures ? (score.isFinal ? LEDGER_RESULT_WORD : LEDGER_RESULT_SO_FAR)[endedAsExpected(score.excess as number) ? "yes" : "no"] : null,
     isFinal: score?.isFinal ?? false,
     marks: all.filter((m) => m.key !== headlineMark?.key),
     restated: restatements(changes.filter((c) => c.ideaId === idea.id)),

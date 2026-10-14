@@ -1,6 +1,9 @@
 import { formatDate, formatTime } from "@/lib/format";
 import type { EventLine } from "@/modules/ledger/client";
 
+/** His words: wrapped anywhere (a 10,000-character word cannot widen the page), and each paragraph keeps its own text direction, so a right-to-left override inside his words cannot reorder the lines around it. */
+export const WORDS_CLASS = "mt-1 whitespace-pre-wrap text-body text-ink [overflow-wrap:anywhere] [unicode-bidi:isolate]";
+
 /**
  * "What you wrote": his entries in order, each with its date, its kind and the first eight characters of its hash. His words are
  * shown exactly as sealed, as plain text (React escapes it; nothing here is read as markup), and no machine figure is ever
@@ -27,7 +30,7 @@ export function IdeaTimeline({ events }: { events: EventLine[] }) {
               </span>
             </p>
             {e.choices.length > 0 ? <p className="mt-1 text-small text-ink-body">{e.choices.join(" · ")}</p> : null}
-            <p className="mt-1 whitespace-pre-wrap break-words text-body text-ink" data-words>
+            <p className={WORDS_CLASS} dir="auto" data-words>
               {e.body}
             </p>
           </li>

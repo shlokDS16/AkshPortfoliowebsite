@@ -10,11 +10,12 @@ import {
   CLOSE_REASONS, HORIZON_CHOICES, LEDGER_ACTION_TEXT, LEDGER_CLOSE_HINT, LEDGER_CLOSE_REASON_TEXT, LEDGER_PROCESS_TEXT, LEDGER_SEALED_WARNING,
   LEDGER_SUBMIT_TEXT, LEDGER_TAG_TEXT, LEDGER_WORDS_LABEL, MISTAKE_TAGS, PROCESS_CALLS, voidHintText, type AddKind,
 } from "@/modules/ledger/client";
-import { FormError, Hint, RadioGroup, SELECT } from "./fields";
+import { errorProps, FormError, Hint, RadioGroup, SELECT } from "./fields";
 import { useSealedForm } from "./use-sealed-form";
 
 type Props = { ideaId: string; allowed: AddKind[]; voidUntil: string | null; action: (previous: FormState, data: FormData) => Promise<FormState> };
 
+const ERROR_ID = "event-form-error";
 const HORIZONS = [
   { value: "keep", label: "Keep the horizon as it is" },
   ...HORIZON_CHOICES.map((c) => ({ value: String(c.days), label: c.label })),
@@ -55,11 +56,11 @@ export function EventForm({ ideaId, allowed, voidUntil, action }: Props) {
       </div>
       {kind === "revise" ? (
         <div>
-          <RadioGroup legend="Horizon" name="horizon" value={horizon} onChange={setHorizon} options={HORIZONS} />
+          <RadioGroup legend="Horizon" name="horizon" value={horizon} onChange={setHorizon} options={HORIZONS} describedBy={errorProps(state.error, "horizon", ERROR_ID)["aria-describedby"]} />
           {horizon === "other" ? (
             <div className="mt-1 max-w-48 space-y-1">
               <Label htmlFor="event-days">Days (30 to 3650)</Label>
-              <Input id="event-days" name="horizonOther" inputMode="numeric" required value={days} onChange={(e) => setDays(e.target.value)} />
+              <Input id="event-days" name="horizonOther" inputMode="numeric" required value={days} onChange={(e) => setDays(e.target.value)} {...errorProps(state.error, "horizon", ERROR_ID)} />
             </div>
           ) : null}
         </div>
@@ -113,11 +114,11 @@ export function EventForm({ ideaId, allowed, voidUntil, action }: Props) {
       {kind === "void" && voidUntil ? <Hint>{voidHintText(voidUntil)}</Hint> : null}
       <div className="space-y-1">
         <Label htmlFor="event-body">{LEDGER_WORDS_LABEL[kind]}</Label>
-        <Textarea id="event-body" name="bodyMd" required rows={5} value={body} onChange={(e) => setBody(e.target.value)} aria-describedby="event-body-hint" />
+        <Textarea id="event-body" name="bodyMd" required rows={5} value={body} onChange={(e) => setBody(e.target.value)} {...errorProps(state.error, "body", ERROR_ID, "event-body-hint")} />
         <Hint id="event-body-hint">{LEDGER_SEALED_WARNING}</Hint>
       </div>
-      <FormError code={state.error} id="event-form-error" />
-      <Button type="submit" disabled={!ready || pending} aria-disabled={!ready || pending}>
+      <FormError code={state.error} id={ERROR_ID} submitted={state} />
+      <Button type="submit" disabled={!ready} aria-disabled={!ready || pending}>
         {pending ? "Saving..." : LEDGER_SUBMIT_TEXT[kind]}
       </Button>
     </form>
