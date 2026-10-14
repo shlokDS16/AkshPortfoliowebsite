@@ -253,6 +253,13 @@ describe("a failed ledger:score run is seen (review I-5)", () => {
     ]);
   });
 
+  it("calls the anchor step 'the public copy' on the desk strip, never anything that implies proof (Task 9 review M-7)", () => {
+    const strip = evaluateHealth({ ...fresh, [ANCHOR]: minutesAgo(10, false, "the public copy is switched off, but lines were published before; the public file was not checked (2 days waiting)") }, NOW, null);
+    const [line] = describeStale(strip);
+    expect(line).toBe("the public copy's last run failed 10 min ago: the public copy is switched off, but lines were published before; the public file was not checked (2 days waiting)");
+    expect(JSON.stringify(strip)).not.toMatch(/proof/i);
+  });
+
   it("says nothing extra when a failed ledger run has no detail", () => {
     const strip = evaluateHealth({ ...fresh, [SCORE]: minutesAgo(10, false) }, NOW, null);
     expect(describeStale(strip)).toEqual(["the scores' last run failed 10 min ago"]);

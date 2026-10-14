@@ -5,7 +5,8 @@
 // the port reads the whole file and APPENDS to it. Nothing here compares anything with the database (that is Task 9).
 //
 // THE CONTRACT, exactly (the anchor step is built on this):
-//  - `read` returns the complete current text of one file, or a typed reason it could not. It never returns part of a file.
+//  - `readAll` returns every file of the gist, whole, from ONE request (what the anchor step uses); if any file, or the list
+//    itself, is not whole it is `too_large`. `read` returns the complete current text of one file, or a typed reason it could not. It never returns part of a file.
 //  - `write(file, text, { expected })` is APPEND-ONLY. `text` must begin with `expected` (null means "the file does not
 //    exist yet" and allows any text). Anything else is `invalid_request` and nothing is sent: the port never removes or
 //    alters a byte that was published. `text === expected` is `nothing_to_add` and nothing is sent.
@@ -23,7 +24,8 @@
 // WHAT EACH WRITE OUTCOME MEANS FOR THE FILE ON THE SERVER:
 //    ok               written, and GitHub's answer holds exactly the text sent.
 //    interrupted      written (the answer holds our text), BUT another commit was seen between the check and the write
-//                     and may have been overwritten. Record the publish and fail the step.
+//                     and may have been overwritten. The anchor step records NOTHING for it and fails (Task 9); the next
+//                     run reads the file and settles it by the comparison.
 //    unconfirmed      the PATCH was sent and the result is UNKNOWN (it may be applied or not). Read before anything else.
 //    nothing_to_add   not sent (text equals expected).
 //    changed          not written (precondition failed).
@@ -70,11 +72,20 @@ export type AnchorWrite =
   | { kind: "cannot_write" }
   | AnchorMiss;
 
+/**
+ * Every file of the gist, whole, from ONE request (Task 9 fix round 1). `files` is every file the gist holds, by name; a gist
+ * with no file yet answers `ok` with none. If ANY file, or the file list itself, is not returned whole the answer is
+ * `too_large` (fail closed: a short answer is never called complete). `version` is the gist's newest revision, when known.
+ */
+export type AnchorReadAll = { kind: "ok"; files: ReadonlyMap<string, string>; version: string | null } | AnchorMiss;
+
 export interface AnchorPort {
   readonly name: "github-gist" | "fixture" | "off";
   /** Where a reader can see the file; null when nothing is published. */
   readonly publicUrl: string | null;
   read(file: string, opts?: { timeoutMs?: number }): Promise<AnchorRead>;
+  /** All the files of the gist in one request. The anchor step uses this; `read` is for a single file. */
+  readAll(opts?: { timeoutMs?: number }): Promise<AnchorReadAll>;
   write(file: string, text: string, opts: { expected: string | null; timeoutMs?: number }): Promise<AnchorWrite>;
 }
 
@@ -117,6 +128,7 @@ export function createOffAnchor(): AnchorPort {
     name: "off",
     publicUrl: null,
     read: async () => off,
+    readAll: async () => off,
     write: async () => off,
   };
 }

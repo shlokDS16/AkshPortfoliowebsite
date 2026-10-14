@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AnchorRead, AnchorWrite } from "@/lib/providers";
+import type { AnchorReadAll, AnchorWrite } from "@/lib/providers";
 import { publishAnchors } from "./ledger-anchor";
 import { anchorDeps, fakeAnchor, fakeAnchorDb, fileOf, lineFor, rowsFor } from "./ledger-anchor-test-kit";
 
@@ -108,7 +108,7 @@ describe("the published file differs from the ledger: the step refuses", () => {
 });
 
 describe("every outcome of a READ that is not a good file", () => {
-  const cases: [AnchorRead, RegExp][] = [
+  const cases: [AnchorReadAll, RegExp][] = [
     [{ kind: "unauthorized" }, /^GitHub refused the key; nothing was published$/],
     [{ kind: "rate_limited", retryAfterSeconds: 60 }, /^GitHub is limiting requests; the next daily run will try again; nothing was published$/],
     [{ kind: "too_large" }, /^the public file is too large to be read whole; it will not clear by itself; nothing was published$/],
@@ -117,7 +117,7 @@ describe("every outcome of a READ that is not a good file", () => {
     [{ kind: "invalid_request", message: "x" }, /a defect; nothing was published$/],
   ];
   it.each(cases)("%j fails the step with a plain reason, writes nothing, records nothing", async (miss, reason) => {
-    const port = fakeAnchor({ read: () => miss });
+    const port = fakeAnchor({ readAll: () => miss });
     const r = await run({ rows: rowsFor(D[0]!), port });
     expect(r.outcome.ok).toBe(false);
     expect(r.outcome.detail).toMatch(reason);
@@ -126,7 +126,7 @@ describe("every outcome of a READ that is not a good file", () => {
   });
 
   it("an adapter that throws on read is a provider error, not a lost run", async () => {
-    const port = fakeAnchor({ read: () => { throw new Error("ghp_SECRET"); } });
+    const port = fakeAnchor({ readAll: () => { throw new Error("ghp_SECRET"); } });
     const r = await run({ rows: rowsFor(D[0]!), port });
     expect(r.outcome).toEqual({ ok: false, detail: "the public file could not be reached just now; nothing was published" });
   });
@@ -218,7 +218,7 @@ describe("the seal and the budget", () => {
     let t = 0;
     const port = fakeAnchor({ onCall: () => { t += 3000; } });
     await run({ rows, port, clock: () => t });
-    expect(port.calls.map((c) => c.timeoutMs)).toEqual([7000, 12000]);
+    expect(port.calls.map((c) => c.timeoutMs)).toEqual([7000, 12000, 7000]); // the gist, the write, the check after the write
   });
 
   it("a database failure while reading the sealed days is the operation and code only", async () => {
@@ -232,7 +232,7 @@ describe("wording", () => {
     const texts: string[] = [];
     const record = (r: Awaited<ReturnType<typeof run>>) => texts.push(r.outcome.detail);
     record(await run({ rows: rowsFor(...D), port: fakeAnchor({}) }));
-    record(await run({ rows: rowsFor(...D), port: fakeAnchor({ read: () => ({ kind: "not_configured" }) }) }));
+    record(await run({ rows: rowsFor(...D), port: fakeAnchor({ readAll: () => ({ kind: "not_configured" }) }) }));
     record(await run({ rows: published(D), port: fakeAnchor({ files: { [FILE]: "x\n" } }) }));
     for (const kind of ["changed", "unconfirmed", "interrupted"] as const) {
       record(await run({ rows: rowsFor(D[0]!), port: fakeAnchor({ write: () => (kind === "changed" ? { kind, found: null, version: null } : kind === "interrupted" ? { kind, version: null } : { kind, message: "" }) }) }));

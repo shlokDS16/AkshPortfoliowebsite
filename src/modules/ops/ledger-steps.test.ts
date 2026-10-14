@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resetFixtureAnchor, seedFixtureAnchor } from "@/lib/providers/fixture-anchor";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearFixtureAnchorDirectory, fixtureAnchorDirectory, seedFixtureAnchor } from "@/lib/providers/fixture-anchor";
 import type { Db } from "@/lib/supabase/types";
 import type { HeartbeatRepo } from "./heartbeat";
 import { fakeAnchorDb, fileOf, rowsFor } from "./ledger-anchor-test-kit";
@@ -16,7 +16,11 @@ vi.mock("@/lib/supabase/service", () => ({
   },
 }));
 
-const LOOPBACK = "http://127.0.0.1:54321";
+// A loopback address of its own: the fixture gist lives in a directory named from the database address, and this test must
+// never read or write the one the local e2e stack uses (127.0.0.1:54321).
+const LOOPBACK = "http://127.0.0.1:54399";
+const GIST_DIR = fixtureAnchorDirectory(LOOPBACK);
+const seedGist = (file: string, text: string) => seedFixtureAnchor(file, text, { directory: GIST_DIR });
 const heartbeats = () => {
   const beats: { job: string; ok: boolean; detail: string }[] = [];
   const repo: HeartbeatRepo = { record: async (b) => void beats.push(b), latestRuns: async () => ({}) };
@@ -33,8 +37,10 @@ beforeEach(() => {
   mocks.serviceCalls = 0;
   mocks.env = { LLM_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: LOOPBACK };
   mocks.db = bothDb(fakeAnchorDb({}));
-  resetFixtureAnchor();
+  clearFixtureAnchorDirectory(GIST_DIR);
 });
+
+afterAll(() => clearFixtureAnchorDirectory(GIST_DIR));
 
 describe("the ledger's daily steps", () => {
   it("are ledger:prices, ledger:score, then ledger:anchor", () => {
@@ -124,7 +130,7 @@ describe("ledger:anchor writes a heartbeat on EVERY run (the /api/health check g
   });
 
   it("nothing to add: a successful heartbeat", async () => {
-    seedFixtureAnchor("ledger-2026.jsonl", fileOf("2026-10-01"));
+    seedGist("ledger-2026.jsonl", fileOf("2026-10-01"));
     const published = rowsFor("2026-10-01").map((r) => ({ ...r, published: true }));
     expect(await anchorBeat(fakeAnchorDb({ rows: published }))).toEqual([
       { job: "ledger:anchor", ok: true, detail: "sealed 0 days; the public copy is up to date" },
@@ -132,7 +138,7 @@ describe("ledger:anchor writes a heartbeat on EVERY run (the /api/health check g
   });
 
   it("a failure is a red heartbeat with the plain reason kept in the detail", async () => {
-    seedFixtureAnchor("ledger-2026.jsonl", "something else\n");
+    seedGist("ledger-2026.jsonl", "something else\n");
     const beats = await anchorBeat(fakeAnchorDb({ rows: rowsFor("2026-10-01").map((r) => ({ ...r, published: true })) }));
     expect(beats).toEqual([
       { job: "ledger:anchor", ok: false, detail: "the public file ledger-2026.jsonl differs from the ledger at line 1 (2026-10-01); nothing was published" },

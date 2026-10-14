@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { createFixtureAnchor, fixtureAnchorDirectory } from "../src/lib/providers/fixture-anchor";
 import { requireStack } from "./support/auth";
 import { seedEmptyFinishedDays } from "./support/anchors";
 import { adminDb } from "./support/desk";
@@ -256,9 +257,14 @@ test.describe("ledger:anchor with the fixture anchor (Plan 3a Task 9)", () => {
       return data;
     };
     const rows = async () => {
-      const { data, error } = await db.from("ledger_anchors").select("anchor_date, published_at, anchor_version").order("anchor_date");
+      const { data, error } = await db.from("ledger_anchors").select("anchor_date, line, published_at, anchor_version").order("anchor_date");
       if (error) throw error;
       return data;
+    };
+    const gist = async () => {
+      const out = await createFixtureAnchor({ directory: fixtureAnchorDirectory(requireStack().apiUrl) }).readAll();
+      if (out.kind !== "ok") throw new Error(`the fixture gist could not be read (${out.kind})`);
+      return out.files;
     };
 
     const first = await request.get("/api/cron/daily", { headers });
@@ -266,10 +272,20 @@ test.describe("ledger:anchor with the fixture anchor (Plan 3a Task 9)", () => {
     expect((await first.json()).results).toContainEqual({ job: "ledger:anchor", ok: true });
     const run = await lastDetail();
     expect(run.ok).toBe(true);
-    expect(run.detail).toMatch(/^sealed \d+ days?; added \d+ days? to the public copy \(\d{4}-\d{2}-\d{2}( to \d{4}-\d{2}-\d{2})?\)$/);
+    // A fresh database adds the days; a repeat run (no reset) finds them already published. Either way both agree afterwards.
+    expect(run.detail).toMatch(
+      /^sealed \d+ days?; (added \d+ days? to the public copy \(\d{4}-\d{2}-\d{2}( to \d{4}-\d{2}-\d{2})?\)(; recorded \d+ days? already in the public copy)?|recorded \d+ days? already in the public copy|the public copy is up to date)$/,
+    );
     const published = await rows();
     expect(published.length).toBeGreaterThanOrEqual(2);
     expect(published.every((r) => r.published_at !== null && /^fixture-\d+$/.test(r.anchor_version ?? ""))).toBe(true);
+
+    // The gist holds exactly the database's lines, year by year, each with its line break.
+    const files = await gist();
+    for (const year of new Set(published.map((r) => r.anchor_date.slice(0, 4)))) {
+      const expected = published.filter((r) => r.anchor_date.startsWith(year)).map((r) => `${r.line}\n`).join("");
+      expect(files.get(`ledger-${year}.jsonl`)).toBe(expected);
+    }
 
     expect((await request.get("/api/cron/daily", { headers })).status()).toBe(200);
     expect(await lastDetail()).toEqual({ ok: true, detail: "sealed 0 days; the public copy is up to date" });

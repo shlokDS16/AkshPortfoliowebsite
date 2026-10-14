@@ -17,7 +17,7 @@ export const HEALTH_RULES: readonly Rule[] = [
   { job: "heartbeat:daily", maxAgeSeconds: 36 * 60 * 60, label: "the daily job" },
   { job: "ledger:prices", maxAgeSeconds: 36 * 60 * 60, label: "the closing prices", optional: true, showReason: true },
   { job: "ledger:score", maxAgeSeconds: 36 * 60 * 60, label: "the scores", optional: true, showReason: true },
-  { job: "ledger:anchor", maxAgeSeconds: 36 * 60 * 60, label: "the public proof", optional: true, showReason: true },
+  { job: "ledger:anchor", maxAgeSeconds: 36 * 60 * 60, label: "the public copy", optional: true, showReason: true },
 ];
 
 /** The one verdict for a clock, in whole seconds. Both the desk strip and the public monitor use it. */

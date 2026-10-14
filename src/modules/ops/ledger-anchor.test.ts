@@ -23,16 +23,16 @@ describe("ledger:anchor with the public copy switched off (the default)", () => 
 
   it("with an off port that answers not_configured and nothing sealed yet, it still succeeds", async () => {
     const d = fakeAnchorDb({ rows: rowsFor("2026-10-01") });
-    const port = fakeAnchor({ name: "off", read: () => ({ kind: "not_configured" }) });
+    const port = fakeAnchor({ name: "off", readAll: () => ({ kind: "not_configured" }) });
     expect(await publishAnchors(depsFor(d.db, port))).toBe("sealed 0 days; the public copy is off, 1 day waiting");
     expect(port.writes()).toEqual([]);
   });
 
-  it("has nothing to publish when no day has been sealed at all", async () => {
+  it("has nothing to publish when no day has been sealed and the public file holds nothing (it is still read, once)", async () => {
     const d = fakeAnchorDb({});
     const port = fakeAnchor({});
     expect(await publishAnchors(depsFor(d.db, port))).toBe("sealed 0 days; no finished day to publish yet");
-    expect(port.calls).toEqual([]);
+    expect(port.calls.map((c) => c.kind)).toEqual(["readAll"]);
   });
 });
 
@@ -92,7 +92,7 @@ describe("ledger:anchor publishing", () => {
     const port = fakeAnchor({ files: { [FILE]: fileOf("2026-12-30", "2026-12-31") } });
     expect(await publishAnchors(depsFor(d.db, port))).toBe("sealed 0 days; added 1 day to the public copy (2027-01-01)");
     expect(port.writes().map((w) => [w.file, w.expected])).toEqual([["ledger-2027.jsonl", null]]);
-    expect(port.calls.filter((c) => c.kind === "read").map((c) => c.file)).toEqual([FILE, "ledger-2027.jsonl"]);
+    expect(port.reads().map((c) => c.kind)).toEqual(["readAll", "readAll"]); // the one read of the gist, and the check after the write
   });
 
   it("after a long time off, one file is written a run, oldest year first, and the rest waits", async () => {

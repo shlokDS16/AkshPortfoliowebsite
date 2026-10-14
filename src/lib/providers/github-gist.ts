@@ -1,4 +1,4 @@
-import { type AnchorMiss, type AnchorPort, type AnchorRead, type AnchorWrite, anchorFileProblem, anchorWriteGate } from "./anchor";
+import { type AnchorMiss, type AnchorPort, type AnchorRead, type AnchorReadAll, type AnchorWrite, anchorFileProblem, anchorWriteGate } from "./anchor";
 import { readCapped } from "./read-capped";
 
 // The GitHub Gist adapter (spec s9, ADR-005 s2 and s3.3, Plan 3a Task 8). It reads and writes ONE file of ONE public gist
@@ -176,14 +176,20 @@ export function createGithubGistAnchor(opts: GithubGistOptions): AnchorPort {
     }
   }
 
-  /** The file as the gist holds it now, or why not. */
-  async function look(file: string, ms: number): Promise<{ kind: "seen"; text: string | null; version: string | null } | AnchorMiss> {
+  /** One GET of the gist: the answer as an object, or why not. */
+  async function fetchGist(ms: number): Promise<{ gist: Json } | AnchorMiss> {
     const response = await send("GET", ms);
     if (!(response instanceof Response)) return response;
     if (response.status !== 200) return missFor(response, false);
     const parsed = await parse(response);
-    if ("miss" in parsed) return parsed.miss;
-    const { gist } = parsed;
+    return "miss" in parsed ? parsed.miss : { gist: parsed.gist };
+  }
+
+  /** The file as the gist holds it now, or why not. */
+  async function look(file: string, ms: number): Promise<{ kind: "seen"; text: string | null; version: string | null } | AnchorMiss> {
+    const got = await fetchGist(ms);
+    if ("kind" in got) return got;
+    const { gist } = got;
     const found = fileOf(gist, file);
     if (found.kind === "bad") return { kind: "provider_error", message: "the GitHub answer was not what was expected" };
     if (found.kind === "too_large") return { kind: "too_large" };
@@ -203,6 +209,26 @@ export function createGithubGistAnchor(opts: GithubGistOptions): AnchorPort {
       const seen = await look(file, ms);
       if (seen.kind !== "seen") return seen;
       return seen.text === null ? { kind: "absent", what: "file" } : { kind: "ok", text: seen.text, version: seen.version };
+    },
+
+    async readAll(call): Promise<AnchorReadAll> {
+      const next = clock(call?.timeoutMs, DEFAULT_READ_BUDGET_MS);
+      const ms = next?.() ?? null;
+      if (next === null || ms === null) return NO_TIME;
+      const got = await fetchGist(ms);
+      if ("kind" in got) return got;
+      const { gist } = got;
+      if (!isObject(gist.files)) return { kind: "provider_error", message: "the GitHub answer was not what was expected" };
+      // Fail closed: if the file list or any file in it is not whole, the answer is not "all the files".
+      if (gist.truncated === true) return { kind: "too_large" };
+      const files = new Map<string, string>();
+      for (const [name, entry] of Object.entries(gist.files)) {
+        if (!isObject(entry)) return { kind: "provider_error", message: "the GitHub answer was not what was expected" };
+        if (entry.truncated !== false) return { kind: "too_large" };
+        if (typeof entry.content !== "string") return { kind: "provider_error", message: "the GitHub answer was not what was expected" };
+        files.set(name, entry.content);
+      }
+      return { kind: "ok", files, version: versionsOf(gist)[0] ?? null };
     },
 
     async write(file, text, call): Promise<AnchorWrite> {

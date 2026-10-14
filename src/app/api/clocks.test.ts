@@ -28,7 +28,7 @@ vi.mock("@/lib/supabase/service", () => ({
     // the anchor step reads its sealed days: an empty ledger here
     from: () => {
       const chain: Record<string, unknown> = {};
-      for (const op of ["select", "order", "limit", "gte", "lte", "is"]) chain[op] = () => chain;
+      for (const op of ["select", "order", "limit", "gte", "lte", "is", "not", "abortSignal"]) chain[op] = () => chain;
       chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], count: 0, error: null });
       return chain;
     },
@@ -87,7 +87,7 @@ describe("GET /api/cron/daily", () => {
       { job: "heartbeat:daily", ok: true, detail: "alive" },
       { job: "ledger:prices", ok: true, detail: "nothing to fetch" },
       { job: "ledger:score", ok: true, detail: "scored 0 ideas" },
-      { job: "ledger:anchor", ok: true, detail: "sealed 0 days; no finished day to publish yet" },
+      { job: "ledger:anchor", ok: true, detail: "sealed 0 days; the public copy is off, 0 days waiting" },
       { job: "ingestion:sweep", ok: true, detail: "nothing to run" },
     ]);
     expect(fake.claims).toBe(1);

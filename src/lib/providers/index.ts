@@ -1,6 +1,6 @@
 import "server-only";
 import { type AnchorPort, createOffAnchor } from "./anchor";
-import { createFixtureAnchor } from "./fixture-anchor";
+import { createFixtureAnchor, fixtureAnchorDirectory } from "./fixture-anchor";
 import { createFixtureLlm } from "./fixture-llm";
 import { createFixtureMarketData } from "./fixture-market-data";
 import { createGithubGistAnchor } from "./github-gist";
@@ -16,7 +16,7 @@ import type { OcrPort } from "./ocr";
 import { createOcrSpace } from "./ocrspace";
 import type { TranscriberPort } from "./transcriber";
 
-export type { AnchorMiss, AnchorPort, AnchorRead, AnchorWrite } from "./anchor";
+export type { AnchorMiss, AnchorPort, AnchorRead, AnchorReadAll, AnchorWrite } from "./anchor";
 export type { LlmPort, LlmRequest, LlmResult, LlmUsage, RateHeaders } from "./llm";
 export type { Close, EquityDay, IndexDay, MarketDataPort, Miss } from "./market-data";
 export type { OcrFiletype, OcrPort, OcrResult } from "./ocr";
@@ -135,7 +135,7 @@ export type AnchorEnv = {
  * Never null. With the token or the gist id unset (the default) the port is the "off" adapter: every call answers
  * `not_configured`, the day's line is sealed in the database and simply not published; that is not an error. The fixture
  * when LLM_ADAPTER=fixture, and, like the market-data fixture, only against a loopback database (a fixture "published"
- * state next to a hosted ledger would be a false claim of proof); anywhere else asking for it is a configuration error.
+ * state next to a hosted ledger would be a false claim of publication); anywhere else asking for it is a configuration error.
  * A malformed id or token throws here (the env parse refuses them too), naming the setting and never the value.
  */
 export function createAnchorPort(env: AnchorEnv): AnchorPort {
@@ -143,7 +143,8 @@ export function createAnchorPort(env: AnchorEnv): AnchorPort {
     if (!isLoopbackUrl(env.NEXT_PUBLIC_SUPABASE_URL)) {
       throw new Error("anchor: LLM_ADAPTER=fixture is only allowed with a local database (127.0.0.1, localhost or [::1]); remove it, or point NEXT_PUBLIC_SUPABASE_URL at the local stack");
     }
-    return createFixtureAnchor();
+    // Kept in a directory named from the local database's address, so a restarted dev server still sees the "published" file.
+    return createFixtureAnchor({ directory: fixtureAnchorDirectory(env.NEXT_PUBLIC_SUPABASE_URL as string) });
   }
   if (!env.GITHUB_GIST_TOKEN || !env.LEDGER_ANCHOR_GIST_ID) return createOffAnchor();
   return createGithubGistAnchor({ token: env.GITHUB_GIST_TOKEN, gistId: env.LEDGER_ANCHOR_GIST_ID });

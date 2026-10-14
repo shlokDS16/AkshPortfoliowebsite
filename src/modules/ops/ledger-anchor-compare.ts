@@ -4,7 +4,7 @@
 // first position and the ledger's own date, and never quotes the file (it is text anyone with the account could have typed).
 
 /** One sealed day, in date order within its year. `published` is what the database has recorded, not what the file shows. */
-export type AnchorRow = { date: string; line: string; published: boolean };
+export type AnchorRow = { date: string; line: string; published: boolean; /** When the database created the row (ISO). Carried through; the comparison does not look at it. */ createdAt?: string };
 
 export type YearCheck =
   /** `settled`: rows the file already holds that the database has not marked. `tail`: rows still to be appended, oldest first. */
