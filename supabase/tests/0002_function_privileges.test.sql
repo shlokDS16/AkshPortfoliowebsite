@@ -41,8 +41,9 @@ select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
      and p.proname not in ('queue_age', 'storage_usage', 'open_idea', 'add_idea_event', 'check_ledger_chain', 'enter_closes', 'rescore_ideas', 'check_ledger_anchors', 'ledger_gate_facts',
-                          'start_valuation_version', 'confirm_valuation_version', 'save_valuation_scenario')
-$$, 'authenticated can execute no function in public except queue_age and storage_usage (numbers only) and the ledger functions (0010: open_idea, add_idea_event, check_ledger_chain; 0011: enter_closes, rescore_ideas; 0013: check_ledger_anchors; 0014: ledger_gate_facts; each checks the admin) and the three valuation functions (0017: start_valuation_version, confirm_valuation_version, save_valuation_scenario; each checks the admin)');
+                          'start_valuation_version', 'confirm_valuation_version', 'save_valuation_scenario',
+                          'case_study_record', 'case_study_switches')
+$$, 'authenticated can execute no function in public except queue_age and storage_usage (numbers only) and the ledger functions (0010: open_idea, add_idea_event, check_ledger_chain; 0011: enter_closes, rescore_ideas; 0013: check_ledger_anchors; 0014: ledger_gate_facts; each checks the admin) and the three valuation functions (0017: start_valuation_version, confirm_valuation_version, save_valuation_scenario; each checks the admin) and the two case-study doors (0018: case_study_record, case_study_switches; each checks the admin)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('service_role', p.oid, 'execute')
@@ -73,7 +74,7 @@ select is_definer('public', 'heartbeat_ages', array[]::name[], 'heartbeat_ages i
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select throws_ok($$ select public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07', '{}'::jsonb) $$,
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', '{}'::jsonb) $$,
   '42501', null, 'anon calling publish_revision is denied');
 select throws_ok($$ select public.unpublish_item('aaaaaaaa-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001') $$,
   '42501', null, 'anon calling unpublish_item is denied');
@@ -83,7 +84,7 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select throws_ok($$ select public.publish_revision('bbbbbbbb-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07', '{}'::jsonb) $$,
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', '{}'::jsonb) $$,
   '42501', null, 'authenticated calling publish_revision is denied');
 select throws_ok($$ select private.slugify('x') $$, '42501', null, 'authenticated cannot call the private slug helper');
 reset role;
