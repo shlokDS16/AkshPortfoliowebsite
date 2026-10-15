@@ -108,6 +108,11 @@ describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they im
     for (const [file, text] of reach) if (!GENERATED.test(file)) expect(text, file).not.toMatch(READINGS);
   });
 
+  it("rule 9: no public route reaches the valuation module, its components or a model page", () => {
+    expect(names.filter((n) => /^(?:modules\/valuation|components\/desk\/private\/models)(?:\/|$)/.test(n))).toEqual([]);
+    for (const [file, text] of reach) if (!GENERATED.test(file)) expect(text, file).not.toMatch(/\/desk\/models|valuation_(?:versions|cells|scenarios)/);
+  });
+
   it("no public route imports the service client or the server secrets", () => {
     expect(names).not.toContain("lib/supabase/service.ts");
     expect(names).not.toContain("lib/env.server.ts");
