@@ -1,5 +1,6 @@
 import { parseFactsSheet } from "@/modules/casefile/client";
 import type { PublicConceptLink, PublicConceptRow, PublicItemRow, PublicRevisionRow, PublicSnapshot } from "@/modules/showcase";
+import { caseRecordFixture, FIXTURE_CHART } from "@/test/fixtures/case-record";
 import { KAVERI, NOTES, PROCESS_NOTE, SAHYADRI } from "@/test/fixtures/casefile";
 
 const cf = (sheet: string) => parseFactsSheet(sheet).caseFile;
@@ -84,4 +85,14 @@ export function withLedgerCase(snapshot: PublicSnapshot, record: unknown, patch:
 export function withConcepts(snapshot: PublicSnapshot, concepts: PublicConceptRow[], links: [string, string, string, number][]): PublicSnapshot {
   const conceptLinks: PublicConceptLink[] = links.map(([itemId, revisionId, conceptId, position]) => ({ itemId, revisionId, conceptId, position }));
   return { ...snapshot, concepts: [...snapshot.concepts, ...concepts], conceptLinks: [...snapshot.conceptLinks, ...conceptLinks] };
+}
+
+/**
+ * Phase 5a: every public kind at once, for the derived surfaces (metadata, JSON-LD, feed, sitemap). The seed's own text holds no figure
+ * and no id, and the case carries a record whose chart is ON and whose ids are UUIDs, so anything of those in an output was added by a
+ * builder. A concept links the first file, the first note and the case.
+ */
+export function buildRichSnapshot(): PublicSnapshot {
+  const withCase = withLedgerCase(buildSeedSnapshot(), caseRecordFixture({ chart: FIXTURE_CHART }), { bodyMd: "Looking back, I would watch the monsoon earlier." });
+  return withConcepts(withCase, [{ id: "cc1", slug: "receivable-days", name: "Receivable days" }], [["i1", "r1b", "cc1", 0], ["n0", "rn0", "cc1", 0], ["lc1", "lc1-rev", "cc1", 0]]);
 }
