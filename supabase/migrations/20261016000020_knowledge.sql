@@ -63,7 +63,20 @@ create trigger item_revisions_carry_concepts
   before insert on public.item_revisions
   for each row execute function private.carry_concept_ids();
 
--- 3. A stub or archived theme is never public, so the anon predicates need no archived_at column.
+-- 3. A stub or archived theme is never public, so the anon predicates need no archived_at column. No code path made a stub or
+-- archived theme public before Phase 4; if a row breaks the rule anyway, stop here with its slugs (T1 review) rather than with
+-- a bare check violation, and never demote it here (a public change goes through publish_revision() and the guards).
+do $$
+declare v_bad text;
+begin
+  select string_agg(t.slug, ', ' order by t.slug) into v_bad from public.themes t
+   where t.visibility = 'public' and (t.needs_review or t.archived_at is not null);
+  if v_bad is not null then
+    raise exception '0020: public themes that are stubs or archived: %. Make each private (or screen it) first.', v_bad
+      using errcode = '23514';
+  end if;
+end;
+$$;
 alter table public.themes add constraint themes_public_is_screened
   check (visibility <> 'public' or (needs_review = false and archived_at is null));
 
