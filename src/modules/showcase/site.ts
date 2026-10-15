@@ -59,7 +59,7 @@ export function buildStreak(s: PublicSnapshot): StreakData {
 
 export function buildSiteChrome(s: PublicSnapshot): SiteChrome {
   const count = (kind: string) => s.items.filter((i) => i.kind === kind).length;
-  return { counts: { files: servedFiles(s).length, notes: count("learning"), process: count("process"), mistakes: 0 }, streak: buildStreak(s) };
+  return { counts: { files: servedFiles(s).length, notes: count("learning"), process: count("process") }, streak: buildStreak(s) };
 }
 
 export function buildRegister(s: PublicSnapshot): RegisterFile[] {

@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 describe("draftCaseStudy", () => {
-  it("makes a private case study item with the record and the standard body headings, and sets Figures to", async () => {
+  it("makes a private case study item with the record and an empty body, and sets Figures to", async () => {
     const result = await draftCaseStudy(deps, FIXTURE_IDEA);
     expect(result.created).toBe(true);
     const item = research.items.get(result.itemId)!;
@@ -33,8 +33,6 @@ describe("draftCaseStudy", () => {
     const revision = research.revisions.find((r) => r.itemId === item.id)!;
     expect(item.currentRevisionId).toBe(revision.id);
     expect(revision).toMatchObject({ bodyMd: "", changeReason: "Drafted from the ledger", author: "aksh" });
-    // None of his words and none of the machine's are in the body: headings only.
-    expect(revision.bodyMd.split("\n").filter((l) => l.trim() !== "").every((l) => l.startsWith("#"))).toBe(true);
     expect(revision.structured).toEqual({ ledger: cases.record });
   });
 

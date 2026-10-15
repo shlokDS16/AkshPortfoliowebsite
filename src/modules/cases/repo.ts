@@ -7,7 +7,9 @@ import type { CasesRepo } from "./types";
 // The admin's own cookie client (RLS, admin only), never the service client. The only function calls are the two admin doors the
 // database offers for case studies (migration 0018); every read is of a named table the admin may already read.
 
-const MAX_ALIAS_HOPS = 5;
+// One alias step, exactly as the gate's case_company check follows it (company_aliases.symbol = the stub's nse_symbol, migration 0018):
+// a longer chain would file the draft under a company the gate refuses.
+const MAX_ALIAS_HOPS = 1;
 
 export function createSupabaseCasesRepo(db: Db): CasesRepo {
   return {
