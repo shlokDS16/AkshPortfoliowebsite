@@ -1,6 +1,7 @@
 import { ZodError } from "zod";
 import { DeskError } from "./errors";
 import { formatDate } from "./format";
+import { ERROR_CODE_BY_TYPED } from "./message-codes";
 
 /**
  * Failures reach a desk screen as a fixed code in the redirect URL (`?error=title-required`), never as free
@@ -61,6 +62,8 @@ const ERRORS = {
   "reread-closed": "You marked this document done or skipped, so its pages are not read again.",
   "reread-not-ready": "This page is not ready to be read again. Wait for its first reading to finish.",
   "reread-limit": "This page has been read as many times as the desk allows.",
+  // Workbook retry (Plan 2.7 final review I3). Pending Shlok's approval.
+  "workbook-retry-limit": "This workbook has been tried as many times as the desk allows. Remove sheets the valuation does not use, save it and upload it again.",
   // Review screen (= REVIEW_ERROR_TEXT in modules/ingestion/errors.ts; a test keeps them equal).
   "type-value-first": "Type the value from the page first.",
   "figure-incomplete": "Add the period, the as-of date and the unit.",
@@ -108,89 +111,6 @@ export type ErrorCode = keyof typeof ERRORS;
 const ERROR_CODE_BY_TEXT = new Map<string, ErrorCode>(
   (Object.entries(ERRORS) as [ErrorCode, string][]).map(([code, text]) => [text, code]),
 );
-const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
-  ITEM_NOT_FOUND: "item-not-found",
-  PUBLIC_ITEM_LOCKED: "public-item-locked",
-  REVISION_APPEND_ONLY: "append-only",
-  ITEM_RULE: "item-rule",
-  INVALID_INPUT: "invalid-input",
-  ACCESS_DENIED: "access-denied",
-  CAPTURE_NOT_REFILABLE: "capture-not-refilable",
-  HAND_CHECK_REQUIRED: "hand-check-required",
-  FILE_STRUCTURE: "file-structure",
-  FACTS_SHEET_INVALID: "facts-sheet-invalid",
-  NAME_NOT_SCREENED: "name-not-screened",
-  NAME_ON_PUBLIC_ITEM: "name-on-public-item",
-  NO_FIGURE_DATE: "no-figure-date",
-  // DocumentError carries the message code itself.
-  "upload-duplicate": "upload-duplicate",
-  "upload-too-large": "upload-too-large",
-  "upload-unsupported": "upload-unsupported",
-  "upload-image-too-large": "upload-image-too-large",
-  "upload-storage-full": "upload-storage-full",
-  "upload-missing": "upload-missing",
-  "upload-xlsx-too-large": "upload-xlsx-too-large",
-  "upload-xlsx-needs-company": "upload-xlsx-needs-company",
-  "voice-off": "voice-off",
-  "voice-too-large": "voice-too-large",
-  "voice-too-long": "voice-too-long",
-  "link-invalid": "link-invalid",
-  "link-blocked": "link-blocked",
-  "link-failed": "link-failed",
-  "link-redirects": "link-redirects",
-  "link-too-large": "link-too-large",
-  "link-timeout": "link-timeout",
-  "link-unsupported": "link-unsupported",
-  "link-empty": "link-empty",
-  "text-too-short": "text-too-short",
-  "text-too-long": "text-too-long",
-  // InboxError likewise.
-  "page-budget-reached": "page-budget-reached",
-  "budget-range": "budget-range",
-  "ai-off": "ai-off",
-  "reread-closed": "reread-closed",
-  "reread-not-ready": "reread-not-ready",
-  "reread-limit": "reread-limit",
-  // ReviewError likewise.
-  "type-value-first": "type-value-first",
-  "figure-incomplete": "figure-incomplete",
-  "figure-not-a-number": "figure-not-a-number",
-  "figure-filed": "figure-filed",
-  "filed-on-required": "filed-on-required",
-  "checks-left": "checks-left",
-  "not-this-file": "not-this-file",
-  "no-company": "no-company",
-  "nothing-to-file": "nothing-to-file",
-  "document-closed": "document-closed",
-  "company-locked": "company-locked", "workbook-company-locked": "workbook-company-locked",
-  // LedgerError likewise.
-  "ledger-no-symbol": "ledger-no-symbol",
-  "ledger-company-not-ready": "ledger-company-not-ready",
-  "ledger-not-open": "ledger-not-open",
-  "ledger-not-closed": "ledger-not-closed",
-  "ledger-void-too-late": "ledger-void-too-late",
-  "ledger-words-required": "ledger-words-required",
-  "ledger-body-too-long": "ledger-body-too-long",
-  "ledger-bad-horizon": "ledger-bad-horizon",
-  "ledger-bad-input": "ledger-bad-input",
-  "ledger-is-void": "ledger-is-void",
-  "ledger-opposite-open": "ledger-opposite-open",
-  "ledger-not-found": "ledger-not-found",
-  "ledger-integrity": "ledger-integrity",
-  "ledger-day-shut": "ledger-day-shut",
-  "ledger-bad-close": "ledger-bad-close",
-  "ledger-bad-date": "ledger-bad-date",
-  "ledger-close-too-early": "ledger-close-too-early",
-  "ledger-close-weekend": "ledger-close-weekend",
-  "ledger-close-not-stored": "ledger-close-not-stored",
-  "ledger-close-kept-official": "ledger-close-kept-official",
-  "ledger-close-too-old": "ledger-close-too-old",
-  "ledger-bad-factor": "ledger-bad-factor",
-  "ledger-action-duplicate": "ledger-action-duplicate",
-  "ledger-note-too-long": "ledger-note-too-long",
-  "ledger-fetch-busy": "ledger-fetch-busy",
-  "ledger-item-other-company": "ledger-item-other-company",
-};
 
 /**
  * The only way a failure reaches a desk screen: a validation message we wrote or a typed DeskError

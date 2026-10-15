@@ -1,7 +1,7 @@
 import { InvalidInputError } from "@/lib/errors";
 import { isUuid } from "@/lib/ids";
 import { MAX_PAGE_BUDGET, type DocumentRow, type DocumentsRepo } from "@/modules/documents";
-import { MAX_PDF_PAGES } from "./caps";
+import { MAX_PASSES, MAX_PDF_PAGES } from "./caps";
 import { InboxError } from "./errors";
 import type { InboxRepo } from "./inbox-repo";
 import { stepsForPage } from "./page-steps";
@@ -70,7 +70,10 @@ export async function retryAttention(p: InboxPorts, documentId: string): Promise
   if (!job) return;
   if (doc.kind !== "xlsx") return p.inbox.retryAttention(job);
   const read = await p.inbox.latestWorkbookRead(job);
-  if (read?.status === "needs_attention") await p.queue.enqueue(job, [{ kind: "xlsx_read", pageNo: 1, pass: read.pass + 1 }]);
+  if (read?.status !== "needs_attention") return;
+  // job_steps.pass stops at MAX_PASSES, and the same bytes cannot be uploaded again (the hash is unique): the sentence asks for a changed file.
+  if (read.pass >= MAX_PASSES) throw new InboxError("workbook-retry-limit");
+  await p.queue.enqueue(job, [{ kind: "xlsx_read", pageNo: 1, pass: read.pass + 1 }]);
 }
 
 /** Skip: the document's stuck steps are set aside; the pages already read stay searchable. */

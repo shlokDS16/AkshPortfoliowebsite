@@ -12,6 +12,8 @@ export const INBOX_ERROR_TEXT = {
   "reread-closed": "You marked this document done or skipped, so its pages are not read again.",
   "reread-not-ready": "This page is not ready to be read again. Wait for its first reading to finish.",
   "reread-limit": "This page has been read as many times as the desk allows.",
+  // Workbook retry (Plan 2.7 final review I3). Pending Shlok's approval.
+  "workbook-retry-limit": "This workbook has been tried as many times as the desk allows. Remove sheets the valuation does not use, save it and upload it again.",
 } as const;
 
 export type InboxErrorCode = keyof typeof INBOX_ERROR_TEXT;

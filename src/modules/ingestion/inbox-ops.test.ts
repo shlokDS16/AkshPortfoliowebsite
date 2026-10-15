@@ -207,6 +207,15 @@ describe("try again on a workbook whose read stopped (Plan 2.7 Task 3)", () => {
     expect(reads()).toHaveLength(2);
   });
 
+  it("refuses a tenth read with the fixed sentence, and adds no step", async () => {
+    Object.assign(inbox.steps.find((s) => s.jobId === bookJob)!, { status: "needs_attention", pass: 9, lastError: "stopped" });
+    expect(await code(retryAttention(ports, BOOK))).toBe("workbook-retry-limit");
+    expect(reads()).toEqual([["xlsx_read", 9, "needs_attention"]]);
+    expect(errorText("workbook-retry-limit")).toBe(
+      "This workbook has been tried as many times as the desk allows. Remove sheets the valuation does not use, save it and upload it again.",
+    );
+  });
+
   it("adds nothing while the read is still queued or running, or once it is done", async () => {
     for (const status of ["queued", "running", "done"] as const) {
       inbox.steps.find((s) => s.jobId === bookJob)!.status = status;
