@@ -40,3 +40,36 @@ The plan's `afterAll` unpublishes the note "so later projects see the deploy sta
 - The "double tap makes one link" test pins the result (one row, one button); the database also treats a duplicate as a no-op, so it does not prove the button blocks the second press.
 - CI e2e time: 15.7 min locally against a 35-minute timeout; confirm on the first real CI run.
 - The first full run I started was killed by me and restarted because a second command reset the database under it; the reported run is the clean one.
+
+## Fix wave (after the final whole-branch review)
+Branch `phase-4-learning-graph`, built on d9c5711. Local only, not pushed. Built by desk-backend. Input: `.superpowers/sdd/2026-10-15-phase-4-ledger/final-review.md` (1 Important, 7 Minor FIX-NOW, 6 DEBT) and the deferred items of `T1-review.md`.
+
+### Findings
+| # | Finding | Commit | Proof |
+|---|---|---|---|
+| 1 | Important: deploy-state e2e skipped by data. `public-concepts.spec.ts` and `public-cases.spec.ts` now decide by Playwright project name (`public-*` = deploy state, `concepts-public-*` / `cases-public-*` = after the loop); the published half asserts the list is not empty instead of skipping | 12cbfb0 | On the database the full run left dirty, `pnpm e2e --project=public-375 --grep "no public concept"` FAILS (404 expected, 200 received); after `db reset` the full suite passes |
+| 2 | `publish_revision` holds the linked themes and the company `for share` (0021 edited in place) | 3d75328 | pgTAP test 102 of `0020_knowledge.test.sql` (function-text check; two sessions need dblink, noted in the test); failed before the edit, passes after |
+| 3 | A concept change is blocked only on public items (`service.ts`, `items/[id]/page.tsx`, JSDoc) | cc23480 | `research/concepts.test.ts`: private item with a leftover pending revision saves rev 3 and syncs `theme_id`; the public refusal tests pass unchanged |
+| 7 | Change reason says "other concept(s)" instead of "private concept(s)" (code, unit tests, e2e step 6, guide) | cc23480 | `conceptChangeReason` tests, including the review's example |
+| 4 | `reading_note` is not a public kind in the showcase snapshot (`PUBLIC_KINDS`, comment points at D52) | 60bee26 | `showcase/repo.test.ts`: a `reading_note` row is dropped, a `learning` row kept |
+| 5 | The isolation test makes the transitive name check: every file the public closure reaches is scanned, exactly `modules/catalog/concepts.ts` may name a private relation | 2c15e89 | Adding `// concept_edges` to `modules/research/lookup.ts` made it fail (it listed that file); reverted, it passes |
+| 6 | A trailing run of `#names` is left out of the title at capture (`parse.ts` `TRAILING_TAGS`), never at render time; `e2e/concepts.spec.ts` captures `NOTE_CAPTURE` and looks the item up by `NOTE` (the title); guide lines updated; one older unit expectation (the `r:` read with `#interest-rates`) changed to the new title | ab39f98 | `parse.test.ts`: the review's cases (`What moats do #moats #cycles`, tag inside the sentence, lone tag, `issue #12`, `C# is fun`, URL fragment, 120-unit cut, later line) |
+| 8 | Desk concept index counts agree with their number: `groupCountText` in `knowledge/client.ts`; headings keep their plural labels | 5f119d3 | `concept-list.test.tsx`: `{learning:1, read:2}` renders "1 learning · 2 reads", plus the other nouns |
+
+Titles are not retroactive: an item captured before this wave keeps the hashes in its title.
+
+### Debt added
+`docs/specs/technical-debt.md`, new section "2026-10-15 (Phase 4 fix wave ...)" (commit a9ef182): the six review DEBT lines (D1 to D6), and from `T1-review.md` the raw `concept_ids` uuid exposure on older revisions, the `position` gaps, the BEFORE INSERT trigger probe, and the hosted pre-push query; plus a line that the `for share` lock is proved by function text only. The T1 race itself is closed (finding 2); the T1 point about the /concepts index listing from `public_concept_links` was already met by Task 5 (final review "Checked and correct").
+
+### Strings pending Shlok's approval (new in this wave)
+- Capture titles: a trailing run of `#names` is no longer part of the title (behaviour, with the other Phase 4 strings). Guide text added in section 4.10 and the `#capital-cycle` table row.
+- Change reason: "Concepts: added Margins and 2 other concepts." (was "... 2 private concepts.").
+- Desk concept index count nouns: "learning / learnings", "file or case study / files and case studies", "process note / process notes", "read / reads", "note / notes".
+- Unchanged and still pending from before: the picker's refusal sentence now appears only on public items.
+
+### Evidence (this worktree, local stack, after the last code commit)
+- `pnpm supabase db reset` then `pnpm supabase test db`: 30 files, **2284 tests, PASS** (one more than before: finding 2).
+- `rtk pnpm test`: 381 files, **5325 tests pass** (7 more than before). `rtk pnpm typecheck`: clean. `rtk pnpm lint`: clean.
+- `pnpm build` (local-stack env, as the e2e web server builds it): passes.
+- Full `pnpm e2e` after a fresh `db reset`: **336 passed, 25 skipped, 0 failed, 15.9 min**. The skips are the by-design ones (each deploy-state or published-state test skips in the other half); same totals as the Task 6 run.
+- defenso `guard_code`: not run (no such tool in this subagent, as in earlier tasks). Auth or request-body code was not touched; the one SQL change adds read locks inside an existing definer function.
