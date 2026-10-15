@@ -32,6 +32,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # Plan 2.7 Task 3: IronCalc only on the model page, no SheetJS or native engine in the browser, the served wasm is the package's.
+      - run: pnpm check:bundles
 
   # One Supabase CLI everywhere: 2.119.0, the exact devDependency (`pnpm supabase ...` locally).
   db:
