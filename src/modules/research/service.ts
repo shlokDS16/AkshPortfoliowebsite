@@ -136,8 +136,10 @@ const conceptList = z.array(z.guid()).max(MAX_CONCEPTS);
  * His concept picker saves here (spec s7): one new revision with the newest body and structured copied as they are, the
  * concepts set, and the change reason from a fixed template filled with `labels` (concept id to its name and whether it is
  * public now; an id with no label is a caller bug). The reason publishes with the revision, so it names only public
- * concepts. A change is refused (ConceptChangePendingError) while a revision already waits for the gate. On a private item items.theme_id follows the first concept; on a public item the revision waits
- * for the gate and theme_id stays (it is frozen). The same list, in the same order, writes nothing and returns the
+ * concepts. A change on a PUBLIC item is refused (ConceptChangePendingError) while a revision already waits for the gate
+ * (the reason publishes with that revision); a private item is never refused, even with leftover pending revisions from before it was
+ * unpublished, because its reason already names only public concepts. On a private item items.theme_id follows the first concept; on
+ * a public item the revision waits for the gate and theme_id stays (it is frozen). The same list, in the same order, writes nothing and returns the
  * newest revision.
  */
 export async function setItemConcepts(
@@ -160,7 +162,7 @@ export async function setItemConcepts(
   if (before.length === wanted.length && before.every((id, i) => id === wanted[i])) {
     return { item: history.item, revision: latest, pendingGate: history.item.currentRevisionId !== latest.id };
   }
-  if (history.pending.length > 0) throw new ConceptChangePendingError();
+  if (history.item.visibility === "public" && history.pending.length > 0) throw new ConceptChangePendingError();
   const added = wanted.filter((id) => !before.includes(id)).map(labelOf);
   const removed = before.filter((id) => !wanted.includes(id)).map(labelOf);
   const result = await addRevision(repo, {

@@ -674,7 +674,7 @@ If a chosen result shows **Not available** after a change, the new inputs made t
 
 **Change the concepts on a note.** On a note's page, the **Concepts** row shows its concepts. Press **Change**, find a concept, tap it to choose it, and press **Save concepts**. The order you tap is the order they are kept in. Saving makes a new version of the note with the same words. If the note is already public, that version waits for the publishing gate, like any edit, and the public page keeps showing the old one. While a version is waiting, you cannot change the concepts again. The page says: "A newer version of this note is waiting to be published. Publish it before changing the concepts."
 
-**The reason the desk writes.** A change of concepts gets a fixed change reason, for example "Concepts: added Capital cycle; removed Moats." Readers see a reason with the version, so it names only concepts that are public. Any other concept is counted, not named: "Concepts: added Capital cycle and 2 private concepts." A concept you have not made public never appears in a reason.
+**The reason the desk writes.** A change of concepts gets a fixed change reason, for example "Concepts: added Capital cycle; removed Moats." Readers see a reason with the version, so it names only concepts that are public. Any other concept is counted, not named: "Concepts: added Capital cycle and 2 other concepts." A concept you have not made public never appears in a reason.
 
 **Showing a concept.** A concept is shown on the site only when both of these are true: you pressed **Make public** on it (on its own page, or on the note's publish checklist), and a published note or file uses it. Making a concept public shows nothing by itself.
 

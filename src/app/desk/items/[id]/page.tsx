@@ -107,7 +107,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
             {current?.revNo}.
           </p>
         ) : null}
-        {concepts ? <ItemConcepts linked={concepts.linked} options={concepts.screened} save={saveConceptsAction.bind(null, item.id)} blocked={pending.length > 0} /> : null}
+        {concepts ? <ItemConcepts linked={concepts.linked} options={concepts.screened} save={saveConceptsAction.bind(null, item.id)} blocked={isPublic && pending.length > 0} /> : null}
         <DocLayout gate={gate}>
           {body ? <BodyPreview itemId={item.id} body={body} named={item.companyId !== null} /> : null}
           {isLedger ? <LedgerRecordPanel record={ledgerRecord} status={ledgerStatus} refreshAction={refreshCaseStudyAction.bind(null, item.id)} /> : null}

@@ -219,12 +219,12 @@ test("a revision is waiting: the picker is refused with a plain sentence; once i
   await page.getByRole("button", { name: "Save concepts" }).click();
   await expect(status(page, /waiting for the publishing gate/)).toBeVisible();
 
-  // The reason publishes with the revision, so it counts the private concepts instead of naming them.
+  // The reason publishes with the revision, so it counts the other concepts instead of naming them.
   const reasons = await db.from("item_revisions").select("change_reason").eq("item_id", noteId);
   const all = (reasons.data ?? []).map((r) => r.change_reason ?? "");
-  expect(all).toContain(`Concepts: added ${margins.name} and 2 private concepts.`);
+  expect(all).toContain(`Concepts: added ${margins.name} and 2 other concepts.`);
   for (const name of hidden) expect(all.join("\n")).not.toContain(name);
-  await expect(page.getByText(`Concepts: added ${margins.name} and 2 private concepts.`)).toBeVisible();
+  await expect(page.getByText(`Concepts: added ${margins.name} and 2 other concepts.`)).toBeVisible();
 });
 
 for (const size of [375, 1280] as const) {

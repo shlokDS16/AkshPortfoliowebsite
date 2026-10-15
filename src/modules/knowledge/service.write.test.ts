@@ -67,11 +67,11 @@ describe("saveItemConcepts (his picker; the reason never names a private concept
     const w = await world();
     const result = await saveItemConcepts(w.deps, w.item.id, [w.other.id, w.secret.id, w.pubConcept.id]);
     expect(result.revision.conceptIds).toEqual([w.other.id, w.secret.id, w.pubConcept.id]);
-    expect(result.revision.changeReason).toBe("Concepts: added Other and 1 private concept.");
+    expect(result.revision.changeReason).toBe("Concepts: added Other and 1 other concept.");
     const r2 = await saveItemConcepts(w.deps, w.item.id, [w.pubConcept.id]);
-    expect(r2.revision.changeReason).toBe("Concepts: removed Other and 1 private concept.");
+    expect(r2.revision.changeReason).toBe("Concepts: removed Other and 1 other concept.");
     const r3 = await saveItemConcepts(w.deps, w.item.id, [w.pubConcept.id, w.secret.id]);
-    expect(r3.revision.changeReason).toBe("Concepts: added 1 private concept.");
+    expect(r3.revision.changeReason).toBe("Concepts: added 1 other concept.");
     expect(JSON.stringify(w.repo.revisions)).not.toMatch(/Secret idea/);
   });
 
@@ -79,7 +79,7 @@ describe("saveItemConcepts (his picker; the reason never names a private concept
     const w = await world();
     await saveItemConcepts(w.deps, w.item.id, [w.pubConcept.id, w.secret.id]);
     const result = await saveItemConcepts(w.deps, w.item.id, [w.other.id]);
-    expect(result.revision.changeReason).toBe("Concepts: added Other; removed Open idea and 1 private concept.");
+    expect(result.revision.changeReason).toBe("Concepts: added Other; removed Open idea and 1 other concept.");
   });
 
   it("refuses a concept that is unknown or still unchecked, but lets one he already has stay", async () => {
@@ -96,7 +96,7 @@ describe("saveItemConcepts (his picker; the reason never names a private concept
     const kept = await saveItemConcepts(w.deps, w.item.id, [w.pubConcept.id, w.stub.id, w.other.id]);
     expect(kept.revision.changeReason).toBe("Concepts: added Other.");
     const dropped = await saveItemConcepts(w.deps, w.item.id, [w.pubConcept.id, w.other.id]);
-    expect(dropped.revision.changeReason).toBe("Concepts: removed 1 private concept.");
+    expect(dropped.revision.changeReason).toBe("Concepts: removed 1 other concept.");
   });
 
   it("on a public item waits for the gate and then refuses a second change", async () => {

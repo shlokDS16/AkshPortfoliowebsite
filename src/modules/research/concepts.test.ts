@@ -23,17 +23,18 @@ describe("conceptChangeReason (the fixed template, his act)", () => {
     expect(conceptChangeReason([], [])).toBe("Concepts: order changed.");
   });
 
-  it("never names a concept that is not public: it counts them in plain words", () => {
-    expect(conceptChangeReason([priv("Secret")], [])).toBe("Concepts: added 1 private concept.");
-    expect(conceptChangeReason([priv("S1"), priv("S2")], [])).toBe("Concepts: added 2 private concepts.");
+  it("never names a concept that is not public: it counts them as other concepts, true whenever the reason is read", () => {
+    expect(conceptChangeReason([priv("Secret")], [])).toBe("Concepts: added 1 other concept.");
+    expect(conceptChangeReason([priv("S1"), priv("S2")], [])).toBe("Concepts: added 2 other concepts.");
     expect(conceptChangeReason([pub("A"), priv("S1"), priv("S2")], [priv("S3"), pub("C")])).toBe(
-      "Concepts: added A and 2 private concepts; removed C and 1 private concept.",
+      "Concepts: added A and 2 other concepts; removed C and 1 other concept.",
     );
-    expect(conceptChangeReason([], [priv("S3")])).toBe("Concepts: removed 1 private concept.");
+    expect(conceptChangeReason([], [priv("S3")])).toBe("Concepts: removed 1 other concept.");
+    expect(conceptChangeReason([pub("A"), priv("B")], [priv("C")])).toBe("Concepts: added A and 1 other concept; removed 1 other concept.");
   });
 
   it("counts a label that does not say it is public (fails closed)", () => {
-    expect(conceptChangeReason([{ name: "Maybe" } as ConceptLabel], [])).toBe("Concepts: added 1 private concept.");
+    expect(conceptChangeReason([{ name: "Maybe" } as ConceptLabel], [])).toBe("Concepts: added 1 other concept.");
   });
 
   it("falls back to counts when the names would pass the 300-unit reason limit", () => {
@@ -176,7 +177,7 @@ describe("setItemConcepts (spec s7)", () => {
     const { item } = await createItem(repo, { kind: "learning", title: "T", conceptIds: [A, C] });
     const labels = { [A]: pub("A"), [B]: priv("Secret idea"), [C]: priv("Hidden one"), [D]: pub("D") };
     const { revision } = await setItemConcepts(repo, item.id, [A, B, D], labels);
-    expect(revision.changeReason).toBe("Concepts: added D and 1 private concept; removed 1 private concept.");
+    expect(revision.changeReason).toBe("Concepts: added D and 1 other concept; removed 1 other concept.");
     expect(JSON.stringify(repo.revisions)).not.toMatch(/Secret idea|Hidden one/);
   });
 
@@ -200,6 +201,18 @@ describe("setItemConcepts (spec s7)", () => {
     const priv2 = await createItem(repo, { kind: "note", title: "P", conceptIds: [A] });
     await setItemConcepts(repo, priv2.item.id, [B], names);
     await expect(setItemConcepts(repo, priv2.item.id, [C], names)).resolves.toBeTruthy();
+  });
+
+  it("a private item with leftover pending revisions (public, a newer version, unpublished) is not blocked", async () => {
+    const repo = createMemoryResearchRepo();
+    const { item, revision: first } = await createItem(repo, { kind: "note", title: "T", themeId: A, conceptIds: [A] });
+    repo.setVisibility(item.id, "public");
+    await setItemConcepts(repo, item.id, [A, B], names); // rev 2, pending
+    repo.setVisibility(item.id, "private");
+    expect(repo.items.get(item.id)?.currentRevisionId).toBe(first.id);
+    const result = await setItemConcepts(repo, item.id, [C], names);
+    expect(result.revision).toMatchObject({ revNo: 3, conceptIds: [C] });
+    expect(repo.items.get(item.id)?.themeId).toBe(C);
   });
 
   it("an unchanged list on an item with a pending revision writes nothing and is not an error", async () => {
