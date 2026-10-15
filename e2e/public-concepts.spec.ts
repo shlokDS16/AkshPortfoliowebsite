@@ -1,13 +1,18 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-// Plan 4 Task 5. Two states of the same pages, told apart by what the local database holds:
+// Plan 4 Task 5. Two states of the same pages, told apart by the Playwright project, never by what the database holds (a skip decided
+// by the data cannot fail in the case it exists for: a regression that makes a concept public on a reset database):
 //  - nothing linked and public (every deploy, until Shlok publishes a note or file that links a concept he made public): /concepts is a
 //    404, so is every /concepts/[slug], and no file or note page carries a Concepts line. Nothing a visitor can see has changed.
 //  - one public concept linked by a gated revision (Task 6 publishes one through the real gate on the local stack): /concepts, a concept
 //    page and the page of an item that carries the line are checked for WCAG 2.2 A/AA, one h1, no sideways scroll.
-// A test that does not apply to the state it finds is skipped, never passed.
+// The public-* projects always run on the deploy state; the concepts-public-* projects always run after the concepts loop. A test that
+// does not apply to its project is skipped, never passed.
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+
+/** True in the projects that run after the concepts loop has made two concepts public. */
+const published = () => test.info().project.name.startsWith("concepts-public");
 
 /** The first public concept's path, or null while /concepts is a 404. */
 async function firstConcept(page: Page): Promise<string | null> {
@@ -24,7 +29,7 @@ async function expectClean(page: Page) {
 }
 
 test("with no public concept: /concepts and every concept page are a 404, and a file and a note carry no Concepts line", async ({ page }) => {
-  test.skip((await firstConcept(page)) !== null, "a public concept is linked in this database");
+  test.skip(published(), "runs after the concepts loop has made two concepts public");
   expect((await page.goto("/concepts"))?.status()).toBe(404);
   expect((await page.goto("/concepts/anything-at-all"))?.status()).toBe(404);
   await page.goto("/companies/kavpump");
@@ -38,8 +43,9 @@ test("with no public concept: /concepts and every concept page are a 404, and a 
 });
 
 test("with one public: the index, the concept page and an item's Concepts line pass axe, keep one h1 and do not scroll sideways", async ({ page, isMobile }) => {
+  test.skip(!published(), "the deploy state has no public concept");
   const href = await firstConcept(page);
-  test.skip(href === null, "no public concept is linked in this database");
+  expect(href).not.toBeNull();
   await expect(page.getByRole("heading", { level: 1, name: "Concepts" })).toBeVisible();
   await expectClean(page);
 
