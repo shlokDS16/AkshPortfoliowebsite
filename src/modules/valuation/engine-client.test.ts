@@ -60,6 +60,20 @@ describe("the browser engine (wasm 0.8.4) reads what the server engine (Node 0.8
     }
   });
 
+  it("prepareResults, called after the load, gives the same 15-digit readback as naming the cells at load", async () => {
+    const late = await loadEngine(node.engineBytes, initFromFile);
+    late.prepareResults(cells);
+    const results = late.readResults(cells);
+    for (const [i, cell] of cells.entries()) {
+      const expected = node.values.get(`${index.sheets[cell.sheet].name}!${cell.addr}`)!;
+      if (expected.kind !== "n") continue;
+      const got = results[i];
+      expect(got.kind).toBe("number");
+      if (got.kind === "number") expect(got.value, cell.addr).toBe(sig15(expected.v));
+    }
+    late.dispose();
+  });
+
   it("names the sheets in the engine's order", () => {
     expect(engine.sheetNames()).toEqual(index.sheets.map((s) => s.name));
   });

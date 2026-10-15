@@ -13,4 +13,4 @@ export { buildLookup, type Designation, type SheetLookup } from "./suggest";
 export { checkChoice, CHOICE_TEXT, type ChoiceCode } from "./service";
 export { VALUATION_TEXT, type ValuationErrorCode, type ValuationFailure } from "./copy";
 export * from "./views";
-export type { ResultValue } from "./engine-client";
+export type { CalcEngine, ResultCell, ResultValue } from "./engine-client";

@@ -20,6 +20,8 @@ export type ResultValue =
 
 export type CalcEngine = {
   sheetNames(): string[];
+  /** Gives the result cells the full-precision number format, so readResults gives 15 significant digits. Call it once, after the load. */
+  prepareResults(cells: ResultCell[]): void;
   /** Sets plain numbers, as a user would type them. Throws RangeError (and sets nothing) for a non-finite or huge value or a bad address. */
   setInputs(inputs: InputValue[]): void;
   evaluate(): void;
@@ -54,7 +56,7 @@ function readOne(model: WasmModel, cell: ResultCell): ResultValue {
   return { kind: "empty" };
 }
 
-/** Loads the server's model bytes. `resultCells` get the full-precision format (set once, here); `init` starts the wasm module. */
+/** Loads the server's model bytes. `resultCells`, when given, get the full-precision format at once (or call prepareResults later); `init` starts the wasm module. */
 export async function loadEngine(
   engineBytes: Uint8Array,
   init: (wasm: WasmApi) => unknown,
@@ -63,14 +65,18 @@ export async function loadEngine(
   const wasm = await import("@ironcalc/wasm");
   await init(wasm);
   const model = wasm.Model.from_bytes(engineBytes, "en");
-  for (const cell of resultCells) {
-    const { sheet, row, col } = position(cell);
-    model.updateRangeStyle({ sheet, row, column: col, width: 1, height: 1 }, "num_fmt", FULL_PRECISION);
-  }
+  const prepareResults = (cells: ResultCell[]) => {
+    for (const cell of cells) {
+      const { sheet, row, col } = position(cell);
+      model.updateRangeStyle({ sheet, row, column: col, width: 1, height: 1 }, "num_fmt", FULL_PRECISION);
+    }
+  };
+  prepareResults(resultCells);
   model.evaluate();
 
   return {
     sheetNames: () => model.getWorksheetsProperties().map((p) => p.name),
+    prepareResults,
     setInputs(inputs) {
       const checked = inputs.map((input) => {
         if (!Number.isFinite(input.value) || Math.abs(input.value) > MAX_SCENARIO_VALUE) throw new RangeError("value out of range");
