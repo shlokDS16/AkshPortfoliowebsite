@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { MistakesList } from "@/components/desk/case/mistakes-list";
-import { EmptyState } from "@/components/desk/empty-state";
+import { MistakesEmpty } from "@/components/desk/case/mistakes-empty";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
 import { buildMistakes, buildSiteChrome, getSnapshot } from "@/modules/showcase";
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Mistakes", description: "Cases in wh
 
 /**
  * Addendum s6: the published cases in which HIS review called the process flawed or named a kind of mistake, chosen by his
- * judgement and never by how the share did; no count. The empty state (design-dna 13.2, verbatim) stays until one qualifies.
+ * judgement and never by how the share did; no count. The empty state stays until one qualifies (its copy changed from design-dna 13.2, spec s34).
  */
 export default async function MistakesPage() {
   const snapshot = await getSnapshot();
@@ -28,11 +28,7 @@ export default async function MistakesPage() {
       <div className="mt-(--block-gap)">
         {entries.length === 0 ? (
           <div className="max-w-(--measure)">
-            <EmptyState
-              title="Nothing here yet."
-              body="When one of Aksh's tests proves him wrong, that file and the date are listed here first, next to what he wrote before."
-              shape={["File and test", "Date", "Original text"]}
-            />
+            <MistakesEmpty />
           </div>
         ) : (
           <>

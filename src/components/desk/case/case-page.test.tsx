@@ -7,6 +7,7 @@ import { buildSeedSnapshot, withLedgerCase } from "@/test/fakes/showcase-snapsho
 import { expectNoMotion, expectTokenOnly } from "@/test/ui";
 import { CaseList } from "./case-list";
 import { CasePage } from "./case-page";
+import { MistakesEmpty } from "./mistakes-empty";
 import { MistakesList } from "./mistakes-list";
 import { RecordKeeping } from "./record-keeping";
 
@@ -166,6 +167,7 @@ describe("no result is ever printed (publishing rule 10.7)", () => {
     ["the case index", () => render(<CaseList cases={listCaseSummaries(snapshot)} />)],
     ["Mistakes", () => render(<MistakesList entries={buildMistakes(snapshot)} />)],
     ["How this record is kept", () => render(<RecordKeeping publicFile={null} />)],
+    ["the Mistakes empty state", () => render(<MistakesEmpty />)],
   ];
   for (const [name, draw] of pages) {
     it(`${name}: no percent, rupee, verdict, hit or proof word, and no decimal outside a fingerprint or his sealed text`, () => {

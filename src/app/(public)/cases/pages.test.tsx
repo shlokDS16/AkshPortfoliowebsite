@@ -93,7 +93,10 @@ describe("/process", () => {
 describe("/mistakes", () => {
   it("keeps its empty state until a case in which his own review named a mistake is public", async () => {
     state.snapshot = seed();
-    expect(await html(MistakesPage())).toContain("Nothing here yet.");
+    const empty = await html(MistakesPage());
+    expect(empty).toContain("Nothing here yet.");
+    expect(empty).toContain("Closed cases in which Aksh judged his own process flawed, or named a kind of mistake, are listed here with his own words and a link to the case.");
+    expect(empty).not.toMatch(/\bproves?\b|\bproof\b|\bverified\b/i);
     state.snapshot = withCase({ process: "sound", tags: ["luck"] });
     expect(await html(MistakesPage())).toContain("Nothing here yet.");
     state.snapshot = withCase();
