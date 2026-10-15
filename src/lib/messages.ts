@@ -73,6 +73,7 @@ const ERRORS = {
   "nothing-to-file": "Tick at least one figure to file.",
   "company-locked": "Some of this document's figures are already in its company's file, so the company cannot be changed.",
   "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
+  "workbook-company-locked": "A workbook stays with the company it was uploaded for, because its model versions are numbered under that company.",
   // Ledger (= LEDGER_ERROR_TEXT in modules/ledger/errors.ts; a test keeps them equal). Pending Shlok's approval, spec s19.
   "ledger-no-symbol": "This company has no NSE symbol yet. Add it under Names first.",
   "ledger-company-not-ready": "This company is still waiting for review, or has been merged into another. Settle it under Names, then record the idea on the company it became.",
@@ -162,6 +163,7 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "nothing-to-file": "nothing-to-file",
   "document-closed": "document-closed",
   "company-locked": "company-locked",
+  "workbook-company-locked": "workbook-company-locked",
   // LedgerError likewise.
   "ledger-no-symbol": "ledger-no-symbol",
   "ledger-company-not-ready": "ledger-company-not-ready",

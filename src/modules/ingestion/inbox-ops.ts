@@ -60,11 +60,17 @@ export async function setBudget(p: InboxPorts, documentId: string, budget: numbe
   await p.docs.update(doc.id, { llmPageBudget: budget });
 }
 
-/** Try again: the document's stuck steps run again from a clean count. */
+/**
+ * Try again: the document's stuck steps run again from a clean count. A workbook's stopped read is not revived in place: a new xlsx_read
+ * step is inserted in the next pass (job_steps_once is per pass), so the stopped one keeps its record and only one read is ever live.
+ */
 export async function retryAttention(p: InboxPorts, documentId: string): Promise<void> {
   const doc = await documentOf(p, documentId, ["active"]);
   const job = await p.inbox.liveJob(doc.id);
-  if (job) await p.inbox.retryAttention(job);
+  if (!job) return;
+  if (doc.kind !== "xlsx") return p.inbox.retryAttention(job);
+  const read = await p.inbox.latestWorkbookRead(job);
+  if (read?.status === "needs_attention") await p.queue.enqueue(job, [{ kind: "xlsx_read", pageNo: 1, pass: read.pass + 1 }]);
 }
 
 /** Skip: the document's stuck steps are set aside; the pages already read stay searchable. */

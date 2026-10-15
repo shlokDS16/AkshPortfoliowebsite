@@ -185,6 +185,37 @@ describe("retryAttention and skipAttention", () => {
   });
 });
 
+describe("try again on a workbook whose read stopped (Plan 2.7 Task 3)", () => {
+  const BOOK = "2d1b9e3f-6c74-4e28-9b0f-4e8c7d6b5f32";
+  let bookJob: string;
+  beforeEach(async () => {
+    await docs.insertUploading({ id: BOOK, title: "Model", kind: "xlsx", storagePath: `${BOOK}.xlsx`, sha256: "c".repeat(64), bytes: 10, companyId: null, filedOn: null, sourceUrl: null });
+    await docs.update(BOOK, { status: "active" });
+    bookJob = await inbox.queue.createJob(BOOK, "ingest_xlsx", { kind: "xlsx_read", pageNo: 1 });
+  });
+  const reads = () => inbox.steps.filter((s) => s.jobId === bookJob).map((s) => [s.kind, s.pass, s.status]);
+
+  it("inserts a new xlsx_read step in the next pass and leaves the stopped one as it was", async () => {
+    Object.assign(inbox.steps.find((s) => s.jobId === bookJob)!, { status: "needs_attention", failures: 2, lastError: "stopped" });
+    await retryAttention(ports, BOOK);
+    expect(reads()).toEqual([
+      ["xlsx_read", 1, "needs_attention"],
+      ["xlsx_read", 2, "queued"],
+    ]);
+    // A second press while the new pass waits adds nothing.
+    await retryAttention(ports, BOOK);
+    expect(reads()).toHaveLength(2);
+  });
+
+  it("adds nothing while the read is still queued or running, or once it is done", async () => {
+    for (const status of ["queued", "running", "done"] as const) {
+      inbox.steps.find((s) => s.jobId === bookJob)!.status = status;
+      await retryAttention(ports, BOOK);
+      expect(reads()).toEqual([["xlsx_read", 1, status]]);
+    }
+  });
+});
+
 describe("skipDocument", () => {
   it("sets the document skipped and cancels its job, so queued steps stop spending the allowance", async () => {
     await skipDocument(ports, DOC);

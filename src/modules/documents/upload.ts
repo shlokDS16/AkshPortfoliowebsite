@@ -103,13 +103,18 @@ export async function assertRoomFor(repo: DocumentsRepo, bytes: number): Promise
   if (storageBytes + bytes > STORAGE_REFUSE * STORAGE_BYTES) throw new DocumentError("upload-storage-full");
 }
 
-/** The same file again: the partial object goes, the room is checked, and this attempt's company, date and link replace the old ones. */
+/**
+ * The same file again: the partial object goes, the room is checked, and this attempt's company, date and link replace the old ones. A
+ * workbook keeps the company it was started with: a finish that failed after recording its valuation version numbered it under that
+ * company, and a version is never moved (2.7 deferral D2).
+ */
 async function resume(repo: DocumentsRepo, documentId: string, claim: StartUploadClaim) {
   const doc = await repo.get(documentId);
   if (!doc?.storagePath) throw new InvalidInputError();
   if (await repo.objectInfo(doc.storagePath)) await repo.removeObject(doc.storagePath);
   await assertRoomFor(repo, claim.bytes);
-  await repo.update(documentId, { companyId: claim.companyId, filedOn: claim.filedOn, sourceUrl: claim.sourceUrl });
+  const companyId = doc.kind === "xlsx" && doc.companyId !== null ? doc.companyId : claim.companyId;
+  await repo.update(documentId, { companyId, filedOn: claim.filedOn, sourceUrl: claim.sourceUrl });
   const signed = await repo.signUpload(doc.storagePath);
   return { documentId, path: signed.path, token: signed.token };
 }

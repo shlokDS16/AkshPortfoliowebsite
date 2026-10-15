@@ -164,6 +164,8 @@ export async function setCompany(ports: ReviewPorts, documentId: string, company
   if (!doc) throw new InvalidInputError();
   if ((await ports.review.companyName(companyId)) === null) throw new InvalidInputError();
   if (doc.companyId !== null && doc.companyId !== companyId) {
+    // A workbook's valuation version was numbered under its company when the upload finished (2.7, deferral D2): it is never moved.
+    if (doc.kind === "xlsx") throw new ReviewError("workbook-company-locked");
     if ((await ports.review.list(documentId)).some((r) => r.itemId !== null || r.status === "filed")) throw new ReviewError("company-locked");
   }
   await ports.docs.update(documentId, { companyId });

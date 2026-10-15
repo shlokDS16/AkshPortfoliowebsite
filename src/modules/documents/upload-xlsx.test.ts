@@ -121,6 +121,15 @@ describe("finishUpload for a workbook", () => {
     expect(repo.valuationStarts).toEqual([]);
   });
 
+  it("a resumed workbook upload keeps the company it was started with (its version may already be numbered under it, deferral D2)", async () => {
+    const repo = createMemoryDocumentsRepo();
+    await startUpload(repo, input(), newId);
+    const OTHER = "7a2e3d4c-5b60-4f9e-a8d7-b2c3d4e5f607";
+    await startUpload(repo, input({ companyId: OTHER, filedOn: "2026-10-01" }), newId);
+    expect(repo.docs.get(ID)?.companyId).toBe(COMPANY);
+    expect(repo.docs.get(ID)?.filedOn).toBe("2026-10-01");
+  });
+
   it("does not record a version for a PDF", async () => {
     const repo = createMemoryDocumentsRepo();
     await startUpload(repo, input({ kind: "pdf", fileName: "AR.pdf", mime: "application/pdf", companyId: null, sha256: "d".repeat(64) }), newId);

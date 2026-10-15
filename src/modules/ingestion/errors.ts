@@ -38,6 +38,8 @@ export const REVIEW_ERROR_TEXT = {
   "nothing-to-file": "Tick at least one figure to file.",
   "company-locked": "Some of this document's figures are already in its company's file, so the company cannot be changed.",
   "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
+  // Plan 2.7 Task 3 (pending Shlok approval): a workbook's model versions are numbered under its company (deferral D2).
+  "workbook-company-locked": "A workbook stays with the company it was uploaded for, because its model versions are numbered under that company.",
 } as const;
 
 export type ReviewErrorCode = keyof typeof REVIEW_ERROR_TEXT;

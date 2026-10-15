@@ -99,6 +99,10 @@ export function createMemoryInbox(): MemoryInbox {
       const s = latest(jobId, "extract_page", pageNo);
       return s ? { pass: s.pass, status: s.status } : null;
     },
+    async latestWorkbookRead(jobId) {
+      const s = latest(jobId, "xlsx_read", 1);
+      return s ? { pass: s.pass, status: s.status } : null;
+    },
     async rejectPendingOn(documentId, pageNo) {
       log.push(`reject:${pageNo}`);
       rejected.push(`${documentId}:${pageNo}`);
