@@ -7,6 +7,7 @@ import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { listStagedForItem, listStagedReadingsForItem, provenanceForItem } from "@/modules/ingestion";
 import { ledgerGateFacts } from "@/modules/ledger";
 import { createSupabaseResearchRepo, getItemWithHistory } from "@/modules/research";
+import { confirmedModelFor } from "@/modules/valuation";
 
 /** Everything the editor shows, read once per request (admin session; RLS admin policies apply). */
 export async function loadEditor(id: string) {
@@ -19,7 +20,7 @@ export async function loadEditor(id: string) {
   // The gate can be run on the newest revision unless it is already the live one.
   const candidate = latest && (item.visibility !== "public" || latest.id !== current?.id) ? latest : null;
   const isFile = item.kind === "thesis" || item.kind === "case_study";
-  const [ctx, allowances, company, decision, documents, staged, stagedReadings, provenance] = await Promise.all([
+  const [ctx, allowances, company, decision, documents, staged, stagedReadings, provenance, model] = await Promise.all([
     candidate ? compliance.loadPublishContext(item.id, candidate.id) : Promise.resolve(null),
     compliance.listAllowances(item.id),
     item.companyId ? getCompanyBrief(db, item.companyId) : Promise.resolve(null),
@@ -31,6 +32,8 @@ export async function loadEditor(id: string) {
     // Test readings Aksh accepted for this file's tests: they fill the test rows' reading fields, never a status.
     isFile ? listStagedReadingsForItem(db, item.id) : Promise.resolve([]),
     isFile ? provenanceForItem(db, item.id) : Promise.resolve({}),
+    // The header's private "Model" link (Plan 2.7 Task 3): the company's newest confirmed valuation model. A link is not worth a broken editor.
+    item.companyId ? confirmedModelFor(db, item.companyId).catch(() => null) : Promise.resolve(null),
   ]);
   // What the sealed ledger says about this company, asked of the same database function the gate uses. Advisory: if it cannot
   // be read the checklist falls back to the hand check alone (never to "clear"), and the database gate still decides.
@@ -63,5 +66,6 @@ export async function loadEditor(id: string) {
     body: ctx && preview ? annotateBody(ctx.revision.bodyMd, preview.lint, allowances, allowableHashes(decision, latest?.id ?? null)) : null,
     sheet: isFile ? serializeFactsSheet(readCaseFile(latest?.structured ?? null)) : null,
     latestFigure: isFile ? latestFigureDate(latest?.structured ?? null) : null,
+    model,
   };
 }

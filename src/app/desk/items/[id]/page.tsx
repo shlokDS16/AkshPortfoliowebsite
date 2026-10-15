@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BodyPreview } from "@/components/desk/private/body-preview";
 import { DocLayout } from "@/components/desk/private/doc-pane/doc-layout";
@@ -32,7 +33,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
   if (!isItemId(id)) notFound();
   const data = await loadEditor(id);
   if (!data) notFound();
-  const { item, revisions, current, pending, latest, candidate, isFile, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure } = data;
+  const { item, revisions, current, pending, latest, candidate, isFile, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure, model } = data;
   const isPublic = item.visibility === "public";
   const errorMessage = errorText(error);
   const noticeMessage = noticeText(notice);
@@ -62,9 +63,18 @@ export default async function ItemPage({ params, searchParams }: Props) {
             {item.kind.replace("_", " ")} · <span data-testid="visibility">{isPublic ? "Public" : "Private"}</span>
             {current ? ` · current revision #${current.revNo}` : ""}
           </p>
-          {isFile ? (
-            <div className="pt-2">
-              <OpenDocumentButton />
+          {isFile || model ? (
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              {isFile ? <OpenDocumentButton /> : null}
+              {model ? (
+                <Link
+                  href={`/desk/models/${model.versionId}`}
+                  className="inline-flex min-h-11 items-center rounded-sm border border-rule-strong bg-paper px-3 text-body font-medium text-ink no-underline"
+                >
+                  Model
+                  <span className="sr-only">, version {model.versionNo} (private)</span>
+                </Link>
+              ) : null}
             </div>
           ) : null}
         </header>

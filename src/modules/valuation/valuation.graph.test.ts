@@ -33,13 +33,13 @@ describe("where the libraries are imported", () => {
   });
 
   it("the files that load a native or parsing library, or the database, are server-only", () => {
-    for (const name of ["read-workbook.ts", "engine-node.ts", "zip-scan.ts", "build-model.ts", "tokens.ts", "repo.ts", "index.ts"]) {
+    for (const name of ["read-workbook.ts", "engine-node.ts", "zip-scan.ts", "build-model.ts", "tokens.ts", "repo.ts", "index.ts", "page-read.ts"]) {
       expect(text(join(MODULE, name)), name).toMatch(/^(?:\/\/[^\n]*\n)*import "server-only";/);
     }
   });
 
   it("the browser-safe files import no server library, no node: module and no server-only", () => {
-    for (const name of ["limits.ts", "types.ts", "addr.ts", "format.ts", "sensitivity.ts", "values.ts", "versions.ts", "cost.ts", "refusal.ts", "engine-client.ts", "records.ts", "copy.ts", "service.ts", "client.ts"]) {
+    for (const name of ["limits.ts", "types.ts", "addr.ts", "format.ts", "sensitivity.ts", "values.ts", "versions.ts", "cost.ts", "refusal.ts", "engine-client.ts", "records.ts", "copy.ts", "service.ts", "client.ts", "suggest.ts", "views.ts", "engine.ts"]) {
       const source = text(join(MODULE, name));
       expect(source, name).not.toMatch(/from\s+["'](?:node:|server-only|xlsx|@ironcalc\/nodejs)/);
     }
@@ -50,7 +50,16 @@ describe("how the rest of the app reaches the module", () => {
   it("only through its entry, its client entry or its actions (never a file inside it)", () => {
     const outside = files(SRC).filter((f) => !f.startsWith(MODULE));
     const deep = outside.flatMap((f) => [...text(f).matchAll(/["']@\/modules\/valuation\/([a-z-]+)["']/g)].map((m) => `${rel(f)} -> ${m[1]}`));
-    expect(deep.filter((d) => !/-> (?:client|actions)$/.test(d))).toEqual([]);
+    expect(deep.filter((d) => !/-> (?:client|actions|engine)$/.test(d))).toEqual([]);
+  });
+
+  it("the engine entry only from the model page's worker, so the wasm glue is in that chunk alone (Task 3, D18)", () => {
+    const users = files(SRC).filter((f) => !f.startsWith(MODULE) && /["']@\/modules\/valuation\/engine["']/.test(text(f)));
+    expect(users.map(rel)).toEqual(["components/desk/private/models/engine.worker.ts"]);
+  });
+
+  it("the client entry never re-exports the engine or its wrapper as a value", () => {
+    expect(text(join(MODULE, "client.ts"))).not.toMatch(/export \{[^}]*\bloadEngine\b|export \* from "\.\/engine(?:-client)?"/);
   });
 });
 
