@@ -7,6 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
 import { parseStaging, recordFiledFacts, recordFiledReadings } from "@/modules/ingestion";
 import { addRevision, createSupabaseResearchRepo, getItemWithHistory, isItemId, updateItemMeta } from "@/modules/research";
+import { isLedgerCase } from "./case-record";
 import { FactsSheetError, NoFigureDateError } from "./errors";
 import type { CaseFile } from "./schema";
 import { latestFigureDate } from "./figure-dates";
@@ -26,14 +27,19 @@ export async function saveCaseFileRevisionAction(itemId: string, formData: FormD
   try {
     db = await createSupabaseServerClient();
     const repo = createSupabaseResearchRepo(db);
+    const previous = (await getItemWithHistory(repo, itemId))?.revisions[0]?.structured ?? {};
     let structured: Record<string, unknown>;
-    if (typeof sheet === "string") {
+    if (isLedgerCase(previous)) {
+      // A case study from the ledger is its body plus the record the cases module wrote (D41): the record is carried forward from
+      // the revision before this one, whatever the form sent, and no other key goes with it. Only src/modules/cases writes it.
+      structured = { ledger: previous.ledger };
+    } else if (typeof sheet === "string") {
       const parsed = parseFactsSheet(sheet);
       if (parsed.errors.length > 0) throw new FactsSheetError();
       caseFile = parsed.caseFile;
       structured = parsed.caseFile;
     } else {
-      structured = (await getItemWithHistory(repo, itemId))?.revisions[0]?.structured ?? {};
+      structured = previous;
     }
     saved = await addRevision(repo, {
       itemId,
