@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cellKey, formatNumber, fromEditText, isPercentFormat, MAX_SCENARIO_VALUE, toEditText, type ScenarioCell } from "@/modules/valuation/client";
 import { HEAD, SHEET_MARK } from "./copy";
+import { shouldFocusInputs } from "./focus-handoff";
 
 // The scenario's inputs (spec s7.3): his label, else the sheet's marked "sheet"; the workbook value; an editable scenario value
 // (inputmode decimal; a percent cell is edited in percent, so 11.5 means 11.5%); a reset per row. Left on desktop, first on phone.
@@ -96,9 +97,14 @@ function InputRow({ cell, value, disabled, onChange, onReset, onValidity }: RowP
 type Props = { inputs: ScenarioCell[]; values: Record<string, number>; disabled: boolean; onChange: (id: string, value: number) => void; onReset: (id: string) => void; onValidity: (id: string, ok: boolean) => void };
 
 export function InputsPanel({ inputs, values, disabled, onChange, onReset, onValidity }: Props) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  // Right after he confirms the cells this heading is where the new content starts (focus-handoff.ts); tabIndex -1 lets it hold the focus.
+  useEffect(() => {
+    if (shouldFocusInputs()) heading.current?.focus();
+  }, []);
   return (
     <section aria-labelledby="inputs-h" className="min-w-0">
-      <h2 id="inputs-h" className="text-subtitle text-ink desk:text-subtitle-desk">
+      <h2 ref={heading} id="inputs-h" tabIndex={-1} className="text-subtitle text-ink desk:text-subtitle-desk">
         Inputs
       </h2>
       <ul>

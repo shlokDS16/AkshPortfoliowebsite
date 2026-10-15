@@ -9,6 +9,7 @@ import { cellKey, type CellRole, type ConfirmData, type ConfirmRow } from "@/mod
 import { AddCell } from "./add-cell";
 import { ConfirmRowView } from "./confirm-row";
 import { confirmLabel } from "./copy";
+import { armInputsFocus } from "./focus-handoff";
 
 // Confirm (spec s7.2, D10, D11, D15): the suggested inputs and results as a list, nothing ticked but an unchanged carry-forward, "Add a
 // cell" for anything the rules missed, and one button. Nothing is trusted before that click; confirmValuationAction checks every cell
@@ -64,6 +65,7 @@ export function ConfirmCells({ versionId, data }: Props) {
         const result = await confirmValuationAction({ versionId, cells });
         if (result.ok) {
           setError(null);
+          armInputsFocus();
           router.refresh();
         } else setError(result.cell ? `${result.message} (${result.cell})` : result.message);
       } catch {
