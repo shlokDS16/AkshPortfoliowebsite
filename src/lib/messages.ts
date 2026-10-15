@@ -162,8 +162,7 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "no-company": "no-company",
   "nothing-to-file": "nothing-to-file",
   "document-closed": "document-closed",
-  "company-locked": "company-locked",
-  "workbook-company-locked": "workbook-company-locked",
+  "company-locked": "company-locked", "workbook-company-locked": "workbook-company-locked",
   // LedgerError likewise.
   "ledger-no-symbol": "ledger-no-symbol",
   "ledger-company-not-ready": "ledger-company-not-ready",
