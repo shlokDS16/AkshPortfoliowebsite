@@ -1,4 +1,5 @@
 import { InvalidInputError } from "@/lib/errors";
+import { isUuid } from "@/lib/ids";
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
 import { ConceptDescriptionTooLongError, NameNotScreenedError } from "./errors";
@@ -74,4 +75,18 @@ export async function getConceptBySlug(db: Db, slug: string): Promise<Concept | 
   const { data, error } = await db.from("themes").select(CONCEPT_COLUMNS).eq("slug", slug).is("archived_at", null).maybeSingle();
   if (error) throw dbError("catalog.getConceptBySlug", error);
   return data ? toConcept(data) : null;
+}
+
+const ID_CHUNK = 100;
+
+/** The live concepts with these ids, a stub included, an archived row never. Anything that is not a uuid is dropped. Order is not promised. */
+export async function getConceptsByIds(db: Db, ids: readonly string[]): Promise<Concept[]> {
+  const wanted = [...new Set(ids.filter(isUuid))];
+  const out: Concept[] = [];
+  for (let i = 0; i < wanted.length; i += ID_CHUNK) {
+    const { data, error } = await db.from("themes").select(CONCEPT_COLUMNS).in("id", wanted.slice(i, i + ID_CHUNK)).is("archived_at", null);
+    if (error) throw dbError("catalog.getConceptsByIds", error);
+    out.push(...(data ?? []).map(toConcept));
+  }
+  return out;
 }

@@ -8,14 +8,14 @@ import type { Item, ItemPatch, ResearchRepo, Revision } from "./types";
 
 // Named columns only: the generated search tsvector is never selected, and column grants
 // would reject a '*' for roles that lack a column.
-const ITEM_COLUMNS =
+export const ITEM_COLUMNS =
   "id, kind, slug, title, company_id, theme_id, visibility, status, current_revision_id, published_at, data_as_of, learning_objective, holds_position, created_at, updated_at";
 const REVISION_COLUMNS = "id, item_id, rev_no, body_md, structured, concept_ids, schema_version, change_reason, author, created_at";
 
 type ItemRow = Omit<Tables<"items">, "search" | "file_no">; // file_no is read by the public views (Plan 1B), not the desk repo
 type RevisionRow = Tables<"item_revisions">;
 
-function toItem(row: ItemRow): Item {
+export function toItem(row: ItemRow): Item {
   return {
     id: row.id,
     kind: row.kind as ItemKind,
