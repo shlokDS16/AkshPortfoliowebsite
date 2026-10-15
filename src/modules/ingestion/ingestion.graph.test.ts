@@ -14,6 +14,10 @@ const FORBIDDEN = [
   // Voice is Aksh's words (Plan 2b Task 4, ruling R7): a transcript becomes a capture only through the card's own save, in a
   // component. No ingestion, documents or inbox file imports the capture module or touches its table.
   /from\s+"@\/modules\/capture/, /\.from\("captures"\)/,
+  // The AI organises, Aksh thinks (Plan 2.7): his cell choices and scenarios are written only from his valuation page. Job, upload and
+  // inbox code may start a version and write its machine columns, never his tables or his two functions.
+  /\bconfirm_valuation_version\b/, /\bsave_valuation_scenario\b/, /\.from\("valuation_(?:cells|scenarios|scenario_values)"\)/,
+  /from\s+"@\/modules\/valuation\/actions"/,
 ];
 
 // R7: handlers take repos from ctx.deps.repos; reading the client (deps.db, deps["db"], { db } = deps) is refused.
@@ -52,6 +56,17 @@ describe("machine write boundary (ADR-004 s4.2)", () => {
   it("the patterns would catch a real offender (the guard is not vacuous)", () => {
     const research = source(join(SRC, "modules/casefile/actions.ts"));
     expect(FORBIDDEN.some((p) => p.test(research))).toBe(true);
+  });
+
+  it("the valuation patterns catch the valuation module's own writes and an import of its actions", () => {
+    const repo = source(join(SRC, "modules/valuation/repo.ts"));
+    const valuation = FORBIDDEN.filter((p) => /valuation/.test(p.source));
+    expect(valuation.length).toBeGreaterThanOrEqual(4);
+    for (const write of ['rpc("confirm_valuation_version"', 'rpc("save_valuation_scenario"', '.from("valuation_scenarios")']) {
+      expect(repo, write).toContain(write);
+      expect(valuation.some((p) => p.test(write)), write).toBe(true);
+    }
+    expect(valuation.some((p) => p.test('import { confirmValuationAction } from "@/modules/valuation/actions";'))).toBe(true);
   });
 
   it("the capture patterns catch the capture module's own repo and an import of its actions", () => {
