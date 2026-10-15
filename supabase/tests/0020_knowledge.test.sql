@@ -6,7 +6,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(101);
+select plan(102);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -370,6 +370,13 @@ select ok(has_table_privilege('anon', 'public.public_concept_links', 'select')
 select columns_are('public', 'public_concept_links', array['item_id', 'revision_id', 'concept_id', 'position'],
   'public_concept_links exposes exactly the contracted columns');
 select columns_are('public', 'public_themes', array['id', 'slug', 'name'], 'public_themes keeps its three columns');
+
+-- publish_revision holds the linked theme rows (and the company) until the decision commits, so a concurrent make-private or rename
+-- waits and its own guard then sees the new current revision. A two-session test needs dblink, which the stack does not have, so
+-- the lock is pinned by the function text.
+select ok(pg_get_functiondef('public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure) ~ 'from public\.themes t\s+where t\.id = any[^;]*for share'
+      and pg_get_functiondef('public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure) ~ 'from public\.companies c[^;]*for share',
+  'publish_revision locks the linked themes and the company for share');
 
 select * from finish();
 rollback;

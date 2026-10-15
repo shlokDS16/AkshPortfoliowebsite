@@ -70,6 +70,13 @@ begin
   end if;
   select r.structured, r.concept_ids into v_struct, v_concepts from public.item_revisions r where r.id = p_revision_id;
 
+  -- Hold the linked catalog rows until this decision commits, so a concurrent make-private or rename waits and its guard then sees the
+  -- new current revision (spec s4 guards). Same class as company_id/theme_id. Lock order is items (for update, above) then themes.
+  perform 1 from public.themes t
+   where t.id = any (coalesce(v_concepts, '{}'::uuid[]) || v_item.theme_id)
+   for share;
+  perform 1 from public.companies c where c.id = v_item.company_id for share;
+
   -- Latest only: a revision with a newer sibling cannot be published. Recorded like every other
   -- failure (never raised), so the attempt stays in the audit trail.
   if exists (select 1
