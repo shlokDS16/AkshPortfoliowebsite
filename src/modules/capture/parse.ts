@@ -1,7 +1,7 @@
 // Quick-capture grammar (spec s5). Pure: runs in the browser and again on the server.
 import { truncateUnits } from "./text";
 
-export const CAPTURE_KINDS = ["note", "thesis", "learning", "process", "reading_note"] as const;
+export const CAPTURE_KINDS = ["note", "thesis", "learning", "process", "reading_note", "video"] as const;
 export type CaptureKind = (typeof CAPTURE_KINDS)[number];
 
 /** Concepts one capture links (research MAX_CONCEPTS says the same; a test keeps them equal). The 9th onwards stay text. */
@@ -17,8 +17,8 @@ export type ParsedCapture = {
   body: string;
 };
 
-const PREFIXES: Record<string, CaptureKind> = { t: "thesis", l: "learning", p: "process", r: "reading_note" };
-const PREFIX_RE = /^\s*([tlpr]):\s*/i;
+const PREFIXES: Record<string, CaptureKind> = { t: "thesis", l: "learning", p: "process", r: "reading_note", v: "video" };
+const PREFIX_RE = /^\s*([tlprv]):\s*/i;
 // Tokens start the text or follow whitespace, an opening bracket, a quote, "," or "/". The character
 // before is deliberately not a word character, so "user$x", "C#" and "a#b" are not tokens.
 // Max length is enforced by the lookahead: an over-long token is rejected, not truncated.

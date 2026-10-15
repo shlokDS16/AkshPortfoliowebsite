@@ -206,3 +206,45 @@ describe("parseServerEnv: the alert email settings (2.9; all optional, off unles
     expect(env.ALERT_EMAIL).toEqual(["not-an-address"]);
   });
 });
+
+describe("parseServerEnv: video listing (Phase 5b; off while the YouTube settings are unset)", () => {
+  const KEY = "AIzaSyFAKEFAKEFAKEFAKEFAKEFAKEFAKE12345";
+  const CHANNEL = "UC0123456789abcdefghijkl";
+
+  it("leaves video listing off when the settings are unset or empty", () => {
+    const env = parseServerEnv({ ...valid, YOUTUBE_API_KEY: "", YOUTUBE_CHANNEL_ID: "", DISTRIBUTION_ADAPTER: "" });
+    expect(env.YOUTUBE_API_KEY).toBeUndefined();
+    expect(env.YOUTUBE_CHANNEL_ID).toBeUndefined();
+    expect(env.DISTRIBUTION_ADAPTER).toBeUndefined();
+    expect(parseServerEnv(valid).YOUTUBE_API_KEY).toBeUndefined();
+  });
+
+  it("accepts a key and a channel id of the right shape (trimmed) and the fixture adapter", () => {
+    const env = parseServerEnv({ ...valid, YOUTUBE_API_KEY: ` ${KEY} `, YOUTUBE_CHANNEL_ID: ` ${CHANNEL} `, DISTRIBUTION_ADAPTER: "fixture" });
+    expect(env.YOUTUBE_API_KEY).toBe(KEY);
+    expect(env.YOUTUBE_CHANNEL_ID).toBe(CHANNEL);
+    expect(env.DISTRIBUTION_ADAPTER).toBe("fixture");
+  });
+
+  it("refuses a malformed key, channel id or adapter, naming the variable and never the value", () => {
+    const cases: Array<[string, string]> = [
+      ["YOUTUBE_API_KEY", "short"],
+      ["YOUTUBE_API_KEY", `${KEY}\r\nX-Evil: 1`],
+      ["YOUTUBE_API_KEY", "key with spaces in it xxxxxxxxxx"],
+      ["YOUTUBE_CHANNEL_ID", "UCshort"],
+      ["YOUTUBE_CHANNEL_ID", "XX0123456789abcdefghijkl"],
+      ["YOUTUBE_CHANNEL_ID", `${CHANNEL}/../x`],
+      ["DISTRIBUTION_ADAPTER", "real"],
+    ];
+    for (const [name, value] of cases) {
+      let message = "";
+      try {
+        parseServerEnv({ ...valid, [name]: value });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message, `${name}=${value}`).toMatch(new RegExp(name));
+      expect(message).not.toContain(value);
+    }
+  });
+});

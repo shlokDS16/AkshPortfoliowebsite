@@ -20,6 +20,7 @@ const input = (structured: Record<string, unknown>, allowances: string[] = []): 
   themeName: null,
   conceptNames: [],
   conceptSlugs: [],
+  transcript: null,
   companyId: null,
   holdsPosition: null,
   dataAsOf: "2026-06-16",

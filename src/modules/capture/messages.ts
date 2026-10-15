@@ -36,9 +36,10 @@ export function submitErrorCode(error: ZodError): Exclude<SubmitErrorCode, "save
 /**
  * What a saved capture records when it could not be filed. `filing-failed`: the text is stored but no
  * item exists. `link-failed`: the item exists but the capture row was not linked to it. `thesis-full`: the
- * thesis is at its length limit, so the text was not added (filing it again would fail the same way).
+ * thesis is at its length limit, so the text was not added (filing it again would fail the same way). `not-youtube-link`: a v: capture with no
+ * YouTube video address in it; nothing was filed.
  */
-export const FILING_ERRORS = ["filing-failed", "link-failed", "thesis-full"] as const;
+export const FILING_ERRORS = ["filing-failed", "link-failed", "thesis-full", "not-youtube-link"] as const;
 export type FilingErrorCode = (typeof FILING_ERRORS)[number];
 
 export function asFilingError(value: unknown): FilingErrorCode | null {
@@ -50,6 +51,8 @@ const FILING_TEXT: Record<FilingErrorCode, string> = {
   "link-failed": "Filed as an item; the link back to this capture is missing.",
   "thesis-full":
     "Saved, but the thesis is at its length limit (200,000 characters), so this was not added. Start a new item or shorten the thesis.",
+  // Phase 5b (spec s7.1): a v: capture whose text holds no YouTube video link. The words are stored; no item is made. Pending Shlok's approval.
+  "not-youtube-link": "That is not a YouTube link.",
 };
 
 export function filingErrorText(code: FilingErrorCode): string {

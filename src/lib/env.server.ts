@@ -75,6 +75,13 @@ const serverSchema = publicSchema.extend({
   ALERT_EMAIL: addressList,
   /** The sender. Without a verified domain Resend allows only onboarding@resend.dev, and only to the account's own address. */
   RESEND_FROM: z.preprocess(blank, z.string().trim().min(1).default(DEFAULT_ALERT_FROM)),
+  // Videos (Phase 5b, spec s7.4 and s9). Both owner-set, or neither: video listing is off until then, and nothing is read from YouTube.
+  /** A YouTube Data API v3 key restricted to that API (Google Cloud). Letters, digits, underscore and hyphen only. */
+  YOUTUBE_API_KEY: optional(z.string().trim().regex(/^[A-Za-z0-9_-]{20,128}$/, "must be a YouTube Data API key")),
+  /** Aksh's channel id: "UC" and 22 more characters. A video from any other channel is never listed. */
+  YOUTUBE_CHANNEL_ID: optional(z.string().trim().regex(/^UC[A-Za-z0-9_-]{22}$/, "must be a YouTube channel id (UC followed by 22 characters)")),
+  /** [DEV-ONLY] `fixture` for local e2e: no YouTube or email call is made. createVideoMetaPort refuses it on Vercel preview/production. */
+  DISTRIBUTION_ADAPTER: optional(z.enum(["fixture"])),
   /** Set by Vercel (development | preview | production); unset locally and in CI. */
   VERCEL_ENV: optional(z.string().trim()),
 });

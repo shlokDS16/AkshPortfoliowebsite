@@ -12,6 +12,7 @@ export const RULE_TITLES: Record<string, string> = {
   "5": "Rule 5: position disclosure",
   "6": "Rule 6: educational framing",
   "10": "Rule 10: case studies from the ledger",
+  "12": "Rule 12: videos",
   structure: "Thesis structure",
   slug: "Slug",
   revision: "Newer revision exists",

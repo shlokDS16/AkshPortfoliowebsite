@@ -9,8 +9,11 @@ const OPS_ENTRY_POINTS = ["!@/modules/ops/health", "!@/modules/ops/jobs"];
 // valuation has one more: the browser engine for the model page's Web Worker (Plan 2.7 Task 3, D18). valuation.graph.test.ts proves
 // that the worker is its only importer, so the IronCalc wasm glue never reaches another chunk.
 const VALUATION_ENGINE_ENTRY = "!@/modules/valuation/engine";
+// distribution has one more: the pure renderers the public pages may import (Phase 5b). distribution.graph.test.ts and showcase/isolation.test.ts
+// prove that file reaches nothing server-side, and that the public side reaches nothing else of the module.
+const DISTRIBUTION_PUBLIC_ENTRY = "!@/modules/distribution/public";
 const MODULE_ENTRY_POINTS = {
-  group: ["@/modules/*/*", "@/modules/*/*/**", "!@/modules/*/index", "!@/modules/*/actions", "!@/modules/*/client", ...OPS_ENTRY_POINTS, VALUATION_ENGINE_ENTRY],
+  group: ["@/modules/*/*", "@/modules/*/*/**", "!@/modules/*/index", "!@/modules/*/actions", "!@/modules/*/client", ...OPS_ENTRY_POINTS, VALUATION_ENGINE_ENTRY, DISTRIBUTION_PUBLIC_ENTRY],
   message: "Import a module through its index, actions or client entry point only (spec s4).",
 };
 const NO_SECRET_CLIENT = {

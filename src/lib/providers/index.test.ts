@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createFixtureLlm } from "./fixture-llm";
-import { createAlertMailer, createAnchorPort, createLlmPort, createMarketDataPort, createOcrPort } from "./index";
+import { createAlertMailer, createAnchorPort, createLlmPort, createMarketDataPort, createOcrPort, createVideoMetaPort } from "./index";
 import type { LlmRequest } from "./llm";
 
 const KEY = `gsk_${"k".repeat(40)}`;
@@ -241,3 +241,40 @@ describe("createAlertMailer (off unless the key and at least one address are set
   });
 });
 
+
+describe("createVideoMetaPort (both YouTube settings, or the fixture off Vercel; else video listing is off)", () => {
+  const YT = { YOUTUBE_API_KEY: "AIzaSyFAKEFAKEFAKEFAKEFAKEFAKEFAKE12345", YOUTUBE_CHANNEL_ID: "UC0123456789abcdefghijkl" };
+
+  it("is null when nothing, or only one of the two settings, is set", () => {
+    expect(createVideoMetaPort({})).toBeNull();
+    expect(createVideoMetaPort({ YOUTUBE_API_KEY: YT.YOUTUBE_API_KEY })).toBeNull();
+    expect(createVideoMetaPort({ YOUTUBE_CHANNEL_ID: YT.YOUTUBE_CHANNEL_ID })).toBeNull();
+  });
+
+  it("is the YouTube adapter when both are set, and carries the channel as the one that is Aksh's own", () => {
+    const port = createVideoMetaPort(YT);
+    expect(port?.name).toBe("youtube");
+    expect(port?.ownChannelId).toBe(YT.YOUTUBE_CHANNEL_ID);
+  });
+
+  it("is the fixture when DISTRIBUTION_ADAPTER=fixture, with or without the settings", () => {
+    expect(createVideoMetaPort({ DISTRIBUTION_ADAPTER: "fixture" })?.name).toBe("fixture");
+    expect(createVideoMetaPort({ ...YT, DISTRIBUTION_ADAPTER: "fixture", VERCEL_ENV: "development" })?.name).toBe("fixture");
+    expect(createVideoMetaPort({ ...YT, DISTRIBUTION_ADAPTER: "fixture" })?.ownChannelId).toBe(YT.YOUTUBE_CHANNEL_ID);
+  });
+
+  it("refuses the fixture on Vercel preview and production: video listing is off, and the key is not used instead", () => {
+    const warn = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const VERCEL_ENV of ["preview", "production"]) {
+      expect(createVideoMetaPort({ DISTRIBUTION_ADAPTER: "fixture", VERCEL_ENV })).toBeNull();
+      expect(createVideoMetaPort({ ...YT, DISTRIBUTION_ADAPTER: "fixture", VERCEL_ENV })).toBeNull();
+    }
+    expect(warn).toHaveBeenCalled();
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(YT.YOUTUBE_API_KEY);
+  });
+
+  it("throws on a setting of the wrong shape, naming the setting and not the value", () => {
+    expect(() => createVideoMetaPort({ YOUTUBE_API_KEY: "short key", YOUTUBE_CHANNEL_ID: YT.YOUTUBE_CHANNEL_ID })).toThrow(/YOUTUBE_API_KEY/);
+    expect(() => createVideoMetaPort({ YOUTUBE_API_KEY: YT.YOUTUBE_API_KEY, YOUTUBE_CHANNEL_ID: "UCshort" })).toThrow(/YOUTUBE_CHANNEL_ID/);
+  });
+});

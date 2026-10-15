@@ -29,6 +29,7 @@ function context(patch: Partial<PublishContext["item"]> = {}, bodyMd = "Utilisat
     themeName: null,
     conceptNames: [],
     conceptSlugs: [],
+    transcript: null,
     allowances: [],
     ...rest,
   };

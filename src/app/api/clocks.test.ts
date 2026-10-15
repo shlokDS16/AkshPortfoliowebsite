@@ -90,6 +90,7 @@ describe("GET /api/cron/daily", () => {
       { job: "ledger:score", ok: true, detail: "scored 0 ideas" },
       { job: "ledger:anchor", ok: true, detail: "sealed 0 days; the public copy is off, 0 days waiting" },
       { job: "ingestion:sweep", ok: true, detail: "nothing to run" },
+      { job: "videos:check", ok: true, detail: "videos off" },
       { job: "alerts:email", ok: true, detail: "email off: RESEND_API_KEY or ALERT_EMAIL is not set" },
     ]);
     expect(fake.claims).toBe(1);
@@ -114,11 +115,12 @@ describe("POST /api/jobs/run", () => {
         { job: "clock:register", ok: true },
         { job: "heartbeat:pump", ok: true },
         { job: "ingestion:drain", ok: true },
+        { job: "videos:fetch", ok: true },
         { job: "alerts:email", ok: true },
       ],
     });
     await call();
-    expect(fake.beats.map((b) => b.job)).toEqual(["clock:register", "heartbeat:pump", "ingestion:drain", "alerts:email", "clock:register", "heartbeat:pump", "ingestion:drain", "alerts:email"]);
+    expect(fake.beats.map((b) => b.job)).toEqual(["clock:register", "heartbeat:pump", "ingestion:drain", "videos:fetch", "alerts:email", "clock:register", "heartbeat:pump", "ingestion:drain", "videos:fetch", "alerts:email"]);
   });
 });
 

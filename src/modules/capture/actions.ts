@@ -6,11 +6,18 @@ import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
 import { isItemId } from "@/modules/research";
+import { createSupabaseVideosRepo, createVideoFiling } from "@/modules/distribution";
 import { createCaptureDeps } from "./deps";
 import { submitErrorCode, submitErrorText, type FilingErrorCode, type SubmitErrorCode } from "./messages";
 import { CaptureNotRefilableError, refileCapture } from "./refile";
-import { saveCapture, saveCaptureInput } from "./service";
+import { saveCapture, saveCaptureInput, type SaveCaptureDeps } from "./service";
 import type { CaptureSource } from "./types";
+
+/** The capture deps on the admin's session, plus the video filing a `v:` capture needs (distribution is imported here, never by the service). */
+async function depsOf(): Promise<SaveCaptureDeps> {
+  const db = await createSupabaseServerClient();
+  return { ...createCaptureDeps(db), videos: createVideoFiling(createSupabaseVideosRepo(db)) };
+}
 
 export type SubmitCaptureInput = { clientId: string; rawText: string; source: CaptureSource };
 export type SubmitCaptureResult =
@@ -34,7 +41,7 @@ export async function submitCapture(input: SubmitCaptureInput): Promise<SubmitCa
   const parsed = saveCaptureInput.safeParse(input);
   if (!parsed.success) return failure(submitErrorCode(parsed.error), false);
   try {
-    const result = await saveCapture(createCaptureDeps(await createSupabaseServerClient()), parsed.data);
+    const result = await saveCapture(await depsOf(), parsed.data);
     revalidatePath("/desk");
     return {
       ok: true,
@@ -55,7 +62,7 @@ export async function refileCaptureAction(captureId: string): Promise<void> {
   await requireAdmin();
   if (!isItemId(captureId)) failTo("/desk", new CaptureNotRefilableError(), "capture");
   try {
-    await refileCapture(createCaptureDeps(await createSupabaseServerClient()), captureId, new Date());
+    await refileCapture(await depsOf(), captureId, new Date());
   } catch (error) {
     failTo("/desk", error, "capture");
   }

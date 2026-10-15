@@ -97,4 +97,14 @@ export const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "case-exit-pending": "case-exit-pending",
   "case-record-unreadable": "case-record-unreadable",
   "case-not-ledger": "case-not-ledger",
+  // VideoError likewise.
+  "video-not-found": "video-not-found",
+  "video-off": "video-off",
+  "video-no-transcript": "video-no-transcript",
+  "video-no-yt-data": "video-no-yt-data",
+  "video-no-chapters": "video-no-chapters",
+  "video-captions-invalid": "video-captions-invalid",
+  "video-captions-too-big": "video-captions-too-big",
+  "video-captions-too-long": "video-captions-too-long",
+  "video-fetch-busy": "video-fetch-busy",
 };

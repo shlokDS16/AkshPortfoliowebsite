@@ -18,6 +18,7 @@ const FIELD_LABELS: Record<LintField, string> = {
   themeName: "Linked concept name",
   conceptName: "Linked concept name",
   conceptSlug: "Linked concept slug",
+  transcript: "Transcript",
 };
 
 function Highlight({ sentence, match }: { sentence: string; match: string | null }) {

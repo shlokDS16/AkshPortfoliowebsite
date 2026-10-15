@@ -16,6 +16,7 @@ const ctx = (over: Partial<PublishContext["item"]> = {}, bodyMd = "Utilisation p
   themeName: null,
   conceptNames: [],
   conceptSlugs: [],
+  transcript: null,
   allowances: [],
 });
 

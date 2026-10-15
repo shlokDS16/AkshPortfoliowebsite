@@ -118,6 +118,16 @@ const ERRORS = {
   "case-exit-pending": "The exit price is not fixed yet. A case study can be drafted once it is.",
   "case-record-unreadable": "The ledger record could not be read. Run the integrity check on the Ledger page.",
   "case-not-ledger": "This item does not carry a ledger record.",
+  // Videos (Phase 5b Task 7; = VIDEO_ERROR_TEXT in modules/distribution/videos/errors.ts, a test keeps them equal). Pending Shlok's approval.
+  "video-not-found": "This video could not be found.",
+  "video-off": "Video listing is not set up yet (Shlok adds a YouTube key).",
+  "video-no-transcript": "There is no transcript yet. Drop the caption file from YouTube Studio first.",
+  "video-no-yt-data": "YouTube has not answered for this video yet. Fetch again first.",
+  "video-no-chapters": "The YouTube description has no chapter list that YouTube would accept: at least 3 lines that start with a time, the first at 0:00.",
+  "video-captions-invalid": "This is not a caption file. In YouTube Studio choose Subtitles, then Download, then .vtt or .srt.",
+  "video-captions-too-big": "This file is too big for a caption file (1 MB at most).",
+  "video-captions-too-long": "This caption file is too long (5,000 cues at most).",
+  "video-fetch-busy": "A fetch is already running. Wait for it to finish, then reload this page.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -181,6 +191,14 @@ const NOTICES = {
   "case-drafted": "Drafted from the ledger. Add the learning objective and what you took from it, then run the gate.",
   "case-refreshed": "Refreshed from the ledger. Run the publishing gate again.",
   "case-unchanged": "This case study already matches the ledger.",
+  // Videos (Phase 5b Task 7). Pending Shlok's approval.
+  "transcript-stored": "Transcript stored. Use it to put it in the next revision.",
+  "transcript-used": "Transcript added to a new revision. Run the publishing gate again.",
+  "title-used": "Title set from YouTube. Run the publishing gate again.",
+  "chapters-used": "Chapters set from the description. Run the publishing gate again.",
+  "video-fetched": "YouTube was asked again. The data below is what it answered.",
+  "video-unchanged": "Nothing changed: this video already has that.",
+  "video-deferred": "YouTube's daily limit is used up. The desk tries again tomorrow.",
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-saved-readings-missing":

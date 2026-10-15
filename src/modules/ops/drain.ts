@@ -11,6 +11,7 @@ import { CLOCK_REGISTER_STEP } from "./clock-steps";
 import { LEDGER_DAILY_STEPS } from "./ledger-steps";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
 import type { Step } from "./steps";
+import { VIDEO_CHECK_STEP, VIDEO_FETCH_STEP } from "./video-steps";
 
 // Job code: the one place the ingestion runner gets the secret-key client (ADR-001 s3, ADR-004 s4.4).
 
@@ -89,18 +90,20 @@ async function sweep(): Promise<string> {
   return sweepText(summary, await pruneUsage(createSupabaseServiceClient()));
 }
 
-/** The clock registration first, then Phase 1's clocks (each its own heartbeat), then the ingestion drain, then the alert email (about 15 s at most). */
+/** The clock registration first, then Phase 1's clocks (each its own heartbeat), then the ingestion drain, then the video fetch (one API call, about 10 s at most; "videos off" until the YouTube settings are set), then the alert email (about 15 s at most). */
 export const SERVER_PUMP_STEPS: readonly Step[] = [
   CLOCK_REGISTER_STEP,
   ...PUMP_STEPS,
   { job: "ingestion:drain", run: async () => summaryText(await drainFor(DRAIN_MS.pump)) },
+  VIDEO_FETCH_STEP,
   ALERT_STEP,
 ];
-/** The heartbeat, then the ledger (closes, scores; about 45 s at most), then the ingestion sweep (200 s), then the alert email (about 15 s). A step that fails does not stop the next. */
+/** The heartbeat, then the ledger (closes, scores; about 45 s at most), then the ingestion sweep (200 s), then the video check (a few API calls and writes, a minute at most; "videos off" until the YouTube settings are set), then the alert email (about 15 s). A step that fails does not stop the next. */
 export const SERVER_DAILY_STEPS: readonly Step[] = [
   CLOCK_REGISTER_STEP,
   ...DAILY_STEPS,
   ...LEDGER_DAILY_STEPS,
   { job: "ingestion:sweep", run: sweep },
+  VIDEO_CHECK_STEP,
   ALERT_STEP,
 ];
