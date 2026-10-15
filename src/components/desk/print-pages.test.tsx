@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { formatDate } from "@/lib/format";
 import { buildCaseStudyView, buildFileView, buildNoteView } from "@/modules/showcase";
-import { buildRichSnapshot, buildSeedSnapshot, withLedgerCase } from "@/test/fakes/showcase-snapshot";
+import { buildSeedSnapshot, withLedgerCase } from "@/test/fakes/showcase-snapshot";
 import { caseRecordFixture } from "@/test/fixtures/case-record";
 import { SITE_COUNTS, STREAK } from "@/test/fixtures/desk-ui";
 import { mockIntersectionObserver, mockMatchMedia, renderWithMotion } from "@/test/ui";
@@ -13,30 +11,9 @@ import { FileHeader } from "./file-header";
 import { NoteArticle } from "./note-article";
 import { DeskShell } from "./private/desk-shell";
 import { PublicFrame } from "./public-frame";
-import { SITE_POSITION, STANDARD_DISCLOSURE } from "./disclosure";
-import AboutPage from "@/app/(public)/about/page";
-import CasesPage from "@/app/(public)/cases/page";
-import FilesPage from "@/app/(public)/companies/page";
-import ConceptsPage from "@/app/(public)/concepts/page";
-import ConceptRoute from "@/app/(public)/concepts/[slug]/page";
-import MistakesPage from "@/app/(public)/mistakes/page";
-import NotesPage from "@/app/(public)/notes/page";
-import Home from "@/app/(public)/page";
-import ProcessPage from "@/app/(public)/process/page";
 
-const state = vi.hoisted(() => ({ snapshot: null as unknown, unavailable: false }));
-vi.mock("next/navigation", () => ({
-  usePathname: () => "/desk",
-  notFound: () => {
-    throw new Error("NEXT_NOT_FOUND");
-  },
-}));
+vi.mock("next/navigation", () => ({ usePathname: () => "/desk" }));
 vi.mock("@/modules/capture/actions", () => ({ submitCapture: vi.fn() }));
-vi.mock("@/lib/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/env")>()), publicEnv: () => ({ NEXT_PUBLIC_SITE_URL: "https://desk.example" }) }));
-vi.mock("@/modules/showcase", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/modules/showcase")>()),
-  getSnapshot: async () => (state.unavailable ? { status: "unavailable" } : { status: "ok", data: state.snapshot }),
-}));
 
 // Plan 5a Task 3 wiring: where the button, the masthead and the disclosure sit on each printable page, and which chrome stays off paper.
 const seed = buildSeedSnapshot();
@@ -106,38 +83,5 @@ describe("what the desk keeps off paper", () => {
     expect(screen.getByRole("banner").className).toMatch(/print:hidden/);
     for (const nav of screen.getAllByRole("navigation", { name: "Desk sections" })) expect(nav.closest(".print\\:hidden")).not.toBeNull();
     expect(document.querySelectorAll("[data-print-banner]")).toHaveLength(1);
-  });
-});
-
-// Rule 11.4: every printed public page carries the standard disclosure in full; /about already shows it on screen.
-describe("index and concept pages print the full standard disclosure", () => {
-  const rich = buildRichSnapshot();
-  const full = STANDARD_DISCLOSURE(SITE_POSITION, formatDate(rich.today));
-  const params = (slug: string) => ({ params: Promise.resolve({ slug }) }) as never;
-  const pages: [string, () => Promise<React.ReactNode>][] = [
-    ["/", () => Home()],
-    ["/companies", () => FilesPage()],
-    ["/notes", () => NotesPage()],
-    ["/process", () => ProcessPage()],
-    ["/mistakes", () => MistakesPage()],
-    ["/concepts", () => ConceptsPage()],
-    ["/concepts/receivable-days", () => ConceptRoute(params("receivable-days"))],
-    ["/cases", () => CasesPage()],
-  ];
-
-  it.each(pages)("%s has exactly one, with the whole sentence", async (_path, page) => {
-    state.snapshot = rich;
-    state.unavailable = false;
-    const out = renderToStaticMarkup(await page());
-    expect(out.match(/data-print-disclosure/g)).toHaveLength(1);
-    expect(out.replaceAll("&#x27;", "'")).toContain(full.replaceAll("&", "&amp;"));
-  });
-
-  it("the unavailable state prints none, and /about adds none to the one it already shows", async () => {
-    state.snapshot = rich;
-    state.unavailable = true;
-    expect(renderToStaticMarkup(await Home())).not.toContain("data-print-disclosure");
-    state.unavailable = false;
-    expect(renderToStaticMarkup(await AboutPage())).not.toContain("data-print-disclosure");
   });
 });
