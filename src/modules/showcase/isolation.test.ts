@@ -187,8 +187,11 @@ describe("Plan 4: public concept code never reaches the private learning graph",
 
   it("nothing they import, however deep, is the knowledge module or a private desk component, and nothing they reach names those relations", () => {
     expect([...reach.keys()].map(relative).filter((n) => KNOWLEDGE.test(n))).toEqual([]);
-    // Transitive reach includes shared barrels (the capture module's own import of the catalog), so the names are checked on every file
-    // they reach except the one catalog file that owns the description column, which no public file imports by name.
+    // Transitive reach includes shared barrels (the capture module's own import of the catalog). Every reached file is checked for the
+    // private relations and columns; exactly one names them, the catalog file that owns the description column. The public side
+    // reaches the catalog barrel through capture and never calls it (the import check below pins that no public file names it).
+    const naming = [...reach.entries()].filter(([f, text]) => !GENERATED.test(f) && PRIVATE_GRAPH.test(text)).map(([f]) => relative(f)).sort();
+    expect(naming).toEqual(["modules/catalog/concepts.ts"]);
     const imported = [...reach.entries()].filter(([f]) => /modules\/showcase\/|app\/\(public\)\//.test(relative(f))).flatMap(([, text]) => [...text.matchAll(FROM)].map((m) => m[1] ?? m[2] ?? m[3]));
     expect(imported.filter((spec) => /modules\/(knowledge|catalog)(?:\/|$)/.test(spec))).toEqual([]);
   });
