@@ -20,12 +20,14 @@ function ownerSql(sql: string): void {
   try {
     writeFileSync(file, sql, "utf8");
     execFileSync("pnpm", ["exec", "supabase", "db", "query", "--local", "-f", process.platform === "win32" ? `"${file}"` : file], {
-      stdio: ["ignore", "ignore", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"],
       shell: process.platform === "win32",
     });
   } catch (error) {
-    const stderr = (error as { stderr?: Buffer }).stderr?.toString().trim();
-    throw new Error(`The local fixture SQL failed: ${stderr || String(error)}`);
+    // The CLI reports a failed statement as JSON on stdout and only a progress line on stderr, so both are kept.
+    const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
+    const said = [stderr?.toString().trim(), stdout?.toString().trim()].filter(Boolean).join("\n");
+    throw new Error(`The local fixture SQL failed: ${said || String(error)}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
