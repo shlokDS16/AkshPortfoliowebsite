@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(108);
+select plan(117);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -39,12 +39,13 @@ select hasnt_column('public', 'valuation_cells', 'visibility', 'no visibility co
 select hasnt_column('public', 'valuation_scenarios', 'visibility', 'no visibility column on scenarios (rule 9)');
 
 -- 2. The upload path accepts a workbook and its model object.
-select lives_ok($$ select 1 where 'd1000000-0000-4000-8000-000000000001.xlsx' ~ '^[0-9a-f-]{36}\.(pdf|jpg|png|webp|mp3|m4a|webm|txt|xlsx)$' $$,
-  'the path pattern accepts <uuid>.xlsx');
+select lives_ok($$ insert into public.documents (title, kind, sha256, bytes, storage_path)
+                   values ('Path', 'xlsx', repeat('b', 64), 10, 'd1000000-0000-4000-8000-0000000000bb.xlsx') $$,
+  'the storage path check accepts <uuid>.xlsx');
 select throws_ok($$ insert into public.documents (title, kind, sha256, bytes, storage_path)
                     values ('Macro', 'xlsx', repeat('a', 64), 10, 'd1000000-0000-4000-8000-0000000000aa.xlsm') $$,
   '23514', null, 'a storage path ending .xlsm is refused');
-select is((select count(*) from public.documents where kind = 'xlsx'), 4::bigint, 'the document kind xlsx is accepted (four workbooks above)');
+select is((select count(*) from public.documents where kind = 'xlsx'), 5::bigint, 'the document kind xlsx is accepted (the five workbooks above)');
 select lives_ok($$ insert into public.jobs (kind, document_id) values ('ingest_xlsx', 'd1000000-0000-4000-8000-000000000001') $$,
   'the job kind ingest_xlsx is accepted');
 select lives_ok($$ insert into public.job_steps (job_id, kind, page_no)
@@ -236,6 +237,9 @@ select throws_ok($$ select public.confirm_valuation_version((select v from ctx w
        from generate_series(1, 21) g)) $$,
   '22023', null, '21 results are refused');
 select throws_ok($$ select public.confirm_valuation_version((select v from ctx where k = 'v1'),
+    (select jsonb_agg(jsonb_build_object('sheet', 'DCF', 'addr', 'D' || g, 'role', 'output')) from generate_series(1, 61) g)) $$,
+  '22023', 'valuation: at most 60 cells', 'more than 60 cells are refused before any is looked at');
+select throws_ok($$ select public.confirm_valuation_version((select v from ctx where k = 'v1'),
     '[{"sheet":"DCF","addr":"b2","role":"input"},{"sheet":"DCF","addr":"B9","role":"output"}]'::jsonb) $$,
   '22023', null, 'a lower-case address is refused');
 select throws_ok($$ select public.confirm_valuation_version((select v from ctx where k = 'v1'),
@@ -362,6 +366,39 @@ select is((select count(*) from public.valuation_versions) + (select count(*) fr
         + (select count(*) from public.valuation_scenarios) + (select count(*) from public.valuation_scenario_values), 0::bigint,
   'a non-admin reads no valuation row once rows exist');
 select is_empty($$ delete from public.valuation_scenarios returning 1 $$, 'and deletes none');
+reset role;
+
+-- 12. Added by the Task 2 review.
+-- The model object is machine data: Aksh's session reads it (the signed link) but cannot store or remove anything under models/.
+insert into public.jobs (kind, document_id) values ('ingest_xlsx', 'd1000000-0000-4000-8000-000000000002');
+insert into ctx select 'job', j.id from public.jobs j where j.document_id = 'd1000000-0000-4000-8000-000000000002';
+insert into storage.objects (bucket_id, name) values ('documents', 'models/' || (select v from ctx where k = 'v1') || '.json');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select throws_ok($$ insert into storage.objects (bucket_id, name) values ('documents', 'models/f0000000-0000-4000-8000-000000000002.json') $$,
+  '42501', null, 'the admin cannot store a model object');
+select lives_ok($$ insert into storage.objects (bucket_id, name) values ('documents', 'd1000000-0000-4000-8000-000000000002.xlsx') $$,
+  'the admin still uploads a workbook');
+select ok(exists (select 1 from storage.objects where bucket_id = 'documents' and name = 'models/' || (select v from ctx where k = 'v1') || '.json'),
+  'the admin reads a model object (the 10-minute link is signed on his session)');
+select set_config('storage.allow_delete_query', 'true', true);
+select is_empty($$ delete from storage.objects where bucket_id = 'documents' and name like 'models/%' returning 1 $$,
+  'the admin cannot remove a model object');
+select set_config('storage.allow_delete_query', 'false', true);
+-- A scenario value must be for an input of the same version, not an input of another one.
+select lives_ok($$ select public.confirm_valuation_version((select v from ctx where k = 'v2'),
+    '[{"sheet":"DCF","addr":"B2","role":"input"},{"sheet":"DCF","addr":"B9","role":"output"}]'::jsonb) $$,
+  'version 2 is confirmed with its own input');
+select throws_ok($$ select public.save_valuation_scenario((select v from ctx where k = 'v1'), 'Cross', '',
+    jsonb_build_object((select c.id::text from public.valuation_cells c
+                         where c.version_id = (select v from ctx where k = 'v2') and c.addr = 'B2'), 1)) $$,
+  '22023', null, 'an input cell of another version is refused');
+-- "Try again" on a stopped read: the admin inserts a fresh xlsx_read step through the policy; a non-admin cannot.
+select lives_ok($$ insert into public.job_steps (job_id, kind, page_no, pass) values ((select v from ctx where k = 'job'), 'xlsx_read', 1, 2) $$,
+  'the admin can queue an xlsx_read step (job_steps_admin_insert)');
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
+select throws_ok($$ insert into public.job_steps (job_id, kind, page_no, pass) values ((select v from ctx where k = 'job'), 'xlsx_read', 1, 3) $$,
+  '42501', null, 'a non-admin cannot');
 reset role;
 
 select * from finish();

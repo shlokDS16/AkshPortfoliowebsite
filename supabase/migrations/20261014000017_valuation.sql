@@ -42,6 +42,15 @@ update storage.buckets
                                   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/json']
  where id = 'documents';
 
+-- The model object is machine data (written by job code as service_role): Aksh's session reads it, through the signed link, but
+-- cannot store or remove anything under models/, as it cannot write a version's machine columns.
+drop policy documents_bucket_admin_insert on storage.objects;
+create policy documents_bucket_admin_insert on storage.objects for insert to authenticated
+  with check (bucket_id = 'documents' and name !~ '^models/' and (select private.is_admin()));
+drop policy documents_bucket_admin_delete on storage.objects;
+create policy documents_bucket_admin_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'documents' and name !~ '^models/' and (select private.is_admin()));
+
 -- 2. valuation_versions: one row per uploaded workbook. Machine columns only (no word of Aksh's).
 create table public.valuation_versions (
   id            uuid primary key default gen_random_uuid(),
@@ -205,6 +214,9 @@ begin
   end if;
   if p_cells is null or jsonb_typeof(p_cells) <> 'array' then
     raise exception 'valuation: the cells must be a list' using errcode = '22023';
+  end if;
+  if jsonb_array_length(p_cells) > 60 then
+    raise exception 'valuation: at most 60 cells' using errcode = '22023';
   end if;
   for e in select x.value from jsonb_array_elements(p_cells) as x loop
     if jsonb_typeof(e) <> 'object'
