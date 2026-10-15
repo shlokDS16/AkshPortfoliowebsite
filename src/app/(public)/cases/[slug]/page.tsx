@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CasePage } from "@/components/desk/case/case-page";
 import { JsonLd } from "@/components/desk/json-ld";
+import { PrintMasthead } from "@/components/desk/print-masthead";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
 import { publicEnv } from "@/lib/env";
@@ -31,6 +32,7 @@ export default async function CaseRoute({ params }: PageProps<"/cases/[slug]">) 
   }
   const view = buildCaseStudyView(snapshot.data, slug);
   if (!view) notFound();
+  const siteUrl = publicEnv().NEXT_PUBLIC_SITE_URL;
   return (
     <PublicFrame
       current="cases"
@@ -38,9 +40,10 @@ export default async function CaseRoute({ params }: PageProps<"/cases/[slug]">) 
       strip={{ variant: "file", holdsPosition: view.holdsPosition, dataAsOf: view.dateline.figuresTo }}
       topBar="file"
       back={{ href: "/cases", label: "Cases" }}
+      printMasthead={<PrintMasthead address={`${siteUrl}/cases/${view.slug}`} revNo={view.revNo} revisedOn={view.reviewedOn} figuresTo={view.dateline.figuresTo} />}
     >
       <CasePage view={view} />
-      <JsonLd data={jsonLdFor("case", snapshot.data, slug, publicEnv().NEXT_PUBLIC_SITE_URL)} />
+      <JsonLd data={jsonLdFor("case", snapshot.data, slug, siteUrl)} />
     </PublicFrame>
   );
 }

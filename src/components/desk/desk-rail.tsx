@@ -28,7 +28,7 @@ export function DeskRail({ current, counts, streak, file }: Props) {
   return (
     <nav
       aria-label="Site"
-      className="sticky top-(--top-bar-h) hidden max-h-[calc(100dvh-var(--top-bar-h))] w-(--rail-w) shrink-0 overflow-y-auto border-r border-rule py-6 pr-4 desk:block"
+      className="sticky top-(--top-bar-h) hidden max-h-[calc(100dvh-var(--top-bar-h))] w-(--rail-w) shrink-0 overflow-y-auto border-r border-rule py-6 pr-4 desk:block print:hidden"
     >
       <ul className="space-y-1 text-small desk:text-small-desk">
         {SITE.map((s) => (

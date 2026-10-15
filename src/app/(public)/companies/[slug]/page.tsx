@@ -4,6 +4,7 @@ import { FileHeader } from "@/components/desk/file-header";
 import { FileSections } from "@/components/desk/file-sections";
 import { JsonLd } from "@/components/desk/json-ld";
 import { PhoneIndex } from "@/components/desk/phone-index";
+import { PrintMasthead } from "@/components/desk/print-masthead";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
 import { publicEnv } from "@/lib/env";
@@ -33,6 +34,7 @@ export default async function FilePage({ params }: PageProps<"/companies/[slug]"
   }
   const file = buildFileView(snapshot.data, slug);
   if (!file) notFound();
+  const siteUrl = publicEnv().NEXT_PUBLIC_SITE_URL;
   return (
     <PublicFrame
       current="files"
@@ -40,13 +42,14 @@ export default async function FilePage({ params }: PageProps<"/companies/[slug]"
       strip={{ variant: "file", holdsPosition: file.holdsPosition, dataAsOf: file.dataAsOf }}
       topBar="file"
       file={{ fileNo: file.fileNo, shortName: file.company, sections: [...file.sections, { id: "disclosure", label: "Disclosure" }] }}
+      printMasthead={<PrintMasthead address={`${siteUrl}/companies/${file.companySlug}`} revNo={file.revNo} revisedOn={file.dateline.revisedOn} figuresTo={file.dataAsOf} />}
     >
       <div className="-mx-(--gutter) desk:mx-0">
         <PhoneIndex sections={file.sections} />
       </div>
       <FileHeader file={file} />
       <FileSections file={file} />
-      <JsonLd data={jsonLdFor("file", snapshot.data, slug, publicEnv().NEXT_PUBLIC_SITE_URL)} />
+      <JsonLd data={jsonLdFor("file", snapshot.data, slug, siteUrl)} />
     </PublicFrame>
   );
 }

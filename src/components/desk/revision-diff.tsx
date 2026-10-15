@@ -15,7 +15,7 @@ export function RevisionDiff({ data }: { data: RevisionDiffData | null }) {
     { value: String(data.from.revNo), label: `R${data.from.revNo}` },
   ];
   return (
-    <div>
+    <div className="print:hidden">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-small tabular-nums text-ink-muted">
           R{data.from.revNo} ({formatDate(data.from.on)}) to R{data.to.revNo} ({formatDate(data.to.on)})

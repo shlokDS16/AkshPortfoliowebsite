@@ -5,14 +5,16 @@ import type { LivenessState } from "@/modules/ops";
 import { DeskTabs } from "./desk-tabs";
 import { LivenessStrip } from "./liveness-strip";
 import { OfflineStrip } from "./offline-strip";
+import { PrintBanner } from "./print-banner";
 
 type Props = { names: number; inbox: number; liveness: LivenessState; signOut: () => Promise<void>; capture?: ReactNode; children: ReactNode };
 
 /** Private chrome (design-dna 8.4): "Desk" + mono "private", tabs, strips. Never indexed. */
 export function DeskShell({ names, inbox, liveness, signOut, capture, children }: Props) {
   return (
-    <>
-      <header className="sticky top-0 z-(--z-top-bar) h-(--top-bar-h) border-b border-rule bg-paper">
+    <div data-desk-print>
+      <PrintBanner />
+      <header className="sticky top-0 z-(--z-top-bar) h-(--top-bar-h) border-b border-rule bg-paper print:hidden">
         <div className="mx-auto flex h-full max-w-page items-center gap-3 px-(--gutter)">
           <Link href="/desk" className="inline-flex min-h-11 items-center font-semibold text-ink no-underline">
             Desk
@@ -28,12 +30,16 @@ export function DeskShell({ names, inbox, liveness, signOut, capture, children }
           </form>
         </div>
       </header>
-      <LivenessStrip state={liveness} />
-      <OfflineStrip />
+      <div className="print:hidden">
+        <LivenessStrip state={liveness} />
+        <OfflineStrip />
+      </div>
       <main id="main" className="mx-auto max-w-page px-(--gutter) pt-6 pb-[calc(var(--tab-bar-h)+6rem)] desk:pb-12">
         {children}
       </main>
-      <DeskTabs names={names} inbox={inbox} variant="bottom" />
-    </>
+      <div className="print:hidden">
+        <DeskTabs names={names} inbox={inbox} variant="bottom" />
+      </div>
+    </div>
   );
 }

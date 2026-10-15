@@ -12,7 +12,7 @@ import { useActiveSection } from "./use-active-section";
 export function PhoneIndex({ sections }: { sections: RailSection[] }) {
   const active = useActiveSection(sections.map((s) => s.id));
   return (
-    <nav aria-label="On this page" className="sticky top-(--top-bar-h) z-(--z-index) border-b border-rule bg-paper desk:hidden">
+    <nav aria-label="On this page" className="sticky top-(--top-bar-h) z-(--z-index) border-b border-rule bg-paper desk:hidden print:hidden">
       <ul className="flex h-11 px-(--gutter)">
         {sections.map((s) => {
           const on = s.id === active;

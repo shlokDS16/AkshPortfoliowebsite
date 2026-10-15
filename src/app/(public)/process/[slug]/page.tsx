@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/desk/json-ld";
 import { NoteArticle } from "@/components/desk/note-article";
+import { PrintMasthead } from "@/components/desk/print-masthead";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
 import { publicEnv } from "@/lib/env";
@@ -30,10 +31,16 @@ export default async function ProcessNotePage({ params }: PageProps<"/process/[s
   }
   const note = buildNoteView(snapshot.data, "process", slug);
   if (!note) notFound();
+  const siteUrl = publicEnv().NEXT_PUBLIC_SITE_URL;
   return (
-    <PublicFrame current="process" chrome={buildSiteChrome(snapshot.data)} strip={{ variant: "site" }}>
+    <PublicFrame
+      current="process"
+      chrome={buildSiteChrome(snapshot.data)}
+      strip={{ variant: "site" }}
+      printMasthead={<PrintMasthead address={`${siteUrl}/process/${note.slug}`} revNo={note.revNo} revisedOn={note.revisedOn} figuresTo={note.dataAsOf} />}
+    >
       <NoteArticle note={note} />
-      <JsonLd data={jsonLdFor("processNote", snapshot.data, slug, publicEnv().NEXT_PUBLIC_SITE_URL)} />
+      <JsonLd data={jsonLdFor("processNote", snapshot.data, slug, siteUrl)} />
     </PublicFrame>
   );
 }

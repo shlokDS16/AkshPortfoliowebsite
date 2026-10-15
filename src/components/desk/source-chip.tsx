@@ -13,6 +13,7 @@ export function SourceChip({ data, open, onToggle }: { data: SourceChipData; ope
   return (
     <button
       type="button"
+      data-chip
       aria-expanded={open}
       aria-controls={open ? `card-${data.chipId}` : undefined}
       onClick={onToggle}

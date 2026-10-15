@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { formatDate } from "@/lib/format";
 import type { CaseBodyBlock, CaseStudyView } from "@/modules/showcase";
 import { Disclosure } from "../disclosure";
+import { PrintButton } from "../print-button";
 import { CaseEntry, Machine } from "./case-entry";
 import { HowToCheck } from "./how-to-check";
 import { RebasedChart } from "./rebased-chart";
@@ -65,6 +66,9 @@ export function CasePage({ view }: { view: CaseStudyView }) {
         <p className="mt-4 border-y border-rule py-3 font-mono text-mono-tag tabular-nums text-ink">
           Written {formatDate(d.writtenOn)} · Closed {formatDate(d.closedOn)} · Figures to {formatDate(d.figuresTo)}
         </p>
+        <div className="mt-3 print:hidden">
+          <PrintButton />
+        </div>
       </header>
 
       <div id="file-body" className="space-y-(--section-gap) pt-(--block-gap)">
