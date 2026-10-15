@@ -1,8 +1,9 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildRichSnapshot, buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
 import { KAVERI, NOTES, PROCESS_NOTE } from "@/test/fixtures/casefile";
 import { derivedProblems } from "./derived-scan";
-import { jsonLdFor, pageMetadata, robotsFor, serializeJsonLd, sitemapEntries, type SeoRoute } from "./seo";
+import { jsonLdFor, pageMetadata, robotsFor, serializeJsonLd, SITE_CARD_ALT, sitemapEntries, type SeoRoute } from "./seo";
 
 const SITE = "https://desk.example";
 const rich = buildRichSnapshot();
@@ -64,6 +65,22 @@ describe("pageMetadata", () => {
     expect(pageMetadata("home", null).title).toBeUndefined();
     expect(pageMetadata("files", null).title).toBe("Files");
     expect(pageMetadata("about", null).title).toBe("About and disclosures");
+  });
+
+  // A page's own `openGraph` replaces its parent's whole, images included, so an index page that says anything about itself would lose the
+  // site card that app/opengraph-image.tsx gives it. Found by the Task 4 e2e (no og:image on /, /companies, /about ...). A detail page has its
+  // own card in its own segment, which Next adds, so it names none here.
+  it("an index route names the site card itself; a detail route leaves its own card to its segment", () => {
+    for (const route of INDEX) {
+      const images = (pageMetadata(route, null).openGraph as { images?: unknown } | undefined)?.images;
+      expect(images, route).toEqual([{ url: "/opengraph-image", width: 1200, height: 630, alt: SITE_CARD_ALT }]);
+    }
+    for (const [route, slug] of DETAIL) expect(pageMetadata(route, rich, slug).openGraph, route).not.toHaveProperty("images");
+  });
+
+  it("the site card's alt text is the one app/opengraph-image.tsx exports", () => {
+    const file = readFileSync(new URL("../../app/opengraph-image.tsx", import.meta.url), "utf8");
+    expect(file).toContain(`export const alt = ${JSON.stringify(SITE_CARD_ALT)};`);
   });
 
   it("an unknown slug, or a detail route with no snapshot, gives {} as the pages do today (the page 404s)", () => {

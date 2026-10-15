@@ -15,6 +15,9 @@ export type SeoRoute = "home" | "files" | "file" | "notes" | "note" | "process" 
 export const SITE_NAME = "Aksh Agrawal · Case files";
 export const SITE_DESCRIPTION = "Each file says what Aksh expected, what would prove him wrong, and every revision since. For learning, not advice.";
 export const CONCEPTS_STANDFIRST = "The ideas Aksh uses to read a business, each with the notes and files where it comes up.";
+/** The site card (app/opengraph-image.tsx): its path and alt text, for the index pages that must name it themselves (see `card`). */
+const SITE_CARD_PATH = "/opengraph-image";
+export const SITE_CARD_ALT = "Aksh Agrawal · Case files: what Aksh expected, what would prove him wrong, and every revision since.";
 const AUTHOR = "Aksh Agrawal";
 const FEED_TYPES = { "application/rss+xml": "/feed.xml" };
 
@@ -74,8 +77,13 @@ function detailOf(route: keyof typeof SECTION, s: PublicSnapshot, slug: string):
 
 function card(path: string, title: string | undefined, description: string, d?: Detail): Metadata {
   const base = { url: path, siteName: SITE_NAME, locale: "en_IN", title: title ?? "Case files", description };
-  const openGraph: Metadata["openGraph"] =
-    d?.kind === "article" ? { ...base, type: "article", publishedTime: stamp(d.published!), modifiedTime: stamp(d.modified!), authors: [AUTHOR] } : { ...base, type: "website" };
+  // A page's `openGraph` replaces its parent's whole, images included. A detail page has a card of its own in its own segment, which Next
+  // adds; an index page has none, so it names the site card (the one the root segment gives every page that says nothing about itself).
+  const openGraph: Metadata["openGraph"] = !d
+    ? { ...base, type: "website", images: [{ url: SITE_CARD_PATH, width: 1200, height: 630, alt: SITE_CARD_ALT }] }
+    : d.kind === "article"
+      ? { ...base, type: "article", publishedTime: stamp(d.published!), modifiedTime: stamp(d.modified!), authors: [AUTHOR] }
+      : { ...base, type: "website" };
   // A page's `alternates` replaces the layout's, so the feed link is repeated here.
   return { ...(title ? { title } : {}), description, alternates: { canonical: path, types: FEED_TYPES }, openGraph, twitter: { card: "summary_large_image" } };
 }
