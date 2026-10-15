@@ -136,17 +136,19 @@ describe("scanXlsxZip: patterns that must stay linear on hostile text", () => {
   const sheet = (xml: string): ZipEntrySpec => ({ name: "xl/worksheets/sheet1.xml", data: new TextEncoder().encode(xml) });
 
   it("two million row openers with no closing bracket are read in well under a second", () => {
+    const zip = buildZip([...cleanEntries(), sheet("<worksheet><sheetData>" + "<row ".repeat(2_000_000))]);
     const start = performance.now();
-    scanXlsxZip(buildZip([...cleanEntries(), sheet("<worksheet><sheetData>" + "<row ".repeat(2_000_000))]));
+    scanXlsxZip(zip);
     expect(performance.now() - start).toBeLessThan(2000);
   });
 
   it("a million bin-mapping openers with no closing bracket in the content types are read quickly too", () => {
     const hostile = '<Types>' + '<Default Extension="bin" '.repeat(40_000);
-    const start = performance.now();
     const entries = cleanEntries();
     entries[0] = { name: "[Content_Types].xml", data: new TextEncoder().encode(hostile) };
-    scanXlsxZip(buildZip(entries));
+    const zip = buildZip(entries);
+    const start = performance.now();
+    scanXlsxZip(zip);
     expect(performance.now() - start).toBeLessThan(2000);
   });
 

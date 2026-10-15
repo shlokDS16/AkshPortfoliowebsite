@@ -12,12 +12,16 @@ import { XlsxRefusal } from "./refusal";
 const dir = mkdtempSync(join(tmpdir(), "desk-fixture-test-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
+const digits15 = (value: unknown): unknown =>
+  JSON.parse(JSON.stringify(value, (_key, v: unknown) => (typeof v === "number" ? Number(v.toPrecision(15)) : v)));
+
 const committed = () => new Uint8Array(readFileSync(new URL("../../../e2e/fixtures/model-small.xlsx", import.meta.url)));
 
 describe("e2e/fixtures/model-small.xlsx", () => {
   it("is small, and is what the generator writes today", () => {
     expect(committed().byteLength).toBeLessThan(20_000);
-    expect(readWorkbook(committed())).toEqual(readWorkbook(smallModel()));
+    // Saved values come from JS arithmetic, whose last bit differs between platforms' Math.pow; 15 significant digits is Excel's own precision.
+    expect(digits15(readWorkbook(committed()))).toEqual(digits15(readWorkbook(smallModel())));
   });
 
   it("has three sheets and the formulas the plan lists", () => {
