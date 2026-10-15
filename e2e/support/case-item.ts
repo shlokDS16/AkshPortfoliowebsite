@@ -1,5 +1,4 @@
 import type { Db } from "@/lib/supabase/types";
-import { CASE_STUDY_BODY_TEMPLATE } from "@/modules/casefile/client";
 import { caseRecordFixture } from "@/test/fixtures/case-record";
 
 // Test setup only (LOCAL stack, the admin's own rights): a private case study item whose newest revision carries the unit-test ledger
@@ -13,7 +12,7 @@ export async function seedLedgerCaseItem(db: Db, tag: string): Promise<{ id: str
   const record = JSON.parse(JSON.stringify(caseRecordFixture()));
   const revision = await db
     .from("item_revisions")
-    .insert({ item_id: item.data.id, body_md: CASE_STUDY_BODY_TEMPLATE, structured: { ledger: record }, change_reason: "Drafted from the ledger", author: "aksh" })
+    .insert({ item_id: item.data.id, body_md: "", structured: { ledger: record }, change_reason: "Drafted from the ledger", author: "aksh" })
     .select("id")
     .single();
   if (revision.error) throw revision.error;

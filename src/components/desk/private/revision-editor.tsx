@@ -101,7 +101,7 @@ export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figure
         <Textarea ref={body} id="bodyMd" name="bodyMd" value={bodyText} onChange={(e) => setBodyText(e.target.value)} rows={14} />
         <p className="text-caption text-ink-muted">
           {ledgerCase
-            ? "Your words, shown under \"Looking back\" on the page. The entries from the ledger are not edited here. Keep the heading \"## What would prove me wrong\": the checks need it."
+            ? "Your words, shown under \"Looking back\" on the page. The entries from the ledger are not edited here."
             : "Your words. For a company file: the view, then \"## What would prove me wrong\" with one \"- T1: …\" line per test. Cite a fact with [F1]."}
         </p>
       </div>

@@ -5,7 +5,7 @@ export {
   CASEFILE_LIMITS, CASEFILE_SCHEMA, PERIOD_RE, SLUG_RE, scenarioBreaksRule9, caseFileSchema, EMPTY_CASEFILE, validateCaseFile, readCaseFile,
   type CaseFile, type CfExhibit, type CfFact, type CfScenario, type CfSource, type CfTest,
 } from "./schema";
-export { CASE_STUDY_BODY_TEMPLATE, KILL_HEADING_RE, inlineText, parseInline, parseProse, splitThesisBody, type Condition, type Inline, type ProseBlock } from "./body";
+export { KILL_HEADING_RE, inlineText, parseInline, parseProse, splitThesisBody, type Condition, type Inline, type ProseBlock } from "./body";
 export { fiscalYearEnd, formatFigure, parseNumber } from "./figures";
 export { isIsoDate, isLagged, withheldUntil } from "./lag";
 export { httpUrl } from "./safe";

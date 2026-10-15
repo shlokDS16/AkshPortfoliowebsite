@@ -78,7 +78,7 @@ function chartView(record: CaseRecordV1): CaseChartView | null {
   };
 }
 
-/** A body of headings alone (the template he was given, left as it was) says nothing, so none of it is shown. */
+/** A body of headings alone says nothing, so none of it is shown (a safety net: a case study from the ledger starts with an empty body). */
 function bodyBlocks(md: string): CaseBodyBlock[] {
   const blocks = parseProse(md);
   if (blocks.every((b) => b.kind === "h")) return [];

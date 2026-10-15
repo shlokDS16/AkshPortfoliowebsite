@@ -52,6 +52,8 @@ export async function expectPublicCase(browser: Browser, size: keyof typeof SIZE
     // The public copy is off: no entry is said to be listed anywhere, and the page says what its check cannot show.
     await expect(page.getByText(/Listed in the public file/)).toHaveCount(0);
     await expect(page.getByText("the public copy of the fingerprints is not switched on.")).toBeVisible();
+    // A closed case carries no forward-looking kill-criterion heading (spec s33.5: his body is optional, "Looking back" only).
+    await expect(page.getByText("What would prove me wrong")).toHaveCount(0);
     // No result is printed (rule 10.7), with or without the chart.
     expect(await page.locator("main").innerText()).not.toMatch(/₹|%/);
     await expect(page.getByRole("img", { name: /^Weekly line chart/ })).toHaveCount(shown.chart ? 1 : 0);

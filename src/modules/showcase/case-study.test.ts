@@ -110,7 +110,7 @@ describe("buildCaseStudyView", () => {
     expect(buildCaseStudyView(one(), slug)!.lookingBack).toEqual([]);
   });
 
-  it("looking back is empty while the body is only the template's headings (a bare heading says nothing)", () => {
+  it("looking back is empty while the body is only headings (a bare heading says nothing)", () => {
     expect(buildCaseStudyView(one({ bodyMd: "## What would prove me wrong\n\n" }), slug)!.lookingBack).toEqual([]);
     expect(buildCaseStudyView(one({ bodyMd: "## What would prove me wrong\n\nThe margin story reversing." }), slug)!.lookingBack).toEqual([
       { kind: "h", text: "What would prove me wrong" },

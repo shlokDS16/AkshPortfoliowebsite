@@ -3,7 +3,7 @@ import { KAVERI } from "@/test/fixtures/casefile";
 import { checkCaseFile, fileProblems } from "./check";
 import { parseFactsSheet } from "./sheet";
 import { caseRecordFixture } from "@/test/fixtures/case-record";
-import { CASE_STUDY_BODY_TEMPLATE, inlineText, parseInline, parseProse, splitThesisBody } from "./body";
+import { inlineText, parseInline, parseProse, splitThesisBody } from "./body";
 
 describe("thesis body template (D6)", () => {
   it("splits VIEW from the test conditions under the required heading", () => {
@@ -76,22 +76,9 @@ describe("fileProblems (the editor checklist and the publish action share it)", 
   });
 });
 
-describe("the case study body template (Plan 3b Task 4)", () => {
-  it("holds the heading the app lint requires and nothing but headings", () => {
-    expect(CASE_STUDY_BODY_TEMPLATE).toMatch(/^#{1,6}\s*what would prove me wrong\b/im);
-    const lines = CASE_STUDY_BODY_TEMPLATE.split("\n").filter((l) => l.trim() !== "");
-    expect(lines.length).toBeGreaterThan(0);
-    expect(lines.every((l) => /^#{1,6}\s+\S/.test(l))).toBe(true);
-  });
-
-  it("has no conditions, so it carries none of his words", () => {
-    expect(splitThesisBody(CASE_STUDY_BODY_TEMPLATE).conditions).toEqual([]);
-  });
-});
-
 describe("file problems for a ledger case study", () => {
-  it("has none: it has no facts sheet and no tests (the lint asks for the heading)", () => {
-    expect(fileProblems(CASE_STUDY_BODY_TEMPLATE, { ledger: caseRecordFixture() })).toEqual([]);
+  it("has none: it has no facts sheet and no tests (its body is only his words)", () => {
+    expect(fileProblems("Looking back.", { ledger: caseRecordFixture() })).toEqual([]);
     expect(fileProblems("", { ledger: caseRecordFixture() })).toEqual([]);
   });
 });

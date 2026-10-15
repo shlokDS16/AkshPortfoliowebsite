@@ -2,7 +2,7 @@ import { addDays, PUBLICATION_LAG_DAYS } from "@/lib/dates";
 import { ItemNotFoundError } from "@/lib/errors";
 import { isUuid } from "@/lib/ids";
 import { isRecord } from "@/lib/records";
-import { CASE_STUDY_BODY_TEMPLATE, isLedgerCase, parseCaseRecord, type CaseRecordV1 } from "@/modules/casefile/client";
+import { isLedgerCase, parseCaseRecord, type CaseRecordV1 } from "@/modules/casefile/client";
 import { addRevision, getItemWithHistory, isItemId, updateItemMeta, type Revision } from "@/modules/research";
 import { CaseError, type CaseErrorCode } from "./errors";
 import { jsonEqual } from "./json-equal";
@@ -54,7 +54,7 @@ async function latestLedgerRevision(deps: CaseDeps, itemId: string) {
 /**
  * Makes the private case study item for a closed idea, or returns the one that exists (a second tap makes nothing). The item is
  * a private draft: the learning objective and the Holds position are left empty for him (the gate requires them), and the body
- * is the standard case study body (only the heading the lint needs). Figures to is the record's own date. The item is filed under the company the sealed one has become.
+ * is empty (his "Looking back" words are optional, spec s33.5). Figures to is the record's own date. The item is filed under the company the sealed one has become.
  */
 export async function draftCaseStudy(deps: CaseDeps, ideaId: string): Promise<{ itemId: string; created: boolean }> {
   if (!isUuid(ideaId)) throw new CaseError("case-not-found");
@@ -64,7 +64,7 @@ export async function draftCaseStudy(deps: CaseDeps, ideaId: string): Promise<{ 
   const companyId = await deps.cases.resolveCompany(record.company_id);
   const item = await deps.research.insertItem({ kind: "case_study", title: titleOf(record), companyId, themeId: null, learningObjective: null });
   const revision = await deps.research.insertRevision({
-    itemId: item.id, bodyMd: CASE_STUDY_BODY_TEMPLATE, structured: { ledger: raw }, changeReason: "Drafted from the ledger", author: "aksh",
+    itemId: item.id, bodyMd: "", structured: { ledger: raw }, changeReason: "Drafted from the ledger", author: "aksh",
   });
   await deps.research.updateItem(item.id, { currentRevisionId: revision.id, dataAsOf: record.figures_to });
   return { itemId: item.id, created: true };

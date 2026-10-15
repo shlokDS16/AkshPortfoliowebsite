@@ -4,7 +4,6 @@ import { createFakeCases, type FakeCases } from "@/test/fakes/cases-repo";
 import { createMemoryResearchRepo, type MemoryResearchRepo } from "@/test/fakes/research-repo";
 import { caseRecordFixture, FIXTURE_COMPANY, FIXTURE_IDEA } from "@/test/fixtures/case-record";
 import { CASE_ERROR_TEXT, CaseError, caseErrorFromDb, type CaseErrorCode } from "./errors";
-import { CASE_STUDY_BODY_TEMPLATE } from "@/modules/casefile/client";
 import { caseStateForIdea, caseSwitches, draftCaseStudy, recordDiffers, refreshCaseStudy } from "./service";
 import type { CaseDeps } from "./types";
 import { errorCode, errorText } from "@/lib/messages";
@@ -33,7 +32,7 @@ describe("draftCaseStudy", () => {
     });
     const revision = research.revisions.find((r) => r.itemId === item.id)!;
     expect(item.currentRevisionId).toBe(revision.id);
-    expect(revision).toMatchObject({ bodyMd: CASE_STUDY_BODY_TEMPLATE, changeReason: "Drafted from the ledger", author: "aksh" });
+    expect(revision).toMatchObject({ bodyMd: "", changeReason: "Drafted from the ledger", author: "aksh" });
     // None of his words and none of the machine's are in the body: headings only.
     expect(revision.bodyMd.split("\n").filter((l) => l.trim() !== "").every((l) => l.startsWith("#"))).toBe(true);
     expect(revision.structured).toEqual({ ledger: cases.record });
