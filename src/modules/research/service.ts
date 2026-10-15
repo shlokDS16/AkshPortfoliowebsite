@@ -1,4 +1,5 @@
 import { ItemNotFoundError, PublicItemLockedError } from "@/lib/errors";
+import { isLedgerCase } from "@/modules/casefile/case-record";
 import {
   addRevisionInput,
   appendRevisionInput,
@@ -96,6 +97,12 @@ export async function updateItemMeta(repo: ResearchRepo, itemId: string, patch: 
   const existing = await repo.getItem(itemId);
   if (!existing) throw new ItemNotFoundError(itemId);
   if (existing.visibility === "public") throw new PublicItemLockedError(itemId);
+  // A case study from the ledger takes its Figures to from the ledger alone (spec s34.5): whatever is posted, the stored date stays.
+  const [newest] = await repo.listRevisions(itemId);
+  if (newest && isLedgerCase(newest.structured)) {
+    const { dataAsOf: _ignored, ...rest } = data;
+    return repo.updateItem(itemId, rest);
+  }
   return repo.updateItem(itemId, data);
 }
 

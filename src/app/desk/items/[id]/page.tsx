@@ -101,7 +101,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
           {body ? <BodyPreview itemId={item.id} body={body} named={item.companyId !== null} /> : null}
           {isLedger ? <LedgerRecordPanel record={ledgerRecord} status={ledgerStatus} refreshAction={refreshCaseStudyAction.bind(null, item.id)} /> : null}
           {!isPublic ? <FiguresToHint latest={latestFigure} figuresTo={item.dataAsOf} action={setFiguresToAction.bind(null, item.id)} /> : null}
-          <MetaForm item={item} />
+          <MetaForm item={item} figuresToFromLedger={isLedger} />
           <RevisionEditor
             key={`${latest?.id ?? "none"}:${staged.map((s) => s.proposalId).join(",")}:${stagedReadings.map((s) => s.proposalId).join(",")}`}
             action={saveCaseFileRevisionAction.bind(null, item.id)}

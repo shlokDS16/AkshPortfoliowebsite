@@ -110,6 +110,22 @@ describe("updateItemMetaAction", () => {
     expect(repo.items.get(item.id)).toMatchObject({ title: "T2", learningObjective: "Spot a peak.", holdsPosition: "no", dataAsOf: "2026-08-01", slug: null });
   });
 
+  it("keeps the stored Figures to on a case study from the ledger (the ledger's date is the only one); a thesis still changes it", async () => {
+    const { createItem } = await import("./service");
+    const { item: ledgerItem } = await createItem(repo, { kind: "case_study", title: "Closed idea", structured: { ledger: { v: 1 } } });
+    repo.items.set(ledgerItem.id, { ...ledgerItem, dataAsOf: "2026-06-16" });
+    const to = await target(() => updateItemMetaAction(ledgerItem.id, form({ title: "Closed idea 2", learningObjective: "Learn.", dataAsOf: "2026-01-01" })));
+    expect(to).toBe(`/desk/items/${ledgerItem.id}?notice=details-saved`);
+    expect(repo.items.get(ledgerItem.id)).toMatchObject({ title: "Closed idea 2", dataAsOf: "2026-06-16" });
+    // Saving without the field at all (the form no longer posts it) does not clear the date either.
+    await target(() => updateItemMetaAction(ledgerItem.id, form({ title: "Closed idea 3" })));
+    expect(repo.items.get(ledgerItem.id)).toMatchObject({ title: "Closed idea 3", dataAsOf: "2026-06-16" });
+
+    const { item: thesis } = await createItem(repo, { kind: "thesis", title: "A thesis" });
+    await target(() => updateItemMetaAction(thesis.id, form({ title: "A thesis", dataAsOf: "2026-01-01" })));
+    expect(repo.items.get(thesis.id)).toMatchObject({ dataAsOf: "2026-01-01" });
+  });
+
   it("says plainly that a public item is locked", async () => {
     const { item } = await (await import("./service")).createItem(repo, { kind: "learning", title: "T" });
     repo.setVisibility(item.id, "public");
