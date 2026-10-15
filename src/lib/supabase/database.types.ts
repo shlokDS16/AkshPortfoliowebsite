@@ -1670,6 +1670,182 @@ export type Database = {
         }
         Relationships: []
       }
+      valuation_cells: {
+        Row: {
+          addr: string
+          id: string
+          label: string | null
+          role: string
+          sheet: string
+          version_id: string
+        }
+        Insert: {
+          addr: string
+          id?: string
+          label?: string | null
+          role: string
+          sheet: string
+          version_id: string
+        }
+        Update: {
+          addr?: string
+          id?: string
+          label?: string | null
+          role?: string
+          sheet?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_cells_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "valuation_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      valuation_scenario_values: {
+        Row: {
+          cell_id: string
+          scenario_id: string
+          value: number
+        }
+        Insert: {
+          cell_id: string
+          scenario_id: string
+          value: number
+        }
+        Update: {
+          cell_id?: string
+          scenario_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_scenario_values_cell_id_fkey"
+            columns: ["cell_id"]
+            isOneToOne: false
+            referencedRelation: "valuation_cells"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_scenario_values_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "valuation_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      valuation_scenarios: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          note: string
+          version_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          note?: string
+          version_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_scenarios_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "valuation_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      valuation_versions: {
+        Row: {
+          cell_count: number | null
+          company_id: string
+          confirmed_at: string | null
+          created_at: string
+          document_id: string
+          engine: Json | null
+          formula_count: number | null
+          id: string
+          model_path: string | null
+          read_at: string | null
+          refusal: string | null
+          report: Json | null
+          sheet_count: number | null
+          status: string
+          version_no: number
+        }
+        Insert: {
+          cell_count?: number | null
+          company_id: string
+          confirmed_at?: string | null
+          created_at?: string
+          document_id: string
+          engine?: Json | null
+          formula_count?: number | null
+          id?: string
+          model_path?: string | null
+          read_at?: string | null
+          refusal?: string | null
+          report?: Json | null
+          sheet_count?: number | null
+          status?: string
+          version_no: number
+        }
+        Update: {
+          cell_count?: number | null
+          company_id?: string
+          confirmed_at?: string | null
+          created_at?: string
+          document_id?: string
+          engine?: Json | null
+          formula_count?: number | null
+          id?: string
+          model_path?: string | null
+          read_at?: string | null
+          refusal?: string | null
+          report?: Json | null
+          sheet_count?: number | null
+          status?: string
+          version_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: true
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       public_companies: {
@@ -1881,6 +2057,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      confirm_valuation_version: {
+        Args: { p_cells: Json; p_version_id: string }
+        Returns: undefined
+      }
       enter_closes: {
         Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
         Returns: Record<string, unknown>
@@ -1994,8 +2174,21 @@ export type Database = {
           reservation_id: string
         }[]
       }
+      save_valuation_scenario: {
+        Args: {
+          p_name: string
+          p_note: string
+          p_values: Json
+          p_version_id: string
+        }
+        Returns: string
+      }
       score_ideas: { Args: Record<PropertyKey, never>; Returns: number }
       seal_ledger_days: { Args: Record<PropertyKey, never>; Returns: number }
+      start_valuation_version: {
+        Args: { p_document_id: string }
+        Returns: string
+      }
       storage_usage: {
         Args: Record<PropertyKey, never>
         Returns: {
