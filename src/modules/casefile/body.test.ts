@@ -81,4 +81,9 @@ describe("file problems for a ledger case study", () => {
     expect(fileProblems("Looking back.", { ledger: caseRecordFixture() })).toEqual([]);
     expect(fileProblems("", { ledger: caseRecordFixture() })).toEqual([]);
   });
+
+  it("says one plain sentence when the record in the revision cannot be read", () => {
+    expect(fileProblems("", { ledger: { v: 2 } })).toEqual(["The ledger record in this revision cannot be read. Refresh it from the ledger."]);
+    expect(fileProblems("", { ledger: null })).toEqual(["The ledger record in this revision cannot be read. Refresh it from the ledger."]);
+  });
 });
