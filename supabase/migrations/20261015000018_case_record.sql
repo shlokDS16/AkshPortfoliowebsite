@@ -145,6 +145,7 @@ $$;
 -- 4. Rule 10 as the gate records it. Volatile on purpose: it takes the chain lock and must see the ledger as it is after the
 -- lock. Returns '[]' for a revision with no ledger record. A ledger that fails its own checks, or a record the builder cannot
 -- read, is a recorded refusal: the gate never passes because it could not look.
+-- Never raises (T1 review): any error after the builder block is also a recorded ledger_check_failed, as in 0014's helper.
 create function private.case_gate_failures(p_item_id uuid, p_kind text, p_company_id uuid, p_data_as_of date, p_structured jsonb)
 returns jsonb
 language plpgsql security definer set search_path = ''
@@ -232,6 +233,9 @@ begin
       'message', 'Another published case study already shows this idea.'));
   end if;
   return v_out;
+exception when others then
+  return v_out || jsonb_build_array(jsonb_build_object('rule', '10', 'code', 'ledger_check_failed',
+    'message', 'The ledger failed its own check, so this case study cannot be published until it is looked at. Run the integrity check on the Ledger page.'));
 end;
 $$;
 

@@ -7,7 +7,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(134);
+select plan(141);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -400,6 +400,28 @@ update public.items set company_id = null, holds_position = null where id = pg_t
 select is(pg_temp.vd('NOL'), 'pass', 'a case study with no ledger record behaves as before');
 select isnt(pg_temp.fileno('NOL'), null, 'and still takes a file number');
 select is(private.case_gate_failures(pg_temp.co('I_NOL'), 'case_study', null, pg_temp.today() - 40, '{}'::jsonb), '[]'::jsonb, 'no ledger key: no rule 10 failure');
+-- (review) rule 10 runs outside the rule-4 condition: a ledger case study filed under no company and linked to no idea
+select pg_temp.closed('CS13', 150, 60, 40);
+select pg_temp.csitem('NC', 'CS13');
+update public.items set company_id = null, holds_position = null where id = pg_temp.co('I_NC');
+select is(pg_temp.vd('NC') || ':' || pg_temp.gc('NC'), 'fail:case_company', 'a ledger case study filed under no company still meets rule 10: case_company');
+select is((select g.reasons -> 'ledger' ->> 'checked' from public.gate_decisions g where g.item_id = pg_temp.co('I_NC')), 'false',
+  '(the rule 4 half did not run for it, so rule 10 alone refused it)');
+select pg_temp.csitem('LN', 'CS13', '{"ledger":null}'::jsonb, pg_temp.today() - 40);
+select ok(pg_temp.vd('LN') = 'fail' and pg_temp.gc('LN') like '%case_not_ready%', 'a null ledger record is a recorded refusal');
+select pg_temp.csitem('LS', 'CS13', '{"ledger":"CS13"}'::jsonb, pg_temp.today() - 40);
+select ok(pg_temp.vd('LS') = 'fail' and pg_temp.gc('LS') like '%case_not_ready%', 'a ledger record that is not an object is a recorded refusal');
+select pg_temp.csitem('ARR', 'CS13', '["ledger"]'::jsonb, pg_temp.today() - 40);
+select is(pg_temp.vd('ARR'), 'pass', 'structured that is not an object carries no ledger record');
+select isnt(pg_temp.fileno('ARR'), null, 'so it takes a file number like any case study (the gate and the file number agree)');
+select is_empty($$
+  select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname not in ('pg_catalog', 'information_schema') and n.nspname not like 'pg_temp%'
+     and (p.prosrc like '%ledger_reveal%' or p.prosrc like '%ledger_chart%')
+     and p.proname not in ('case_study_record', 'case_study_switches', 'case_gate_failures')
+  union all
+  select v.viewname::text from pg_views v where v.definition like '%ledger_reveal%' or v.definition like '%ledger_chart%'
+$$, 'only the rule 10 functions name the two switch keys; no view does');
 select pg_temp.closed('CS12', 150, 60, 40);
 select pg_temp.csitem('TH', 'CS12', null, null, 'thesis');
 select is(pg_temp.vd('TH') || ':' || pg_temp.gc('TH'), 'fail:case_kind', 'a ledger record on a thesis: case_kind');

@@ -5,7 +5,9 @@
 --   1. c_policy = 'sebi-unreg-2026-07-v1.1' (must equal POLICY_VERSION in src/modules/compliance/policy.ts);
 --   2. one call to private.case_gate_failures (0018), after the ledger half, for every revision. The helper returns '[]' unless
 --      the revision's structured data carries a ledger record;
---   3. a case study that carries a ledger record takes no file number (it is not a file: spec s33.4, plan D36).
+--   3. a case study that carries a ledger record takes no file number (it is not a file: spec s33.4, plan D36). "Carries a
+--      ledger record" is read exactly as private.case_gate_failures reads it (an object with a ledger key), so the file number
+--      and rule 10 never disagree about which revision is a ledger case study (T1 review).
 -- Same signature, so create or replace keeps the function, its owner and its grants; they are restated below.
 -- Never edit this file after it reaches the hosted project; add a later migration instead.
 -- =============================================================================
@@ -143,7 +145,8 @@ begin
            slug = v_slug,
            -- (D8, 3b) a file's first pass takes the next number; a case study from the ledger is not a file and takes none.
            file_no = case when v_item.kind = 'thesis'
-                            or (v_item.kind = 'case_study' and not (coalesce(v_struct, '{}'::jsonb) ? 'ledger'))
+                            or (v_item.kind = 'case_study'
+                                and not (jsonb_typeof(v_struct) = 'object' and v_struct ? 'ledger'))
                           then coalesce(v_item.file_no, nextval('private.file_no_seq')::integer)
                           else v_item.file_no end
      where id = p_item_id;
