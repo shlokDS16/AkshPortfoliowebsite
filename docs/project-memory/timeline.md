@@ -146,3 +146,10 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - Reviews caught: a zip bomb that SheetJS would have inflated (204 KB to 200 MB), a crafted workbook that could hang the job (the Node engine now runs in a child process killed at 60 s), Aksh's session able to write under `models/`, a calculator that kept using a disposed engine after a scenario save, sheet indices mapped from the stored order instead of the engine's, and a retry that failed at pass 9 with a generic error.
 - Evidence at 802cf25: unit 4707, pgTAP 2020, typecheck, lint, build and the bundle check clean; e2e desk-models + desk-a11y 40 passed. defenso guard_code failed server-side on every try; opus reviews stood in.
 - Next: open the PR (CI runs on pull requests only); Shlok pushes migration 0017 to hosted; the Vercel preview check (one fixture upload reaches Ready on Linux, steps in the final review); Shlok approves the new copy; merge.
+
+## 2026-10-15 (evening) - Phase 3b public case studies built and reviewed (not yet released)
+- Shlok delegated the day's decisions. Plan 3b written by desk-architect (6 tasks, D26-D44), rules addendum v1.1, built task by task by sonnet implementers, opus review of the migrations and one opus final review, one sonnet fix wave.
+- Nothing becomes public at deploy: both owner switches are off; `/cases` is a 404 and the record section on `/process` stays hidden until one case study passes the gate.
+- The final review caught a price or return written in his own words passing the gate on a ledger case (the 30-day price check never ran there); now refused by a rule-10 check with no allowance. Also: the forced "What would prove me wrong" heading dropped for ledger cases, a guard on the local aged fixture, a transitive import check for the public boundary, "Figures to" read-only on a ledger case.
+- Evidence at 62743c7: unit 5014, pgTAP 2175, full e2e 300 passed plus the cases projects.
+- Next: after PR #8, push 0018-0019 with the 3b merge; Shlok approves copy and decisions; switches stay off until he runs the runbook.
