@@ -85,4 +85,12 @@ export const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "ledger-note-too-long": "ledger-note-too-long",
   "ledger-fetch-busy": "ledger-fetch-busy",
   "ledger-item-other-company": "ledger-item-other-company",
+  // CaseError likewise.
+  "case-not-found": "case-not-found",
+  "case-not-closed": "case-not-closed",
+  "case-void": "case-void",
+  "case-no-lesson": "case-no-lesson",
+  "case-exit-pending": "case-exit-pending",
+  "case-record-unreadable": "case-record-unreadable",
+  "case-not-ledger": "case-not-ledger",
 };

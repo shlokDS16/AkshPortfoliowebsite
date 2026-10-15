@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { caseRecordFixture, FIXTURE_CHART } from "@/test/fixtures/case-record";
 import {
-  CASE_CLOSE_REASON_LABEL, CASE_MISTAKE_TAG_LABEL, CASE_PROCESS_LABEL, expectationSentence, horizonPhrase, isLedgerCase, mistakeTagsSentence,
+  CASE_CLOSE_REASON_LABEL, expectationSentence, horizonPhrase, isLedgerCase, mistakeTagsSentence,
   parseCaseRecord, PUBLIC_FINGERPRINT_FILE,
 } from "./case-record";
 

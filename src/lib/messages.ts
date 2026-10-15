@@ -104,6 +104,14 @@ const ERRORS = {
   "ledger-fetch-busy": "A fetch is already running. Wait for it to finish, then reload this page.",
   "ledger-item-other-company": "That file is about a different company. Open the idea from the company's own file, or without a link to a file.",
   "ledger-day-shut": "NSE had no trading on that date, so a closing price cannot be typed for it. If NSE did trade that day, upload NSE's official file for it instead.",
+  // Case studies from the ledger (Plan 3b Task 2, spec s33.8; = CASE_ERROR_TEXT in modules/cases/errors.ts, a test keeps them equal). Pending Shlok's approval.
+  "case-not-found": "This idea could not be found.",
+  "case-not-closed": "This idea is still open. A case study can be drafted once it is closed.",
+  "case-void": "This idea was withdrawn, so it cannot be shown as a case study.",
+  "case-no-lesson": "A case study shows what you learned. Write the lesson first.",
+  "case-exit-pending": "The exit price is not fixed yet. A case study can be drafted once it is.",
+  "case-record-unreadable": "The ledger record could not be read. Run the integrity check on the Ledger page.",
+  "case-not-ledger": "This item does not carry a ledger record.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -157,6 +165,10 @@ const NOTICES = {
   // Closes page and corporate actions (Plan 3a Task 11, spec s31). Pending Shlok's approval.
   "close-entered": "Close stored as typed. It is marked on every score that uses it.",
   "action-added": "Action entered. It is marked on every score whose period it falls in.",
+  // Case studies from the ledger (Plan 3b Task 2). Pending Shlok's approval.
+  "case-drafted": "Drafted from the ledger. Add the learning objective and what you took from it, then run the gate.",
+  "case-refreshed": "Refreshed from the ledger. Run the publishing gate again.",
+  "case-unchanged": "This case study already matches the ledger.",
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-saved-readings-missing":
