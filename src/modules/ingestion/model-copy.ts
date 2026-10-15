@@ -1,3 +1,5 @@
+import { REFUSAL_MESSAGES } from "@/modules/valuation/client";
+import { STOPPED_TWICE } from "./stopped";
 import type { ModelSummary } from "./trays";
 
 // The words about valuation workbooks (browser-safe: the trays show them). Spec 2026-10-14-valuation-2.7-design s8; the build chose the
@@ -18,4 +20,10 @@ const plural = (count: number, one: string) => `${n(count)} ${count === 1 ? one 
 /** "Model read: 4 sheets, 3,912 cells, 1,204 formulas. Choose its inputs and results." */
 export function modelReadText(model: Pick<ModelSummary, "sheets" | "cells" | "formulas">): string {
   return `Model read: ${plural(model.sheets, "sheet")}, ${plural(model.cells, "cell")}, ${plural(model.formulas, "formula")}. Choose its inputs and results.`;
+}
+
+/** What a stopped workbook read says: stopped twice is, to Aksh, a workbook too large to read in one go (spec s8); else the step's own sentence. */
+export function workbookStoppedText(lastError: string | null): string {
+  if (lastError === STOPPED_TWICE) return REFUSAL_MESSAGES.too_slow;
+  return lastError ?? WORKBOOK_NOT_READ;
 }

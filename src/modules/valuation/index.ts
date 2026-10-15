@@ -9,6 +9,7 @@ export type { BuildOptions, BuildStage } from "./build-model";
 export { createSupabaseValuationRepo, machineValuation, type MachineValuationRepo, type ValuationRepo } from "./repo";
 export { checkChoice, checkScenario, CHOICE_TEXT, type ChoiceCode, type ChoiceVerdict, type ScenarioVerdict } from "./service";
 export type { CellRole, CellRow, ChosenCell, MachineRead, ScenarioRow, VersionRow, VersionStatus } from "./records";
+export { confirmedModelFor, listModels, loadModelPage, type ModelHead, type ModelListRow, type ModelPageData } from "./page-read";
 
 /**
  * Reads a workbook whole (spec s5.1-s5.6). Loaded on first use: build-model pulls in the native engine, which the job drain and the pages

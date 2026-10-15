@@ -1,10 +1,8 @@
 import { pagesNotSortedText } from "@/lib/messages";
 import type { DocumentStatus } from "@/modules/documents/client";
-import { REFUSAL_MESSAGES } from "@/modules/valuation/client";
-import { MODEL_CONFIRMED, MODEL_READING, modelReadText, WORKBOOK_NOT_READ } from "./model-copy";
+import { MODEL_CONFIRMED, MODEL_READING, modelReadText, workbookStoppedText } from "./model-copy";
 import { OCR_ATTENTION_TEXT, scansNotice } from "./ocr-copy";
 import { isScanHeavy, PAGE_STEP_KINDS } from "./page-steps";
-import { STOPPED_TWICE } from "./stopped";
 import type { StepKind, StepStatus, WaitReason } from "./types";
 import { TRANSCRIPT_READY, TYPING_OUT } from "./voice-copy";
 
@@ -119,9 +117,9 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
     const whole = stuck.find((s) => !isPageStep(s));
     let message: string;
     if (whole) {
-      message = whole.lastError ?? (whole.kind === "pdf_text" ? PDF_NOT_OPENED_TEXT : whole.kind === "transcribe" ? VOICE_COULD_NOT_BE_TYPED : whole.kind === "xlsx_read" ? WORKBOOK_NOT_READ : CHOOSING_FAILED);
       // A workbook whose read stopped twice is, to Aksh, one that is too large to read in one go (spec s8).
-      if (whole.kind === "xlsx_read" && whole.lastError === STOPPED_TWICE) message = REFUSAL_MESSAGES.too_slow;
+      if (whole.kind === "xlsx_read") message = workbookStoppedText(whole.lastError);
+      else message = whole.lastError ?? (whole.kind === "pdf_text" ? PDF_NOT_OPENED_TEXT : whole.kind === "transcribe" ? VOICE_COULD_NOT_BE_TYPED : CHOOSING_FAILED);
     }
     else {
       message = d.photo ? PHOTO_COULD_NOT_BE_READ : `${pages.length === 1 ? "Page" : "Pages"} ${pageList(pages)} could not be read.`;

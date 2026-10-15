@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Db } from "@/lib/supabase/types";
 import { REFUSAL_MESSAGES } from "@/modules/valuation/client";
-import { readModels } from "./model-read";
-import { MODEL_CONFIRMED, MODEL_READING, modelReadText, WORKBOOK_GAVE_UP } from "./model-copy";
+import { readModels, workbookReadState } from "./model-read";
+import { MODEL_CONFIRMED, MODEL_READING, modelReadText, WORKBOOK_GAVE_UP, WORKBOOK_NOT_READ } from "./model-copy";
 import { STOPPED_TWICE } from "./stopped";
 import { trayFor, type DocState } from "./trays";
 
@@ -108,5 +108,25 @@ describe("the give-up sentence", () => {
   it("is plain, and does not tell Aksh to enter figures by hand", () => {
     expect(WORKBOOK_GAVE_UP).toMatch(/workbook/);
     expect(WORKBOOK_GAVE_UP).not.toMatch(/figures/);
+  });
+});
+
+describe("workbookReadState: a version still reading with no live step is stuck (Plan 2.7 Task 3)", () => {
+  const row = (pass: number, status: string, last_error: string | null = null) => ({ kind: "xlsx_read", pass, status, last_error });
+
+  it("is not stuck while the newest pass is queued or running", () => {
+    expect(workbookReadState([row(1, "queued")])).toEqual({ stuck: false });
+    expect(workbookReadState([row(1, "needs_attention", STOPPED_TWICE), row(2, "running")])).toEqual({ stuck: false });
+  });
+
+  it("stopped twice reads as too large to read in one go; another stop keeps its own sentence", () => {
+    expect(workbookReadState([row(1, "needs_attention", STOPPED_TWICE)])).toEqual({ stuck: true, message: REFUSAL_MESSAGES.too_slow });
+    expect(workbookReadState([row(1, "needs_attention", WORKBOOK_GAVE_UP)])).toEqual({ stuck: true, message: WORKBOOK_GAVE_UP });
+  });
+
+  it("no step, a skipped one or a finished one without a result is stuck, with the plain sentence", () => {
+    for (const steps of [[], [row(1, "skipped")], [row(1, "done")], [row(1, "needs_attention")]]) {
+      expect(workbookReadState(steps)).toEqual({ stuck: true, message: WORKBOOK_NOT_READ });
+    }
   });
 });

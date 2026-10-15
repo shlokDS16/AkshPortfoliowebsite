@@ -1,5 +1,6 @@
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
+import { WORKBOOK_NOT_READ, workbookStoppedText } from "./model-copy";
 import type { ModelSummary } from "./trays";
 
 // The inbox card's read of a workbook's version: its id and status (the card's "Open model" link) and the counts the read found (machine
@@ -28,4 +29,21 @@ export async function readModels(db: Db, documentIds: string[]): Promise<Map<str
     });
   }
   return out;
+}
+
+/** Whether a version still reading has a live read (Plan 2.7 Task 3): with none it is stuck, and its page offers Try again, never a spinner. */
+export type WorkbookRead = { stuck: false } | { stuck: true; message: string };
+type ReadStep = { kind: string; pass: number; status: string; last_error: string | null };
+
+export function workbookReadState(steps: ReadStep[]): WorkbookRead {
+  const newest = steps.filter((s) => s.kind === "xlsx_read").sort((a, b) => b.pass - a.pass)[0];
+  if (newest && (newest.status === "queued" || newest.status === "running")) return { stuck: false };
+  return { stuck: true, message: newest?.status === "needs_attention" ? workbookStoppedText(newest.last_error) : WORKBOOK_NOT_READ };
+}
+
+/** The read state of a workbook document's live job (a cancelled job has no live read). */
+export async function readWorkbookStep(db: Db, documentId: string): Promise<WorkbookRead> {
+  const { data, error } = await db.from("jobs").select("job_steps(kind, pass, status, last_error)").eq("document_id", documentId).is("cancelled_at", null);
+  if (error) throw dbError("inbox.workbookStep", error);
+  return workbookReadState(data.flatMap((j) => j.job_steps));
 }

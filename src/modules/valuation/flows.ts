@@ -32,7 +32,7 @@ const confirmClaim = z.strictObject({
 const scenarioClaim = z.strictObject({ versionId: z.guid(), name: z.unknown(), note: z.unknown().optional(), values: z.record(z.string(), z.unknown()) });
 
 /** True for a stored object that is a model this code can read (modelVersion 1, the parts the checks use). */
-function isModelObject(x: unknown): x is ModelObject {
+export function isModelObject(x: unknown): x is ModelObject {
   const m = x as Partial<ModelObject> | null;
   return typeof m === "object" && m !== null && m.modelVersion === 1 && Array.isArray(m.index?.sheets) && Array.isArray(m.taint) && typeof m.engineBytes === "string";
 }

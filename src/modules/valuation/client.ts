@@ -7,3 +7,10 @@ export * from "./format";
 export * from "./sensitivity";
 export * from "./addr";
 export type * from "./types";
+export type { CellRole, CellRow, ScenarioRow, VersionStatus } from "./records";
+// The model page (Task 3): its lists, the add-a-cell check, and the engine's result shape (a type only: the engine is in ./engine).
+export { buildLookup, type Designation, type SheetLookup } from "./suggest";
+export { checkChoice, CHOICE_TEXT, type ChoiceCode } from "./service";
+export { VALUATION_TEXT, type ValuationErrorCode, type ValuationFailure } from "./copy";
+export * from "./views";
+export type { ResultValue } from "./engine-client";
