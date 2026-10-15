@@ -32,17 +32,25 @@ describe("where the libraries are imported", () => {
     expect(importsOf("@ironcalc/wasm").map(rel).sort()).toEqual(["modules/valuation/engine-client.ts", "modules/valuation/tokens.ts"]);
   });
 
-  it("the three files that load a native or parsing library are server-only", () => {
-    for (const name of ["read-workbook.ts", "engine-node.ts", "zip-scan.ts", "build-model.ts", "tokens.ts"]) {
-      expect(text(join(MODULE, name)), name).toMatch(/^import "server-only";/);
+  it("the files that load a native or parsing library, or the database, are server-only", () => {
+    for (const name of ["read-workbook.ts", "engine-node.ts", "zip-scan.ts", "build-model.ts", "tokens.ts", "repo.ts", "index.ts"]) {
+      expect(text(join(MODULE, name)), name).toMatch(/^(?:\/\/[^\n]*\n)*import "server-only";/);
     }
   });
 
   it("the browser-safe files import no server library, no node: module and no server-only", () => {
-    for (const name of ["limits.ts", "types.ts", "addr.ts", "format.ts", "sensitivity.ts", "values.ts", "versions.ts", "cost.ts", "refusal.ts", "engine-client.ts"]) {
+    for (const name of ["limits.ts", "types.ts", "addr.ts", "format.ts", "sensitivity.ts", "values.ts", "versions.ts", "cost.ts", "refusal.ts", "engine-client.ts", "records.ts", "copy.ts", "service.ts", "client.ts"]) {
       const source = text(join(MODULE, name));
       expect(source, name).not.toMatch(/from\s+["'](?:node:|server-only|xlsx|@ironcalc\/nodejs)/);
     }
+  });
+});
+
+describe("how the rest of the app reaches the module", () => {
+  it("only through its entry, its client entry or its actions (never a file inside it)", () => {
+    const outside = files(SRC).filter((f) => !f.startsWith(MODULE));
+    const deep = outside.flatMap((f) => [...text(f).matchAll(/["']@\/modules\/valuation\/([a-z-]+)["']/g)].map((m) => `${rel(f)} -> ${m[1]}`));
+    expect(deep.filter((d) => !/-> (?:client|actions)$/.test(d))).toEqual([]);
   });
 });
 
@@ -66,8 +74,17 @@ describe("what the module does not touch", () => {
     expect(outside.filter((f) => /@\/modules\/valuation/.test(text(f))).map(rel)).toEqual([]);
   });
 
-  it("no log call in the module (nothing from a workbook reaches a log)", () => {
-    for (const file of sources) expect(text(file), rel(file)).not.toMatch(/\bconsole\.(?:log|info|warn|error|debug)\b/);
+  it("no log call in the module but the actions' one, which logs a class name and nothing else (nothing from a workbook reaches a log)", () => {
+    const allowed = /console\.error\("valuation action failed", error instanceof Error \? error\.name : "unknown"\);/g;
+    for (const file of sources) {
+      const source = text(file).replace(file.endsWith("flows.ts") ? allowed : /(?!)/g, "");
+      expect(source, rel(file)).not.toMatch(/\bconsole\.(?:log|info|warn|error|debug)\b/);
+    }
+    expect(text(join(MODULE, "flows.ts")).match(allowed)).toHaveLength(1);
+  });
+
+  it("depends on no other feature module but identity (the admin check): ingestion and documents reach it, never the reverse (Plan 2.7)", () => {
+    for (const file of sources) expect(text(file), rel(file)).not.toMatch(/from\s+["']@\/modules\/(?!valuation|identity)[a-z-]+/);
   });
 });
 
