@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/desk/empty-state";
 import { formatDate } from "@/lib/format";
-import { ITEM_GROUP_LABELS, ITEM_GROUPS, type ConceptStatus } from "@/modules/knowledge/client";
+import { groupCountText, ITEM_GROUPS, type ConceptStatus } from "@/modules/knowledge/client";
 import type { ConceptIndexRow } from "@/modules/knowledge";
 
 const EMPTY = "No concepts yet. Write #name in a capture, for example #capital-cycle.";
@@ -23,7 +23,7 @@ export function ConceptList({ rows }: { rows: readonly ConceptIndexRow[] }) {
           <p className="border-l border-dashed border-rule-strong pl-3 font-mono text-mono-tag tabular-nums text-ink-muted">
             {total === 0
               ? "Nothing linked yet"
-              : [...ITEM_GROUPS.filter((g) => counts[g] > 0).map((g) => `${counts[g]} ${ITEM_GROUP_LABELS[g]}`), lastActivity ? `Last activity ${formatDate(lastActivity)}` : null]
+              : [...ITEM_GROUPS.filter((g) => counts[g] > 0).map((g) => groupCountText(g, counts[g])), lastActivity ? `Last activity ${formatDate(lastActivity)}` : null]
                   .filter(Boolean)
                   .join(" · ")}
           </p>

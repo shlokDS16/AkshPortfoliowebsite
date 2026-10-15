@@ -23,12 +23,21 @@ describe("ConceptList", () => {
     const items = screen.getAllByRole("listitem");
     expect(within(items[0]!).getByRole("link", { name: "Moats" })).toHaveAttribute("href", "/desk/concepts/moats");
     expect(items[0]).toHaveTextContent("Public");
-    expect(items[0]).toHaveTextContent("2 Learnings");
-    expect(items[0]).toHaveTextContent("1 Reads");
+    expect(items[0]).toHaveTextContent("2 learnings");
+    expect(items[0]).toHaveTextContent("1 read");
+    expect(items[0]).not.toHaveTextContent("1 reads");
     expect(items[0]).toHaveTextContent("12 Oct 2026");
     expect(items[0]).not.toHaveTextContent("Process");
     expect(items[1]).toHaveTextContent("Private");
     expect(items[1]).toHaveTextContent("Nothing linked yet");
     expectTokenOnly(container);
+  });
+
+  it("counts in singular or plural by number, in plain words", () => {
+    render(<ConceptList rows={[row("A", "public", { learning: 1, read: 2 }, null), row("B", "public", { file: 1, process: 3, note: 1 }, null), row("C", "public", { file: 2, process: 1, note: 4 }, null)]} />);
+    const items = screen.getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("1 learning · 2 reads");
+    expect(items[1]).toHaveTextContent("1 file or case study · 3 process notes · 1 note");
+    expect(items[2]).toHaveTextContent("2 files and case studies · 1 process note · 4 notes");
   });
 });

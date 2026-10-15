@@ -32,6 +32,21 @@ export const ITEM_GROUP_LABELS: Record<ItemGroup, string> = {
   note: "Notes",
 };
 
+/** The count noun of each group, singular then plural, for a line like "1 learning · 2 reads" (pending Shlok's approval). */
+const GROUP_COUNT_NOUNS: Record<ItemGroup, readonly [string, string]> = {
+  learning: ["learning", "learnings"],
+  file: ["file or case study", "files and case studies"],
+  process: ["process note", "process notes"],
+  read: ["read", "reads"],
+  note: ["note", "notes"],
+};
+
+/** "1 learning", "2 reads": the number and the noun that agrees with it. */
+export function groupCountText(group: ItemGroup, n: number): string {
+  const [one, many] = GROUP_COUNT_NOUNS[group];
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 export function groupOfKind(kind: string): ItemGroup {
   switch (kind) {
     case "learning":
