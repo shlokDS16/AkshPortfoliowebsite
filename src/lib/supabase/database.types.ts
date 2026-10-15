@@ -2010,6 +2010,14 @@ export type Database = {
           day: string
         }[]
       }
+      case_study_record: { Args: { p_idea_id: string }; Returns: Json }
+      case_study_switches: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          chart: boolean
+          reveal: boolean
+        }[]
+      }
       check_ledger_anchors: {
         Args: Record<PropertyKey, never>
         Returns: {
