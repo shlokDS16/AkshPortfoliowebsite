@@ -213,18 +213,22 @@ describe("Phase 5a: derived public surfaces stay inside the public boundary", ()
   const DESK_ONLY = /^(?:modules\/(?:ledger|cases|valuation|knowledge|distribution|ops|identity|ingestion|documents)|components\/desk\/private)(?:\/|$)/;
   const DISTRIBUTION_PUBLIC = /^modules\/distribution\/public(?:\.ts|\/)/;
   const relative = (f: string) => f.slice(ROOT.length + 1).replaceAll("\\", "/");
-  const entries = [
+  const builders = [
     "app/sitemap.ts", "app/robots.ts", "app/feed.xml/route.ts", "modules/showcase/seo.ts", "modules/showcase/feed.ts", "modules/showcase/derived-scan.ts",
     "components/desk/json-ld.tsx",
   ].map((e) => join(ROOT, e));
+  // The public pages and the print components are on the same boundary: a page that imported ops for a date, or the private banner, would leak.
+  const pages = [...walkFiles(join(ROOT, "app/(public)")), ...["print-masthead", "print-disclosure", "print-button"].map((n) => join(ROOT, `components/desk/${n}.tsx`))].filter((f) => !/\.test\.tsx?$/.test(f));
   const ogCards = walkFiles(join(ROOT, "app")).filter((f) => /opengraph-image\.tsx$/.test(f));
-  const all = [...entries, ...ogCards];
+  const all = [...builders, ...pages, ...ogCards];
   const reach = new Map<string, string>();
   for (const entry of all) for (const [file, text] of closure(entry)) reach.set(file, text);
   const names = [...reach.keys()].map(relative);
 
   it("covers the sitemap, robots, the feed, the builders, the JSON-LD script and every share card", () => {
-    expect(all.map(relative)).toEqual(expect.arrayContaining(["app/sitemap.ts", "app/robots.ts", "app/feed.xml/route.ts", "modules/showcase/seo.ts", "modules/showcase/feed.ts", "app/opengraph-image.tsx"]));
+    expect(all.map(relative)).toEqual(
+      expect.arrayContaining(["app/sitemap.ts", "app/robots.ts", "app/feed.xml/route.ts", "modules/showcase/seo.ts", "modules/showcase/feed.ts", "app/opengraph-image.tsx", "app/(public)/notes/[slug]/page.tsx", "components/desk/print-masthead.tsx"]),
+    );
     expect(ogCards.length).toBeGreaterThanOrEqual(2);
     expect(names).toEqual(expect.arrayContaining(["modules/showcase/queries.ts", "lib/supabase/public.ts"]));
   });
@@ -245,6 +249,6 @@ describe("Phase 5a: derived public surfaces stay inside the public boundary", ()
   });
 
   it("the new builders and routes name no ledger, digest or reading table", () => {
-    for (const entry of entries) expect(readFileSync(entry, "utf8"), relative(entry)).not.toMatch(/idea_events|idea_scores|document_digests|reading_proposals|case_study_record/);
+    for (const entry of builders) expect(readFileSync(entry, "utf8"), relative(entry)).not.toMatch(/idea_events|idea_scores|document_digests|reading_proposals|case_study_record/);
   });
 });
