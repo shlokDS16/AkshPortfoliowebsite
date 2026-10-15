@@ -31,6 +31,8 @@ export const READ_BUDGET_MS = 180_000;
 
 /** Reference graph: the most range-membership entries it will hold (a pathological workbook is refused, not analysed forever). */
 export const MAX_GRAPH_MEMBERS = 5_000_000;
+/** Reference graph: the most references it will read, defined names followed at each use (names that fan out to names are refused). */
+export const MAX_GRAPH_REFS = 5_000_000;
 
 /** Suggestions (s5.6) and the report listing (s6). */
 export const MAX_SUGGESTIONS = 40;

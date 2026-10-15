@@ -1,6 +1,6 @@
 import { parseAddr } from "./addr";
 import { estimateFormulaNs } from "./cost";
-import { MAX_GRAPH_MEMBERS } from "./limits";
+import { MAX_GRAPH_MEMBERS, MAX_GRAPH_REFS } from "./limits";
 import { XlsxRefusal } from "./refusal";
 import type { FormulaRefs, Tokenizer } from "./tokens";
 import type { SheetIndex } from "./types";
@@ -32,7 +32,7 @@ export type Graph = {
   taint(sources: Iterable<number>): Uint8Array;
 };
 
-export type GraphOptions = { maxMembers?: number };
+export type GraphOptions = { maxMembers?: number; maxRefs?: number };
 
 const MAX_NAME_DEPTH = 5;
 
@@ -51,6 +51,7 @@ function lowerBound(rows: number[], target: number): number {
 
 export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphOptions = {}): Graph {
   const maxMembers = opts.maxMembers ?? MAX_GRAPH_MEMBERS;
+  const maxRefs = opts.maxRefs ?? MAX_GRAPH_REFS;
 
   // 1. An id for every filled cell, and per sheet a column index (sorted rows per column) for range expansion.
   const keys: string[] = [];
@@ -150,8 +151,15 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
   const fns: string[][] = new Array(size);
   const precedentCount = new Int32Array(size);
   let estimatedNs = 0;
+  // Every reference read, names followed each time they are used (as the engine evaluates them). Names that refer to names can fan out
+  // (ten names of ten names, five deep, is 10^4 expansions per formula), so the total is bounded and a workbook past it is refused.
+  let work = 0;
 
-  const gather = (f: number, s: number, refs: FormulaRefs, depth: number, cells: Set<number>, ranges: Set<number>, uses: number[]): void => {
+  type Gathered = { cells: Set<number>; ranges: Set<number>; uses: number[]; functions: string[] };
+  const gather = (f: number, s: number, refs: FormulaRefs, depth: number, into: Gathered): void => {
+    const { cells, ranges, uses } = into;
+    work += 1 + refs.cells.length + refs.ranges.length + refs.names.length;
+    if (work > maxRefs) throw new XlsxRefusal("too_complex");
     if (refs.dynamic) dynamic[f] = 1;
     for (const ref of refs.cells) {
       const target = ref.sheet === null ? s : sheetByName.get(ref.sheet.toLowerCase());
@@ -179,7 +187,9 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
         dynamic[f] = 1;
         continue;
       }
-      gather(f, s, found.refs, depth + 1, cells, ranges, uses);
+      // A function inside a name costs the engine what it costs in the cell (SUMPRODUCT over whole columns hidden behind a name).
+      into.functions.push(...found.refs.functions);
+      gather(f, s, found.refs, depth + 1, into);
     }
   };
 
@@ -196,7 +206,8 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
     const cells = new Set<number>();
     const ranges = new Set<number>();
     const uses: number[] = []; // every reading of a range, repeats included: the engine pays for each
-    gather(f, sheetOf[f], refs, 0, cells, ranges, uses);
+    const costFunctions = [...refs.functions];
+    gather(f, sheetOf[f], refs, 0, { cells, ranges, uses, functions: costFunctions });
     cells.delete(f);
     cellPre[f] = [...cells];
     rangePre[f] = [...ranges];
@@ -205,7 +216,7 @@ export function buildGraph(index: SheetIndex, tokenizer: Tokenizer, opts: GraphO
     for (const r of ranges) count += rangeMembers[r].length;
     precedentCount[f] = count;
     estimatedNs += estimateFormulaNs({
-      functions: refs.functions,
+      functions: costFunctions,
       ranges: uses.map((r) => ({ declared: rangeDeclared[r], present: rangeMembers[r].length })),
       dynamic: dynamic[f] === 1,
       totalCells: size,

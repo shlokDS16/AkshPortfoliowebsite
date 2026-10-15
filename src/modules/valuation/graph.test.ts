@@ -181,3 +181,30 @@ describe("the reference graph: the engine-time estimate", () => {
     expect(buildGraph(book({ S: [...cells, ...formulas] }), tokenizer).estimatedEvalMs).toBeCloseTo((40 * 10 * 60) / 1e6, 6);
   });
 });
+
+describe("the reference graph: defined names a hostile workbook can use (review of Task 1)", () => {
+  it("charges a function inside a defined name, so SUMPRODUCT over whole columns hidden in a name is priced like the plain formula", () => {
+    const cells: Spec[] = Array.from({ length: 10 }, (_, i) => [`A${i + 1}`, null] as Spec);
+    const names = [{ name: "heavy", ref: "SUMPRODUCT(S!$A:$A,S!$B:$B)", sheet: null }];
+    const plain = buildGraph(book({ S: [...cells, ["C1", "SUMPRODUCT($A:$A,$B:$B)"]] }), tokenizer);
+    const hidden = buildGraph(book({ S: [...cells, ["C1", "heavy"]] }, names), tokenizer);
+    expect(hidden.estimatedEvalMs).toBeCloseTo(plain.estimatedEvalMs, 6);
+    expect(hidden.functions(id(hidden, "S!C1"))).toEqual([]); // the cell's own functions (the diff's classes) are unchanged
+  });
+
+  it("refuses names that fan out to names (10 wide, 5 deep) instead of expanding them for ever", () => {
+    const layer = (k: number) => Array.from({ length: 10 }, (_, i) => `L${k}_${i}`);
+    const names = [1, 2, 3, 4].flatMap((k) => layer(k).map((name) => ({ name, ref: layer(k + 1).join("+"), sheet: null })));
+    names.push(...layer(5).map((name) => ({ name, ref: "S!$A$1", sheet: null })));
+    const formulas: Spec[] = Array.from({ length: 50 }, (_, i) => [`B${i + 1}`, layer(1).join("+")] as Spec);
+    const started = Date.now();
+    let code = "";
+    try {
+      buildGraph(book({ S: [["A1", null], ...formulas] }, names), tokenizer);
+    } catch (error) {
+      code = (error as XlsxRefusal).code;
+    }
+    expect(code).toBe("too_complex");
+    expect(Date.now() - started).toBeLessThan(3_000);
+  });
+});
