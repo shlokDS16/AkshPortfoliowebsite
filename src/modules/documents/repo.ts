@@ -43,6 +43,8 @@ export interface DocumentsRepo {
   objectInfo(path: string): Promise<{ size: number; mimetype: string } | null>;
   removeObject(path: string): Promise<void>;
   listForCompany(companyId: string): Promise<DocumentListItem[]>;
+  /** Records the valuation version of an uploaded workbook (migration 0017; the admin's session). Idempotent per document; returns the version id. */
+  startValuationVersion(documentId: string): Promise<string>;
 
   // Job code (the secret-key client; migration 0006 grants). Errors carry the operation and code only.
   /** The stored original's bytes. */
@@ -174,6 +176,11 @@ export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
     async removeObject(path) {
       const { error } = await db.storage.from(BUCKET).remove([path]);
       if (error) throw dbError("documents.removeObject", { message: error.message });
+    },
+    async startValuationVersion(documentId) {
+      const { data, error } = await db.rpc("start_valuation_version", { p_document_id: documentId });
+      if (error) throw dbError("documents.startValuationVersion", error);
+      return data;
     },
     async listForCompany(companyId) {
       const { data, error } = await db

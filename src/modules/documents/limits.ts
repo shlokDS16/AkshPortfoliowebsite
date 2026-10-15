@@ -2,6 +2,8 @@
 
 /** Supabase Free: 50 MB per file (also the bucket's file_size_limit and the documents.bytes check). */
 export const MAX_UPLOAD_BYTES = 52_428_800;
+/** A valuation workbook (.xlsx): 10 MB (spec 2026-10-14-valuation-2.7-design s4.1). The valuation module's XLSX_MAX_BYTES is this number; a test keeps them equal. */
+export const XLSX_MAX_BYTES = 10 * 1024 * 1024;
 /** Supabase Free: 1 GB storage. */
 export const STORAGE_BYTES = 1_073_741_824;
 /** The meter warns above this share of STORAGE_BYTES. */

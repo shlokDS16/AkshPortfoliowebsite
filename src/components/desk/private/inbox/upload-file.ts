@@ -1,5 +1,5 @@
 import { errorText } from "@/lib/messages";
-import { MAX_UPLOAD_BYTES, VOICE_MAX_BYTES, VOICE_MAX_SECONDS, type StartUploadInput } from "@/modules/documents/client";
+import { MAX_UPLOAD_BYTES, VOICE_MAX_BYTES, VOICE_MAX_SECONDS, XLSX_MAX_BYTES, type StartUploadInput } from "@/modules/documents/client";
 import { UPLOAD_NOT_FINISHED, type FinishUploadResult, type StartUploadResult } from "@/modules/ingestion/client";
 import { measureAudioSeconds } from "./audio-duration";
 import { downscaleImage, type DownscaleResult } from "./downscale";
@@ -31,7 +31,7 @@ export type UploadOutcome =
 
 export type UploadExtras = Pick<StartUploadInput, "companyId" | "filedOn" | "sourceUrl">;
 
-type Refusal = "upload-unsupported" | "upload-too-large" | "voice-off" | "voice-too-large" | "voice-too-long";
+type Refusal = "upload-unsupported" | "upload-too-large" | "upload-xlsx-too-large" | "upload-xlsx-needs-company" | "voice-off" | "voice-too-large" | "voice-too-long";
 const refuse = (code: Refusal): UploadOutcome => ({ ok: false, message: errorText(code) ?? "" });
 
 /**
@@ -44,6 +44,7 @@ export function checkFile(file: Pick<File, "name" | "size" | "type">, voiceOn = 
   if (kind === "audio" && !voiceOn) return refuse("voice-off");
   if (kind === "pdf" && file.size > MAX_UPLOAD_BYTES) return refuse("upload-too-large");
   if (kind === "audio" && file.size > VOICE_MAX_BYTES) return refuse("voice-too-large");
+  if (kind === "xlsx" && file.size > XLSX_MAX_BYTES) return refuse("upload-xlsx-too-large");
   return null;
 }
 
@@ -52,6 +53,8 @@ export async function uploadFile(file: File, extras: UploadExtras, deps: UploadD
   if (refused) return refused;
   const kind = kindOfFile(file);
   if (!kind) return refuse("upload-unsupported");
+  // A workbook is read against one company; the server refuses it too, but nothing should be sent first.
+  if (kind === "xlsx" && extras.companyId === null) return refuse("upload-xlsx-needs-company");
 
   onStage("checking");
   let toSend = file;

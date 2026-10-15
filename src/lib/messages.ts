@@ -33,10 +33,12 @@ const ERRORS = {
   // Uploads (= DOCUMENT_ERROR_TEXT in modules/documents/errors.ts; a test keeps them equal).
   "upload-duplicate": "You uploaded this file before. Open the earlier copy.",
   "upload-too-large": "Over 50 MB. Upload the financial statements section, or compress the file.",
-  "upload-unsupported": "Drop a PDF, a photo or a voice note.",
+  "upload-unsupported": "Drop a PDF, a photo, a voice note or an .xlsx workbook.",
   "upload-image-too-large": "This photo is still over 1 MB after shrinking; crop it to the table.",
   "upload-storage-full": "Storage is over 90% full. Mark finished documents as done to free space.",
   "upload-missing": "The upload did not arrive complete. Upload the file again.",
+  "upload-xlsx-too-large": "This workbook is over 10 MB. Remove sheets or pictures the valuation does not use and upload again.",
+  "upload-xlsx-needs-company": "Choose the company this workbook is for, then upload it again.",
   "voice-off": "Voice notes are not switched on yet.",
   // The two voice limits are derived in modules/documents/errors.ts from limits.ts; a test keeps these equal to that.
   "voice-too-large": "This voice note is over 25 MB. Record a shorter one.",
@@ -126,6 +128,8 @@ const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "upload-image-too-large": "upload-image-too-large",
   "upload-storage-full": "upload-storage-full",
   "upload-missing": "upload-missing",
+  "upload-xlsx-too-large": "upload-xlsx-too-large",
+  "upload-xlsx-needs-company": "upload-xlsx-needs-company",
   "voice-off": "voice-off",
   "voice-too-large": "voice-too-large",
   "voice-too-long": "voice-too-long",

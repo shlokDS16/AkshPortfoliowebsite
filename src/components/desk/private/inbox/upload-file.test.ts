@@ -79,7 +79,7 @@ describe("checkFile", () => {
     expect(checkFile({ name: "shot.png", size: 10, type: "image/png" })).toBeNull();
     expect(checkFile({ name: "shot.webp", size: 10, type: "image/webp; codecs=x" })).toBeNull(); // parameters are stripped
     for (const f of [{ name: "a.gif", type: "image/gif" }, { name: "a.pdf", type: "image/png" }, { name: "a.txt", type: "text/plain" }, { name: "a.heic", type: "image/heic" }]) {
-      expect(checkFile({ ...f, size: 10 })).toEqual({ ok: false, message: "Drop a PDF, a photo or a voice note." });
+      expect(checkFile({ ...f, size: 10 })).toEqual({ ok: false, message: "Drop a PDF, a photo, a voice note or an .xlsx workbook." });
     }
   });
 

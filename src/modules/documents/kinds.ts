@@ -1,15 +1,17 @@
 // What the desk accepts as an upload, per kind (ruling R12). Browser-safe: the drop bar and the server read the same table.
 // A pasted text or a link's answer (kinds url and text) is stored by the desk itself, never uploaded by the browser (store.ts).
 
-import { IMAGE_MAX_BYTES, MAX_UPLOAD_BYTES, VOICE_MAX_BYTES } from "./limits";
+import { IMAGE_MAX_BYTES, MAX_UPLOAD_BYTES, VOICE_MAX_BYTES, XLSX_MAX_BYTES } from "./limits";
 
-export type DocumentKind = "pdf" | "image" | "audio" | "url" | "text";
+export type DocumentKind = "pdf" | "image" | "audio" | "url" | "text" | "xlsx";
 /** The kinds a browser can upload today. */
-export type UploadKind = "pdf" | "image" | "audio";
+export type UploadKind = "pdf" | "image" | "audio" | "xlsx";
 
 export const IMAGE_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
 export type ImageMime = (typeof IMAGE_MIMES)[number];
 export const PDF_MIME = "application/pdf";
+/** A valuation workbook (2.7). Browsers often report an .xlsx as "" or application/octet-stream, so the drop bar claims this type from the extension. */
+export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 /** A pasted text, or a web page reduced to its text, is stored as <id>.txt with this bare type. */
 export const TEXT_MIME = "text/plain";
 /** Voice notes (ruling R23): bare types, `audio/x-m4a` included (some phones and Chrome name an .m4a that way). */
@@ -23,6 +25,7 @@ export const UPLOAD_KINDS: Record<UploadKind, { mimes: readonly string[]; name: 
   pdf: { mimes: [PDF_MIME], name: /\.pdf$/i, maxBytes: MAX_UPLOAD_BYTES, fallbackTitle: "Untitled PDF" },
   image: { mimes: IMAGE_MIMES, name: /\.(jpe?g|png|webp)$/i, maxBytes: IMAGE_MAX_BYTES, fallbackTitle: "Untitled photo" },
   audio: { mimes: AUDIO_MIMES, name: /\.(mp3|m4a|webm)$/i, maxBytes: VOICE_MAX_BYTES, fallbackTitle: "Untitled voice note" },
+  xlsx: { mimes: [XLSX_MIME], name: /\.xlsx$/i, maxBytes: XLSX_MAX_BYTES, fallbackTitle: "Untitled workbook" },
 };
 
 /** A type with its parameters removed and in lower case: "image/jpeg;charset=x" and "Image/JPEG" are "image/jpeg". */
@@ -31,6 +34,7 @@ export const bareMime = (type: string): string => (type.split(";")[0] ?? "").tri
 /** The path the server chooses for an upload: the document's id and an extension that follows the (already checked) type. */
 export function storageExtension(kind: UploadKind, mime: string): string {
   if (kind === "pdf") return "pdf";
+  if (kind === "xlsx") return "xlsx";
   return kind === "image" ? IMAGE_EXT[mime as ImageMime] : AUDIO_EXT[mime as AudioMime];
 }
 
@@ -51,6 +55,7 @@ export function audioMimeOfPath(path: string): AudioMime | null {
 export function mimesOfStoragePath(path: string): readonly string[] {
   if (path.endsWith(".pdf")) return [PDF_MIME];
   if (path.endsWith(".txt")) return [TEXT_MIME];
+  if (path.endsWith(".xlsx")) return [XLSX_MIME];
   const image = imageMimeOfPath(path);
   if (image) return [image];
   const ext = /\.([a-z0-9]+)$/.exec(path)?.[1];

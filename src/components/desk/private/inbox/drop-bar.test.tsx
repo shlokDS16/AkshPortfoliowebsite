@@ -47,7 +47,7 @@ describe("DropBar", () => {
   it("refuses a file that is neither a PDF nor a photo before any upload", async () => {
     render(<DropBar companies={[]} actions={actionsMock()} />);
     fireEvent.change(input(), { target: { files: [file("notes.txt", 1000, "text/plain")] } });
-    expect(await screen.findByRole("alert")).toHaveTextContent("Drop a PDF, a photo or a voice note.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Drop a PDF, a photo, a voice note or an .xlsx workbook.");
     expect(mocks.start).not.toHaveBeenCalled();
   });
 
