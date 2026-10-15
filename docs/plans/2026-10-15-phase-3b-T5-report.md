@@ -33,3 +33,47 @@ No UI string was added. The wording added is in documents: the guide section 4.9
 3. **`defenso guard_code` was not run** (no such tool in this session). The files touch a database and spawn a process, but only for the local stack; the Task 6 review stands in.
 4. **The checklist's switch line shows only when a revision is waiting to be published**, so a public case with nothing pending shows no "Case studies from the ledger" line. The runbook and guide say "the publish checklist" and the idea page "(now on|off)", which is accurate; say if you want the line always shown.
 5. **Existing wording, not mine:** the Mistakes empty state ("When one of Aksh's tests proves him wrong ...") contains the banned word "proves". It predates 3b and I left it.
+
+## Fix wave (final review, 2026-10-15)
+
+Input: `.superpowers/sdd/2026-10-15-phase-3b-ledger/final-review.md`. Branch `phase-3b-case-studies`, from 944e4ad. Nothing pushed. SQL migrations untouched (only the e2e fixture SQL changed), so no pgTAP run; `db reset` was run before each e2e pass.
+
+| Finding | Result | Commit |
+|---|---|---|
+| F1 High, rule 10.7 | Done. New `"10"` rule; `LEDGER_FIGURE` pattern plus the existing price pattern, tested on every sentence of a ledger case whatever the lag, never allowanceable; the hint (`words.ts`) uses the same two patterns. Tests: "down 18% since I opened it", "trades at Rs 450", "₹450", "up 3x", "a 40% gain" fail; "Revenue grew 20% last year", "Rs 500 crore" and others pass; no change for a non-ledger case study; an allowance does not clear it. | 3ccd07f |
+| F2 Medium, heading | Done as ruled: structure rule skipped for a ledger case only; `CASE_STUDY_BODY_TEMPLATE` removed, the draft body is empty, editor help changed, e2e test 2 now publishes a plain paragraph and the page shows no "What would prove me wrong"; headings-only body still hidden (safety net); guide and quick guide updated. | 3ccd07f, 25a3b9f, 82ddca6, f869f34 |
+| F3 Medium, fixture guard | Done: both guards are the first statements; vitest `src/test/e2e-fixture-guard.test.ts` and an e2e step that runs the raw file and expects "placeholders not filled" (the helper now also reads the CLI's stdout, where it reports the error: f1ef77d). Runbook paragraph added. | 82ddca6, f1ef77d, f869f34 |
+| F4 Medium, "proves" | Done: new empty state (`mistakes-empty.tsx`), shape "Case / His call / His words", added to the BANNED scan as a fifth page, pages test, guide quote, `e2e/public-site.spec.ts` assertion. | b0fc816, f869f34, 02e2119 |
+| F5 Low, Figures to | Done: read-only in the form with the sentence; the Save details action keeps the stored date (`updateItemDetails`; Refresh from the ledger still moves it through `updateItemMeta`). My first version put the guard in `updateItemMeta` and broke Refresh (caught by the cases tests); fixed in 532914d. | 3ae98f6, 532914d |
+| F6 Low, isolation | Done: test fails on `case-record.ts` first (seen), comment reworded; no other file in the reach names a ledger table. | 3560b99 |
+| F7 Low, D37 | Done: spec s34.1 note; runbook line and the "After the merge" list; dead `SiteCounts.mistakes` removed. The optional `notFound()` on an unavailable snapshot is not taken (debt). | f869f34, 7863463, 3c1ee8b |
+| F8 Low, alias hops | Done: `MAX_ALIAS_HOPS = 1`; repo test with an A to B to C chain files under B (seen failing). | 7863463 |
+| F9 Low, unreadable record | Done: `fileProblems` says the one sentence for a ledger case whose record does not parse. | d9b3e42 |
+| F10 Low, "(now off)" | Done: `reveal: boolean or null`; null reads "(could not be read just now)". | 0ca342e, 3c1ee8b |
+| F11 Low, parity | Done: `words.parity.test.ts`, 27 sentences, hint and gate agree for rules 1, 2 and 10, one at a time and together. | 3ccd07f |
+| F12 Low, ordering | Done: `cases` depends on `anon`; `playwright test --list --project cases` shows 0 anon tests before and 35 after. | 6590249 |
+| F13 Low, line endings | Done: `.gitattributes` has `*.tsx`, `*.json`, `*.mjs`, `*.css` as LF; the nine tsx files renormalised (nothing else touched). `*.md` was left out on purpose (see concerns). | 621283e |
+| F14 | Debt, as ruled (no index now). | f869f34 |
+| F15 | Debt, string pending Shlok. | f869f34 |
+
+Debt added: a new "2026-10-15 (Plan 3b fix wave ...)" section in `docs/specs/technical-debt.md` (append only): F14, F15, the F13 remainder, the F7 optional `notFound()`, a note on how widely the rule 10.7 patterns over-match, and the T1 review's deferred M3, M4, M5, M6.
+
+New strings, pending Shlok's approval:
+- F1: "A case study from the ledger prints no price or return (publishing rule 10.7)." and the two patterns in `lexicon.ts` (`LEDGER_FIGURE`).
+- F2: editor help "Your words, shown under "Looking back" on the page. The entries from the ledger are not edited here."; guide step 5 (the body is optional; no price or return in it).
+- F4: empty state "Closed cases in which Aksh judged his own process flawed, or named a kind of mistake, are listed here with his own words and a link to the case." with shape "Case", "His call", "His words".
+- F5: "Set from the ledger. Refresh from the ledger moves it."
+- F9: "The ledger record in this revision cannot be read. Refresh it from the ledger."
+- F10: "(could not be read just now)".
+- Spec s34 (new) and the runbook wording for the Mistakes rail and page.
+
+Evidence (local stack, `db reset` first):
+- `rtk pnpm test`: 348 files, 5014 tests passed. `rtk pnpm typecheck` and `rtk pnpm lint`: clean. `pnpm build` (with the local-stack env) and `pnpm check:bundles`: passed.
+- `pnpm e2e`, full: 300 passed, 17 skipped; in that run the new fixture-refusal step failed, which stopped `cases`, `cases-public-*` and `signout` from starting. After the fix (f1ef77d): `cases` 8 of 8 passed, then `cases-public-375`, `cases-public-1280` and `signout` 5 passed (2 skipped: the "nothing public yet" test, by design), run with `--no-deps` on the same database. `public-a11y`, `public-cases`, `desk-ledger` and `desk-a11y` passed at both sizes in the full run.
+- Two earlier full runs each had one failure, both mine or a flake: the old Mistakes text in `public-site.spec.ts` (fixed in 02e2119), and `public-site.spec.ts:20` (Files search) once at 1280 px, a fill-before-hydration race in a test this wave did not touch; it passed on the rerun.
+
+Concerns:
+1. `*.md` is not under `eol=lf`: about 22 markdown files (the guides, the debt file, the runbooks) are CRLF in the index, and adding the rule would rewrite them whole on their next edit. Left for a between-plans commit (debt line). Seven older `.tsx` files stay CRLF in the index for the same reason.
+2. The rule 10.7 patterns over-match on purpose ("revenue is up 20%" is refused in a ledger case, with no allowance). Aksh may meet it; the debt file says how to narrow it.
+3. `defenso guard_code` was not run (no such tool in this session). The research action change only drops a field from a request.
+4. The local Supabase stack is shared by the worktrees; `db reset` and the e2e run need the stack to themselves.
