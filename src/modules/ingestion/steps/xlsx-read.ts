@@ -27,13 +27,14 @@ export type Build = (bytes: Uint8Array, opts: BuildOptions) => Promise<ModelObje
 const defaultBuild: Build = (bytes, opts) => buildModel(bytes, opts);
 
 const attention = (error: string): StepOutcome => ({ kind: "attention", error });
+const SKIPPED_CONFIRMED: StepOutcome = { kind: "done", result: { skipped: "confirmed" } };
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 /** The refusal code of an error, or null when it is not a refusal. By name as well as by class, so a second copy of the module still counts. */
 function refusalCode(error: unknown): RefusalCode | null {
   if (error instanceof XlsxRefusal) return error.code;
   const e = error as { name?: unknown; code?: unknown } | null;
-  return e?.name === "XlsxRefusal" && typeof e.code === "string" && e.code in REFUSAL_MESSAGES ? (e.code as RefusalCode) : null;
+  return e?.name === "XlsxRefusal" && typeof e.code === "string" && Object.hasOwn(REFUSAL_MESSAGES, e.code) ? (e.code as RefusalCode) : null;
 }
 
 export function createXlsxRead({ build = defaultBuild }: { build?: Build } = {}): StepHandler {
@@ -46,7 +47,9 @@ export function createXlsxRead({ build = defaultBuild }: { build?: Build } = {})
     const version = await valuation.getByDocument(documentId);
     if (!version) return attention(XLSX_NO_VERSION);
     // His cells were chosen against this very model object: it is never replaced.
-    if (version.status === "confirmed") return { kind: "done", result: { skipped: "confirmed" } };
+    if (version.status === "confirmed") return SKIPPED_CONFIRMED;
+    // A duplicate read can run while Aksh confirms an earlier one: look again just before writing (the row refuses, the object would not).
+    const confirmedMeanwhile = async () => (await valuation.getByDocument(documentId))?.status === "confirmed";
     if (!doc.storagePath || doc.originalDeletedAt) return attention(XLSX_NOT_STORED);
 
     // A storage failure throws: the runner retries the step (1 and 2 minutes) before showing its give-up sentence.
@@ -55,6 +58,7 @@ export function createXlsxRead({ build = defaultBuild }: { build?: Build } = {})
 
     const readAt = deps.now().toISOString();
     const refuse = async (code: RefusalCode): Promise<StepOutcome> => {
+      if (await confirmedMeanwhile()) return SKIPPED_CONFIRMED;
       await valuation.saveRead(version.id, { status: "refused", refusal: code, readAt });
       return attention(refusalMessage(code));
     };
@@ -73,6 +77,7 @@ export function createXlsxRead({ build = defaultBuild }: { build?: Build } = {})
 
     // The object first, the columns second: a version is `ready` only when its object is there.
     const path = `models/${version.id}.json`;
+    if (await confirmedMeanwhile()) return SKIPPED_CONFIRMED;
     await valuation.putModel(path, new TextEncoder().encode(JSON.stringify(model)));
     const { sheets, cells, formulas } = model.index.counts;
     await valuation.saveRead(version.id, { status: "ready", modelPath: path, sheetCount: sheets, cellCount: cells, formulaCount: formulas, report: model.report, engine: model.engine, readAt });

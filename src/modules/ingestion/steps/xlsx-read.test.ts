@@ -146,6 +146,28 @@ describe("xlsx_read with an injected reader", () => {
     expect(w.valuation.reads.at(-1)?.read).toMatchObject({ status: "refused", refusal: code, readAt: new Date(T0).toISOString() });
   });
 
+  it("leaves a version confirmed while the read ran alone: the object his cells were chosen against is not replaced (review fix)", async () => {
+    const w = world(fixture());
+    const model = { index: { counts: { sheets: 1, cells: 1, formulas: 1 } }, report: {}, engine: {} } as never;
+    const build = async () => {
+      // Aksh confirms an earlier read of the same version while this duplicate read is running.
+      const v = w.valuation.versions.get(VERSION)!;
+      w.valuation.versions.set(VERSION, { ...v, status: "confirmed", confirmedAt: "2026-10-15T10:01:00.000Z", modelPath: MODEL_PATH, readAt: "2026-10-15T09:00:00.000Z" });
+      return model;
+    };
+    expect(await createXlsxRead({ build })(ctx(w))).toMatchObject({ kind: "done", result: { skipped: "confirmed" } });
+    expect(w.valuation.models.size).toBe(0);
+    expect(w.valuation.reads).toHaveLength(0);
+  });
+
+  it("does not take an inherited property name for a refusal code (review fix)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const w = world(fixture());
+    const fake = Object.assign(new Error("x"), { name: "XlsxRefusal", code: "constructor" });
+    expect(await createXlsxRead({ build: async () => { throw fake; } })(ctx(w))).toEqual({ kind: "attention", error: REFUSAL_MESSAGES.engine_failed });
+    expect(w.valuation.versions.get(VERSION)).toMatchObject({ status: "refused", refusal: "engine_failed" });
+  });
+
   it("maps any other error to engine_failed and logs only its class name, never its message or a cell", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const w = world(fixture());
