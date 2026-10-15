@@ -704,7 +704,7 @@ Once the note passes, a visitor can open **/concepts**, which lists each public 
 **Save a page as a PDF.** A public file, learning note, process note and closed case each has a **Save as PDF** button under its dates. Press it and the browser opens its print window. Choose "Save as PDF" as the printer (on an iPhone, use Share, then Save to Files). The PDF is a dated document:
 
 - At the top: "Aksh Agrawal · Case files", the page's address, and "This copy shows revision R2 of 15 Oct 2026. Figures to 31 Aug 2026. The current version is at the address above." A note has no "Figures to" part.
-- At the end: the full disclosure, with your position in the share. A file, a case and a note about a company already show it on the page. A note about no company gets it on paper only, and it reads "Position in the security discussed: Not disclosed."
+- At the end: the full disclosure, with your position in the share. A file, a case and a note about a company already show it on the page. A note about no company, the register and the other list pages get it on paper only, and it reads "Position in the security discussed: stated on each file."
 - A link in the source list prints its address after its name, so the PDF still says where the figure came from.
 - Left out: the menus, the tabs, the buttons, the sentence-by-sentence comparison of revisions, and anything that is folded shut on the screen. The list of revisions stays.
 - Always light, on white, even if your phone or laptop is set to dark.
