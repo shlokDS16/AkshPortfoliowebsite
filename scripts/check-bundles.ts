@@ -9,6 +9,8 @@
 // 3. No file the browser can download (.next/static) contains @ironcalc/nodejs, a .node binary or SheetJS, and no client manifest names
 //    the xlsx or @ironcalc/nodejs packages.
 // 4. public/vendor/ironcalc-0.8.4.wasm exists and is byte-for-byte the package's wasm_bg.wasm.
+// 5. No .wasm file under .next/static: the engine is served from public/vendor only. A second copy (the bundler emits one when the wasm
+//    glue's default `new URL("wasm_bg.wasm", import.meta.url)` is left in; patches/@ironcalc__wasm@0.8.4.patch removes it) is 2 MB of dead weight.
 // Exits 1 with every failure listed, 0 when all hold.
 
 import { createHash } from "node:crypto";
@@ -107,6 +109,9 @@ for (const file of walk(staticDir)) {
   if (body.includes("@ironcalc/nodejs") || body.includes("@ironcalc+nodejs")) fail(`${rel} names @ironcalc/nodejs`);
   if (SHEETJS.test(body)) fail(`${rel} contains SheetJS`);
 }
+
+// 5: no bundled copy of the wasm.
+for (const file of walk(staticDir)) if (file.endsWith(".wasm")) fail(`a second copy of the engine's wasm is bundled: ${relative(next, file).split(sep).join("/")} (it is served from public/vendor)`);
 
 // 4: the served wasm is the package's.
 const served = join(root, "public", "vendor", "ironcalc-0.8.4.wasm");

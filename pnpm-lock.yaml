@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@ironcalc/wasm@0.8.4':
+    hash: 348e683a485a29f9228bef11c8ef811e4908d92260a39870fed568143502aca9
+    path: patches/@ironcalc__wasm@0.8.4.patch
+
 importers:
 
   .:
@@ -19,7 +24,7 @@ importers:
         version: 0.8.3
       '@ironcalc/wasm':
         specifier: 0.8.4
-        version: 0.8.4
+        version: 0.8.4(patch_hash=348e683a485a29f9228bef11c8ef811e4908d92260a39870fed568143502aca9)
       '@number-flow/react':
         specifier: 0.6.2
         version: 0.6.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -4442,7 +4447,7 @@ snapshots:
       '@ironcalc/nodejs-win32-arm64-msvc': 0.8.3
       '@ironcalc/nodejs-win32-x64-msvc': 0.8.3
 
-  '@ironcalc/wasm@0.8.4': {}
+  '@ironcalc/wasm@0.8.4(patch_hash=348e683a485a29f9228bef11c8ef811e4908d92260a39870fed568143502aca9)': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
