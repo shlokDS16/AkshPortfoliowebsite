@@ -18,6 +18,8 @@ const desk = {
   dependencies: ["seed"],
 };
 
+const PUBLIC_PROJECTS = ["375", "1280"].flatMap((w) => [`public-${w}`, `public-${w}-dark`]);
+
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/support/global-setup.ts",
@@ -68,9 +70,28 @@ export default defineConfig({
       ...desk,
       use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
     },
+    // Plan 3b Task 5 (D43): a case study end to end on a seeded idea that the owner has moved back in time. It re-seals the whole
+    // local chain and the sealed days, so it runs after every other ledger, public and desk project, and never against a hosted
+    // project (e2e/support/cases.ts refuses to run without the local stack). It publishes one real case through the real gate and
+    // leaves it public, with both owner switches off again.
+    {
+      name: "cases",
+      testMatch: spec("cases"),
+      dependencies: [...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop"],
+      use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
+    },
+    // The public case pages again, now that the loop above has left one case public: the published half of public-cases.spec.ts
+    // (axe, one h1, no sideways scroll, the in-browser fingerprint check) runs here. In the public-* projects, which run first, that
+    // half skips because nothing is public yet (the deploy state, which those projects check instead).
+    ...(["375", "1280"] as const).map((w) => ({
+      name: `cases-public-${w}`,
+      testMatch: spec("public-cases"),
+      dependencies: ["cases"],
+      use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
+    })),
     // Signing out revokes every session of the admin (GoTrue's default scope), including the stored
-    // one the desk projects share, so this runs last and only after both desk projects have finished.
-    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop"] },
+    // one the desk projects share, so this runs last and only after the desk and case projects have finished.
+    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases"] },
   ],
   webServer: {
     command: stack ? `pnpm build && pnpm start -p ${E2E_PORT}` : `pnpm start -p ${E2E_PORT}`,
