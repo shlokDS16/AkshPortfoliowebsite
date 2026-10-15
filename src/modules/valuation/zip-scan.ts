@@ -20,6 +20,10 @@ const LOCAL_FIXED = 30;
 const MAX_COMMENT = 0xffff;
 const ENCRYPTED = 0x0001;
 const STRONG_ENCRYPTION = 0x0040;
+const MASKED_HEADER = 0x2000;
+const ENCRYPTION_BITS = ENCRYPTED | STRONG_ENCRYPTION | MASKED_HEADER;
+const DATA_DESCRIPTOR = 0x0008;
+const ZIP64_EXTRA = 0x0001;
 
 const builtinCrc32 = (zlib as unknown as { crc32?: (data: Uint8Array) => number }).crc32;
 const checksum = (bytes: Uint8Array): number => (builtinCrc32 ? builtinCrc32(bytes) : crc32Fallback(bytes));
@@ -47,12 +51,20 @@ const normalise = (name: string) => name.replace(/\\/g, "/").replace(/^\/+/, "")
 
 const same = (a: Uint8Array, b: Uint8Array) => a.byteLength === b.byteLength && a.every((x, i) => x === b[i]);
 
+/** Whether an extra-field block holds a zip64 size field. Walked exactly as SheetJS walks it (id, size, skip), which reads its sizes from one. */
+function hasZip64Extra(view: DataView, from: number, length: number): boolean {
+  for (let p = from; p + 4 <= from + length; p += 4 + view.getUint16(p + 2, true)) if (view.getUint16(p, true) === ZIP64_EXTRA) return true;
+  return false;
+}
+
 function readEntries(zip: Uint8Array): Entry[] {
   const damaged = () => new XlsxRefusal("zip_damaged");
   if (zip.byteLength < EOCD_MIN) throw damaged();
   const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
   const end = findEnd(view, zip.byteLength);
   if (end < 0) throw damaged();
+  // SheetJS takes the LAST end signature in the file, wherever it is; one hidden in the comment would hand it a directory never scanned.
+  for (let at = end + 1; at + 4 <= zip.byteLength; at++) if (view.getUint32(at, true) === EOCD_SIG) throw damaged();
   if (end >= 20 && view.getUint32(end - 20, true) === ZIP64_LOCATOR_SIG) throw damaged();
 
   const disk = view.getUint16(end + 4, true);
@@ -84,9 +96,10 @@ function readEntries(zip: Uint8Array): Entry[] {
     const localOffset = view.getUint32(at + 42, true);
     const next = at + CENTRAL_FIXED + nameLength + extraLength + commentLength;
     if (next > end) throw damaged();
-    if ((flags & (ENCRYPTED | STRONG_ENCRYPTION)) !== 0) throw new XlsxRefusal("password_or_xls");
+    if ((flags & ENCRYPTION_BITS) !== 0) throw new XlsxRefusal("password_or_xls");
     if (method !== 0 && method !== 8) throw damaged();
     if (compressed === 0xffffffff || declared === 0xffffffff || localOffset === 0xffffffff) throw damaged();
+    if (hasZip64Extra(view, at + CENTRAL_FIXED + nameLength, extraLength)) throw damaged();
     if (declared > ZIP_MAX_ENTRY_BYTES) throw new XlsxRefusal("zip_too_large");
     declaredSum += declared;
     if (declaredSum > ZIP_MAX_TOTAL_BYTES) throw new XlsxRefusal("zip_too_large");
@@ -97,6 +110,20 @@ function readEntries(zip: Uint8Array): Entry[] {
     const localExtraLength = view.getUint16(localOffset + 28, true);
     const localName = zip.subarray(localOffset + LOCAL_FIXED, localOffset + LOCAL_FIXED + localNameLength);
     if (!same(localName, nameBytes)) throw damaged();
+    // SheetJS trusts the LOCAL header's method, flags and sizes, so they must say what the directory says, or a stored entry that passes
+    // every check here is inflated there without a bound. A data descriptor may leave the local checksum and sizes at zero (some writers
+    // do); the deflate stream itself is the one checked below, so a reader that inflates it to its end gets the bytes checked here.
+    const localFlags = view.getUint16(localOffset + 6, true);
+    if ((localFlags & ENCRYPTION_BITS) !== 0) throw new XlsxRefusal("password_or_xls");
+    if (view.getUint16(localOffset + 8, true) !== method) throw damaged();
+    const deferred = (localFlags & DATA_DESCRIPTOR) !== 0 && method === 8;
+    const agrees = (field: number, expected: number) => {
+      const value = view.getUint32(localOffset + field, true);
+      return value === expected || (deferred && value === 0);
+    };
+    if (!agrees(14, crc) || !agrees(18, compressed) || !agrees(22, declared)) throw damaged();
+    if (localOffset + LOCAL_FIXED + localNameLength + localExtraLength > cdOffset) throw damaged();
+    if (hasZip64Extra(view, localOffset + LOCAL_FIXED + localNameLength, localExtraLength)) throw damaged();
     const start = localOffset + LOCAL_FIXED + localNameLength + localExtraLength;
     if (start + compressed > cdOffset) throw damaged();
     entries.push({ name: normalise(Buffer.from(nameBytes).toString("latin1")), nameBytes, method, crc, compressed, declared, start });
@@ -139,8 +166,14 @@ function hasMacroContentType(xml: string): boolean {
   return declared.includes("macroenabled") || declared.includes("vbaproject") || declared.includes("macrosheet");
 }
 
-/** The workbook's relationships naming a VBA project, wherever the part is called. */
-const hasVbaRelationship = (xml: string): boolean => xml.toLowerCase().includes("vbaproject");
+/** What the workbook's relationships name by TYPE, wherever the part is called: a VBA project, an external link, a data connection. */
+function relationshipRefusal(xml: string): "macros" | "external_links" | "data_connections" | null {
+  const lower = xml.toLowerCase();
+  if (lower.includes("vbaproject")) return "macros";
+  if (lower.includes("/relationships/externallink")) return "external_links";
+  if (lower.includes("/relationships/connections")) return "data_connections";
+  return null;
+}
 
 /** The content-type list and the workbook's relationships are a few KB in any real file; more than this is not one. */
 const SMALL_PART_BYTES = 1024 * 1024;
@@ -184,13 +217,15 @@ export function scanXlsxZip(zip: Uint8Array): ZipScanResult {
   for (const entry of entries) {
     const bytes = inflate(zip, entry);
     totalBytes += bytes.byteLength;
-    if (/^xl\/worksheets\/[^/]+\.xml$/.test(entry.name)) {
-      cellTags += countSheetShapes(bytes, MAX_CELL_TAGS);
-      if (cellTags > MAX_CELL_TAGS) throw new XlsxRefusal("too_many_cells");
-    }
+    // Every part, not only xl/worksheets/*.xml: the workbook's relationships may point a sheet at any part name, and SheetJS follows them.
+    cellTags += countSheetShapes(bytes, MAX_CELL_TAGS);
+    if (cellTags > MAX_CELL_TAGS) throw new XlsxRefusal("too_many_cells");
     if ((entry === contentTypes || entry.name === "xl/_rels/workbook.xml.rels") && bytes.byteLength > SMALL_PART_BYTES) throw new XlsxRefusal("zip_damaged");
     if (entry === contentTypes && hasMacroContentType(Buffer.from(bytes).toString("latin1"))) throw new XlsxRefusal("macros");
-    if (entry.name === "xl/_rels/workbook.xml.rels" && hasVbaRelationship(Buffer.from(bytes).toString("latin1"))) throw new XlsxRefusal("macros");
+    if (entry.name === "xl/_rels/workbook.xml.rels") {
+      const refusal = relationshipRefusal(Buffer.from(bytes).toString("latin1"));
+      if (refusal) throw new XlsxRefusal(refusal);
+    }
   }
   return { entries: entries.length, totalBytes, cellTags };
 }
