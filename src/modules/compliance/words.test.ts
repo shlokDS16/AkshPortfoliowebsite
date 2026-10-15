@@ -32,4 +32,11 @@ describe("lintWords (the hint while writing sealed words)", () => {
   it("never throws or hangs on very long text", () => {
     expect(() => lintWords("word ".repeat(20000))).not.toThrow();
   });
+
+  it("flags a price or a return in his words under rule 10, on the same list as the gate", () => {
+    const found = lintWords("The share is down 18% since I opened it.");
+    expect(found).toEqual([{ sentence: "The share is down 18% since I opened it.", rule: "10", title: "Rule 10: case studies from the ledger" }]);
+    expect(lintWords("It trades at Rs 450.").map((f) => f.rule)).toEqual(["10"]);
+    expect(lintWords("Revenue grew 20% last year.")).toEqual([]);
+  });
 });

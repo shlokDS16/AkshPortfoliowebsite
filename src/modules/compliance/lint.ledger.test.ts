@@ -86,3 +86,66 @@ describe("lintText reads the words of a ledger case study", () => {
     expect(result.findings.filter((f) => f.rule === "1")).toHaveLength(1);
   });
 });
+
+describe("rule 10.7: a ledger case study prints no price or return in his own words", () => {
+  const rule10 = (result: ReturnType<typeof lintText>) => result.findings.filter((f) => f.rule === "10");
+  const failing = [
+    ["close words", "The share is down 18% since I opened it."],
+    ["close words, a multiple", "Looking back it is up 3x from my entry."],
+    ["close words, a rupee price", "It trades at Rs 450, cheap for its growth."],
+    ["close words, the rupee sign", "I opened at ₹450 a share."],
+    ["close words, a gain", "A 40% gain would not have changed my mind."],
+  ] as const;
+
+  for (const [label, sentence] of failing) {
+    it(`fails with rule 10 for ${label}: ${sentence}`, () => {
+      const result = lintText(input({ ledger: record({ events: withWords(sentence, 2) }) }));
+      const hits = rule10(result);
+      expect(hits.length).toBeGreaterThanOrEqual(1);
+      expect(hits[0]).toMatchObject({ field: "structured", sentence, message: "A case study from the ledger prints no price or return (publishing rule 10.7)." });
+      expect(result.passed).toBe(false);
+    });
+  }
+
+  it("fails the body \"It trades at Rs 450.\" and the title and the change reason too", () => {
+    const base = input({ ledger: record() });
+    expect(rule10(lintText({ ...base, bodyMd: "It trades at Rs 450." }))).toHaveLength(1);
+    expect(rule10(lintText({ ...base, bodyMd: "₹450 a share." }))).toHaveLength(1);
+    expect(rule10(lintText({ ...base, title: "Down 18% since I opened it" }))).toHaveLength(1);
+    expect(rule10(lintText({ ...base, changeReason: "Fixed the Rs 450 typo." }))).toHaveLength(1);
+  });
+
+  it("lets clean sentences through", () => {
+    for (const text of ["Revenue grew 20% last year.", "An order book of Rs 500 crore.", "The company has 1,200 customers.", "I waited two seasons."]) {
+      const result = lintText({ ...input({ ledger: record() }), bodyMd: text });
+      expect(rule10(result), text).toEqual([]);
+    }
+  });
+
+  it("is not cleared by an allowance on the sentence", () => {
+    const sentence = "The share is down 18% since I opened it.";
+    const result = lintText(input({ ledger: record({ events: withWords(sentence, 2) }) }, [sentenceHash(sentence)]));
+    expect(rule10(result)).toHaveLength(1);
+    expect(result.allowedBy).toEqual([]);
+  });
+
+  it("does not change the result for the same sentences on a case study that is not from the ledger", () => {
+    for (const sentence of ["The share is down 18% since I opened it.", "It trades at Rs 450."]) {
+      const result = lintText({ ...input({}), bodyMd: `## What would prove me wrong
+
+${sentence}` });
+      expect(rule10(result)).toEqual([]);
+    }
+  });
+});
+
+describe("a ledger case study's body is optional (spec s33.5)", () => {
+  it("has no structure finding with an empty body; a case study without the record still has one", () => {
+    const ledger = lintText({ ...input({ ledger: record() }), bodyMd: "" });
+    expect(ledger.findings.filter((f) => f.rule === "structure")).toEqual([]);
+    expect(ledger.passed).toBe(true);
+    const plain = lintText({ ...input({}), bodyMd: "" });
+    expect(plain.findings.filter((f) => f.rule === "structure")).toHaveLength(1);
+  });
+});
+

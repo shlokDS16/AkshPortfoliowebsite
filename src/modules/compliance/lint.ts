@@ -1,7 +1,7 @@
 import { isPastLag } from "@/lib/dates";
 import { isRecord } from "@/lib/records";
-import { isIsoDate, latestFigureDate } from "@/modules/casefile/client";
-import { LEXICON, PRICE_NUMBER } from "./lexicon";
+import { isIsoDate, isLedgerCase, latestFigureDate } from "@/modules/casefile/client";
+import { LEDGER_FIGURE_MESSAGE, LEDGER_PRICE_PATTERNS, LEXICON, PRICE_NUMBER } from "./lexicon";
 import { matchViews } from "./normalise";
 import { sentenceHash } from "./hash";
 import { POLICY_VERSION, type LintAllowed, type LintField, type LintFinding, type LintInput, type LintResult, type LintRule } from "./rules";
@@ -76,11 +76,13 @@ const structural = (rule: LintRule, message: string, field: LintField | null = n
   message,
 });
 
-/** Pure: no I/O. Allowances are honoured for rule 1 only; rules 2, 3, 5, 6 and structure are never allowanceable. */
+/** Pure: no I/O. Allowances are honoured for rule 1 only; rules 2, 3, 5, 6, 10 and structure are never allowanceable. */
 export function lintText(input: LintInput): LintResult {
   const findings: LintFinding[] = [];
   const allowedBy: LintAllowed[] = [];
   const checkPrices = input.companyId !== null && !dataIsLagged(input);
+  // Rule 10.7: a case study from the ledger prints no price or return in his words, whatever the lag. Never allowanceable.
+  const ledgerCase = isLedgerCase(input.structured);
 
   for (const unit of collectUnits(input)) {
     for (const sentence of splitSentences(unit.text)) {
@@ -96,7 +98,11 @@ export function lintText(input: LintInput): LintResult {
           findings.push({ rule: entry.rule, field: unit.field, sentence, sentenceHash: hash, match: match[0], message: entry.message });
         }
       }
-      const price = checkPrices ? firstMatch(PRICE_NUMBER, views) : null;
+      const ledgerFigure = ledgerCase && !unit.citedQuote ? LEDGER_PRICE_PATTERNS.map((p) => firstMatch(p, views)).find(Boolean) ?? null : null;
+      if (ledgerFigure) {
+        findings.push({ rule: "10", field: unit.field, sentence, sentenceHash: hash, match: ledgerFigure[0], message: LEDGER_FIGURE_MESSAGE });
+      }
+      const price = checkPrices && !ledgerFigure ? firstMatch(PRICE_NUMBER, views) : null;
       if (price) {
         findings.push({
           rule: "3",
@@ -116,7 +122,8 @@ export function lintText(input: LintInput): LintResult {
   if (input.companyId !== null && input.holdsPosition === null) {
     findings.push(structural("5", "Set 'Holds position' (yes, no or not disclosed) for an item that names a company."));
   }
-  if ((input.kind === "thesis" || input.kind === "case_study") && !/^#{1,6}\s*what would prove me wrong\b/im.test(input.bodyMd)) {
+  // A ledger case study's body is optional (spec s33.5): the record is the case, his body is only "Looking back".
+  if ((input.kind === "thesis" || (input.kind === "case_study" && !ledgerCase)) && !/^#{1,6}\s*what would prove me wrong\b/im.test(input.bodyMd)) {
     findings.push(structural("structure", "Add a 'What would prove me wrong' section as a Markdown heading.", "body"));
   }
   if (input.kind === "case_study" && !dataIsLagged(input)) {
