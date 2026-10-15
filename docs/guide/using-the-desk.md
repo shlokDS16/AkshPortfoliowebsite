@@ -2,7 +2,7 @@
 
 A guide for Aksh (daily use) and for Shlok (the short section near the end on running the site).
 
-Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) was added on 15 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
+Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
 
 ## Contents
 
@@ -19,6 +19,7 @@ Written 14 October 2026, from the code and the design documents as they stand on
    - [4.7 What a visitor sees on the public side](#47-what-a-visitor-sees-on-the-public-side)
    - [4.8 Your model on the desk](#48-your-model-on-the-desk)
    - [4.9 Case studies](#49-case-studies)
+   - [4.10 Concepts, reads and your month](#410-concepts-reads-and-your-month)
 5. [The publishing rules in plain words](#5-the-publishing-rules-in-plain-words)
 6. [When something looks wrong](#6-when-something-looks-wrong)
 7. [For Shlok: running the site](#7-for-shlok-running-the-site)
@@ -658,6 +659,44 @@ If a chosen result shows **Not available** after a change, the new inputs made t
 
 **Turning it off does not take pages down.** Switching a switch off stops new case studies and new revisions. A case that is already public stays public until you press **Unpublish** on its page.
 
+### 4.10 Concepts, reads and your month
+
+**What it is for.** Every `#name` you write becomes a concept. A concept has a page on the desk that gathers what you wrote about it: your learnings, your files, your process notes and what you read. The desk also keeps a reading log and puts your month together for you. All of this is private unless you choose to show a concept, and a read is never shown.
+
+**A concept comes from a `#name`.** Write `#capital-cycle` in a capture. The first time the site sees a name, it waits on the **Names** tab. Press **New concept**, type the name as you want it read, and press **Yes, add it**. Until you do, the concept says "Not checked yet. Check it on Names." You can link up to 8 concepts to one note, and the first one counts as its main concept.
+
+**The concepts page.** On the **Items** tab, press **Concepts** at the top. The list says, for each concept, whether it is Private or Public and how much you have under it. Press one to open it. The page has:
+
+- **In your words**: a box headed "What you mean by <the concept>". Write what the word means to you. Only you see it ("Private. Only you see this."). The desk never writes in it and never changes it.
+- Your notes and files that use the concept, in groups: **Learnings**, **Files and case studies**, **Process**, **Reads** and **Notes**, newest first.
+- **Related concepts**: links you make yourself. Under **Link a concept**, choose one and press **Link**. Press **Remove** next to one to take the link away. Pressing **Link** twice makes one link.
+- **Seen together in your notes**: when two concepts turn up in at least two of the same notes and are not linked yet, the desk lists them here, with the line "The desk found these in the same notes. Link one only if you see a connection." The desk only suggests. Nothing is linked until you press **Link**.
+
+**Change the concepts on a note.** On a note's page, the **Concepts** row shows its concepts. Press **Change**, find a concept, tap it to choose it, and press **Save concepts**. The order you tap is the order they are kept in. Saving makes a new version of the note with the same words. If the note is already public, that version waits for the publishing gate, like any edit, and the public page keeps showing the old one. While a version is waiting, you cannot change the concepts again. The page says: "A newer version of this note is waiting to be published. Publish it before changing the concepts."
+
+**The reason the desk writes.** A change of concepts gets a fixed change reason, for example "Concepts: added Capital cycle; removed Moats." Readers see a reason with the version, so it names only concepts that are public. Any other concept is counted, not named: "Concepts: added Capital cycle and 2 private concepts." A concept you have not made public never appears in a reason.
+
+**Showing a concept.** A concept is shown on the site only when both of these are true: you pressed **Make public** on it (on its own page, or on the note's publish checklist), and a published note or file uses it. Making a concept public shows nothing by itself.
+
+If a note uses a concept that is not public, the publish checklist says so. It reads "Concept "<name>" is not public yet." with the button **Make <name> public**, or "Concept "<name>" is not checked yet." with the link **Check it on Names**. If you run the gate anyway, it stops with one line for each such concept.
+
+Once the note passes, a visitor can open **/concepts**, which lists each public concept, and a concept's own page, which lists the published notes and files that use it, each with "Since" and a date. Each of those notes and files also shows a line headed **Concepts** with links to those pages. Nothing else about a concept is shown: not the words in your box, not your links between concepts, not your reads. A concept's page does not exist until a published note or file uses it.
+
+**Log a read.** Start a capture with `r:` and write what you read, for example `r: Marks, the Sea Change memo. Rates regime over #interest-rates`. The first line is the title. A web address stays in the text. The receipt says "Reading log, private". A read is never published: its page says "A read stays private. It is not published." and has no publish checklist. A read is listed under **Reads** on its concept's page, on the **Items** tab (press **Reads** to see only reads) and on the month page.
+
+**Your month.** On the **Items** tab, press **This month**. The desk's home page also says "This month: n learnings, m reads" and links there. The page "What I learned in <Month Year>" is put together by the desk from your notes that start with `l:` and from your reads. Learnings are grouped under their first concept, with "No concept" last. Each line is your own title, word for word, with its date, and links to the note. The **Reads** come after. The desk counts and groups. It does not shorten, reword or rank anything. **Earlier month** and **Later month** move between months. The page is private, and it leaves out the lessons you wrote in the Ledger.
+
+**Messages you may see**
+
+| Message | What it means and what to do |
+|---|---|
+| "Concept "<name>" is not public yet." | A note you want to publish uses a concept you have not made public. Press **Make <name> public**, then run the gate again. |
+| "Concept "<name>" is not checked yet." | The name still waits on the Names tab. Press **Check it on Names** and add it as a concept. |
+| "A newer version of this note is waiting to be published. Publish it before changing the concepts." | Run the gate on the waiting version first. |
+| "Only the first 8 concepts were linked." | A capture had more than 8 `#names`. The rest stay in the text. |
+| "That is over 2,000 characters. Shorten it." | The box under **In your words** holds up to 2,000 characters. |
+| "A concept cannot be linked to itself." | Choose a different concept in **Link a concept**. |
+
 ---
 
 ## 5. The publishing rules in plain words
@@ -847,6 +886,8 @@ They are in `docs/project-memory/unanswered-questions.md`. Do not copy them here
 
 ## 8. Not in this version
 
+- A public reading log, a public month page, and public links between concepts. These stay on the desk. A concept can be shown; a read cannot.
+- A picture of how your concepts connect, joining two concepts into one, and renaming a concept.
 - A public view of the Ledger, or any figure for how your ideas did. A closed idea can be written up as a case study (section 4.9) once the site owner has switched case studies on; the page prints no result.
 - The spreadsheet valuation page (reading a model from a spreadsheet).
 - A newsletter.

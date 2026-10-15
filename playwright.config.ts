@@ -89,9 +89,26 @@ export default defineConfig({
       dependencies: ["cases"],
       use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
     })),
+    // Plan 4 Task 6: the learning-graph loop end to end (a capture with two #names, Names, the gate's refusal, "Make public" on both, a pass,
+    // a signed-out visitor). It publishes one note that links two public concepts through the real gate and leaves it public, so it runs
+    // after every public, desk and case project, which all expect the deploy state (no public concept).
+    {
+      name: "concepts",
+      testMatch: spec("concepts"),
+      dependencies: ["anon", ...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop", "cases"],
+      use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
+    },
+    // The public concept pages again, now that the loop above has left two concepts public: the published half of public-concepts.spec.ts
+    // (axe, one h1, no sideways scroll, the 44 px targets on the phone) runs here; in the public-* projects it skips.
+    ...(["375", "1280"] as const).map((w) => ({
+      name: `concepts-public-${w}`,
+      testMatch: spec("public-concepts"),
+      dependencies: ["concepts"],
+      use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
+    })),
     // Signing out revokes every session of the admin (GoTrue's default scope), including the stored
-    // one the desk projects share, so this runs last and only after the desk and case projects have finished.
-    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases"] },
+    // one the desk projects share, so this runs last and only after the desk, case and concept projects have finished.
+    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts"] },
   ],
   webServer: {
     command: stack ? `pnpm build && pnpm start -p ${E2E_PORT}` : `pnpm start -p ${E2E_PORT}`,

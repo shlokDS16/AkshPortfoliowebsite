@@ -38,6 +38,8 @@ On a quiet day, steps 1 and 2 are enough.
 
 A `$SYMBOL` or `#concept` the site has not seen goes to the **Names** tab, where you choose **Same as ...**, **New company** (then **Yes, add it**), or **Not a company, keep as text**.
 
+Every `#name` you write becomes a concept, with its own page under **Concepts** on the **Items** tab that gathers your notes on it. Start a capture with `r:` to log something you read; it stays private. Press **This month** on the Items tab to see what you learned.
+
 ### Start a company file
 
 1. On the **Capture** tab, type for example `$KAVERI t: I expect margins to hold because ...`
