@@ -58,3 +58,51 @@ New beyond s15: page numbers "n / m" in the bottom-right margin (print only; not
 5. **`print-color-adjust: exact` on everything** means tinted blocks (the strip, the disclosure, the diff colours that survive) print with their fill. Better fidelity, more ink. The page stays white.
 6. **A long address in the masthead wraps mid-word** (case slugs are long), so the PDF's text layer has a space at the break; copying the URL from the PDF needs a join. The e2e removes whitespace before comparing.
 7. **Process, not data, picks the state in the e2e.** If someone runs the suite twice without `pnpm supabase db reset`, the `public-*` projects see the case and concepts left by the first run and the deploy-state tests fail, as the existing `public-cases` and `public-concepts` specs already do.
+
+## Fix wave (review of Part 5a, 2026-10-16)
+
+Source: `.superpowers/sdd/2026-10-16-phase-5a-ledger/review.md`. Commits on `phase-5-distribution` after e121a06, not pushed.
+
+| Finding | Severity | Commit |
+|---|---|---|
+| 1. Index pages and the concept page printed without the full disclosure (rule 11.4) | Medium | `36020d9` |
+| 2. A printed note naming no security said "Not disclosed" | Medium | `36020d9` |
+| 3. Rule 11.5 (unpublished item leaves feed, sitemap and card) had no test | Medium | `2626b8b`, plus the defect below in `b464b8c` |
+| 4. Isolation block skipped the public pages and print components | Low | `71a3b42` |
+| 5. JSON-LD numbers (only a breadcrumb `position` is allowed) | Low | `8efc598` (test), amendment (h) in `e405e50` |
+| 6. No spec amendment for 5a as built | Low | `e405e50` (section "Amendment 2026-10-16 (5a as built)", items a to l) |
+| 9. `escapeXml` kept U+FFFE and U+FFFF | Low | `f27e445` |
+| 8. (debt, taken) File share card not cut to the slot budget | Low | `a89c6dc` |
+| 7. (debt, logged) Desk banner repeats only where `@page` margin boxes work | Low | logged in `docs/specs/technical-debt.md`, `e405e50` |
+
+Also: `dab2c6a` guide line for the print disclosure; `8ddab84` moves the page-level print disclosure test to `src/app/(public)/print-disclosure.test.tsx` (the lint rule "nothing imports app/*" forbids it in `components/desk/`, where the review put it).
+
+### What changed, in a line each
+- 1 and 2: one constant `SITE_POSITION = "stated on each file"` (the wording `/about` already prints, now used there too). `PrintDisclosure` takes `position` and a date. The eight pages render it in the `ok` branch only; not on `/about`, not on Unavailable. A note without a company prints "stated on each file". The e2e PDF test checks `/companies` and one concept page; the earlier note rows accept either value.
+- 3: `e2e/cases.spec.ts` reads the case's `og:image`, then after Unpublish asserts the card and the page are 404 and the feed and sitemap no longer name the case; after Publish asserts the page, the card and the feed serve again. Unit guards in `feed.xml/route.test.ts` and `sitemap.test.ts` (the source reads `getSnapshot` and holds no `unstable_cache`, `fetch(` or `force-static`; shown to bite by adding `force-static`).
+- 4: the isolation block's entries now include `app/(public)/**` and the three print components; the table-name test keeps the original builders. Shown to bite by importing the private banner into `print-masthead.tsx`.
+- 5: `seo.test.ts` walks every JSON-LD node of every route and fails on any number except a `ListItem` `position` (with a check that the walker reports a count, a numeric version and a position outside a list item).
+- 9: `INVALID` regex adds U+FFFE and U+FFFF; `feed.test.ts` unit case; `feed-xml.test.ts` (jsdom) parses the feed with a U+FFFF title and sees no `parsererror`.
+- 8: `fileCardContent` cuts company to 72 and objective to 120 code points with `cutWords` (the budgets are now exported from `seo.ts` as `TITLE_BUDGET`, `OBJECTIVE_BUDGET`).
+
+### A defect the proof for finding 3 found, and its fix (`b464b8c`)
+The new e2e step requests a case's card while the case is private, then republishes. The page came back (200) but **the card stayed 404**: a card route that ends in `notFound()` has its 404 cached by Next without the `public-items` tag, so neither `updateTag` nor `revalidatePath("/", "layout")` ends it; it would have lasted up to an hour (the card's `revalidate`). A crawler or a person hitting a private case's card address between an unpublish and a republish is enough. The first full e2e run after the fix wave failed on exactly this in `public-distribution` (4 projects). Fix: the five card routes (`cases`, `companies`, `concepts`, `notes`, `process`) return `new Response(null, { status: 404 })` for a card that does not exist, instead of calling `notFound()`; `share-cards.test.tsx` now expects status 404 from the route. The new e2e assertion is the proof (it failed before, passes after). Controller: this is Task 1/2 code outside the review's list.
+
+### Debt
+- Logged (append only), `docs/specs/technical-debt.md`, section "2026-10-16 (Phase 5a fix wave ...)": the desk banner's margin box repeats it on pages 2+ only in Chromium (Firefox, Safari: page 1 only), with the fallback, the browser matrix and the proof described.
+- Taken: the file share card cut (finding 8).
+
+### Strings
+No new string. Removed from the pending list: "Position in the security discussed: Not disclosed." for a page naming no security (replaced by the `/about` wording "stated on each file", still pending Shlok as the value for that case). One guide sentence changed to match (using-the-desk.md, section 4.11).
+
+### Evidence (HEAD `b464b8c` plus this report)
+| Gate | Result |
+|---|---|
+| `rtk pnpm test` | 396 files, 5472 tests, all pass (one run showed a 5 s timeout in `xlsx-read.integration.test.ts` while the machine was loaded by a build; it passed on the next two runs) |
+| `rtk pnpm typecheck` | no errors |
+| `rtk pnpm lint` | clean |
+| `rtk pnpm build` (local e2e env) | green; `/feed.xml` and `/sitemap.xml` static, `/robots.txt` dynamic |
+| `pnpm check:bundles` | passed (50 routes) |
+| `pnpm supabase db reset`, then full `pnpm e2e` | **419 passed, 42 skipped, 0 failed, 16.3 min** |
+
+Concerns: (1) the print samples in `docs/plans/2026-10-15-phase-5a-print-samples/` were made before this wave; the learning-note sample still says "Not disclosed". Regenerate them at close-out. (2) Two full runs were lost to my own mistake (a run killed half-way left a stale Playwright and server on port 3100; cleaned up, then re-run from a fresh reset). (3) The guide's line that a note has no "Figures to" part is still as written; amendment (a) records that a note prints one when it carries a date.
