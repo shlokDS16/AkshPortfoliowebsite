@@ -75,6 +75,8 @@ test("a workbook is read, its cells confirmed, a scenario recalculated, saved an
   await page.getByRole("checkbox", { name: /^DCF!B13, / }).check();
   await page.getByRole("textbox", { name: "Your label for Assumptions!B1 (optional)" }).fill("Cost of capital");
   await page.getByRole("button", { name: "Use 2 inputs and 1 result" }).click();
+  // The confirm view is replaced by the scenarios view: the focus lands on its Inputs heading (final review M12).
+  await expect(page.getByRole("heading", { name: "Inputs" })).toBeFocused({ timeout: 15_000 });
 
   // Scenarios: the calculator loads in its worker; change the cost of capital to 12.5%.
   const field = page.getByRole("textbox", { name: "Cost of capital, scenario value in percent" });
