@@ -153,3 +153,9 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - The final review caught a price or return written in his own words passing the gate on a ledger case (the 30-day price check never ran there); now refused by a rule-10 check with no allowance. Also: the forced "What would prove me wrong" heading dropped for ledger cases, a guard on the local aged fixture, a transitive import check for the public boundary, "Figures to" read-only on a ledger case.
 - Evidence at 62743c7: unit 5014, pgTAP 2175, full e2e 300 passed plus the cases projects.
 - Next: after PR #8, push 0018-0019 with the 3b merge; Shlok approves copy and decisions; switches stay off until he runs the runbook.
+
+## 2026-10-15 (night) - Phase 4 learning graph built and reviewed (not yet released)
+- Spec and plan by desk-architect (concepts are the existing themes, no new table; his links between concepts stay private; reading notes are a private item kind captured with `r:`; a private month page of his learnings). Seven tasks, sonnet implementers, opus on the migrations and one opus final review, one fix wave.
+- Reviews caught: a private concept's name could reach the public through a change note; a deploy-state e2e that would skip instead of fail if something leaked; an unlocked read of linked themes in the gate; hashes from capture tags showing in public titles.
+- Evidence at d334e9f: unit 5325, pgTAP 2284, full e2e 336 passed, 0 failed.
+- Next: release after 2.7 and 3b, with the pre-push theme check.

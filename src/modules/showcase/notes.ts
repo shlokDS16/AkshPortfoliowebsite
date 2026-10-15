@@ -2,6 +2,7 @@ import { istDate } from "@/lib/dates";
 import { formatFileNo } from "@/lib/format";
 import type { UsedInRow } from "@/lib/view-types";
 import { buildViewBlocks, isIsoDate, readCaseFile } from "@/modules/casefile";
+import { itemConcepts } from "./concepts";
 import { files, ordinal, revisionsOf } from "./site";
 import type { NoteKind, NoteSummary, NoteView, PublicSnapshot } from "./types";
 
@@ -38,5 +39,6 @@ export function buildNoteView(s: PublicSnapshot, kind: NoteKind, slug: string): 
     body: buildViewBlocks(item.bodyMd, readCaseFile(item.structured), s.today),
     usedIn: kind === "learning" ? usedIn(s, slug) : [], minutes: readingMinutes(item.bodyMd),
     holdsPosition: item.companyId ? item.holdsPosition : null, dataAsOf: isIsoDate(item.dataAsOf) ? item.dataAsOf : null,
+    concepts: itemConcepts(s, item.id),
   };
 }

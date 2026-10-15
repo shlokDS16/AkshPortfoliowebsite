@@ -1,5 +1,6 @@
 import type { FileView } from "@/modules/showcase";
 import { BlockHeader } from "./block-header";
+import { ConceptLine } from "./concept-line";
 import { Disclosure } from "./disclosure";
 import { Exhibit } from "./exhibit";
 import { FactTable } from "./fact-table";
@@ -24,6 +25,7 @@ export function FileSections({ file }: { file: FileView }) {
       <section aria-labelledby="view">
         <BlockHeader label="VIEW" id="view" title="Aksh's view" sub="His own words. Each figure opens the line it came from." />
         <ViewBlock blocks={file.view} />
+        <ConceptLine concepts={file.concepts} />
       </section>
       <section aria-labelledby="tests">
         <BlockHeader label="TESTS" id="tests" title="I would be wrong if" sub={testsSub(file.tests.length)} />

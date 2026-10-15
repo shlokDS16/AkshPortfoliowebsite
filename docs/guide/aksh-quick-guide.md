@@ -32,11 +32,13 @@ On a quiet day, steps 1 and 2 are enough.
 ### Capture a thought
 
 1. Open the **Capture** tab. The box is already selected.
-2. Type your thought. Optional: `$RELIANCE` links it to a company, `#capital-cycle` links it to a theme.
+2. Type your thought. Optional: `$RELIANCE` links it to a company, `#capital-cycle` links it to a concept (you can write several `#names`; the first 8 are linked).
 3. Press **Enter** to save. (**Shift+Enter** starts a new line.)
 4. Under the box you will see "Saved." If you are offline it says "Saved on this device, will sync (N waiting)." Nothing is lost.
 
-A `$SYMBOL` or `#theme` the site has not seen goes to the **Names** tab, where you choose **Same as ...**, **New company** (then **Yes, add it**), or **Not a company, keep as text**.
+A `$SYMBOL` or `#concept` the site has not seen goes to the **Names** tab, where you choose **Same as ...**, **New company** (then **Yes, add it**), or **Not a company, keep as text**.
+
+Every `#name` you write becomes a concept, with its own page under **Concepts** on the **Items** tab that gathers your notes on it. Start a capture with `r:` to log something you read; it stays private. Press **This month** on the Items tab to see what you learned.
 
 ### Start a company file
 

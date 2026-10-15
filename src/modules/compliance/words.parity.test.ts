@@ -49,6 +49,8 @@ const base = (bodyMd: string): LintInput => ({
   companyName: null,
   companyOneLiner: null,
   themeName: null,
+  conceptNames: [],
+  conceptSlugs: [],
   companyId: null,
   holdsPosition: null,
   dataAsOf: "2026-06-16",

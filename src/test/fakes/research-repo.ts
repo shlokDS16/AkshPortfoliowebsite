@@ -70,12 +70,18 @@ export function createMemoryResearchRepo(): MemoryResearchRepo {
     },
     async insertRevision(row) {
       if (!items.has(row.itemId)) throw new Error(`no item ${row.itemId}`);
+      // Mirrors private.carry_concept_ids(): null carries the latest non-null array, else the item's theme, else none.
+      const earlier = revisions.filter((r) => r.itemId === row.itemId);
+      const carried = [...earlier].reverse().find((r) => r.conceptIds !== null)?.conceptIds ?? null;
+      const themeId = items.get(row.itemId)?.themeId ?? null;
+      const conceptIds = row.conceptIds ?? carried ?? (themeId ? [themeId] : []);
       const revision: Revision = {
         id: randomUUID(),
         itemId: row.itemId,
-        revNo: revisions.filter((r) => r.itemId === row.itemId).length + 1,
+        revNo: earlier.length + 1,
         bodyMd: row.bodyMd,
         structured: row.structured,
+        conceptIds: [...new Set(conceptIds)],
         schemaVersion: 1,
         changeReason: row.changeReason,
         author: row.author,

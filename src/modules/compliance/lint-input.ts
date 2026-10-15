@@ -8,6 +8,7 @@ export function buildLintInput(ctx: PublishContext, today: string): LintInput {
     revisionId: revision.id, kind: item.kind, title: item.title, slug: item.slug, learningObjective: item.learningObjective,
     bodyMd: revision.bodyMd, structured: revision.structured, changeReason: revision.changeReason,
     companyName: ctx.companyName, companyOneLiner: ctx.companyOneLiner, themeName: ctx.themeName,
+    conceptNames: ctx.conceptNames, conceptSlugs: ctx.conceptSlugs,
     companyId: item.companyId, holdsPosition: item.holdsPosition, dataAsOf: item.dataAsOf,
     today, allowances: new Set(ctx.allowances),
   };

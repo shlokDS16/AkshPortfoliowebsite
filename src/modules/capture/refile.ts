@@ -1,7 +1,7 @@
 import { DeskError } from "@/lib/errors";
-import { ensureCompany, ensureTheme } from "@/modules/catalog";
+import { ensureCompany } from "@/modules/catalog";
 import { parseCapture } from "./parse";
-import { bodyTooLong, fileCapture, firstResolved, type SaveCaptureDeps } from "./service";
+import { bodyTooLong, fileCapture, firstResolved, resolveConcepts, type SaveCaptureDeps } from "./service";
 import type { CaptureListEntry } from "./types";
 
 export const REFILE_AFTER_MS = 10 * 60_000;
@@ -58,7 +58,7 @@ export async function refileCapture(deps: SaveCaptureDeps, captureId: string, no
     ? {
         itemId: existing.itemId,
         company: await firstResolved(parsed.symbols, (s) => ensureCompany(deps.catalog, s)),
-        theme: await firstResolved(parsed.themes, (t) => ensureTheme(deps.catalog, t)),
+        theme: (await resolveConcepts(deps.catalog, parsed.themes))[0] ?? null,
       }
     : await fileCaptureOrMark(deps, record.id, parsed);
   await deps.captures.attach(record.id, {

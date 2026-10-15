@@ -7,6 +7,8 @@ const listCapturesSince = vi.fn();
 vi.mock("@/modules/identity", () => ({ requireAdmin: vi.fn(async () => ({ email: "admin@desk.test" })) }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn(async () => ({})) }));
 vi.mock("@/modules/compliance", () => ({ listBlockedItems: vi.fn(async () => []) }));
+const monthCounts = vi.fn<(...args: unknown[]) => Promise<{ learnings: number; reads: number }>>(async () => ({ learnings: 0, reads: 0 }));
+vi.mock("@/modules/knowledge", () => ({ createSupabaseKnowledgeDeps: () => ({}), monthCounts: (...a: unknown[]) => monthCounts(...a) }));
 const needsYouDocs = vi.fn(async (): Promise<unknown[]> => []);
 vi.mock("./desk-data", () => ({
   needsYouDocs: () => needsYouDocs(),
@@ -73,5 +75,23 @@ describe("DeskHome", () => {
     const html = await render();
     expect(html).toContain("Nothing needs you.");
     expect(html).not.toContain("Ready to review");
+  });
+
+  it("adds one quiet line linking to the month page, with the month's counts", async () => {
+    listCapturesSince.mockResolvedValueOnce([]);
+    monthCounts.mockResolvedValueOnce({ learnings: 3, reads: 1 });
+    const html = await render();
+    expect(html).toMatch(/<a[^>]*href="\/desk\/learned"[^>]*>This month: <span[^>]*font-mono[^>]*>3 learnings, 1 read<\/span><\/a>/);
+    expect(monthCounts.mock.calls.at(-1)?.[1]).toMatch(/^\d{4}-(0[1-9]|1[0-2])$/);
+  });
+
+  it("a month that cannot be counted leaves the line out and the page standing; only the error's name is logged", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    listCapturesSince.mockResolvedValueOnce([]);
+    monthCounts.mockRejectedValueOnce(new Error("relation concept_links: password=hunter2"));
+    const html = await render();
+    expect(html).toContain("BOX");
+    expect(html).not.toContain("This month:");
+    expect(JSON.stringify(error.mock.calls)).not.toContain("hunter2");
   });
 });

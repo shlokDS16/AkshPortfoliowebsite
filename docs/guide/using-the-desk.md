@@ -2,7 +2,7 @@
 
 A guide for Aksh (daily use) and for Shlok (the short section near the end on running the site).
 
-Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) was added on 15 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
+Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
 
 ## Contents
 
@@ -19,6 +19,7 @@ Written 14 October 2026, from the code and the design documents as they stand on
    - [4.7 What a visitor sees on the public side](#47-what-a-visitor-sees-on-the-public-side)
    - [4.8 Your model on the desk](#48-your-model-on-the-desk)
    - [4.9 Case studies](#49-case-studies)
+   - [4.10 Concepts, reads and your month](#410-concepts-reads-and-your-month)
 5. [The publishing rules in plain words](#5-the-publishing-rules-in-plain-words)
 6. [When something looks wrong](#6-when-something-looks-wrong)
 7. [For Shlok: running the site](#7-for-shlok-running-the-site)
@@ -81,7 +82,7 @@ There is no password. You sign in with a link sent to your email.
 This is the shortest useful routine. Each step is explained in section 4.
 
 1. **Open the desk.** Look at the top. If a red strip is showing, read it (section 6). If there is no red strip, nothing is late.
-2. **Capture what you noticed.** On the Capture tab, type one line and press Enter. Add `$SYMBOL` for a company and `#theme` for a theme. Do this whenever a thought comes, not only once a day.
+2. **Capture what you noticed.** On the Capture tab, type one line and press Enter. Add `$SYMBOL` for a company and `#concept` for each concept (up to 8). Do this whenever a thought comes, not only once a day.
 3. **Clear "Needs you".** On the Capture tab, the "Needs you" box lists what is waiting: a document ready to review, a name to screen, a publish that was stopped, a capture that was not filed. Open each card and deal with it.
 4. **Check the Inbox.** If a document says "Ready", press **Review**, check the figures it flags, and file the rest.
 5. **Open the Ledger tab.** Look at the lines at the top. Check the "Needs you" box there: ideas that need a price check, closed ideas with no lesson, ideas past their horizon. If your thinking on an open idea changed, add a note to it.
@@ -105,7 +106,7 @@ At the very top, a **red strip** appears only when something is late or broken. 
 
 **What it is for.** Getting a thought down in seconds, before you lose it. Every capture is saved exactly as you typed it, before the site tries to understand it, so nothing is lost if the understanding step fails.
 
-**Where.** The Capture tab opens with the box already selected. The box shows: "What did you just notice?   $company  #theme  t:  l:  p:".
+**Where.** The Capture tab opens with the box already selected. The box shows: "What did you just notice?   $company  #concept  t:  l:  p:  r:".
 
 **How to capture**
 
@@ -118,10 +119,11 @@ At the very top, a **red strip** appears only when something is late or broken. 
 | You type | What happens |
 |---|---|
 | `$RELIANCE` (a dollar sign and a company's NSE symbol) | Links the capture to that company. Capital or small letters both work. An unknown symbol shows as `$SYMBOL → New names` and the company waits on the Names tab for you to screen it. |
-| `#capital-cycle` | Links the capture to a theme. An unknown theme shows as `#theme → New names`. |
+| `#capital-cycle` | Links the capture to a concept. Every `#name` links, in the order you write them, up to 8 (the receipt says "Only the first 8 concepts were linked." past that). A run of `#names` at the end of the first line is left out of the title; a `#name` inside the sentence stays. An unknown concept shows as `#concept → New names`. |
 | `t:` at the very start | A thesis (your view on a company). With a `$SYMBOL` it starts that company's file, or adds a new revision to it if one exists. The receipt says "Thesis". |
 | `l:` at the very start | A learning note. The receipt says "Learning note, private". |
 | `p:` at the very start | A process note (how you work). The receipt says "Process note, private". |
+| `r:` at the very start | Something you read, for the reading log. The receipt says "Reading log, private". A read always stays private. |
 | A web address (https://...) anywhere | Kept with the capture. The desk does not open it by itself. See "Read this link" below. |
 | None of the above | A private note, listed under Today. |
 
@@ -129,7 +131,7 @@ A few details:
 
 - A thesis belongs to one company. If you start with `t:` and give no `$SYMBOL`, the box warns "A thesis belongs to one company. Add $SYMBOL, or this saves as a private draft without one."
 - `$` followed only by an amount (such as `$5M` or `$500cr`) is read as money, not a company.
-- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:` and `p:` for you.
+- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:`, `p:` and `r:` for you.
 - A capture can be up to 20,000 characters.
 
 **After you save**
@@ -155,15 +157,15 @@ A few details:
 
 ### 4.3 New names
 
-**What it is for.** The first time you write a `$SYMBOL` or `#theme` the site has not seen, it keeps your note and puts the name on a list. You say who it is, like a screener. This stops typos from becoming companies.
+**What it is for.** The first time you write a `$SYMBOL` or `#concept` the site has not seen, it keeps your note and puts the name on a list. You say who it is, like a screener. This stops typos from becoming companies.
 
 **Where.** The **Names** tab, headed "New names". The "Needs you" box on the Capture tab also shows a "New names" card with the button **Screen new names**.
 
 **How.** Each name has a card showing the name, when it was first seen and the line you wrote it in. Choose one:
 
 - **Same as ...** (shown when the site spotted a likely match). Joins this name to the existing one. After this, the old spelling files under the target.
-- **New company** (or **New theme**). A form opens. Fill in **Name** (and **Sector**, picked from a list, for a company). Press **Yes, add it**.
-- **Not a company, keep as text** (or **Not a theme, keep as text**). The word stays in your note as plain text.
+- **New company** (or **New concept**). A form opens. Fill in **Name** (and **Sector**, picked from a list, for a company). Press **Yes, add it**.
+- **Not a company, keep as text** (or **Not a concept, keep as text**). The word stays in your note as plain text.
 
 Your notes were saved either way.
 
@@ -657,6 +659,44 @@ If a chosen result shows **Not available** after a change, the new inputs made t
 
 **Turning it off does not take pages down.** Switching a switch off stops new case studies and new revisions. A case that is already public stays public until you press **Unpublish** on its page.
 
+### 4.10 Concepts, reads and your month
+
+**What it is for.** Every `#name` you write becomes a concept. A concept has a page on the desk that gathers what you wrote about it: your learnings, your files, your process notes and what you read. The desk also keeps a reading log and puts your month together for you. All of this is private unless you choose to show a concept, and a read is never shown.
+
+**A concept comes from a `#name`.** Write `#capital-cycle` in a capture. The first time the site sees a name, it waits on the **Names** tab. Press **New concept**, type the name as you want it read, and press **Yes, add it**. Until you do, the concept says "Not checked yet. Check it on Names." You can link up to 8 concepts to one note, and the first one counts as its main concept.
+
+**The concepts page.** On the **Items** tab, press **Concepts** at the top. The list says, for each concept, whether it is Private or Public and how much you have under it. Press one to open it. The page has:
+
+- **In your words**: a box headed "What you mean by <the concept>". Write what the word means to you. Only you see it ("Private. Only you see this."). The desk never writes in it and never changes it.
+- Your notes and files that use the concept, in groups: **Learnings**, **Files and case studies**, **Process**, **Reads** and **Notes**, newest first.
+- **Related concepts**: links you make yourself. Under **Link a concept**, choose one and press **Link**. Press **Remove** next to one to take the link away. Pressing **Link** twice makes one link.
+- **Seen together in your notes**: when two concepts turn up in at least two of the same notes and are not linked yet, the desk lists them here, with the line "The desk found these in the same notes. Link one only if you see a connection." The desk only suggests. Nothing is linked until you press **Link**.
+
+**Change the concepts on a note.** On a note's page, the **Concepts** row shows its concepts. Press **Change**, find a concept, tap it to choose it, and press **Save concepts**. The order you tap is the order they are kept in. Saving makes a new version of the note with the same words. If the note is already public, that version waits for the publishing gate, like any edit, and the public page keeps showing the old one. While a version is waiting, you cannot change the concepts again. The page says: "A newer version of this note is waiting to be published. Publish it before changing the concepts."
+
+**The reason the desk writes.** A change of concepts gets a fixed change reason, for example "Concepts: added Capital cycle; removed Moats." Readers see a reason with the version, so it names only concepts that are public. Any other concept is counted, not named: "Concepts: added Capital cycle and 2 other concepts." A concept you have not made public never appears in a reason.
+
+**Showing a concept.** A concept is shown on the site only when both of these are true: you pressed **Make public** on it (on its own page, or on the note's publish checklist), and a published note or file uses it. Making a concept public shows nothing by itself.
+
+If a note uses a concept that is not public, the publish checklist says so. It reads "Concept "<name>" is not public yet." with the button **Make <name> public**, or "Concept "<name>" is not checked yet." with the link **Check it on Names**. If you run the gate anyway, it stops with one line for each such concept.
+
+Once the note passes, a visitor can open **/concepts**, which lists each public concept, and a concept's own page, which lists the published notes and files that use it, each with "Since" and a date. Each of those notes and files also shows a line headed **Concepts** with links to those pages. Nothing else about a concept is shown: not the words in your box, not your links between concepts, not your reads. A concept's page does not exist until a published note or file uses it.
+
+**Log a read.** Start a capture with `r:` and write what you read, for example `r: Marks, the Sea Change memo. Rates regime over #interest-rates`. The first line is the title, without the `#names` that end it (they link the concepts and stay in the text; you can edit the title on the note's page). A web address stays in the text. The receipt says "Reading log, private". A read is never published: its page says "A read stays private. It is not published." and has no publish checklist. A read is listed under **Reads** on its concept's page, on the **Items** tab (press **Reads** to see only reads) and on the month page.
+
+**Your month.** On the **Items** tab, press **This month**. The desk's home page also says "This month: n learnings, m reads" and links there. The page "What I learned in <Month Year>" is put together by the desk from your notes that start with `l:` and from your reads. Learnings are grouped under their first concept, with "No concept" last. Each line is your own title, word for word, with its date, and links to the note. The **Reads** come after. The desk counts and groups. It does not shorten, reword or rank anything. **Earlier month** and **Later month** move between months. The page is private, and it leaves out the lessons you wrote in the Ledger.
+
+**Messages you may see**
+
+| Message | What it means and what to do |
+|---|---|
+| "Concept "<name>" is not public yet." | A note you want to publish uses a concept you have not made public. Press **Make <name> public**, then run the gate again. |
+| "Concept "<name>" is not checked yet." | The name still waits on the Names tab. Press **Check it on Names** and add it as a concept. |
+| "A newer version of this note is waiting to be published. Publish it before changing the concepts." | Run the gate on the waiting version first. |
+| "Only the first 8 concepts were linked." | A capture had more than 8 `#names`. The rest stay in the text. |
+| "That is over 2,000 characters. Shorten it." | The box under **In your words** holds up to 2,000 characters. |
+| "A concept cannot be linked to itself." | Choose a different concept in **Link a concept**. |
+
 ---
 
 ## 5. The publishing rules in plain words
@@ -846,6 +886,8 @@ They are in `docs/project-memory/unanswered-questions.md`. Do not copy them here
 
 ## 8. Not in this version
 
+- A public reading log, a public month page, and public links between concepts. These stay on the desk. A concept can be shown; a read cannot.
+- A picture of how your concepts connect, joining two concepts into one, and renaming a concept.
 - A public view of the Ledger, or any figure for how your ideas did. A closed idea can be written up as a case study (section 4.9) once the site owner has switched case studies on; the page prints no result.
 - The spreadsheet valuation page (reading a model from a spreadsheet).
 - A newsletter.

@@ -2,7 +2,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(31);
 
 -- Table-level access.
 select is_empty($$
@@ -77,6 +77,30 @@ select ok(has_column_privilege('anon', 'public.item_revisions', 'body_md', 'sele
       and not has_column_privilege('anon', 'public.item_revisions', 'author', 'select')
       and has_column_privilege('anon', 'public.item_revisions', 'schema_version', 'select'),
   'anon revision access is limited to the columns public_items needs (no author)');
+
+-- The anon column inventory on item_revisions, exact (Phase 4 added one: concept_ids, migration 0020). The row policy still
+-- limits it to revisions that passed the gate of a public item.
+select is((select string_agg(a.attname, ',' order by a.attname) from pg_attribute a
+            where a.attrelid = 'public.item_revisions'::regclass and a.attnum > 0 and not a.attisdropped
+              and has_column_privilege('anon', a.attrelid, a.attnum, 'select')),
+  'body_md,change_reason,concept_ids,created_at,id,item_id,rev_no,schema_version,structured',
+  'anon can select exactly these revision columns (concept_ids is the Phase 4 addition)');
+-- The other two Phase 4 anon additions: public_concept_links is open, the admin view and the edges table are not, and no
+-- other view in public is open to anon beyond the public_* views (pinned exactly below).
+select ok(has_table_privilege('anon', 'public.public_concept_links', 'select')
+      and not has_table_privilege('anon', 'public.concept_links', 'select')
+      and not has_any_column_privilege('anon', 'public.concept_edges', 'select'),
+  'anon reads public_concept_links, never concept_links or concept_edges');
+-- Exact inventories (Phase 4 T1 review): the views anon can read, and the theme columns behind the widened themes_public_read.
+select is((select string_agg(c.relname, ',' order by c.relname) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'public' and c.relkind in ('v', 'm') and has_table_privilege('anon', c.oid, 'select')),
+  'public_companies,public_concept_links,public_item_revisions,public_items,public_themes',
+  'anon can select exactly these views (public_concept_links is the Phase 4 addition)');
+select is((select string_agg(a.attname, ',' order by a.attname) from pg_attribute a
+            where a.attrelid = 'public.themes'::regclass and a.attnum > 0 and not a.attisdropped
+              and has_column_privilege('anon', a.attrelid, a.attnum, 'select')),
+  'id,name,slug,visibility',
+  'anon can select exactly these theme columns (never description_md, needs_review or archived_at)');
 
 -- Functions.
 select ok(has_function_privilege('anon', 'private.is_admin()', 'execute')

@@ -18,7 +18,7 @@ const ERRORS = {
   "item-not-found": "This item could not be found.",
   "public-item-locked": "This item is public. Unpublish it before changing its details.",
   "append-only": "Revisions are append-only: an existing revision cannot be changed or deleted. Save a new revision instead.",
-  "item-rule": "The database rejected these values. Check the fields (title, kind, linked company or theme) and try again.",
+  "item-rule": "The database rejected these values. Check the fields (title, kind, linked company or concept) and try again.",
   "access-denied": "You are not allowed to do that. Sign in again as the admin.",
   "body-too-long": "This revision is too long (200,000 characters max). Start a new item or shorten it.", // = BODY_TOO_LONG_MESSAGE (research/schema.ts; a test keeps them equal)
   "capture-not-refilable": "This capture is already filed, or is still being filed. Reload in a minute.",
@@ -30,6 +30,12 @@ const ERRORS = {
   "name-required": "Give the name.",
   "choose-sector": "Choose a sector from the list.",
   "name-on-public-item": "A public item names this. Unpublish that item before changing what this name is.",
+  // Concepts (Phase 4 Task 2; = ConceptDescriptionTooLongError in modules/catalog/errors.ts, a test keeps them equal). Pending Shlok's approval.
+  "concept-description-too-long": "That is over 2,000 characters. Shorten it.",
+  // = ConceptChangePendingError (modules/research/errors.ts), ConceptSelfLinkError and ConceptNotFoundError (modules/knowledge/errors.ts); tests keep them equal. Pending Shlok's approval.
+  "concept-change-pending": "A newer version of this note is waiting to be published. Publish it before changing the concepts.",
+  "concept-self-link": "A concept cannot be linked to itself.",
+  "concept-not-found": "This concept could not be found.",
   "no-figure-date": "This file has no dated figure yet, so there is nothing to set Figures to.",
   // Uploads (= DOCUMENT_ERROR_TEXT in modules/documents/errors.ts; a test keeps them equal).
   "upload-duplicate": "You uploaded this file before. Open the earlier copy.",
@@ -156,6 +162,12 @@ const NOTICES = {
   "allowance-saved": "Sentence allowed. Run the publishing gate again.",
   "allowance-removed": "Allowance removed. Run the publishing gate again.",
   "company-public": "Company made public. It is listed only once a file that names it passes the gate.",
+  // Pending Shlok's approval (Phase 4 Task 2).
+  "concept-public": "Concept made public. It is shown only once a published note or file uses it.",
+  "concept-linked": "Linked.",
+  "concept-unlinked": "Link removed.",
+  "concepts-saved": "Concepts saved.",
+  "concept-description-saved": "Saved. Only you see this.",
   "figures-to-set": "Figures to updated to the latest figure date. Run the publishing gate again.",
   refiled: "Filed.",
   "name-saved": "Saved. The name is screened.",

@@ -5,6 +5,7 @@ import { removeAllowanceAction } from "@/modules/compliance/actions";
 import { RULE_TITLES, type AnnotatedBody } from "@/modules/compliance/client";
 import { GateNote } from "./gate-note";
 import { GatedSentence } from "./gated-sentence";
+import { uniqueFindings } from "./unique-findings";
 
 /** The saved revision as it will be read, with B's notes directly under the paragraph that needs them. Advisory: the gate decides. */
 export function BodyPreview({ itemId, body, named }: { itemId: string; body: AnnotatedBody; named: boolean }) {
@@ -42,7 +43,7 @@ export function BodyPreview({ itemId, body, named }: { itemId: string; body: Ann
         <div className="rounded-sm border border-rule p-3">
           <p className="text-label uppercase text-ink-muted">Elsewhere in this item</p>
           <ul className="mt-1 space-y-1 text-small">
-            {body.unplaced.map((f, i) => (
+            {uniqueFindings(body.unplaced).map((f, i) => (
               <li key={i}>
                 <span className="text-bad">{RULE_TITLES[f.rule] ?? `Rule ${f.rule}`}</span>
                 {f.field ? ` (${f.field})` : ""}: {f.message}

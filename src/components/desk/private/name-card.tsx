@@ -16,7 +16,8 @@ type Props = { name: NameToScreen; action: (formData: FormData) => Promise<void>
 export function NameCard({ name, action }: Props) {
   const [adding, setAdding] = useState(false);
   const id = useId();
-  const noun = name.type === "company" ? "company" : "theme";
+  // The table is "themes"; what he reads and writes is a concept (D46).
+  const noun = name.type === "company" ? "company" : "concept";
   return (
     <article className="rounded-sm border border-rule bg-paper p-4">
       <p className="text-label uppercase text-ink-muted">

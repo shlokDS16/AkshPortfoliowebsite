@@ -191,6 +191,56 @@ export type Database = {
           },
         ]
       }
+      concept_edges: {
+        Row: {
+          concept_a: string
+          concept_b: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          concept_a: string
+          concept_b: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          concept_a?: string
+          concept_b?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concept_edges_concept_a_fkey"
+            columns: ["concept_a"]
+            isOneToOne: false
+            referencedRelation: "public_themes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concept_edges_concept_a_fkey"
+            columns: ["concept_a"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concept_edges_concept_b_fkey"
+            columns: ["concept_b"]
+            isOneToOne: false
+            referencedRelation: "public_themes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concept_edges_concept_b_fkey"
+            columns: ["concept_b"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       corporate_actions: {
         Row: {
           company_id: string
@@ -521,8 +571,22 @@ export type Database = {
             foreignKeyName: "fact_provenance_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "fact_provenance_revision_id_fkey"
@@ -590,8 +654,22 @@ export type Database = {
             foreignKeyName: "gate_decisions_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "gate_decisions_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_decisions_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "gate_decisions_revision_id_fkey"
@@ -892,6 +970,7 @@ export type Database = {
           author: string
           body_md: string
           change_reason: string | null
+          concept_ids: string[] | null
           created_at: string
           id: string
           item_id: string
@@ -903,6 +982,7 @@ export type Database = {
           author?: string
           body_md?: string
           change_reason?: string | null
+          concept_ids?: string[] | null
           created_at?: string
           id?: string
           item_id: string
@@ -914,6 +994,7 @@ export type Database = {
           author?: string
           body_md?: string
           change_reason?: string | null
+          concept_ids?: string[] | null
           created_at?: string
           id?: string
           item_id?: string
@@ -1015,8 +1096,22 @@ export type Database = {
             foreignKeyName: "items_current_revision_fk"
             columns: ["current_revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "items_current_revision_fk"
+            columns: ["current_revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "items_current_revision_fk"
+            columns: ["current_revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "items_current_revision_fk"
@@ -1455,8 +1550,22 @@ export type Database = {
             foreignKeyName: "proposals_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "proposals_revision_id_fkey"
@@ -1618,8 +1727,22 @@ export type Database = {
             foreignKeyName: "reading_proposals_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "reading_proposals_revision_id_fkey"
@@ -1848,6 +1971,30 @@ export type Database = {
       }
     }
     Views: {
+      concept_links: {
+        Row: {
+          concept_id: string | null
+          item_id: string | null
+          position: number | null
+          revision_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       public_companies: {
         Row: {
           bse_code: string | null
@@ -1877,6 +2024,30 @@ export type Database = {
           slug?: string | null
         }
         Relationships: []
+      }
+      public_concept_links: {
+        Row: {
+          concept_id: string | null
+          item_id: string | null
+          position: number | null
+          revision_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       public_item_revisions: {
         Row: {

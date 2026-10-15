@@ -6,3 +6,4 @@ export { buildHomeStats, buildRegister, buildSiteChrome, buildStreak, buildWhatC
 export { buildFileView, buildShareCard } from "./file";
 export { buildNoteView, listNoteSummaries, readingMinutes } from "./notes";
 export { buildCaseStudyView, buildMistakes, caseHref, hasLedgerCases, ledgerCases, listCaseSummaries, recordEntryViews, type LedgerCase } from "./case-study";
+export { buildConceptView, conceptHref, itemConcepts, listConceptSummaries } from "./concepts";
