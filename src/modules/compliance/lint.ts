@@ -15,6 +15,18 @@ function walk(value: unknown, units: TextUnit[], citedQuote: boolean): void {
   else if (isRecord(value)) Object.values(value).forEach((v) => walk(v, units, citedQuote));
 }
 
+/**
+ * A ledger case study's record (publishing rule 10.8, D42): the words he sealed are his and are linted, once each; everything else
+ * in the record (hashes, sealed text, times, dates, chart points, the company's name and symbol, his choices) is made by the machine
+ * or is catalog data and is not prose. The gate refuses a record that differs from the ledger's, so these are the words that publish.
+ */
+function walkLedger(ledger: unknown, units: TextUnit[]): void {
+  const events = isRecord(ledger) && Array.isArray(ledger.events) ? ledger.events : [];
+  for (const event of events) {
+    if (isRecord(event) && typeof event.words === "string") units.push({ field: "structured", text: event.words, citedQuote: false });
+  }
+}
+
 /** The whole public surface (ADR-001 s8.3). OG text is derived from title and learning objective. */
 function collectUnits(input: LintInput): TextUnit[] {
   const plain = (field: LintField, text: string | null): TextUnit => ({ field, text: text ?? "", citedQuote: false });
@@ -28,7 +40,8 @@ function collectUnits(input: LintInput): TextUnit[] {
     plain("companyOneLiner", input.companyOneLiner),
     plain("themeName", input.themeName),
   ];
-  const { sources, ...rest } = input.structured;
+  const { sources, ledger, ...rest } = input.structured;
+  walkLedger(ledger, units);
   for (const source of Array.isArray(sources) ? sources : sources === undefined ? [] : [sources]) {
     if (!isRecord(source)) {
       walk(source, units, false);

@@ -10,3 +10,8 @@ export { fiscalYearEnd, formatFigure, parseNumber } from "./figures";
 export { isIsoDate, isLagged, withheldUntil } from "./lag";
 export { httpUrl } from "./safe";
 export { figureDates, latestFigureDate } from "./figure-dates";
+export {
+  CASE_CLOSE_REASON_LABEL, CASE_MISTAKE_TAG_LABEL, CASE_PROCESS_LABEL, expectationSentence, horizonPhrase, isLedgerCase, mistakeTagsSentence, parseCaseRecord,
+  PUBLIC_FINGERPRINT_FILE,
+  type CaseCloseReason, type CaseEvent, type CaseEventKind, type CaseExpects, type CaseMistakeTag, type CasePoint, type CaseProcessCall, type CaseRecordV1,
+} from "./case-record";
