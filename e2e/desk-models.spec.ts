@@ -109,6 +109,12 @@ test("a workbook is read, its cells confirmed, a scenario recalculated, saved an
   await expect(grid.getByRole("cell", { name: /this scenario/ })).toHaveText(`${expected}this scenario`);
   await noSideScroll(page);
 
+  // The list: this company's row links to this model page (the header's "All models" is the way there; the list has no tab).
+  await page.getByRole("link", { name: "All models" }).click();
+  await expect(page).toHaveURL(/\/desk\/models$/);
+  await expect(page.getByRole("link", { name: `$${symbol}`, exact: true })).toHaveAttribute("href", new URL(modelUrl).pathname);
+  await noSideScroll(page);
+
   // The served wasm is public (the proxy only covers /desk); the model page, signed out, is the login page.
   // An empty storage state: the project's admin session must not carry over into this context.
   const anon = await browser.newContext({ baseURL: E2E_SITE_URL, storageState: { cookies: [], origins: [] } });
