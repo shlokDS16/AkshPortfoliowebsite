@@ -14,6 +14,8 @@ type Props = {
   chrome: SiteChrome | null;
   strip: Strip;
   topBar?: "home" | "file";
+  /** Where the phone back link on a file-style page goes; the default is the register. */
+  back?: { href: string; label: string };
   file?: { fileNo: FileNo; shortName: string; sections: RailSection[] };
   children: ReactNode;
 };
@@ -26,7 +28,7 @@ export function tabFor(current: RailCurrent): TabCurrent | null {
  * Segment 2: one rail on desktop, four tabs on phone (hidden while scrolling a file), the site disclosure at the top
  * on desktop and the bottom on phone; on a file the strip is the only disclosure summary (design-dna 8.2-8.3).
  */
-export function PublicFrame({ current, chrome, strip, topBar = "home", file, children }: Props) {
+export function PublicFrame({ current, chrome, strip, topBar = "home", back, file, children }: Props) {
   return (
     <>
       {strip.variant === "site" ? (
@@ -34,7 +36,7 @@ export function PublicFrame({ current, chrome, strip, topBar = "home", file, chi
           <ComplianceStrip variant="site" />
         </div>
       ) : null}
-      <TopBar variant={topBar} />
+      <TopBar variant={topBar} backHref={back?.href} backLabel={back?.label} />
       <div className="mx-auto flex max-w-page gap-8 desk:px-(--gutter)">
         {chrome ? <DeskRail current={current} counts={chrome.counts} streak={chrome.streak} file={file} /> : null}
         {/* design-dna 3.3, 8.2: on a file the whole main column, strip and data blocks included, is the 660 px reading column. */}

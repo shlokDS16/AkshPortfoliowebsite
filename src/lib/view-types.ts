@@ -1,7 +1,7 @@
 import type { FileNo, ISODate, SourceRef, SourceType, TestCounts, TestStatus } from "./desk-types";
 
 // ---- Chrome (Task 3) ----
-export type RailCurrent = "desk" | "files" | "notes" | "process" | "mistakes" | "about";
+export type RailCurrent = "desk" | "files" | "notes" | "process" | "mistakes" | "cases" | "about";
 export type TabCurrent = "desk" | "files" | "notes" | "about";
 export type RailSection = { id: string; label: string; count?: number | string };
 export type SiteCounts = { files: number; notes: number; process: number; mistakes: number };

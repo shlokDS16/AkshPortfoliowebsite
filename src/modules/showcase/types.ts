@@ -3,6 +3,7 @@ import type {
   DatelineData, ExhibitData, FactGroup, KillTest, RailSection, ReadFirstNote, RevisionDiffData, RevisionLogEntry, ScenarioData,
   SourceListItem, UsedInRow, ViewBlockData,
 } from "@/lib/view-types";
+import type { CaseEventKind, CasePoint } from "@/modules/casefile";
 import type { ItemKind } from "@/modules/research";
 
 export type { ItemKind };
@@ -42,3 +43,22 @@ export type NoteView = {
   kind: NoteKind; slug: string; title: string; learningObjective: string; revisedOn: ISODate; firstWrittenOn: ISODate; revNo: number;
   revCount: number; body: ViewBlockData[]; usedIn: UsedInRow[]; minutes: number; holdsPosition: HoldsPosition | null; dataAsOf: ISODate | null;
 };
+
+// ---- Ledger case studies (Plan 3b, spec s33). Every string a reader sees is built here, so a test can read all of it. ----
+/** One revealed entry. `words` are his; every other field is the machine's. */
+export type CaseEntryView = {
+  seq: number; kind: CaseEventKind; kindLabel: string; sealedOn: ISODate; lead: string | null; words: string; writtenLine: string; sealedLabel: string;
+  hash: string; prevHash: string; canonical: string; listedLine: string | null; findLine: string | null;
+};
+export type CaseBodyBlock = { kind: "p"; text: string } | { kind: "h"; text: string } | { kind: "ul"; items: string[] };
+export type CaseChartView = { points: CasePoint[]; company: string; from: ISODate; to: ISODate; alt: string; caption: string };
+export type CaseStudyView = {
+  slug: string; company: string; symbol: string; title: string; standfirst: string; holdsPosition: HoldsPosition; reviewedOn: ISODate; revNo: number; revCount: number;
+  dateline: { writtenOn: ISODate; closedOn: ISODate; figuresTo: ISODate };
+  expected: string; opening: CaseEntryView; revisions: CaseEntryView[];
+  happened: { chart: CaseChartView | null; priceLine: string; closedLine: string; closing: CaseEntryView };
+  learned: { call: string | null; mistakes: string | null; entry: CaseEntryView }[];
+  lookingBack: CaseBodyBlock[]; checks: CaseEntryView[]; publicFile: { url: string; since: ISODate } | null;
+};
+export type CaseSummary = { slug: string; href: string; company: string; title: string; standfirst: string; closedMonth: string };
+export type MistakeEntry = { slug: string; href: string; company: string; title: string; closedMonth: string; call: string; mistakes: string; entry: CaseEntryView };

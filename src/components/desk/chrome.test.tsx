@@ -53,12 +53,13 @@ describe("TopBar", () => {
 });
 
 describe("DeskRail", () => {
-  it("lists site sections with counts (0 is shown), marks the current one, keeps About", () => {
+  it("lists site sections with counts, none beside Mistakes, marks the current one, keeps About", () => {
     mockIntersectionObserver();
     renderWithMotion(<DeskRail current="files" counts={SITE_COUNTS} streak={STREAK} />);
     const rail = screen.getByRole("navigation", { name: "Site" });
     expect(within(rail).getByRole("link", { name: /Files/ })).toHaveAttribute("aria-current", "page");
-    expect(within(rail).getByRole("link", { name: /Mistakes/ })).toHaveTextContent("0");
+    expect(within(rail).getByRole("link", { name: /Process/ })).toHaveTextContent("1");
+    expect(within(rail).getByRole("link", { name: /Mistakes/ })).toHaveTextContent(/^Mistakes$/);
     expect(within(rail).getByRole("link", { name: "About and disclosures" })).toBeInTheDocument();
     expect(within(rail).getByText(/22 of the last 30 days research logged; counts only/)).toBeInTheDocument();
     expectTokenOnly(rail);

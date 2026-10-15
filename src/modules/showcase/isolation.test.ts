@@ -119,3 +119,38 @@ describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they im
     for (const [file, text] of reach) expect(text, file).not.toMatch(/supabase\/service|env\.server["']|SERVICE_ROLE|sb_secret/);
   });
 });
+
+// Plan 3b: the ledger is private. Public code reads the cached public snapshot and the record that is already in a published
+// revision; it never reaches the ledger's module, tables or admin functions (engineering rule 9).
+describe("Plan 3b: public case-study code never reaches the ledger", () => {
+  const LEDGER = /idea_events|idea_scores|prices_daily|market_days|ledger_anchors|corporate_actions|ledger_uploads|case_study_record|case_study_switches/;
+  const PRIVATE = /^(?:modules\/(?:ledger|cases|valuation)|components\/desk\/private)(?:\/|$)/;
+  const own = [...walkFiles(join(ROOT, "app/(public)")), ...walkFiles(join(ROOT, "modules/showcase")), ...walkFiles(join(ROOT, "components/desk/case"))].filter(
+    (f) => !/\.test\.tsx?$/.test(f),
+  );
+  const relative = (f: string) => f.slice(ROOT.length + 1).replaceAll("\\", "/");
+  const reach = new Map<string, string>();
+  for (const entry of own) for (const [file, text] of closure(entry)) reach.set(file, text);
+
+  it("covers the case pages, the case components and the view builder", () => {
+    expect(own.map(relative)).toEqual(
+      expect.arrayContaining(["app/(public)/cases/page.tsx", "app/(public)/cases/[slug]/page.tsx", "components/desk/case/case-page.tsx", "components/desk/case/fingerprint-check.tsx", "modules/showcase/case-study.ts"]),
+    );
+  });
+
+  it("their own files name no ledger table, no upload or anchor table and neither admin function", () => {
+    for (const file of own) expect(readFileSync(file, "utf8"), relative(file)).not.toMatch(LEDGER);
+  });
+
+  it("nothing they import, however deep, is the ledger, cases or valuation module or a private desk component", () => {
+    expect([...reach.keys()].map(relative).filter((n) => PRIVATE.test(n))).toEqual([]);
+    expect(reach.has(join(ROOT, "lib/supabase/service.ts"))).toBe(false);
+  });
+
+  it("the only client component of the case page is the fingerprint check", () => {
+    const clients = walkFiles(join(ROOT, "components/desk/case"))
+      .filter((f) => !/\.test\.tsx?$/.test(f) && /^["']use client["']/.test(readFileSync(f, "utf8")))
+      .map(relative);
+    expect(clients).toEqual(["components/desk/case/fingerprint-check.tsx"]);
+  });
+});

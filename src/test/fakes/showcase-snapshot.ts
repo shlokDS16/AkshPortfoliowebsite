@@ -58,3 +58,21 @@ export function buildFiguresAfterDataAsOfSnapshot(): PublicSnapshot {
   const s = buildSeedSnapshot("2026-04-15");
   return { ...s, items: s.items.map((i) => (i.fileNo !== null ? { ...i, dataAsOf: "2026-03-01" } : i)) };
 }
+
+/**
+ * A published ledger case study (Plan 3b): the item carries no file number and its current revision is `{ ledger }` plus
+ * a body. `record` is the ledger record as the database stored it. Never touches the seed's files or notes.
+ */
+export function withLedgerCase(snapshot: PublicSnapshot, record: unknown, patch: Partial<PublicItemRow> = {}): PublicSnapshot {
+  const id = patch.id ?? "lc1";
+  const revisionId = patch.revisionId ?? `${id}-rev`;
+  const structured = patch.structured ?? { ledger: record };
+  const publishedAt = patch.publishedAt ?? "2026-07-20T05:00:00Z";
+  const item: PublicItemRow = {
+    id, kind: "case_study", slug: `${id}-a-closed-idea`, title: "Kaveri Seed Company Limited: a closed idea, Jan 2026 to Jun 2026", companyId: null,
+    themeId: null, publishedAt, dataAsOf: "2026-06-16", learningObjective: "How a margin story can fail while the demand story holds.",
+    holdsPosition: "no", revisionId, revNo: 1, bodyMd: "", structured, revisedAt: publishedAt, fileNo: null, ...patch,
+  };
+  const revision: PublicRevisionRow = { id: revisionId, itemId: id, revNo: 1, bodyMd: item.bodyMd, structured, changeReason: "Drafted from the ledger", createdAt: publishedAt };
+  return { ...snapshot, items: [...snapshot.items, item], revisions: [...snapshot.revisions, revision] };
+}

@@ -5,3 +5,4 @@ export { getSnapshot } from "./queries";
 export { buildHomeStats, buildRegister, buildSiteChrome, buildStreak, buildWhatChanged } from "./site";
 export { buildFileView, buildShareCard } from "./file";
 export { buildNoteView, listNoteSummaries, readingMinutes } from "./notes";
+export { buildCaseStudyView, buildMistakes, caseHref, hasLedgerCases, ledgerCases, listCaseSummaries, type LedgerCase } from "./case-study";
