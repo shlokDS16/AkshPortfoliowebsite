@@ -139,3 +139,10 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - The NSE-from-Vercel check (Q29) cannot run yet: the daily step only fetches companies with an open idea, and there are none. The first daily run after Aksh's first real idea is the check.
 - 2.9 alert email built on request: one email when something goes red and one all-clear, held for 30 minutes, decided in the database under a lock, sent through Resend, and off until the key and the address are set. Aksh gets it only once a domain is verified (Q36).
 - Next: Shlok merges PR #4, then pushes migration 0015 and merges the 2.9 PR, then sets the two Vercel env values; confirm a scheduled pump run within 2 hours of the PR #4 merge.
+
+## 2026-10-15 - 2.7 valuation models built and reviewed (not yet released)
+- Shlok asked for 2.7 by name; Q37 (b): no GPL, so the engine is IronCalc (Node 0.8.3 in the job, wasm 0.8.4 on the page) with SheetJS 0.20.3 from its CDN.
+- Four tasks: a safe workbook reader and both engines; migration 0017, the `.xlsx` upload kind and the `xlsx_read` step; the private model page with the calculator in a Web Worker, the inbox card, the bundle check and the licence notices; a whole-branch opus review and one fix wave.
+- Reviews caught: a zip bomb that SheetJS would have inflated (204 KB to 200 MB), a crafted workbook that could hang the job (the Node engine now runs in a child process killed at 60 s), Aksh's session able to write under `models/`, a calculator that kept using a disposed engine after a scenario save, sheet indices mapped from the stored order instead of the engine's, and a retry that failed at pass 9 with a generic error.
+- Evidence at 802cf25: unit 4707, pgTAP 2020, typecheck, lint, build and the bundle check clean; e2e desk-models + desk-a11y 40 passed. defenso guard_code failed server-side on every try; opus reviews stood in.
+- Next: open the PR (CI runs on pull requests only); Shlok pushes migration 0017 to hosted; the Vercel preview check (one fixture upload reaches Ready on Linux, steps in the final review); Shlok approves the new copy; merge.
