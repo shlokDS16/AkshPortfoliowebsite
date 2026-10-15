@@ -50,6 +50,12 @@ describe("showcase repo", () => {
     for (const c of calls) expect(c.columns).not.toContain("*");
   });
 
+  it("drops a row of kind reading_note: the public side has no read, whatever the gate says (D52)", async () => {
+    const { db } = fakeDb({ public_items: [{ ...itemRow, id: "i2", kind: "reading_note", slug: "a-read" }, { ...itemRow, id: "i3", kind: "learning", slug: "a-learning" }] });
+    const items = await createSupabaseShowcaseRepo(db).listItems();
+    expect(items.map((i) => i.id)).toEqual(["i3"]);
+  });
+
   it("maps rows to camelCase and drops rows a view returned without identity", async () => {
     const { db } = fakeDb({ public_items: [itemRow, { id: null, slug: null }] });
     const items = await createSupabaseShowcaseRepo(db).listItems();

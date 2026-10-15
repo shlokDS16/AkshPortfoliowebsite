@@ -25,7 +25,9 @@ type ItemRecord = Nullable<{
 
 /** Rule 2: a timestamp must be readable before any view turns it into a date (istDate throws on garbage). */
 const isTimestamp = (v: string | null): v is string => v !== null && !Number.isNaN(new Date(v).getTime());
-const isKind = (v: string): v is ItemKind => (ITEM_KINDS as readonly string[]).includes(v);
+// D52: a read is never public. The SQL gate refuses one; this is the second wall, so loosening the gate later (spec s12) changes nothing here.
+const PUBLIC_KINDS: readonly string[] = ITEM_KINDS.filter((k) => k !== "reading_note");
+const isKind = (v: string): v is ItemKind => PUBLIC_KINDS.includes(v);
 const asPosition = (v: string | null): HoldsPosition | null => ((HOLDS_POSITIONS as readonly string[]).includes(v ?? "") ? (v as HoldsPosition) : null);
 
 function toItem(r: ItemRecord): PublicItemRow[] {
