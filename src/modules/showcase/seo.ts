@@ -186,8 +186,8 @@ export function robotsFor(vercelEnv: string | undefined, siteUrl: string): Metad
 // ---- Share cards (spec s4.4). Each is a pure function of the snapshot; null means the page 404s. ----
 
 const CARD_FOOTER = "For learning, not advice";
-const TITLE_BUDGET = 72;
-const OBJECTIVE_BUDGET = 120;
+export const TITLE_BUDGET = 72;
+export const OBJECTIVE_BUDGET = 120;
 
 /**
  * At most `max` characters (code points): text over the budget is cut on a word boundary and ends with "…", so a card slot never

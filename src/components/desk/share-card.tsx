@@ -1,17 +1,17 @@
 import { formatDate } from "@/lib/format";
 import { OG } from "@/lib/theme-colors";
-import type { ShareCardContent, ShareCardModel } from "@/modules/showcase";
+import { cutWords, OBJECTIVE_BUDGET, TITLE_BUDGET, type ShareCardContent, type ShareCardModel } from "@/modules/showcase";
 
 export type { ShareCardContent };
 
-/** Rule 8: the card's text is the file's linted fields (company name, learning objective) plus fixed copy and dates. */
+/** Rule 8: the card's text is the file's linted fields (company name, learning objective) plus fixed copy and dates, cut to the same slot budgets as the other cards (spec s4.4). */
 export function fileCardContent(m: ShareCardModel): ShareCardContent {
   return {
     tag: "FILE",
     number: m.fileNo,
     sub: `R${m.revNo}`,
-    title: m.company,
-    standfirst: m.learningObjective,
+    title: cutWords(m.company, TITLE_BUDGET),
+    standfirst: cutWords(m.learningObjective, OBJECTIVE_BUDGET),
     footerLeft: `Revised ${formatDate(m.revisedOn)} · figures to ${formatDate(m.dataAsOf)}`,
     footerRight: "For learning, not advice",
   };

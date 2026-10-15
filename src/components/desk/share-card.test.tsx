@@ -18,6 +18,18 @@ describe("share card (segment 5; rule 8)", () => {
     expect(HOME_CARD.footerRight).toBe("For learning, not advice");
   });
 
+  it("cuts a long objective and company on a word boundary with an ellipsis, as the other cards do (spec s4.4)", () => {
+    const objective = Array.from({ length: 40 }, (_, i) => `word${i}`).join(" ");
+    const company = Array.from({ length: 20 }, (_, i) => `Holdings${i}`).join(" ");
+    const c = fileCardContent({ ...model, learningObjective: objective, company });
+    for (const [cut, original, max] of [[c.standfirst, objective, 120], [c.title, company, 72]] as const) {
+      expect(Array.from(cut).length).toBeLessThanOrEqual(max);
+      expect(cut.endsWith("…")).toBe(true);
+      expect(cut.length).toBeLessThan(original.length);
+      for (const word of cut.slice(0, -1).split(" ")) expect(original.split(" ")).toContain(word);
+    }
+  });
+
   it("renders Satori-safe flex markup in the light palette", () => {
     const { container } = render(<ShareCardImage c={fileCardContent(model)} />);
     expect(screen.getByText("Kaveri Pumps (fictional)")).toBeInTheDocument();
