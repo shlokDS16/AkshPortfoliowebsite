@@ -17,6 +17,7 @@ Written 14 October 2026, from the code and the design documents as they stand on
    - [4.5 The document inbox](#45-the-document-inbox)
    - [4.6 The Ledger](#46-the-ledger)
    - [4.7 What a visitor sees on the public side](#47-what-a-visitor-sees-on-the-public-side)
+   - [4.8 Your model on the desk](#48-your-model-on-the-desk)
 5. [The publishing rules in plain words](#5-the-publishing-rules-in-plain-words)
 6. [When something looks wrong](#6-when-something-looks-wrong)
 7. [For Shlok: running the site](#7-for-shlok-running-the-site)
@@ -582,6 +583,45 @@ Anyone can open these pages without signing in. The bar along the top (or bottom
 - **On every page,** a disclosure line: "For learning · Aksh is not SEBI-registered · Figures 30+ days old."
 
 A file appears here only after it passed the checks and its **Figures to** date is 30 days old. A visitor never sees the desk, the inbox, your captures, or the Ledger.
+
+### 4.8 Your model on the desk
+
+**What it is.** Upload your valuation workbook (an Excel `.xlsx`) and the desk recalculates it with its own engine, so you can try other assumptions and see what changes, on your phone if you like. It is private: nothing on the model page is ever published (rule 9), and a visitor never sees it.
+
+**Uploading.** In the Inbox, open **Company, filing date and link**, type the company as `$SYMBOL`, and drop the `.xlsx` file. A workbook needs a company and must be under 10 MB. Each new upload for the same company is the next version (version 1, version 2 and so on); the earlier versions stay as they were.
+
+**What is read.** Every sheet's numbers, text, formulas and the values Excel saved, and each cell's number format. Pictures, charts and comments are ignored. The desk then works out every formula again and compares its answer with the one Excel saved. Nothing is sent to an AI.
+
+**What it refuses, and how to fix it.** The card in **Needs attention** says exactly what to do. The usual ones:
+- Macros (`.xlsm`, or a macro file renamed): save a copy as a plain `.xlsx`.
+- Links to other workbooks: in Excel, **Data > Edit Links > Break Link**, then save.
+- An Excel data table (What-If Analysis), often used for a sensitivity table: copy the table's cells and **Paste Special > Values**, then save. The desk draws its own sensitivity grid.
+- Password protection, or the old `.xls` format: save as `.xlsx` without a password.
+- Too large or too slow to read in one go: remove sheets the valuation does not use.
+
+Press **Upload a fixed workbook** to go back to the drop bar. If a read simply stopped, **Try again** starts it once more.
+
+**Choosing inputs and results.** When the read is done the card says, for example, "Model read: 4 sheets, 3,912 cells, 1,204 formulas. Choose its inputs and results." Press **Open model**. The page first says how the check went ("All 1,204 formulas give Excel's answers", or how many differ and why). Then it lists the cells it suggests:
+- **Inputs** are plain numbers your formulas read (cost of equity, growth, margins).
+- **Results** are cells the workbook calculates (equity value, per-share figure).
+
+Nothing is ticked for you. Each row shows what the sheet says next to the cell ("sheet says: Cost of equity"), the value and the address (`DCF!B13`). Tick the ones you want; you may type your own label, or leave it empty to keep the sheet's. A cell the list missed can be added with **Add a cell**, by address (`DCF!C42`) or by searching the sheet's labels. Press **Use 4 inputs and 2 results** (the button counts for you). Nothing is calculated before that press, and the choice is fixed for that version: to change it, upload the workbook again.
+
+**Trying scenarios.** Change an input and the results update: each shows the **Workbook value**, the **Scenario output** and the **Change**. A percentage is typed as a percentage: 11.5 means 11.5%. **Reset** puts one input back to the workbook's value. **Save as scenario** keeps your input values under a name (with a note if you like); pick it again from **Scenario** later. **Workbook values** is always there and never changes. A saved scenario can be deleted, not edited: save a new one instead. The sensitivity grid shows one result for a range of two inputs around your current scenario (5 x 5 on a computer, 3 x 3 on a phone); press **Fill the grid**, which takes a few seconds.
+
+**Why a result can be unavailable.** The desk only offers a result it can reproduce exactly. A result cannot be chosen (it is greyed, with the reason) when it depends on a cell that:
+- gives a different answer from Excel (often a cell that reads `TODAY()`, so its value moves from day to day);
+- uses a function the desk cannot compute yet (the page names it, for example `CUBEVALUE`);
+- is part of a loop that Excel solves by repeating (iterative calculation);
+- had no value saved by Excel, or uses a random number.
+
+If a chosen result shows **Not available** after a change, the new inputs made the formula fail (for example a division by zero); the engine's error is shown beside it.
+
+**How to break an Excel loop or link.** A loop is usually interest that depends on a debt balance that depends on interest. Calculate interest on the opening balance instead of the average, or paste last period's figure as a value; then turn iterative calculation off (**File > Options > Formulas**) and save. For a link to another workbook, use **Data > Edit Links > Break Link**; Excel replaces the linked cells with their values.
+
+**If the calculator does not load.** The page says "The calculator did not load. Check the connection and reload. Your saved scenarios are safe." The workbook values stay on the page meanwhile.
+
+**Where to find it again.** The inbox card's **Open model**, the **Model** button in a company file's header (once a version is confirmed), or `/desk/models` for every company's newest model.
 
 ---
 

@@ -61,7 +61,7 @@ function InputRow({ cell, value, disabled, onChange, onReset }: RowProps) {
         </span>
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <span className="relative min-w-0 flex-1">
+        <span className="relative min-w-0 flex-1 desk:max-w-56">
           <Input
             id={id}
             inputMode="decimal"

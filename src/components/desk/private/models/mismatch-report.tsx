@@ -5,6 +5,10 @@ import { reasonText, reportSentence } from "./copy";
 // Excel's value, the desk's value and the reason in plain words. Machine output, shown as data. On a phone each cell is two lines.
 
 const SHOWN_OPEN = 12;
+const PLAIN = /^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i;
+const shortNumber = new Intl.NumberFormat("en-US", { maximumSignificantDigits: 10 });
+/** A long saved or computed number is shown to 10 significant digits; anything else (an error, text) as it is. */
+const shown = (value: string | null) => (value === null ? "no value" : PLAIN.test(value) ? shortNumber.format(Number(value)) : value);
 
 function Entry({ e }: { e: ReportEntry }) {
   return (
@@ -12,7 +16,7 @@ function Entry({ e }: { e: ReportEntry }) {
       <p className="flex flex-wrap items-baseline justify-between gap-x-3">
         <span className="font-mono text-mono-id text-ink">{e.cell}</span>
         <span className="text-small tabular-nums text-ink-muted desk:text-small-desk">
-          Excel {e.excel ?? "no value"} · desk {e.desk ?? "no value"}
+          Excel {shown(e.excel)} · desk {shown(e.desk)}
         </span>
       </p>
       <p className="text-small text-ink-body desk:text-small-desk">{reasonText({ cls: e.cls, fn: e.fn })}</p>
