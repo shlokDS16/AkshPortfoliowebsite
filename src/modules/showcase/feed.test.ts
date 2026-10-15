@@ -100,6 +100,10 @@ describe("escapeXml", () => {
     expect(escapeXml("a\u0000b\u0008c\td\ne\u001ff\r")).toBe("abc\td\nef");
   });
 
+  it("drops U+FFFE and U+FFFF too: XML 1.0 forbids them", () => {
+    expect(escapeXml("a￿b￾c")).toBe("abc");
+  });
+
   it("a title that tries to close the markup stays text", () => {
     const entries = [{ title: "</title><x/>", path: "/notes/a", guid: "/notes/a#r1", on: "2026-08-01", description: "a & b" }];
     const out = renderRss(entries, SITE);

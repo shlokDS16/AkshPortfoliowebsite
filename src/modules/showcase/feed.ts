@@ -49,12 +49,15 @@ export function feedEntries(s: PublicSnapshot, limit = 50): FeedEntry[] {
   return entries;
 }
 
-const C0 = /[\u0000-\u0008\u000b-\u001f]/g;
+const INVALID = /[\u0000-\u0008\u000b-\u001f￾￿]/g;
 
-/** Text for an XML element: C0 controls other than tab and newline are dropped (the parser refuses them); the five markup characters are escaped. */
+/**
+ * Text for an XML element: C0 controls other than tab and newline, and U+FFFE and U+FFFF, are dropped (XML 1.0 forbids them and a
+ * parser then refuses the whole document); the five markup characters are escaped.
+ */
 export function escapeXml(text: string): string {
   return text
-    .replace(C0, "")
+    .replace(INVALID, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
