@@ -28,7 +28,7 @@ export function WorkbookActions({ doc, run, pending }: Props) {
         </Link>
       ) : null}
       {refused ? (
-        <Link href="/desk/inbox#add-file" className={cn(LINK, "bg-ink text-paper")}>
+        <Link href="/desk/inbox#upload" className={cn(LINK, "bg-ink text-paper")}>
           Upload a fixed workbook
         </Link>
       ) : null}

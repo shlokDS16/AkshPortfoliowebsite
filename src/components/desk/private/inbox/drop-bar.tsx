@@ -80,7 +80,7 @@ export function DropBar({ companies, actions, storageShare = 0, voiceOn = false 
   const busy = stage !== null || full;
 
   return (
-    <section id="add-file" aria-label="Add a file, a link or text" className="scroll-mt-20 space-y-2">
+    <section id="upload" aria-label="Add a file, a link or text" className="scroll-mt-20 space-y-2">
       <div
         onDragOver={(e) => (e.preventDefault(), setDragging(true))}
         onDragLeave={() => setDragging(false)}

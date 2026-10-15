@@ -30,7 +30,7 @@ function Attention({ message, children }: { message: string; children: ReactNode
 }
 
 const Upload = () => (
-  <Link href="/desk/inbox#add-file" className={`${LINK} border border-rule-strong bg-paper text-ink`}>
+  <Link href="/desk/inbox#upload" className={`${LINK} border border-rule-strong bg-paper text-ink`}>
     {UPLOAD_FIXED}
   </Link>
 );

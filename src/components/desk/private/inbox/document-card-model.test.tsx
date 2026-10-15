@@ -22,7 +22,7 @@ describe("DocumentCard for a valuation workbook", () => {
 
   it("refused: offers a fixed upload and Skip, never Try again or Enter manually", () => {
     render(<DocumentCard doc={book({ model: { versionId: VERSION, status: "refused" }, view: view("attention", "This workbook has macros.") })} aiOn actions={actionsMock()} />);
-    expect(screen.getByRole("link", { name: "Upload a fixed workbook" })).toHaveAttribute("href", "/desk/inbox#add-file");
+    expect(screen.getByRole("link", { name: "Upload a fixed workbook" })).toHaveAttribute("href", "/desk/inbox#upload");
     expect(screen.getByRole("button", { name: "Skip this document" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Enter manually" })).toBeNull();

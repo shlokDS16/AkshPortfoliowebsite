@@ -21,7 +21,7 @@ describe("the model page with no model yet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(retryStepAction).toHaveBeenCalledWith(DOC));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
-    expect(screen.getByRole("link", { name: "Upload a fixed workbook" })).toHaveAttribute("href", "/desk/inbox#add-file");
+    expect(screen.getByRole("link", { name: "Upload a fixed workbook" })).toHaveAttribute("href", "/desk/inbox#upload");
   });
 
   it("refused: the exact sentence and a fixed upload, no Try again", () => {
