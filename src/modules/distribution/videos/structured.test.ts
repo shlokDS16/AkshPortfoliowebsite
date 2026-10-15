@@ -48,3 +48,12 @@ describe("transcriptText", () => {
     expect(transcriptText([{ s: 0, t: "Hello world." }, { s: 31, t: "Second line here" }])).toBe("Hello world.\nSecond line here");
   });
 });
+
+describe("chaptersOf", () => {
+  it("reads the entries that are a whole second and a title, and nothing from a record without a list", async () => {
+    const { chaptersOf } = await import("./structured");
+    expect(chaptersOf([{ s: 0, title: "One" }, { s: "x", title: "Bad" }, { s: 5 }, { s: 60, title: "Two" }])).toEqual([{ s: 0, title: "One" }, { s: 60, title: "Two" }]);
+    expect(chaptersOf(undefined)).toEqual([]);
+    expect(chaptersOf("x")).toEqual([]);
+  });
+});

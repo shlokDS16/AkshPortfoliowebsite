@@ -3,7 +3,7 @@ import type { CaseEntryView } from "@/modules/showcase";
 
 /** The machine's face: mono, a dashed rule on the left (the FACTS vocabulary of the file page). Dates, days and fingerprints only. */
 export function Machine({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("border-l border-dashed border-rule-strong pl-3 font-mono text-mono-tag tabular-nums text-ink-muted", className)}>{children}</div>;
+  return <div data-machine className={cn("border-l border-dashed border-rule-strong pl-3 font-mono text-mono-tag tabular-nums text-ink-muted", className)}>{children}</div>;
 }
 
 /** His words, quoted and labelled with when they were sealed: the reading face with the one ink rule (R1 row 3). Never mono. */

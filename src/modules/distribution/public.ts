@@ -1,7 +1,8 @@
 // Pure renderers for a listed video (Phase 5b, spec s7.7). The ONLY file of this module the public side may import: no server-only,
 // no database, no node API, no env. Addresses are built from an id that is checked here, so a stored value that is not a YouTube id
 // can never become part of an address. Nothing re-words anything: the transcript text is joined, never changed.
-import type { Segment } from "./videos/types";
+/** Structurally the same as the stored segment type of ./videos/types: restated here so this file reaches nothing else of the module (the public boundary). */
+type Segment = { s: number; t: string };
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 
@@ -39,4 +40,11 @@ export function isoDuration(seconds: number): string {
 /** The transcript as one text for `VideoObject.transcript`: the segment texts joined by a space, each exactly as stored. */
 export function transcriptPlainText(segments: readonly Segment[]): string {
   return segments.map((s) => s.t).join(" ");
+}
+
+/** An ordinary link to a moment of the video on youtube.com: what a chapter link does when the page's script has not run. Loads nothing. */
+export function watchUrl(youtubeId: string, startSeconds?: number): string | null {
+  if (!VIDEO_ID.test(youtubeId)) return null;
+  const base = `https://www.youtube.com/watch?v=${youtubeId}`;
+  return startSeconds !== undefined && Number.isInteger(startSeconds) && startSeconds >= 0 ? `${base}&t=${startSeconds}s` : base;
 }

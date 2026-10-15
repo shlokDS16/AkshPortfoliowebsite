@@ -20,7 +20,7 @@ export interface VideosRepo {
   transcriptForItem(itemId: string, transcriptId: string): Promise<TranscriptRow | null>;
 }
 
-type SourceRecord = {
+export type SourceRecord = {
   id: string; item_id: string; youtube_id: string; channel_id: string | null; own_channel: boolean | null; yt_title: string | null;
   yt_description: string | null; duration_seconds: number | null; privacy: string | null; yt_published_at: string | null; fetched_at: string | null;
   fetch_problem: string | null; created_at: string;
@@ -30,7 +30,7 @@ type TranscriptRecord = {
 };
 
 const PRIVACIES: readonly string[] = ["public", "unlisted", "private", "gone"];
-const SOURCE_COLUMNS =
+export const SOURCE_COLUMNS =
   "id, item_id, youtube_id, channel_id, own_channel, yt_title, yt_description, duration_seconds, privacy, yt_published_at, fetched_at, fetch_problem, created_at";
 const TRANSCRIPT_COLUMNS = "id, video_source_id, source, file_sha256, segments, text_sha256, words, created_at";
 

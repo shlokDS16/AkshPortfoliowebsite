@@ -86,6 +86,15 @@ const [FETCH, CHECK] = videoSteps() as [Step, Step];
 export const VIDEO_FETCH_STEP: Step = FETCH;
 export const VIDEO_CHECK_STEP: Step = CHECK;
 
+/** Whether video listing is on (both YouTube settings, or the fixture outside a deployment): the desk says "not set up yet" when it is not. A setting that cannot be read counts as off. */
+export function videoListingOn(): boolean {
+  try {
+    return createVideoMetaPort(serverEnv()) !== null;
+  } catch {
+    return false;
+  }
+}
+
 let running: Promise<StepResult[]> | null = null;
 
 /**

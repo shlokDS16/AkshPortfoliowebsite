@@ -4,10 +4,12 @@ import "server-only";
 export { parseYoutubeUrl } from "./videos/youtube-url";
 export { parseChapters, type ChaptersResult } from "./videos/chapters";
 export { parseCaptions, type CaptionsResult } from "./videos/captions";
-export { initialVideoStructured, nextVideoStructured, transcriptText, VIDEO_SCHEMA, type VideoStructured } from "./videos/structured";
+export { chaptersOf, initialVideoStructured, nextVideoStructured, transcriptText, VIDEO_SCHEMA, type VideoStructured } from "./videos/structured";
 export { createVideoFiling, type VideoFiling } from "./videos/filing";
 export { createSupabaseVideosRepo, segmentsOf, sourceFromRecord, type VideosRepo } from "./videos/repo";
 export { addTranscript, CHANGE_REASON, applyChapters, applyTitle, applyTranscript, type VideoChange, type VideoDeps } from "./videos/service";
+export { listVideoRows, type VideoListRow } from "./videos/list";
+export { OFF_LINE, STALE_DAYS, videoChecks, videoStatus, type VideoCheck, type VideoFacts, type VideoStatus } from "./videos/status";
 export { VIDEO_ERROR_TEXT, VideoError, type VideoErrorCode } from "./videos/errors";
 export {
   checkVideos,

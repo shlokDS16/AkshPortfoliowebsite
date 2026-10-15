@@ -49,3 +49,13 @@ describe("the public renderers for a video (pure; the public side may import thi
     expect(transcriptPlainText([{ s: 0, t: "Hello <b>world</b>." }, { s: 31, t: "Second line" }])).toBe("Hello <b>world</b>. Second line");
   });
 });
+
+describe("the plain link to a moment of a video", () => {
+  it("builds a youtube.com watch address with a whole-second start, and refuses an unsafe id", async () => {
+    const { watchUrl } = await import("./public");
+    expect(watchUrl(ID, 95)).toBe(`https://www.youtube.com/watch?v=${ID}&t=95s`);
+    expect(watchUrl(ID)).toBe(`https://www.youtube.com/watch?v=${ID}`);
+    expect(watchUrl(ID, -1)).toBe(`https://www.youtube.com/watch?v=${ID}`);
+    expect(watchUrl("bad id", 5)).toBeNull();
+  });
+});

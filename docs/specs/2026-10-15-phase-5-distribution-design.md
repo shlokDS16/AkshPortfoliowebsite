@@ -633,3 +633,32 @@ this section describes the build and the reason is given. Append only.
   and keep no cache of their own. The isolation test now walks the public pages and the print components as well as the derived routes.
 - **(l) XML text (s4.2):** `escapeXml` also drops U+FFFE and U+FFFF, which XML 1.0 forbids, so one stray character cannot make the
   whole feed unreadable.
+
+## Amendment 2026-10-16 (5b Task 8 as built)
+Written with the video screens. Where this section and s7 disagree, this section describes the build and gives the reason. Append only.
+
+- **(m) s4.3, "never any numeric property", gains a second exception:** `Clip.startOffset`, the whole second at which one of his chapters
+  starts, on the `hasPart` of a `VideoObject` (s7.7 asks for a `Clip` per chapter and schema.org requires the number). It is his chapter
+  list, not a figure. `derived.video.test.ts` walks the `VideoObject` and fails on any other number than a breadcrumb position and a `Clip`'s
+  `startOffset`.
+- **(n) The transcript is not in the snapshot.** s2 and the plan say the snapshot gains `videoTranscripts` as `concepts` did. Next's data
+  cache holds an entry of at most 2 MB (`unstable_cache` refuses a larger one, silently), one snapshot holds every public page, and an hour of
+  speech is about 60 KB, so a library of videos would push the snapshot over. The snapshot gains `videos` (four small columns of
+  `public_videos`); the video page reads its own transcript from `public_video_transcripts` through a second cached read with the same
+  tag (`getVideoTranscript`), and shows it only if the sha-256 of its texts equals the `transcriptSha` the current revision names (the value
+  gate rule 12.2 compared). A transcript that does not match throws at runtime, so the last good page stays, and counts as none at build time.
+  Because the feed, the sitemap, the card and What changed need no transcript, they are built from the snapshot alone, as rule 11 asks. Only
+  `VideoObject.transcript` takes it, as a second argument of `jsonLdFor`.
+- **(o) A video item is public only with a `public_videos` row.** `ITEM_KINDS` already includes `video` (Task 7), so `repo.ts` would admit a
+  video item by its kind alone. `loadSnapshot` now drops every video item, and every revision of it, that has no row in `public_videos` (or
+  when that view cannot be read), and `listedVideos` re-checks the row, the id, the record schema and that the record names the row's YouTube
+  id. A video that fails any of these appears in no page, feed entry, sitemap line or card.
+- **(p) `modules/distribution/public.ts` restates the `Segment` type** instead of importing it from `videos/types.ts`, so that the only file of
+  the module the public side reaches is `public.ts` itself (`isolation.test.ts` pins this). It also gains `watchUrl`, the ordinary YouTube link
+  a chapter is before the page's script runs.
+- **(q) `/desk/items/[id]` redirects a video to `/desk/videos/[id]`.** Both are one `ItemView`; the second adds the video panels and the rule 12
+  rows. `saveCaseFileRevisionAction` and the other actions that return to the item page keep working through the redirect, which carries the
+  message in the query. The "Create item" kind list no longer offers `video` (a video is filed from its link with `v:`, which also creates its
+  YouTube row).
+- **(r) The public rail shows "Videos" only once a video is listed** (`SiteCounts.videos` is absent before), so the deploy state links to
+  nothing that is a 404. There is no phone tab.

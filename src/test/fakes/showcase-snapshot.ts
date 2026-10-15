@@ -1,5 +1,5 @@
 import { parseFactsSheet } from "@/modules/casefile/client";
-import type { PublicConceptLink, PublicConceptRow, PublicItemRow, PublicRevisionRow, PublicSnapshot } from "@/modules/showcase";
+import type { PublicConceptLink, PublicConceptRow, PublicItemRow, PublicRevisionRow, PublicSnapshot, PublicVideoRow } from "@/modules/showcase";
 import { caseRecordFixture, FIXTURE_CHART } from "@/test/fixtures/case-record";
 import { KAVERI, NOTES, PROCESS_NOTE, SAHYADRI } from "@/test/fixtures/casefile";
 
@@ -95,4 +95,32 @@ export function withConcepts(snapshot: PublicSnapshot, concepts: PublicConceptRo
 export function buildRichSnapshot(): PublicSnapshot {
   const withCase = withLedgerCase(buildSeedSnapshot(), caseRecordFixture({ chart: FIXTURE_CHART }), { bodyMd: "Looking back, I would watch the monsoon earlier." });
   return withConcepts(withCase, [{ id: "cc1", slug: "receivable-days", name: "Receivable days" }], [["i1", "r1b", "cc1", 0], ["n0", "rn0", "cc1", 0], ["lc1", "lc1-rev", "cc1", 0]]);
+}
+
+/** The video fixtures: a listed video's id, his chapters and the transcript the anon view would return for it. */
+export const VIDEO_ID = "dQw4w9WgXcQ";
+export const VIDEO_CHAPTERS = [{ s: 0, title: "Why receivables" }, { s: 95, title: "Reading the ageing table" }, { s: 3725, title: "What to ask next" }];
+export const VIDEO_SEGMENTS = [
+  { s: 0, t: "Today we look at how receivables are reported." },
+  { s: 30, t: "The ageing table is where the story starts." },
+  { s: 3700, t: "So the question to carry away is who pays late." },
+];
+
+/**
+ * Plan 5b: a listed video. The item carries no company by default; `patch` changes the item, `row` the public_videos row. Never touches
+ * the seed's files or notes. The title and objective hold no figure and no id, so a derived surface that prints one added it.
+ */
+export function withVideo(snapshot: PublicSnapshot, patch: Partial<PublicItemRow> = {}, row: Partial<PublicVideoRow> = {}): PublicSnapshot {
+  const id = patch.id ?? "v1";
+  const revisionId = patch.revisionId ?? `${id}-rev`;
+  const structured = patch.structured ?? { schema: "video/1", youtubeId: VIDEO_ID, transcriptId: "t-1", transcriptSha: "0".repeat(64), chapters: VIDEO_CHAPTERS };
+  const publishedAt = patch.publishedAt ?? "2026-09-25T05:00:00Z";
+  const item: PublicItemRow = {
+    id, kind: "video", slug: `${id}-reading-the-ageing-table`, title: "Reading the ageing table", companyId: null, themeId: null, publishedAt, dataAsOf: null,
+    learningObjective: "How to read who pays late.", holdsPosition: null, revisionId, revNo: 1, bodyMd: "I walk through one ageing table, line by line.", structured,
+    revisedAt: publishedAt, fileNo: null, ...patch,
+  };
+  const revision: PublicRevisionRow = { id: revisionId, itemId: id, revNo: 1, bodyMd: item.bodyMd, structured, changeReason: "First version.", createdAt: publishedAt };
+  const video: PublicVideoRow = { itemId: id, youtubeId: VIDEO_ID, durationSeconds: 3725, publishedAt: "2026-09-24T08:30:00+00:00", ...row };
+  return { ...snapshot, items: [...snapshot.items, item], revisions: [...snapshot.revisions, revision], videos: [...(snapshot.videos ?? []), video] };
 }

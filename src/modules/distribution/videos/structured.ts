@@ -20,7 +20,8 @@ export function initialVideoStructured(youtubeId: string): VideoStructured {
   return { schema: VIDEO_SCHEMA, youtubeId, chapters: [] };
 }
 
-function chaptersOf(value: unknown): Chapter[] {
+/** The chapters of a record, entry by entry, keeping only those that read; a record without a list has none. */
+export function chaptersOf(value: unknown): Chapter[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry): Chapter[] => (isRecord(entry) && typeof entry.s === "number" && typeof entry.title === "string" ? [{ s: entry.s, title: entry.title }] : []));
 }
