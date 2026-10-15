@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
+import { JsonLd } from "@/components/desk/json-ld";
 import { MistakesList } from "@/components/desk/case/mistakes-list";
 import { MistakesEmpty } from "@/components/desk/case/mistakes-empty";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
-import { buildMistakes, buildSiteChrome, getSnapshot } from "@/modules/showcase";
+import { publicEnv } from "@/lib/env";
+import { buildMistakes, buildSiteChrome, getSnapshot, jsonLdFor, pageMetadata } from "@/modules/showcase";
 
 export const revalidate = 3600;
-export const metadata: Metadata = { title: "Mistakes", description: "Cases in which Aksh judged his own process flawed, or named a kind of mistake." };
+export const metadata = pageMetadata("mistakes", null);
 
 /**
  * Addendum s6: the published cases in which HIS review called the process flawed or named a kind of mistake, chosen by his
@@ -41,6 +42,7 @@ export default async function MistakesPage() {
           </>
         )}
       </div>
+      <JsonLd data={jsonLdFor("mistakes", snapshot.data, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
 }

@@ -117,3 +117,11 @@ Each entry: segment, options shown, choice, reason, date. Never redo a decided s
 - **/concepts is a plain A to Z list** (name as a link, the count line under it) and a 404 until a public concept is used by a public item, as /cases is. No tab and no rail entry: it is reached from a Concepts line. A public concept nothing links never appears, and neither does an id the snapshot does not know.
 - **A public item of kind note has no page, so it is listed as plain text, never a dead link.** A file is listed only if its company page is the one that serves it (the thesis, else its lowest-numbered file), so a link never lands on a page that does not show the concept.
 - **Status:** delegated pick 2026-10-15; Shlok to approve or reword.
+
+## Plan 5a Task 2: share cards for notes, process notes, cases and concepts
+- **Options:** none shown; delegated by Shlok 2026-10-15 ("No options round; build what the plan and spec decide"). Every pick below is **delegated by Shlok 2026-10-15, pending his approval**.
+- **Same card as the file's, with the left column reused.** The geru column keeps the tag at the top (set in capitals by the card, typed as "Learning note", "Process note", "Closed case", "Concept"), a big fixed letter in the middle (N, P, C, and "Aa" for a term) and the R-number at the bottom. A letter, not a figure: nothing on a case card is a number he did not write. The concept card has no bottom line there.
+- **Two optional lines were missing, so the card gets two.** A kicker above the title (the company, on a case) and a fixed sentence under the objective ("A past case, not a view on the share today."). Neither appears unless a builder fills it; the file card is unchanged.
+- **The title steps down instead of overflowing.** 78 px up to 36 characters, 60 px up to 50, 48 px beyond. His words are cut on a word boundary with an ellipsis (title 72 characters, objective 120, company 40), never re-worded. Checked by eye on the worst case (a 100-character case title, a 170-character objective, both lines present): it fits with the fixed sentence just above the footer rule.
+- **A case card never carries a figure, a verdict or the chart.** Its footer is "Written {date} · closed {Mon YYYY}", the same two dates the page prints.
+- **Status:** delegated pick 2026-10-15; Shlok to approve or reword.

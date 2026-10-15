@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
 import { STANDARD_DISCLOSURE } from "@/components/desk/disclosure";
+import { JsonLd } from "@/components/desk/json-ld";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { istDate } from "@/lib/dates";
+import { publicEnv } from "@/lib/env";
 import { formatDate } from "@/lib/format";
-import { buildSiteChrome, getSnapshot } from "@/modules/showcase";
+import { buildSiteChrome, getSnapshot, jsonLdFor, pageMetadata } from "@/modules/showcase";
 
 export const revalidate = 3600;
-export const metadata: Metadata = { title: "About and disclosures", description: "Who writes the case files, how a page gets published, and the standard disclosure." };
+export const metadata = pageMetadata("about", null);
 
 // The publishing rules in plain words (docs/compliance/publishing-rules.md). Chrome, third person (design-dna 13.1).
 const RULES = [
@@ -44,6 +45,7 @@ export default async function AboutPage() {
           <p className="mt-2 text-small text-ink-body desk:text-small-desk">{STANDARD_DISCLOSURE("stated on each file", formatDate(reviewed))}</p>
         </section>
       </article>
+      <JsonLd data={jsonLdFor("about", null, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
 }

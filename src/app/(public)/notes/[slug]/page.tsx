@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/desk/json-ld";
 import { NoteArticle } from "@/components/desk/note-article";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
-import { buildNoteView, buildSiteChrome, getSnapshot } from "@/modules/showcase";
+import { publicEnv } from "@/lib/env";
+import { buildNoteView, buildSiteChrome, getSnapshot, jsonLdFor, pageMetadata } from "@/modules/showcase";
 
 export const revalidate = 3600;
 export async function generateStaticParams() {
@@ -13,8 +15,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/notes/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const snapshot = await getSnapshot();
-  const note = snapshot.status === "ok" ? buildNoteView(snapshot.data, "learning", slug) : null;
-  return note ? { title: note.title, description: note.learningObjective } : {};
+  return pageMetadata("note", snapshot.status === "ok" ? snapshot.data : null, slug);
 }
 
 export default async function NotePage({ params }: PageProps<"/notes/[slug]">) {
@@ -32,6 +33,7 @@ export default async function NotePage({ params }: PageProps<"/notes/[slug]">) {
   return (
     <PublicFrame current="notes" chrome={buildSiteChrome(snapshot.data)} strip={{ variant: "site" }}>
       <NoteArticle note={note} />
+      <JsonLd data={jsonLdFor("note", snapshot.data, slug, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
 }

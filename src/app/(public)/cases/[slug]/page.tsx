@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CasePage } from "@/components/desk/case/case-page";
+import { JsonLd } from "@/components/desk/json-ld";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
-import { buildCaseStudyView, buildSiteChrome, getSnapshot } from "@/modules/showcase";
+import { publicEnv } from "@/lib/env";
+import { buildCaseStudyView, buildSiteChrome, getSnapshot, jsonLdFor, pageMetadata } from "@/modules/showcase";
 
 export const revalidate = 3600;
 export async function generateStaticParams() {
@@ -13,8 +15,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/cases/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const snapshot = await getSnapshot();
-  const view = snapshot.status === "ok" ? buildCaseStudyView(snapshot.data, slug) : null;
-  return view ? { title: view.title, description: view.standfirst } : {};
+  return pageMetadata("case", snapshot.status === "ok" ? snapshot.data : null, slug);
 }
 
 /** A closed idea from the ledger (Plan 3b, spec s33). Reads only the cached public snapshot: the current published revision. */
@@ -39,6 +40,7 @@ export default async function CaseRoute({ params }: PageProps<"/cases/[slug]">) 
       back={{ href: "/cases", label: "Cases" }}
     >
       <CasePage view={view} />
+      <JsonLd data={jsonLdFor("case", snapshot.data, slug, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
 }

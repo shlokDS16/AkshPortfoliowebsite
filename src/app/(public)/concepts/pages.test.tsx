@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_NOT_FOUND");
   },
 }));
+vi.mock("@/lib/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/env")>()), publicEnv: () => ({ NEXT_PUBLIC_SITE_URL: "https://desk.example" }) }));
 vi.mock("@/modules/showcase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/showcase")>()),
   getSnapshot: async () => (state.unavailable ? { status: "unavailable" } : { status: "ok", data: state.snapshot }),
@@ -64,7 +65,7 @@ describe("/concepts", () => {
   });
 
   it("is titled and described", () => {
-    expect(index.metadata).toEqual({ title: "Concepts", description: "The ideas Aksh uses to read a business, each with the notes and files where it comes up." });
+    expect(index.metadata).toMatchObject({ title: "Concepts", description: "The ideas Aksh uses to read a business, each with the notes and files where it comes up." });
   });
 });
 
@@ -93,7 +94,7 @@ describe("/concepts/[slug]", () => {
   it("has a title and a description from the concept, and none for an unknown slug", async () => {
     state.snapshot = world();
     const meta = (slug: string) => concept.generateMetadata({ params: Promise.resolve({ slug }) } as never);
-    expect(await meta("capital-cycle")).toEqual({ title: "Capital cycle", description: "Notes and case files by Aksh Agrawal that use Capital cycle, newest first." });
+    expect(await meta("capital-cycle")).toMatchObject({ title: "Capital cycle", description: "Notes and case files by Aksh Agrawal that use Capital cycle, newest first." });
     expect(await meta("nope")).toEqual({});
   });
 });

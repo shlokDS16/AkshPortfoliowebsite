@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FileHeader } from "@/components/desk/file-header";
 import { FileSections } from "@/components/desk/file-sections";
+import { JsonLd } from "@/components/desk/json-ld";
 import { PhoneIndex } from "@/components/desk/phone-index";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
-import { buildFileView, buildSiteChrome, getSnapshot } from "@/modules/showcase";
+import { publicEnv } from "@/lib/env";
+import { buildFileView, buildSiteChrome, getSnapshot, jsonLdFor, pageMetadata } from "@/modules/showcase";
 
 export const revalidate = 3600;
 export async function generateStaticParams() {
@@ -15,8 +17,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/companies/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const snapshot = await getSnapshot();
-  const file = snapshot.status === "ok" ? buildFileView(snapshot.data, slug) : null;
-  return file ? { title: `${file.company} · File ${file.fileNo}`, description: file.learningObjective } : {};
+  return pageMetadata("file", snapshot.status === "ok" ? snapshot.data : null, slug);
 }
 
 /** The B+ company file (segment 1). Reads only the cached public snapshot (Task 9). */
@@ -45,6 +46,7 @@ export default async function FilePage({ params }: PageProps<"/companies/[slug]"
       </div>
       <FileHeader file={file} />
       <FileSections file={file} />
+      <JsonLd data={jsonLdFor("file", snapshot.data, slug, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
 }

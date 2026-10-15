@@ -1,10 +1,10 @@
 import type { Metadata, MetadataRoute } from "next";
 import { istDate } from "@/lib/dates";
-import { formatFileNo } from "@/lib/format";
-import { ledgerCases, hasLedgerCases } from "./case-study";
+import { formatDate, formatFileNo } from "@/lib/format";
+import { buildCaseStudyView, hasLedgerCases, ledgerCases, monthYear } from "./case-study";
 import { buildConceptView, listConceptSummaries } from "./concepts";
 import { ordinal, revisionsOf, servedFiles } from "./site";
-import type { PublicSnapshot } from "./types";
+import type { PublicSnapshot, ShareCardContent } from "./types";
 
 // Plan 5a (spec s4, publishing rule 11): metadata, structured data, the sitemap and robots, as pure functions of the public snapshot.
 // Text comes only from fields the gate lints (title, learning objective, company and concept names) and fixed copy; a date is a
@@ -173,4 +173,54 @@ export function sitemapEntries(s: PublicSnapshot | null, siteUrl: string): Metad
 export function robotsFor(vercelEnv: string | undefined, siteUrl: string): MetadataRoute.Robots {
   if (vercelEnv !== "production") return { rules: { userAgent: "*", disallow: "/" } };
   return { rules: { userAgent: "*", allow: "/", disallow: ["/desk", "/login", "/auth", "/api", "/dev"] }, sitemap: url(siteUrl, "/sitemap.xml") };
+}
+
+// ---- Share cards (spec s4.4). Each is a pure function of the snapshot; null means the page 404s. ----
+
+const CARD_FOOTER = "For learning, not advice";
+const TITLE_BUDGET = 72;
+const OBJECTIVE_BUDGET = 120;
+
+/**
+ * At most `max` characters (code points): text over the budget is cut on a word boundary and ends with "…", so a card slot never
+ * overflows and his words are never re-worded. A single word longer than the budget is cut by characters.
+ */
+export function cutWords(text: string, max: number): string {
+  const chars = Array.from(text);
+  if (chars.length <= max) return text;
+  const room = chars.slice(0, max - 1);
+  const space = room.lastIndexOf(" ");
+  const end = chars[room.length] === " " || space <= 0 ? room.length : space;
+  return `${room.slice(0, end).join("").replace(/[\s,;:]+$/, "")}…`;
+}
+
+function noteCardOf(s: PublicSnapshot, kind: "learning" | "process", slug: string): ShareCardContent | null {
+  const item = s.items.find((i) => i.kind === kind && i.slug === slug);
+  if (!item) return null;
+  return {
+    tag: kind === "learning" ? "Learning note" : "Process note", number: kind === "learning" ? "N" : "P", sub: `R${ordinal(s, item).revNo}`,
+    title: cutWords(item.title, TITLE_BUDGET), standfirst: cutWords(item.learningObjective ?? "", OBJECTIVE_BUDGET),
+    footerLeft: `Revised ${formatDate(istDate(item.revisedAt))}`, footerRight: CARD_FOOTER,
+  };
+}
+
+export const noteCard = (s: PublicSnapshot, slug: string) => noteCardOf(s, "learning", slug);
+export const processCard = (s: PublicSnapshot, slug: string) => noteCardOf(s, "process", slug);
+
+/** A closed case: no figure, no verdict and no chart (rule 10.7); the fixed sub-line is the wording rule 10 already approved. */
+export function caseCard(s: PublicSnapshot, slug: string): ShareCardContent | null {
+  const view = buildCaseStudyView(s, slug);
+  if (!view) return null;
+  return {
+    tag: "Closed case", number: "C", sub: `R${view.revNo}`, kicker: cutWords(view.company, 40), title: cutWords(view.title, TITLE_BUDGET),
+    standfirst: cutWords(view.standfirst, OBJECTIVE_BUDGET), aside: "A past case, not a view on the share today.",
+    footerLeft: `Written ${formatDate(view.dateline.writtenOn)} · closed ${monthYear(view.dateline.closedOn)}`, footerRight: CARD_FOOTER,
+  };
+}
+
+export function conceptCard(s: PublicSnapshot, slug: string): ShareCardContent | null {
+  const view = buildConceptView(s, slug);
+  const summary = listConceptSummaries(s).find((c) => c.slug === slug);
+  if (!view || !summary) return null;
+  return { tag: "Concept", number: "Aa", sub: "", title: cutWords(view.name, TITLE_BUDGET), standfirst: cutWords(view.standfirst, OBJECTIVE_BUDGET), footerLeft: summary.countLine, footerRight: CARD_FOOTER };
 }

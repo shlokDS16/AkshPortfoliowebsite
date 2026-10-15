@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_NOT_FOUND");
   },
 }));
+vi.mock("@/lib/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/env")>()), publicEnv: () => ({ NEXT_PUBLIC_SITE_URL: "https://desk.example" }) }));
 vi.mock("@/modules/showcase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/showcase")>()),
   getSnapshot: async () => ({ status: "ok", data: state.snapshot }),
@@ -70,7 +71,7 @@ describe("/cases/[slug]", () => {
   it("has a title and a description from the case, and none for an unknown slug", async () => {
     state.snapshot = withCase();
     const meta = (slug: string) => casePage.generateMetadata({ params: Promise.resolve({ slug }) } as never);
-    expect(await meta("lc1-a-closed-idea")).toEqual({
+    expect(await meta("lc1-a-closed-idea")).toMatchObject({
       title: "Kaveri Seed Company Limited: a closed idea, Jan 2026 to Jun 2026", description: "How a margin story can fail while the demand story holds.",
     });
     expect(await meta("nope")).toEqual({});
