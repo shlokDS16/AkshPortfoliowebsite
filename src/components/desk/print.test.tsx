@@ -7,7 +7,8 @@ import { PrintDisclosure } from "./print-disclosure";
 import { PrintMasthead } from "./print-masthead";
 import { derivedProblems } from "@/modules/showcase";
 import { expectTokenOnly } from "@/test/ui";
-import type { HoldsPosition } from "@/lib/desk-types";
+import { positionWord } from "@/lib/format";
+import { SITE_POSITION } from "./disclosure";
 
 // Plan 5a Task 3, spec s5 and publishing rule 11.4. The print-only blocks are in the page's markup (a printer reads the same document
 // the screen does) and shown by `print:block`; the button is `print:hidden`.
@@ -40,13 +41,13 @@ describe("PrintMasthead", () => {
 });
 
 describe("PrintDisclosure", () => {
-  it.each<[HoldsPosition | null, string]>([
-    ["yes", "Position in the security discussed: Yes."],
-    ["no", "Position in the security discussed: No."],
-    ["not_disclosed", "Position in the security discussed: Not disclosed."],
-    [null, "Position in the security discussed: Not disclosed."],
-  ])("carries the standard disclosure in full for holds_position %s", (holdsPosition, line) => {
-    const { container } = render(<PrintDisclosure holdsPosition={holdsPosition} reviewedOn="2026-10-05" />);
+  it.each<[string, string]>([
+    [positionWord("yes"), "Position in the security discussed: Yes."],
+    [positionWord("no"), "Position in the security discussed: No."],
+    [positionWord("not_disclosed"), "Position in the security discussed: Not disclosed."],
+    [SITE_POSITION, "Position in the security discussed: stated on each file."],
+  ])("carries the standard disclosure in full for the position %s", (position, line) => {
+    const { container } = render(<PrintDisclosure position={position} reviewedOn="2026-10-05" />);
     expect(screen.getByRole("heading", { name: "Disclosure", hidden: true })).toBeInTheDocument();
     const text = container.textContent ?? "";
     expect(text).toContain("Educational content only. Aksh Agrawal is not a SEBI-registered Research Analyst or Investment Adviser.");

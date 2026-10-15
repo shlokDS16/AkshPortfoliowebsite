@@ -1,6 +1,8 @@
+import { SITE_POSITION } from "@/components/desk/disclosure";
 import { JsonLd } from "@/components/desk/json-ld";
 import { MistakesList } from "@/components/desk/case/mistakes-list";
 import { MistakesEmpty } from "@/components/desk/case/mistakes-empty";
+import { PrintDisclosure } from "@/components/desk/print-disclosure";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
 import { publicEnv } from "@/lib/env";
@@ -42,6 +44,7 @@ export default async function MistakesPage() {
           </>
         )}
       </div>
+      <PrintDisclosure position={SITE_POSITION} reviewedOn={snapshot.data.today} />
       <JsonLd data={jsonLdFor("mistakes", snapshot.data, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );

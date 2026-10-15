@@ -1,4 +1,6 @@
+import { SITE_POSITION } from "@/components/desk/disclosure";
 import { JsonLd } from "@/components/desk/json-ld";
+import { PrintDisclosure } from "@/components/desk/print-disclosure";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { RegisterTable } from "@/components/desk/register-table";
 import { Unavailable } from "@/components/desk/unavailable";
@@ -23,6 +25,7 @@ export default async function FilesPage() {
       <div className="pt-8">
         <RegisterTable files={buildRegister(snapshot.data)} />
       </div>
+      <PrintDisclosure position={SITE_POSITION} reviewedOn={snapshot.data.today} />
       <JsonLd data={jsonLdFor("files", snapshot.data, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );

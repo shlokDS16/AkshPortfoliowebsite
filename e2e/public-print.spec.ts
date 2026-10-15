@@ -25,8 +25,8 @@ test.beforeAll(async ({ request }) => {
 
 const printable = () => [
   { name: "file", path: "/companies/kavpump", position: "No" },
-  { name: "learning note", path: pages.notes[0], position: "Not disclosed" },
-  { name: "process note", path: pages.process[0], position: "Not disclosed" },
+  { name: "learning note", path: pages.notes[0], position: "(?:stated on each file|Not disclosed)" },
+  { name: "process note", path: pages.process[0], position: "(?:stated on each file|Not disclosed)" },
   ...(state().casePublic ? [{ name: "case", path: pages.cases[0], position: "(?:Yes|No|Not disclosed)" }] : []),
 ];
 
@@ -110,6 +110,18 @@ test("a PDF of each public page is dated, addressed and carries the standard dis
       // Rule 10.7: no result figure, no id, no verdict on a printed case study.
       expect(derivedProblems(text), "a printed case study").toEqual([]);
     }
+  }
+});
+
+// Rule 11.4 for the pages that show only the short strip on screen: the register and a concept page print the whole disclosure too.
+test("the register and a concept page print the standard disclosure in full", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium" || !/-1280/.test(test.info().project.name), "page.pdf is Chromium's; one desktop project per state is enough");
+  const indexes = ["/companies", ...(pages.concepts.length > 0 ? [pages.concepts[0]] : [])];
+  if (state().conceptsPublic) expect(indexes, "a concept page is public in this state").toHaveLength(2);
+  for (const path of indexes) {
+    await page.goto(path);
+    const { text } = await pdfText(page);
+    expect(text, path).toMatch(new RegExp(`${escape(HEAD)}stated on each file\\.${escape(TAIL)}${DATE}\\.`));
   }
 });
 

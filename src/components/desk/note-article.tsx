@@ -2,7 +2,7 @@ import { formatDate } from "@/lib/format";
 import type { NoteView } from "@/modules/showcase";
 import { BlockHeader } from "./block-header";
 import { ConceptLine } from "./concept-line";
-import { Disclosure } from "./disclosure";
+import { Disclosure, SITE_POSITION } from "./disclosure";
 import { PrintButton } from "./print-button";
 import { PrintDisclosure } from "./print-disclosure";
 import { UsedIn } from "./used-in";
@@ -41,7 +41,7 @@ export function NoteArticle({ note }: { note: NoteView }) {
           <Disclosure holdsPosition={note.holdsPosition} reviewedOn={note.revisedOn} />
         </div>
       ) : (
-        <PrintDisclosure holdsPosition={null} reviewedOn={note.revisedOn} />
+        <PrintDisclosure position={SITE_POSITION} reviewedOn={note.revisedOn} />
       )}
     </article>
   );

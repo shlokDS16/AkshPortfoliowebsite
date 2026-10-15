@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ConceptPage } from "@/components/desk/concept-page";
+import { SITE_POSITION } from "@/components/desk/disclosure";
 import { JsonLd } from "@/components/desk/json-ld";
+import { PrintDisclosure } from "@/components/desk/print-disclosure";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
 import { publicEnv } from "@/lib/env";
@@ -34,6 +36,7 @@ export default async function ConceptRoute({ params }: PageProps<"/concepts/[slu
   return (
     <PublicFrame current="concepts" chrome={buildSiteChrome(snapshot.data)} strip={{ variant: "site" }}>
       <ConceptPage view={view} />
+      <PrintDisclosure position={SITE_POSITION} reviewedOn={snapshot.data.today} />
       <JsonLd data={jsonLdFor("concept", snapshot.data, slug, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );

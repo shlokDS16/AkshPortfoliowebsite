@@ -1,4 +1,4 @@
-import { STANDARD_DISCLOSURE } from "@/components/desk/disclosure";
+import { SITE_POSITION, STANDARD_DISCLOSURE } from "@/components/desk/disclosure";
 import { JsonLd } from "@/components/desk/json-ld";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { istDate } from "@/lib/dates";
@@ -42,7 +42,7 @@ export default async function AboutPage() {
         <p className="my-(--para)">The checks run in code before anything is published. There is no switch that skips them.</p>
         <section id="disclosures" className="mt-(--section-gap) border-t-2 border-ink bg-surface p-4 desk:p-6">
           <h2 className="text-title text-ink desk:text-title-desk">Disclosures</h2>
-          <p className="mt-2 text-small text-ink-body desk:text-small-desk">{STANDARD_DISCLOSURE("stated on each file", formatDate(reviewed))}</p>
+          <p className="mt-2 text-small text-ink-body desk:text-small-desk">{STANDARD_DISCLOSURE(SITE_POSITION, formatDate(reviewed))}</p>
         </section>
       </article>
       <JsonLd data={jsonLdFor("about", null, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />

@@ -1,4 +1,6 @@
+import { SITE_POSITION } from "@/components/desk/disclosure";
 import { JsonLd } from "@/components/desk/json-ld";
+import { PrintDisclosure } from "@/components/desk/print-disclosure";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { RegisterTable } from "@/components/desk/register-table";
 import { StatTile } from "@/components/desk/stat-tile";
@@ -52,6 +54,7 @@ export default async function Home() {
         <WhatChangedList entries={buildWhatChanged(s)} />
         <RegisterTable files={files} searchable={false} />
       </div>
+      <PrintDisclosure position={SITE_POSITION} reviewedOn={s.today} />
       <JsonLd data={jsonLdFor("home", s, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );

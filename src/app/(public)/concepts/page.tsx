@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { ConceptList } from "@/components/desk/concept-list";
+import { SITE_POSITION } from "@/components/desk/disclosure";
 import { JsonLd } from "@/components/desk/json-ld";
+import { PrintDisclosure } from "@/components/desk/print-disclosure";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
 import { publicEnv } from "@/lib/env";
@@ -30,6 +32,7 @@ export default async function ConceptsPage() {
       <div className="mt-(--block-gap)">
         <ConceptList concepts={concepts} />
       </div>
+      <PrintDisclosure position={SITE_POSITION} reviewedOn={snapshot.data.today} />
       <JsonLd data={jsonLdFor("concepts", snapshot.data, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
