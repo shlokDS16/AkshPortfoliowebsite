@@ -5,7 +5,7 @@
 // 1. The client chunks of every route except /desk/models/[versionId] contain neither IronCalc (`ironcalc`, `wasm_bg`) nor SheetJS.
 //    A route's chunks are its entry chunks and its client modules' chunks (from its client reference manifest), and every chunk those
 //    load in turn (a lazy import or a Web Worker names its chunk as a string), followed to the end.
-// 2. The model page does reach the engine (otherwise the check above proves nothing).
+// 2. The model page does reach the engine, in a .js chunk with the wasm glue (otherwise the check above proves nothing).
 // 3. No file the browser can download (.next/static) contains @ironcalc/nodejs, a .node binary or SheetJS, and no client manifest names
 //    the xlsx or @ironcalc/nodejs packages.
 // 4. public/vendor/ironcalc-0.8.4.wasm exists and is byte-for-byte the package's wasm_bg.wasm.
@@ -21,6 +21,9 @@ const next = join(root, ".next");
 const staticDir = join(next, "static");
 const MODEL_ROUTE = "/desk/models/[versionId]/page";
 const ENGINE = [/ironcalc/i, /wasm_bg/];
+// What only the real worker chunk holds: the wasm-bindgen glue and the engine's own method. Turbopack also copies the worker's source
+// (.ts, with comments that say "IronCalc") into static/media; that copy must not satisfy the control in step 2.
+const GLUE = [/__wbindgen_/, /getFormattedCellValue/];
 const SHEETJS = /SheetJS/;
 const CHUNK_REF = /static\/(?:chunks|media)\/[A-Za-z0-9_.-]+\.(?:js|ts|wasm)/g;
 
@@ -84,7 +87,8 @@ for (const { route, manifest } of routes) {
   const chunks = reachable(manifest, route);
   const engineIn = [...chunks].filter((c) => ENGINE.some((p) => p.test(c) || p.test(read(c))));
   if (route === MODEL_ROUTE) {
-    if (engineIn.length === 0) fail(`${route} reaches no chunk with the engine: the check cannot see the worker`);
+    const glueIn = [...chunks].filter((c) => c.endsWith(".js") && GLUE.every((p) => p.test(read(c))));
+    if (glueIn.length === 0) fail(`${route} reaches no chunk with the engine: the check cannot see the worker`);
   } else if (engineIn.length > 0) fail(`${route} loads IronCalc: ${engineIn.join(", ")}`);
   const sheet = [...chunks].filter((c) => SHEETJS.test(read(c)));
   if (sheet.length > 0) fail(`${route} loads SheetJS: ${sheet.join(", ")}`);
