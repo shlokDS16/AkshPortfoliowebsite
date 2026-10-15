@@ -140,6 +140,35 @@ describe("parseCapture: robustness", () => {
     expect(parseCapture("https://a.com/x").title).toBe("Untitled capture");
   });
 
+  describe("a trailing run of #names is filing, not title", () => {
+    it("drops the run from the title, links the concepts, and leaves the body and the first line as written", () => {
+      const parsed = parseCapture("l: What moats do #moats #cycles");
+      expect(parsed.title).toBe("What moats do");
+      expect(parsed.themes).toEqual(["moats", "cycles"]);
+      expect(parsed.body).toBe("What moats do #moats #cycles");
+      expect(parsed.firstLine).toBe("What moats do #moats #cycles");
+    });
+
+    it("keeps a tag inside the sentence, and a title that would be empty without its only tag", () => {
+      expect(parseCapture("l: The #capital-cycle turns").title).toBe("The #capital-cycle turns");
+      expect(parseCapture("l: #moats #cycles").title).toBe("#moats #cycles");
+      expect(parseCapture("l: #moats").title).toBe("#moats");
+      expect(parseCapture("#capital-cycle late stage").title).toBe("#capital-cycle late stage");
+    });
+
+    it("leaves hashes that are not concept names alone", () => {
+      expect(parseCapture("l: issue #12").title).toBe("issue #12");
+      expect(parseCapture("l: C# is fun").title).toBe("C# is fun");
+      expect(parseCapture("l: moats #moats.").title).toBe("moats #moats.");
+      expect(parseCapture("l: see https://x.com/p#frag").title).toBe("see");
+    });
+
+    it("strips tags before the 120-unit cut, and not from a later line", () => {
+      expect(parseCapture(`l: ${"word ".repeat(30)}#moats`).title.endsWith("#moats")).toBe(false);
+      expect(parseCapture("l: first line\nsecond #moats").title).toBe("first line");
+    });
+  });
+
   it("caps the title at 120 characters including the ellipsis", () => {
     const title = parseCapture("word ".repeat(100)).title;
     expect(title.length).toBeLessThanOrEqual(120);
@@ -267,7 +296,7 @@ describe("parseCapture: r: logs a read", () => {
   it("takes the first line as the title and keeps the link in the body", () => {
     expect(parseCapture("r: Marks, Sea Change memo. Rates regime over #interest-rates https://example.com/memo")).toMatchObject({
       kind: "reading_note",
-      title: "Marks, Sea Change memo. Rates regime over #interest-rates",
+      title: "Marks, Sea Change memo. Rates regime over",
       themes: ["interest-rates"],
       urls: ["https://example.com/memo"],
       body: "Marks, Sea Change memo. Rates regime over #interest-rates https://example.com/memo",

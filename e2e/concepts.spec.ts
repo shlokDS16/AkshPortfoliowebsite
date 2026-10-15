@@ -17,8 +17,11 @@ import { adminDb, hydrated, itemIdOf } from "./support/desk";
 const run = Date.now().toString(36);
 const MOATS: Concept = { slug: "e2e-moats", name: "E2E moats" };
 const CYCLES: Concept = { slug: "e2e-cycles", name: "E2E cycles" };
-const NOTE = `What moats do for a business ${run} #${MOATS.slug} #${CYCLES.slug}`;
-const READ = `Notes on a memo about cycles ${run} #${MOATS.slug}`;
+// The title is the text before the trailing #names (parse.ts); the capture carries the names.
+const NOTE = `What moats do for a business ${run}`;
+const NOTE_CAPTURE = `${NOTE} #${MOATS.slug} #${CYCLES.slug}`;
+const READ = `Notes on a memo about cycles ${run}`;
+const READ_CAPTURE = `${READ} #${MOATS.slug}`;
 const OBJECTIVE = "Learn what a moat is and how a cycle tests it.";
 const PENDING = "A newer version of this note is waiting to be published. Publish it before changing the concepts.";
 
@@ -67,7 +70,7 @@ async function conceptStatuses(slugs: string[]) {
 }
 
 test("a capture with two #names: both wait on Names, are screened there, and the note shows both as chips", async ({ page }) => {
-  await capture(page, `l: ${NOTE}`);
+  await capture(page, `l: ${NOTE_CAPTURE}`);
   noteId = (await itemIdOf(db, NOTE)) ?? "";
   expect(noteId).not.toBe("");
 
@@ -108,7 +111,7 @@ test("the concept page lists the note under Learnings; Link relates two concepts
 });
 
 test("r: logs a read: it shows under Reads and on the month page, has no publish panel, and the gate refuses it in SQL", async ({ page }) => {
-  await capture(page, `r: ${READ}`);
+  await capture(page, `r: ${READ_CAPTURE}`);
   readId = (await itemIdOf(db, READ)) ?? "";
   expect(readId).not.toBe("");
   const stored = await db.from("items").select("kind, visibility").eq("id", readId).single();

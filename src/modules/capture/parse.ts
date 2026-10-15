@@ -30,6 +30,8 @@ const START = `(^|[${WS}([{"'${CURLY_QUOTES},/])`;
 const SYMBOL_RE = new RegExp(`${START}${DOLLAR}([A-Za-z0-9][A-Za-z0-9&-]{0,19})(?![A-Za-z0-9&-])`, "g");
 const THEME_RE = new RegExp(`${START}#([A-Za-z][A-Za-z0-9-]{0,47})(?![A-Za-z0-9-])`, "g");
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
+// A trailing run of whole #names is filing, not title: it links concepts and stays in the body. A tag inside the sentence stays.
+const TRAILING_TAGS = /(?:^|\s)#[A-Za-z][A-Za-z0-9-]{0,47}(?:\s+#[A-Za-z][A-Za-z0-9-]{0,47})*\s*$/;
 // Digits plus only a money or magnitude suffix ("$5M", "$500cr") are amounts, not symbols.
 const AMOUNT_RE = /^\d+(K|M|MN|MM|B|BN|CR|CRS|L|LAKH|LAKHS|T|TN)$/;
 // UTF-16 units, like the item schema's .max(); the schema allows 200, the title keeps well inside it.
@@ -117,6 +119,8 @@ export function parseCapture(raw: string): ParsedCapture {
   const { kind, body, spans } = scan(raw);
   const values = (k: CaptureSpanKind) => unique(spans.filter((s) => s.kind === k).map((s) => s.value));
   const firstLine = (body.split(/\r?\n/)[0] ?? "").trim();
-  const title = truncateUnits(firstLine.replace(URL_RE, "").replace(/\s+/g, " ").trim(), TITLE_MAX) || "Untitled capture";
+  const line = firstLine.replace(URL_RE, "").replace(/\s+/g, " ").trim();
+  // Only the title is derived: the raw capture and the body keep every tag. A line that is nothing but tags keeps them.
+  const title = truncateUnits(line.replace(TRAILING_TAGS, "").trim() || line, TITLE_MAX) || "Untitled capture";
   return { kind, symbols: values("symbol"), themes: values("theme"), urls: values("url"), title, firstLine, body };
 }
