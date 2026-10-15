@@ -13,7 +13,9 @@ export const RULE_TITLES: Record<string, string> = {
   slug: "Slug",
   revision: "Newer revision exists",
   company: "Linked company",
-  theme: "Linked theme",
+  theme: "Linked concept",
+  concept: "Linked concept",
+  reading_note: "Reading log",
   policy: "Policy version",
   lint: "Text lint",
 };

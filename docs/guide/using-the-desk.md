@@ -81,7 +81,7 @@ There is no password. You sign in with a link sent to your email.
 This is the shortest useful routine. Each step is explained in section 4.
 
 1. **Open the desk.** Look at the top. If a red strip is showing, read it (section 6). If there is no red strip, nothing is late.
-2. **Capture what you noticed.** On the Capture tab, type one line and press Enter. Add `$SYMBOL` for a company and `#theme` for a theme. Do this whenever a thought comes, not only once a day.
+2. **Capture what you noticed.** On the Capture tab, type one line and press Enter. Add `$SYMBOL` for a company and `#concept` for each concept (up to 8). Do this whenever a thought comes, not only once a day.
 3. **Clear "Needs you".** On the Capture tab, the "Needs you" box lists what is waiting: a document ready to review, a name to screen, a publish that was stopped, a capture that was not filed. Open each card and deal with it.
 4. **Check the Inbox.** If a document says "Ready", press **Review**, check the figures it flags, and file the rest.
 5. **Open the Ledger tab.** Look at the lines at the top. Check the "Needs you" box there: ideas that need a price check, closed ideas with no lesson, ideas past their horizon. If your thinking on an open idea changed, add a note to it.
@@ -105,7 +105,7 @@ At the very top, a **red strip** appears only when something is late or broken. 
 
 **What it is for.** Getting a thought down in seconds, before you lose it. Every capture is saved exactly as you typed it, before the site tries to understand it, so nothing is lost if the understanding step fails.
 
-**Where.** The Capture tab opens with the box already selected. The box shows: "What did you just notice?   $company  #theme  t:  l:  p:".
+**Where.** The Capture tab opens with the box already selected. The box shows: "What did you just notice?   $company  #concept  t:  l:  p:  r:".
 
 **How to capture**
 
@@ -118,10 +118,11 @@ At the very top, a **red strip** appears only when something is late or broken. 
 | You type | What happens |
 |---|---|
 | `$RELIANCE` (a dollar sign and a company's NSE symbol) | Links the capture to that company. Capital or small letters both work. An unknown symbol shows as `$SYMBOL → New names` and the company waits on the Names tab for you to screen it. |
-| `#capital-cycle` | Links the capture to a theme. An unknown theme shows as `#theme → New names`. |
+| `#capital-cycle` | Links the capture to a concept. Every `#name` links, in the order you write them, up to 8 (the receipt says "Only the first 8 concepts were linked." past that). An unknown concept shows as `#concept → New names`. |
 | `t:` at the very start | A thesis (your view on a company). With a `$SYMBOL` it starts that company's file, or adds a new revision to it if one exists. The receipt says "Thesis". |
 | `l:` at the very start | A learning note. The receipt says "Learning note, private". |
 | `p:` at the very start | A process note (how you work). The receipt says "Process note, private". |
+| `r:` at the very start | Something you read, for the reading log. The receipt says "Reading log, private". A read always stays private. |
 | A web address (https://...) anywhere | Kept with the capture. The desk does not open it by itself. See "Read this link" below. |
 | None of the above | A private note, listed under Today. |
 
@@ -129,7 +130,7 @@ A few details:
 
 - A thesis belongs to one company. If you start with `t:` and give no `$SYMBOL`, the box warns "A thesis belongs to one company. Add $SYMBOL, or this saves as a private draft without one."
 - `$` followed only by an amount (such as `$5M` or `$500cr`) is read as money, not a company.
-- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:` and `p:` for you.
+- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:`, `p:` and `r:` for you.
 - A capture can be up to 20,000 characters.
 
 **After you save**
@@ -155,15 +156,15 @@ A few details:
 
 ### 4.3 New names
 
-**What it is for.** The first time you write a `$SYMBOL` or `#theme` the site has not seen, it keeps your note and puts the name on a list. You say who it is, like a screener. This stops typos from becoming companies.
+**What it is for.** The first time you write a `$SYMBOL` or `#concept` the site has not seen, it keeps your note and puts the name on a list. You say who it is, like a screener. This stops typos from becoming companies.
 
 **Where.** The **Names** tab, headed "New names". The "Needs you" box on the Capture tab also shows a "New names" card with the button **Screen new names**.
 
 **How.** Each name has a card showing the name, when it was first seen and the line you wrote it in. Choose one:
 
 - **Same as ...** (shown when the site spotted a likely match). Joins this name to the existing one. After this, the old spelling files under the target.
-- **New company** (or **New theme**). A form opens. Fill in **Name** (and **Sector**, picked from a list, for a company). Press **Yes, add it**.
-- **Not a company, keep as text** (or **Not a theme, keep as text**). The word stays in your note as plain text.
+- **New company** (or **New concept**). A form opens. Fill in **Name** (and **Sector**, picked from a list, for a company). Press **Yes, add it**.
+- **Not a company, keep as text** (or **Not a concept, keep as text**). The word stays in your note as plain text.
 
 Your notes were saved either way.
 

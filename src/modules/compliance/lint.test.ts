@@ -18,6 +18,8 @@ const base: LintInput = {
   companyName: null,
   companyOneLiner: null,
   themeName: null,
+  conceptNames: [],
+  conceptSlugs: [],
   companyId: null,
   holdsPosition: null,
   dataAsOf: null,
@@ -95,7 +97,7 @@ describe("lintText: adversarial phrases (spec s10, publishing-rules rules 1-2)",
   });
 
   it("treats null and empty optional public fields as nothing to lint", () => {
-    expect(lint({ changeReason: "", companyName: "  ", companyOneLiner: null, themeName: null, slug: null }).passed).toBe(true);
+    expect(lint({ changeReason: "", companyName: "  ", companyOneLiner: null, themeName: null, conceptNames: [], conceptSlugs: [], slug: null }).passed).toBe(true);
   });
 
   it("finds a phrase in a nested structured value", () => {

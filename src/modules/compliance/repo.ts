@@ -23,6 +23,9 @@ export type PublishContext = {
   companyName: string | null;
   companyOneLiner: string | null;
   themeName: string | null;
+  /** The live (unarchived) concepts the gated revision links, in its own order; empty when it has none (a null link list reads as the theme above). */
+  conceptNames: string[];
+  conceptSlugs: string[];
   /** sentence_hash values allowed for this item (rule 1 only; see lint.ts). */
   allowances: string[];
 };
@@ -55,6 +58,15 @@ const DECISION_COLUMNS = "id, revision_id, verdict, policy_version, decided_at, 
 const ITEM_COLUMNS =
   "id, kind, title, slug, learning_objective, company_id, holds_position, data_as_of, visibility, company:companies(name, one_liner), theme:themes(name)";
 
+/** The revision's concepts that still exist and are not archived, in the order the revision lists them. An archived id is never shown, so never linted. */
+async function loadConcepts(db: Db, ids: string[]): Promise<{ name: string; slug: string }[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await db.from("themes").select("id, name, slug").in("id", ids).is("archived_at", null);
+  if (error) throw dbError("compliance.loadConcepts", error);
+  const byId = new Map((data ?? []).map((t) => [t.id, t]));
+  return ids.flatMap((id) => byId.get(id) ?? []);
+}
+
 export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
   return {
     async loadPublishContext(itemId, revisionId) {
@@ -62,7 +74,7 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         db.from("items").select(ITEM_COLUMNS).eq("id", itemId).maybeSingle(),
         db
           .from("item_revisions")
-          .select("id, body_md, structured, change_reason")
+          .select("id, body_md, structured, change_reason, concept_ids")
           .eq("id", revisionId)
           .eq("item_id", itemId)
           .maybeSingle(),
@@ -72,6 +84,7 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
       if (revision.error) throw dbError("compliance.loadRevision", revision.error);
       if (allowances.error) throw dbError("compliance.loadAllowances", allowances.error);
       if (!item.data || !revision.data) return null;
+      const concepts = await loadConcepts(db, revision.data.concept_ids ?? []);
       return {
         item: {
           id: item.data.id,
@@ -93,6 +106,8 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         companyName: item.data.company?.name ?? null,
         companyOneLiner: item.data.company?.one_liner ?? null,
         themeName: item.data.theme?.name ?? null,
+        conceptNames: concepts.map((c) => c.name),
+        conceptSlugs: concepts.map((c) => c.slug),
         allowances: allowances.data.map((a) => a.sentence_hash),
       };
     },

@@ -8,6 +8,7 @@ export {
   isItemId,
   ITEM_KINDS,
   ITEM_STATUSES,
+  MAX_CONCEPTS,
   REVISION_AUTHORS,
   VISIBILITIES,
   type AddRevisionInput,
@@ -24,5 +25,6 @@ export type { DiffLine, Item, ItemPatch, ItemWithHistory, NewItemRow, NewRevisio
 export { diffRevisions } from "./diff";
 export { bodyHoldsText } from "./match";
 export { createSupabaseResearchRepo } from "./repo";
-export { addRevision, appendRevision, createItem, getItemWithHistory, listRecentItems, updateItemMeta } from "./service";
+export { addRevision, appendRevision, createItem, getItemWithHistory, listRecentItems, setItemConcepts, updateItemMeta } from "./service";
+export { conceptChangeReason, unionConceptIds } from "./concepts";
 export { latestFileForCompany } from "./queries";

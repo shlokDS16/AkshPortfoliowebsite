@@ -14,6 +14,8 @@ const ctx = (over: Partial<PublishContext["item"]> = {}, bodyMd = "Utilisation p
   companyName: "Kaveri Pumps (fictional)",
   companyOneLiner: null,
   themeName: null,
+  conceptNames: [],
+  conceptSlugs: [],
   allowances: [],
 });
 

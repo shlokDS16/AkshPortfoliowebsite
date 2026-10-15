@@ -10,10 +10,10 @@ import type { Item, ItemPatch, ResearchRepo, Revision } from "./types";
 // would reject a '*' for roles that lack a column.
 const ITEM_COLUMNS =
   "id, kind, slug, title, company_id, theme_id, visibility, status, current_revision_id, published_at, data_as_of, learning_objective, holds_position, created_at, updated_at";
-const REVISION_COLUMNS = "id, item_id, rev_no, body_md, structured, schema_version, change_reason, author, created_at";
+const REVISION_COLUMNS = "id, item_id, rev_no, body_md, structured, concept_ids, schema_version, change_reason, author, created_at";
 
 type ItemRow = Omit<Tables<"items">, "search" | "file_no">; // file_no is read by the public views (Plan 1B), not the desk repo
-type RevisionRow = Omit<Tables<"item_revisions">, "concept_ids">; // concept_ids is read and written from Phase 4 Task 2 on
+type RevisionRow = Tables<"item_revisions">;
 
 function toItem(row: ItemRow): Item {
   return {
@@ -42,6 +42,7 @@ function toRevision(row: RevisionRow): Revision {
     revNo: row.rev_no,
     bodyMd: row.body_md,
     structured: asRecord(row.structured) ?? {},
+    conceptIds: row.concept_ids,
     schemaVersion: row.schema_version,
     changeReason: row.change_reason,
     author: row.author as RevisionAuthor,
@@ -92,6 +93,8 @@ export function createSupabaseResearchRepo(db: Db): ResearchRepo {
           item_id: row.itemId,
           body_md: row.bodyMd,
           structured: row.structured as { [key: string]: Json | undefined },
+          // Omitted (not sent as null) when carrying, so the database trigger fills in the previous links.
+          ...(row.conceptIds == null ? {} : { concept_ids: row.conceptIds }),
           change_reason: row.changeReason,
           author: row.author,
         })

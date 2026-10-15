@@ -39,6 +39,9 @@ function collectUnits(input: LintInput): TextUnit[] {
     plain("companyName", input.companyName),
     plain("companyOneLiner", input.companyOneLiner),
     plain("themeName", input.themeName),
+    ...input.conceptNames.map((name) => plain("conceptName", name)),
+    // A slug reads as words: hyphens are spaces, as for the item slug above.
+    ...input.conceptSlugs.map((slug) => plain("conceptSlug", slug.replace(/-/g, " "))),
   ];
   const { sources, ledger, ...rest } = input.structured;
   walkLedger(ledger, units);

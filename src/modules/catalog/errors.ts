@@ -17,3 +17,12 @@ export class NameOnPublicItemError extends DeskError {
     this.name = "NameOnPublicItemError";
   }
 }
+
+/** His description of a concept is capped (2,000 characters); fixed text, shown through a code (lib/messages.ts). */
+export class ConceptDescriptionTooLongError extends DeskError {
+  readonly code = "CONCEPT_DESCRIPTION_TOO_LONG";
+  constructor() {
+    super("That is over 2,000 characters. Shorten it.");
+    this.name = "ConceptDescriptionTooLongError";
+  }
+}

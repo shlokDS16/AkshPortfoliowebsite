@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCapture } from "./parse";
+import { captureSpans, parseCapture } from "./parse";
 
 describe("parseCapture: grammar table (spec s5)", () => {
   it.each([
@@ -10,6 +10,8 @@ describe("parseCapture: grammar table (spec s5)", () => {
     ["T: upper-case prefix", { kind: "thesis" }],
     ["l: what a capex cycle looks like", { kind: "learning" }],
     ["p: my checklist before reading an annual report", { kind: "process" }],
+    ["r: Marks memo #rates", { kind: "reading_note", themes: ["rates"] }],
+    ["R: Marks memo", { kind: "reading_note" }],
     ["see https://example.com/ar-2026.pdf.", { kind: "note", urls: ["https://example.com/ar-2026.pdf"] }],
     ["Margins expanding at the cement majors", { kind: "note", symbols: [], themes: [], urls: [] }],
   ])("%j", (raw, expected) => {
@@ -258,5 +260,27 @@ describe("parseCapture: amounts with a magnitude suffix", () => {
       "M",
       "BN",
     ]);
+  });
+});
+
+describe("parseCapture: r: logs a read", () => {
+  it("takes the first line as the title and keeps the link in the body", () => {
+    expect(parseCapture("r: Marks, Sea Change memo. Rates regime over #interest-rates https://example.com/memo")).toMatchObject({
+      kind: "reading_note",
+      title: "Marks, Sea Change memo. Rates regime over #interest-rates",
+      themes: ["interest-rates"],
+      urls: ["https://example.com/memo"],
+      body: "Marks, Sea Change memo. Rates regime over #interest-rates https://example.com/memo",
+    });
+  });
+
+  it("highlights the prefix span like t: l: p:", () => {
+    expect(captureSpans("r: memo")).toEqual([{ kind: "prefix", start: 0, end: 2, value: "r" }]);
+    expect(captureSpans("  R: memo")[0]).toMatchObject({ kind: "prefix", start: 2, end: 4, value: "r" });
+  });
+
+  it("reads r: only at the very start, and a word such as rate: is not a prefix", () => {
+    expect(parseCapture("note r: later").kind).toBe("note");
+    expect(parseCapture("rate: up").kind).toBe("note");
   });
 });

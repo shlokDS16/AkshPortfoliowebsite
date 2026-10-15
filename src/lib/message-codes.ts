@@ -15,6 +15,7 @@ export const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   FACTS_SHEET_INVALID: "facts-sheet-invalid",
   NAME_NOT_SCREENED: "name-not-screened",
   NAME_ON_PUBLIC_ITEM: "name-on-public-item",
+  CONCEPT_DESCRIPTION_TOO_LONG: "concept-description-too-long",
   NO_FIGURE_DATE: "no-figure-date",
   // DocumentError carries the message code itself.
   "upload-duplicate": "upload-duplicate",

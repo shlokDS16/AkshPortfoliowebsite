@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ITEM_KINDS = ["note", "thesis", "learning", "case_study", "process"] as const;
+export const ITEM_KINDS = ["note", "thesis", "learning", "case_study", "process", "reading_note"] as const;
 export const VISIBILITIES = ["private", "clients", "public"] as const;
 export const ITEM_STATUSES = ["draft", "published", "archived"] as const;
 export const HOLDS_POSITIONS = ["yes", "no", "not_disclosed"] as const;
@@ -18,6 +18,10 @@ export const BODY_TOO_LONG_MESSAGE = "This revision is too long (200,000 charact
 const structured = z.record(z.string(), z.unknown());
 const itemId = z.guid();
 
+/** Up to 8 concepts per revision (the database check says the same); null means "carry the previous revision's". */
+export const MAX_CONCEPTS = 8;
+const conceptIds = z.array(z.guid()).max(MAX_CONCEPTS).nullable().default(null);
+
 /** True when `value` can be an item id; callers treat anything else as "no such item". */
 export { isUuid as isItemId } from "@/lib/ids";
 
@@ -27,6 +31,7 @@ export const createItemInput = z.object({
   bodyMd: z.string().max(200_000, BODY_TOO_LONG_MESSAGE).default(""),
   companyId: z.guid().nullable().default(null),
   themeId: z.guid().nullable().default(null),
+  conceptIds,
   learningObjective: z.string().trim().min(1).max(300).nullable().default(null),
   structured: structured.default({}),
   author: z.enum(REVISION_AUTHORS).default("aksh"),
@@ -37,6 +42,7 @@ export const addRevisionInput = z.object({
   itemId,
   bodyMd: z.string().max(200_000, BODY_TOO_LONG_MESSAGE),
   structured: structured.default({}),
+  conceptIds,
   changeReason: z.string().trim().max(300).nullable().default(null),
   author: z.enum(REVISION_AUTHORS).default("aksh"),
 });
@@ -45,6 +51,8 @@ export type AddRevisionInput = z.input<typeof addRevisionInput>;
 export const appendRevisionInput = z.object({
   itemId,
   appendMd: z.string().trim().min(1, "Nothing to append").max(20_000),
+  /** Concepts to ADD to the latest revision's links (its own come first). null or empty carries them unchanged. */
+  conceptIds,
   changeReason: z.string().trim().max(300).nullable().default(null),
   author: z.enum(REVISION_AUTHORS).default("aksh"),
 });

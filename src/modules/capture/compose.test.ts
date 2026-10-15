@@ -36,7 +36,49 @@ describe("captureReceipt (one line: where this will go)", () => {
   });
 });
 
+describe("captureReceipt: concepts and reads", () => {
+  const tagsOf = (n: number) => Array.from({ length: n }, (_, i) => `#c${String.fromCharCode(97 + i)}`).join(" ");
+
+  it("names every concept in order, known or new", () => {
+    const withTags = { ...known, themes: new Set(["rates"]) };
+    expect(captureReceipt("#rates then #capex", withTags).chips).toEqual([
+      { kind: "kind", label: "Today, as a private note" },
+      { kind: "theme", label: "#rates" },
+      { kind: "theme-new", label: "#capex → New names" },
+    ]);
+  });
+
+  it("shows eight concepts and says so when more were written", () => {
+    const model = captureReceipt(tagsOf(10), known);
+    expect(model.chips.filter((c) => c.kind === "theme-new")).toHaveLength(8);
+    expect(model.warning).toBe("Only the first 8 concepts were linked.");
+    expect(captureReceipt("#ca #cb", known).warning).toBeNull();
+  });
+
+  it("does not count an ignored token among the eight", () => {
+    const ignored = { ...known, ignoredThemes: new Set(["ca"]) };
+    const model = captureReceipt(tagsOf(9), ignored);
+    expect(model.chips.filter((c) => c.kind === "theme-new")).toHaveLength(8);
+    expect(model.warning).toBeNull();
+  });
+
+  it("joins the thesis warning and the dropped-concepts line", () => {
+    expect(captureReceipt(`t: ${tagsOf(9)}`, known).warning).toBe(
+      "A thesis belongs to one company. Add $SYMBOL, or this saves as a private draft without one. Only the first 8 concepts were linked.",
+    );
+  });
+
+  it("files a read under the reading log, privately", () => {
+    expect(captureReceipt("r: Marks memo", known).chips[0]).toEqual({ kind: "kind", label: "Reading log, private" });
+  });
+});
+
 describe("insertToken (the key row)", () => {
+  it("r: replaces an existing kind key like the others", () => {
+    expect(insertToken("t: margins", 4, "r:")).toEqual({ value: "r: margins", caret: 4 });
+    expect(insertToken("r: memo", 3, "l:")).toEqual({ value: "l: memo", caret: 3 });
+  });
+
   it("puts a kind key at the start, replacing any existing one", () => {
     expect(insertToken("margins thin", 7, "t:")).toEqual({ value: "t: margins thin", caret: 10 });
     expect(insertToken("l: margins", 5, "p:")).toEqual({ value: "p: margins", caret: 5 });

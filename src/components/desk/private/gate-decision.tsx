@@ -14,7 +14,9 @@ const FIELD_LABELS: Record<LintField, string> = {
   changeReason: "Change reason",
   companyName: "Company name",
   companyOneLiner: "Company one-liner",
-  themeName: "Theme name",
+  themeName: "Linked concept name",
+  conceptName: "Linked concept name",
+  conceptSlug: "Linked concept slug",
 };
 
 function Highlight({ sentence, match }: { sentence: string; match: string | null }) {
