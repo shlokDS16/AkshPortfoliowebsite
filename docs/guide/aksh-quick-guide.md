@@ -92,7 +92,7 @@ The entry price is set at the next close; the idea has no score until then.
 ### Write up a closed idea as a case study
 
 1. Close the idea and write the lesson. Open the idea: in the **Case study** block, press **Draft a case study** once the exit price is fixed.
-2. On its page, fill in **Learning objective** and **Holds position**, write under "What would prove me wrong", and run the publishing gate. It goes public only if Shlok has switched case studies on, and only 30 days after the latest entry it shows. Your entries cannot be edited there; if you write a new lesson, press **Refresh from the ledger**.
+2. On its page, fill in **Learning objective** and **Holds position**, add your "Looking back" words if you want to (no price and no return in them), and run the publishing gate. It goes public only if Shlok has switched case studies on, and only 30 days after the latest entry it shows. Your entries cannot be edited there; if you write a new lesson, press **Refresh from the ledger**.
 
 ### Add prices when they are missing
 

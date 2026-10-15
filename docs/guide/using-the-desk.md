@@ -579,7 +579,7 @@ Anyone can open these pages without signing in. The bar along the top (or bottom
 - **Files.** Every public file. You can search by symbol.
 - **A file.** The view, the tests, the facts with their sources, the revision history, and the disclosure. Under a filed figure's quote, if it has a record of where it came from: "Printed on p. N of <source>; matched by the desk and accepted by the analyst."
 - **Notes** and **Process.** Your learning notes and process notes that you published, each listing the files that use it. Until you publish any, they say "No learning notes yet ..." and "No process notes yet ...".
-- **Mistakes.** Closed cases in which you judged your own process flawed, or named a kind of mistake, with your review words and a link to the case (section 4.9). Until one is public the page shows its placeholder: "Nothing here yet. When one of Aksh's tests proves him wrong, that file and the date are listed here first, next to what he wrote before."
+- **Mistakes.** Closed cases in which you judged your own process flawed, or named a kind of mistake, with your review words and a link to the case (section 4.9). Until one is public the page shows its placeholder: "Nothing here yet. Closed cases in which Aksh judged his own process flawed, or named a kind of mistake, are listed here with his own words and a link to the case."
 - **Closed cases** (`/cases`, no tab; linked from Process and Mistakes) and the **How this record is kept** section on Process. Both appear only while a case study from the ledger is public (section 4.9).
 - **About and disclosures.** Who you are, how a page gets published (the rules in section 5), and the standard disclosure.
 - **On every page,** a disclosure line: "For learning · Aksh is not SEBI-registered · Figures 30+ days old."
@@ -641,7 +641,7 @@ If a chosen result shows **Not available** after a change, the new inputs made t
 2. Open the idea. On a closed idea the **Case study** block says what is missing: "A case study shows what you learned. Write the lesson first." or "The exit price is not fixed yet. A case study can be drafted once it is." When it is ready it says when it can go public at the earliest, and whether case studies are switched on now. Press **Draft a case study**. Pressing it twice makes one case study, not two. You land on its page.
 3. The page shows **From the ledger (sealed; cannot be edited)**: your entries exactly as sealed, with the dates and the entry and exit closes. You cannot change them here. There is no facts sheet for this kind of page.
 4. Fill in **Learning objective** (what a reader should learn from the case) and **Holds position**, and press **Save details**.
-5. Write what you see looking back in the body, under the heading "What would prove me wrong". Keep that heading: the checks need it. Press **Save revision**.
+5. If you want to, write what you see looking back in the body. It is shown under "Looking back" on the page, and it can stay empty. A price or a return in your words ("down 18% since I opened it", "trades at Rs 450") is refused by the check: this site prints no result. Press **Save revision**.
 6. On the publish checklist, read the line "Case studies from the ledger: On (site owner)." or "Off (site owner)." If the company is not public yet, press **Make <company> public**. Tick the box about your stance on the company, and press **Run the publishing gate**.
 
 **When it can go public.**

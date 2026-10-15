@@ -10,7 +10,7 @@ For Shlok. Aksh has no switch and the desk has no button for them: the two switc
 | `ledger_chart` | The weekly line chart of the share and the Nifty 50 (both rebased to 100, no values printed) may be part of the record. It matters only while `ledger_reveal` is on. |
 
 - A switch is on only when its value is exactly `on`, in lower case. No row, `ON`, `yes`, `true` and everything else mean off.
-- Both are off unless you turn them on. A database that never had the rows has both off. Merging the code changes nothing a visitor can see: `/cases` answers "not found" and `/process` has no "How this record is kept" section until one ledger case study is public.
+- Both are off unless you turn them on. A database that never had the rows has both off. Merging the code changes almost nothing a visitor can see: `/cases` answers "not found" and `/process` has no "How this record is kept" section until one ledger case study is public. Two things do differ at once, on purpose (spec section 34): the Mistakes tab in the desktop rail no longer shows a number, and the Mistakes page has a new description and empty-state wording.
 - Nothing in the app reads the rows except the publishing check inside the database. The site, the desk and Aksh cannot turn them on.
 
 ## Before anything is switched on in the hosted project
@@ -93,7 +93,7 @@ The case study carries a copy of the ledger record, and the publishing check reb
 
 ## Trying it on the local stack
 
-`pnpm e2e` runs the `cases` project last. It makes an invented company and one closed idea, moves its entries back 140 to 50 days, turns the switches on and off as above, publishes the case through the real check and reads it as a visitor. It writes only to the local database and refuses to run without the local stack. It rewrites the fingerprints of the local chain, so run `pnpm supabase db reset` before the next run. Never run its SQL (`e2e/support/aged-case.sql`) against the hosted project: it rewrites sealed entries.
+`pnpm e2e` runs the `cases` project last. It makes an invented company and one closed idea, moves its entries back 140 to 50 days, turns the switches on and off as above, publishes the case through the real check and reads it as a visitor. It writes only to the local database and refuses to run without the local stack. It rewrites the fingerprints of the local chain, so run `pnpm supabase db reset` before the next run. Never run its SQL (`e2e/support/aged-case.sql`) against the hosted project: it rewrites sealed entries. The file protects itself: its first statements stop it unless the run id is filled in (only `e2e/support/cases.ts` does that) and `admin_email` in `private.settings` is the local seed's `admin@desk.test`; pasted into the hosted SQL editor it raises an error and writes nothing.
 
 ## After the merge, with the switches off: what the hosted site should show
 
@@ -101,3 +101,5 @@ The case study carries a copy of the ledger record, and the publishing check reb
 - `/process` has no "How this record is kept" section.
 - `/mistakes` shows its empty state.
 - The register, the company pages and the home counts are the same as before.
+- The desktop rail shows no number beside Mistakes (the count was removed), and the Mistakes page reads "Closed cases in which Aksh judged his own process flawed, or named a kind of mistake, are listed here with his own words and a link to the case."
+- If the snapshot is down, `/cases` and `/mistakes` show the site's plain "unavailable" page.
