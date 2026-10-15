@@ -6,11 +6,6 @@ import { NOTES, PROCESS_NOTE } from "@/test/fixtures/casefile";
 
 // Plan 5a Task 2 (spec s4.4): a share card for a note, a process note, a case and a concept, built like the company card's.
 const state = vi.hoisted(() => ({ snapshot: null as unknown, unavailable: false }));
-vi.mock("next/navigation", () => ({
-  notFound: () => {
-    throw new Error("NEXT_NOT_FOUND");
-  },
-}));
 vi.mock("next/og", () => ({ ImageResponse: class { constructor(readonly element: { props: { c: unknown } }, readonly options: unknown) {} } }));
 vi.mock("@/lib/og-fonts", () => ({ loadOgFonts: async () => [] }));
 vi.mock("@/modules/showcase", async (importOriginal) => ({
@@ -28,6 +23,8 @@ type Route = {
   revalidate: number; generateStaticParams: () => Promise<unknown[]>; size: unknown; contentType: string; alt: string;
 };
 const run = async (r: Route, slug: string) => (await r.default({ params: Promise.resolve({ slug }) })) as { element: { props: { c: unknown } } };
+// A missing card is a returned 404, not notFound(): Next caches a thrown 404 without the snapshot tag, so it would stay after a publish.
+const status = async (r: Route, slug: string) => ((await r.default({ params: Promise.resolve({ slug }) })) as Response).status;
 const rich = buildRichSnapshot();
 
 const routes: [string, Route, string, (slug: string) => unknown, boolean][] = [
@@ -57,14 +54,14 @@ for (const [name, route, slug, expected, notYetPublic] of routes) {
     });
 
     it("gives the site card with the snapshot down, and a 404 for an unknown slug, as the page does", async () => {
-      await expect(run(route, "nope")).rejects.toThrow("NEXT_NOT_FOUND");
+      expect(await status(route, "nope")).toBe(404);
       state.unavailable = true;
       expect((await run(route, slug)).element.props.c).toEqual(HOME_CARD);
     });
 
     it("answers as its page does in the deploy state", async () => {
       state.snapshot = buildSeedSnapshot();
-      if (notYetPublic) await expect(run(route, slug)).rejects.toThrow("NEXT_NOT_FOUND");
+      if (notYetPublic) expect(await status(route, slug)).toBe(404);
       else expect((await run(route, slug)).element.props.c).toEqual(expected(slug));
     });
   });

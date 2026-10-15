@@ -1,5 +1,4 @@
 import { ImageResponse } from "next/og";
-import { notFound } from "next/navigation";
 import { HOME_CARD, ShareCardImage } from "@/components/desk/share-card";
 import { loadOgFonts } from "@/lib/og-fonts";
 import { conceptCard, getSnapshot } from "@/modules/showcase";
@@ -19,6 +18,6 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const snapshot = await getSnapshot();
   if (snapshot.status === "unavailable") return new ImageResponse(<ShareCardImage c={HOME_CARD} />, { ...size, fonts: await loadOgFonts() });
   const card = conceptCard(snapshot.data, slug);
-  if (!card) notFound();
+  if (!card) return new Response(null, { status: 404 });
   return new ImageResponse(<ShareCardImage c={card} />, { ...size, fonts: await loadOgFonts() });
 }

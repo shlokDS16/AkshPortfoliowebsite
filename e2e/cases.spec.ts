@@ -165,6 +165,7 @@ test("a new lesson moves the date: Unpublish, Refresh, Publish; the frozen-date 
   await gate(page).getByRole("button", { name: "Unpublish" }).click();
   await expect(status(page, /private again/)).toBeVisible();
   expect((await request.get(card)).status(), "the card of an unpublished case").toBe(404);
+  expect((await request.get(casePath)).status(), "the page of an unpublished case").toBe(404);
   expect(await (await request.get("/feed.xml")).text(), "the feed after unpublish").not.toContain(casePath);
   expect(await (await request.get("/sitemap.xml")).text(), "the sitemap after unpublish").not.toContain(casePath);
   await page.getByRole("button", { name: "Refresh from the ledger" }).click();
@@ -173,6 +174,11 @@ test("a new lesson moves the date: Unpublish, Refresh, Publish; the frozen-date 
   await runGate(page);
   await expect(status(page, /^Published\.$/)).toBeVisible();
   await expect(gate(page).getByTestId("gate-decision")).toHaveAttribute("data-verdict", "pass");
+  // A 404 seen while it was private must not stay: the page and its card, asked for in between, serve again at once.
+  expect((await request.get(casePath)).status(), "the page, republished").toBe(200);
+  const again = new URL((await (await request.get(casePath)).text()).match(/<meta property="og:image" content="([^"]+)"/)![1]).pathname;
+  expect((await request.get(again)).status(), "the card, republished").toBe(200);
+  expect(await (await request.get("/feed.xml")).text(), "the feed, republished").toContain(casePath);
   for (const size of [375, 1280] as const) {
     await expectPublicCase(browser, size, { slug, title, company: aged.company, reviews: 2, chart: true, mistakes: "timing, sizing" });
   }
