@@ -610,10 +610,12 @@ Nothing is ticked for you. Each row shows what the sheet says next to the cell (
 **Trying scenarios.** Change an input and the results update: each shows the **Workbook value**, the **Scenario output** and the **Change**. A percentage is typed as a percentage: 11.5 means 11.5%. **Reset** puts one input back to the workbook's value. **Save as scenario** keeps your input values under a name (with a note if you like); pick it again from **Scenario** later. **Workbook values** is always there and never changes. A saved scenario can be deleted, not edited: save a new one instead. The sensitivity grid shows one result for a range of two inputs around your current scenario (5 x 5 on a computer, 3 x 3 on a phone); press **Fill the grid**, which takes a few seconds.
 
 **Why a result can be unavailable.** The desk only offers a result it can reproduce exactly. A result cannot be chosen (it is greyed, with the reason) when it depends on a cell that:
-- gives a different answer from Excel (often a cell that reads `TODAY()`, so its value moves from day to day);
+- gives a different answer from Excel;
 - uses a function the desk cannot compute yet (the page names it, for example `CUBEVALUE`);
 - is part of a loop that Excel solves by repeating (iterative calculation);
 - had no value saved by Excel, or uses a random number.
+
+A cell that reads `TODAY()` is counted in the report as differing from Excel, because its value moves from day to day. It does not stop a result being chosen.
 
 If a chosen result shows **Not available** after a change, the new inputs made the formula fail (for example a division by zero); the engine's error is shown beside it.
 
