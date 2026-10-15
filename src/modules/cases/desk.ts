@@ -9,7 +9,7 @@ import type { CaseState, LedgerStatus } from "./types";
 const depsOf = (db: Db) => ({ cases: createSupabaseCasesRepo(db), research: createSupabaseResearchRepo(db) });
 
 /** The "Case study" block of a closed idea's page. */
-export function loadCaseBlock(db: Db, ideaId: string): Promise<{ state: CaseState | null; reveal: boolean }> {
+export function loadCaseBlock(db: Db, ideaId: string): Promise<{ state: CaseState | null; reveal: boolean | null }> {
   return caseBlockFor(depsOf(db), ideaId);
 }
 

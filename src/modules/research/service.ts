@@ -1,5 +1,5 @@
 import { ItemNotFoundError, PublicItemLockedError } from "@/lib/errors";
-import { isLedgerCase } from "@/modules/casefile/case-record";
+import { isLedgerCase } from "@/modules/casefile/client";
 import {
   addRevisionInput,
   appendRevisionInput,
@@ -108,7 +108,8 @@ export async function updateItemDetails(repo: ResearchRepo, itemId: string, patc
   if (!isItemId(itemId)) throw new ItemNotFoundError(itemId);
   const [newest] = await repo.listRevisions(itemId);
   if (newest && isLedgerCase(newest.structured)) {
-    const { dataAsOf: _ignored, ...rest } = patch;
+    const rest = { ...patch };
+    delete rest.dataAsOf;
     return updateItemMeta(repo, itemId, rest);
   }
   return updateItemMeta(repo, itemId, patch);

@@ -63,7 +63,7 @@ describe("PublicFrame", () => {
     mockMatchMedia();
     mockIntersectionObserver();
     renderWithMotion(
-      <PublicFrame current="mistakes" chrome={{ counts: { ...SITE_COUNTS, mistakes: 3 }, streak: STREAK }} strip={{ variant: "site" }}>
+      <PublicFrame current="mistakes" chrome={{ counts: SITE_COUNTS, streak: STREAK }} strip={{ variant: "site" }}>
         <h1>Mistakes</h1>
       </PublicFrame>,
     );
