@@ -16,10 +16,11 @@ import { deflateRawSync, crc32 } from "node:zlib";
 import { createRequire } from "node:module";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import * as XLSX from "xlsx";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+// Run from the repository root (`pnpm fixtures:models`). No import.meta here: the e2e specs import smallModel through Playwright's
+// CommonJS loader, which cannot parse it.
+const root = process.cwd();
 
 type Cell = { t: "n" | "s" | "b"; v: number | string | boolean; f?: string; z?: string };
 type Sheet = Record<string, Cell>;
@@ -41,16 +42,34 @@ function toWorksheet(cells: Sheet): XLSX.WorkSheet {
   return ws;
 }
 
-export function smallModel(): Uint8Array {
-  // Assumptions
-  const r = 0.115;
-  const g = 0.04;
-  const margin = 0.2;
-  const tax = 0.25;
-  const growth = 0.08;
-  const netDebt = 120;
-  const shares = 10;
-  const base = 1000;
+/** The fixture's assumptions (Assumptions!B1:B8). */
+const SMALL = { r: 0.115, g: 0.04, margin: 0.2, tax: 0.25, growth: 0.08, netDebt: 120, shares: 10, base: 1000 };
+
+/** The fixture's DCF in plain arithmetic, at a cost of equity `r` and a terminal growth `g`: the saved values come from here. */
+function smallDcf(r: number, g: number) {
+  const { margin, tax, growth, netDebt, shares, base } = SMALL;
+  let revenue = base;
+  const years: { revenue: number; ebit: number; flow: number; factor: number }[] = [];
+  for (let year = 1; year <= 5; year++) {
+    revenue *= 1 + growth;
+    const ebit = revenue * margin;
+    const flow = ebit * (1 - tax);
+    years.push({ revenue, ebit, flow, factor: 1 / (1 + r) ** year });
+  }
+  const sumPv = years.map((y) => y.flow * y.factor).reduce((a, b) => a + b, 0);
+  const terminal = (years[4].flow * (1 + g)) / (r - g);
+  const pvTerminal = terminal * years[4].factor;
+  const ev = sumPv + pvTerminal;
+  const equity = ev - netDebt;
+  return { years, sumPv, terminal, pvTerminal, ev, equity, perShare: equity / shares };
+}
+
+/** DCF!B13 ("Per-share result") of the fixture at these assumptions: what the desk's calculator must show (Task 3 e2e). */
+export const smallPerShare = (r = SMALL.r, g = SMALL.g): number => smallDcf(r, g).perShare;
+
+/** The fixture workbook. `tag` adds one unread text cell (Checks!A20), so an e2e run can upload bytes the desk has not seen. */
+export function smallModel(tag?: string): Uint8Array {
+  const { r, g, margin, tax, growth, netDebt, shares, base } = SMALL;
   const A: Sheet = {
     A1: text("Cost of equity"), B1: num(r, "0.0%"),
     A2: text("Terminal growth"), B2: num(g, "0.0%"),
@@ -65,37 +84,23 @@ export function smallModel(): Uint8Array {
   // DCF: years 1..5 in B..F
   const cols = ["B", "C", "D", "E", "F"];
   const D: Sheet = { A1: text("Year"), A2: text("Revenue"), A3: text("EBIT"), A4: text("Free cash flow"), A5: text("Discount factor"), A6: text("PV of FCF") };
-  let revenue = base;
-  const fcf: number[] = [];
-  const df: number[] = [];
-  const pv: number[] = [];
+  const { years, sumPv, terminal, pvTerminal, ev, equity, perShare } = smallDcf(r, g);
+  const fcf = years.map((y) => y.flow);
   cols.forEach((c, i) => {
-    const year = i + 1;
-    revenue *= 1 + growth;
-    const ebit = revenue * margin;
-    const flow = ebit * (1 - tax);
-    const factor = 1 / (1 + r) ** year;
-    fcf.push(flow);
-    df.push(factor);
-    pv.push(flow * factor);
-    D[`${c}1`] = num(year);
+    const { revenue, ebit, flow, factor } = years[i];
+    D[`${c}1`] = num(i + 1);
     D[`${c}2`] = num(revenue, "#,##0.0", i === 0 ? "Assumptions!B8*(1+Assumptions!B5)" : `${cols[i - 1]}2*(1+Assumptions!B5)`);
     D[`${c}3`] = num(ebit, "#,##0.0", `${c}2*Assumptions!B3`);
     D[`${c}4`] = num(flow, "#,##0.0", `${c}3*(1-Assumptions!B4)`);
     D[`${c}5`] = num(factor, "0.0000", `1/(1+Assumptions!B1)^${c}1`);
     D[`${c}6`] = num(flow * factor, "#,##0.0", `${c}4*${c}5`);
   });
-  const sumPv = pv.reduce((a, b) => a + b, 0);
-  const terminal = (fcf[4] * (1 + g)) / (r - g);
-  const pvTerminal = terminal * df[4];
-  const ev = sumPv + pvTerminal;
-  const equity = ev - netDebt;
   D.A8 = text("Sum of PV"); D.B8 = num(sumPv, "#,##0.0", "SUM(B6:F6)");
   D.A9 = text("Terminal value"); D.B9 = num(terminal, "#,##0.0", "F4*(1+Assumptions!B2)/(Assumptions!B1-Assumptions!B2)");
   D.A10 = text("PV of terminal value"); D.B10 = num(pvTerminal, "#,##0.0", "B9*F5");
   D.A11 = text("Enterprise value"); D.B11 = num(ev, "#,##0.0", "B8+B10");
   D.A12 = text("Equity value"); D.B12 = num(equity, "#,##0.0", "B11-Assumptions!B6");
-  D.A13 = text("Per-share result"); D.B13 = num(equity / shares, "#,##0.00", "B12/Assumptions!B7");
+  D.A13 = text("Per-share result"); D.B13 = num(perShare, "#,##0.00", "B12/Assumptions!B7");
 
   // Checks: one of each thing the desk must handle
   const C: Sheet = {
@@ -108,6 +113,8 @@ export function smallModel(): Uint8Array {
     A8: text("Indirect"), B8: num(sumPv, "#,##0.0", 'INDIRECT("B1")'),
     A9: text("Reads the stale cell"), B9: num(1, undefined, "IF(B3>0,1,0)"),
   };
+
+  if (tag) C.A20 = text(`e2e copy ${tag}`);
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, toWorksheet(A), "Assumptions");
@@ -219,4 +226,4 @@ function main(): void {
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) main();
+if (process.argv[1] && resolve(process.argv[1]).split("\\").join("/").endsWith("scripts/fixtures/make-models.ts")) main();
