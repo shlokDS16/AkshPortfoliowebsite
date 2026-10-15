@@ -77,7 +77,7 @@ export default defineConfig({
     {
       name: "cases",
       testMatch: spec("cases"),
-      dependencies: [...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop"],
+      dependencies: ["anon", ...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop"], // anon writes sealed days and clears closes (clocks.spec.ts): it must finish first
       use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
     },
     // The public case pages again, now that the loop above has left one case public: the published half of public-cases.spec.ts
