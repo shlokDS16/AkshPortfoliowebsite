@@ -97,13 +97,21 @@ export async function updateItemMeta(repo: ResearchRepo, itemId: string, patch: 
   const existing = await repo.getItem(itemId);
   if (!existing) throw new ItemNotFoundError(itemId);
   if (existing.visibility === "public") throw new PublicItemLockedError(itemId);
-  // A case study from the ledger takes its Figures to from the ledger alone (spec s34.5): whatever is posted, the stored date stays.
+  return repo.updateItem(itemId, data);
+}
+
+/**
+ * The desk's "Save details" form. A case study from the ledger takes its Figures to from the ledger alone (spec s34.5), so whatever the
+ * form posts, the stored date stays; moving it is "Refresh from the ledger", which calls updateItemMeta itself.
+ */
+export async function updateItemDetails(repo: ResearchRepo, itemId: string, patch: UpdateItemMetaInput): Promise<Item> {
+  if (!isItemId(itemId)) throw new ItemNotFoundError(itemId);
   const [newest] = await repo.listRevisions(itemId);
   if (newest && isLedgerCase(newest.structured)) {
-    const { dataAsOf: _ignored, ...rest } = data;
-    return repo.updateItem(itemId, rest);
+    const { dataAsOf: _ignored, ...rest } = patch;
+    return updateItemMeta(repo, itemId, rest);
   }
-  return repo.updateItem(itemId, data);
+  return updateItemMeta(repo, itemId, patch);
 }
 
 export async function listRecentItems(repo: ResearchRepo, limit = 100): Promise<Item[]> {

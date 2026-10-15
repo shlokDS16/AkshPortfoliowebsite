@@ -9,7 +9,7 @@ import { doneTo, failTo } from "@/lib/redirects";
 import { errorCode, errorText, userWasTold } from "@/lib/messages";
 import { createSupabaseResearchRepo } from "./repo";
 import { createItemInput, isItemId, updateItemMetaInput } from "./schema";
-import { createItem, updateItemMeta } from "./service";
+import { createItem, updateItemDetails } from "./service";
 import { createFileLookup, startFile } from "./start-file";
 
 function field(formData: FormData, key: string): string | null {
@@ -49,7 +49,7 @@ export async function updateItemMetaAction(itemId: string, formData: FormData): 
   });
   if (!parsed.success) failTo(back, parsed.error, "research");
   try {
-    await updateItemMeta(await repo(), itemId, parsed.data);
+    await updateItemDetails(await repo(), itemId, parsed.data);
   } catch (error) {
     failTo(back, error, "research");
   }
