@@ -8,18 +8,25 @@ import { confirmLabel, reasonText, reportChip, reportSentence, versionLine } fro
 // JSX text in this folder, and not in the module's strings (valuation.graph.test.ts). His own labels are shown as he typed them.
 const BANNED = [/\btarget\b/i, /\bfair value\b/i, /\bintrinsic value\b/i, /\bupside\b/i, /\bprice target\b/i, /\bbuy\b/i, /\bsell\b/i];
 const DIR = __dirname;
-const sources = readdirSync(DIR).filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
+const SRC = join(DIR, "../../../..");
+// The folder, and the other places the model feature puts words on a screen: its two pages, the inbox card's workbook buttons, and the
+// ingestion module's workbook sentences.
+const OUTSIDE = ["app/desk/models/page.tsx", "app/desk/models/[versionId]/page.tsx", "components/desk/private/inbox/workbook-actions.tsx", "modules/ingestion/model-copy.ts"];
+const sources = [...readdirSync(DIR).filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f)).map((f) => join(DIR, f)), ...OUTSIDE.map((f) => join(SRC, f))];
 
 describe("the model page's copy", () => {
   it("covers every file of the folder", () => {
-    expect(sources).toEqual(expect.arrayContaining(["copy.ts", "calculator.tsx", "confirm-cells.tsx", "results-panel.tsx", "sensitivity-grid.tsx"]));
+    const names = sources.map((f) => f.replaceAll("\\", "/"));
+    for (const name of ["models/copy.ts", "models/calculator.tsx", "models/confirm-cells.tsx", "models/results-panel.tsx", "models/sensitivity-grid.tsx", ...OUTSIDE]) {
+      expect(names.some((n) => n.endsWith(name)), name).toBe(true);
+    }
   });
 
   it.each(sources)("%s has none of the banned words in a string or in JSX text", (file) => {
-    const text = readFileSync(join(DIR, file), "utf8");
+    const text = readFileSync(file, "utf8");
     const literals = text.match(/(["'`])(?:(?!\1)[^\\\n]|\\.)*\1/g) ?? [];
     const jsxText = [...text.matchAll(/>([^<>{}\n]+)</g)].map((m) => m[1]);
-    for (const piece of [...literals, ...jsxText]) for (const word of BANNED) expect(word.test(piece), `${file}: ${piece.slice(0, 60)}`).toBe(false);
+    for (const piece of [...literals, ...jsxText]) for (const word of BANNED) expect(word.test(piece), `${file.slice(SRC.length)}: ${piece.slice(0, 60)}`).toBe(false);
   });
 });
 
