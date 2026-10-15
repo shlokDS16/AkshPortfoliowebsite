@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { dcfCells } from "@/test/dcf-fixture";
 import { buildXlsx } from "@/test/xlsx-builder";
 import { buildModel } from "./build-model";
-import { probeFunctions } from "./engine-node";
+import { MAX_PROBED_FUNCTIONS, probeFunctions } from "./engine-node";
 import { XlsxRefusal } from "./refusal";
 import { ENGINE_VERSIONS } from "./versions";
 
@@ -42,6 +42,15 @@ describe("probeFunctions: which functions the engine cannot compute", () => {
 
   it("ignores anything that is not a plain function name", () => {
     expect(probeFunctions(["A1)+(1", "", "SUM(", "NPV 2", "\u0000"])).toEqual([]);
+  });
+
+  it("asks about a bounded number of names, quickly, however many distinct names a hostile workbook uses", () => {
+    const names = Array.from({ length: 80_000 }, (_, i) => `FAKE${i}`);
+    const started = Date.now();
+    const missing = probeFunctions(names);
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(missing.length).toBeLessThanOrEqual(MAX_PROBED_FUNCTIONS);
+    expect(missing.length).toBeGreaterThan(0);
   });
 });
 

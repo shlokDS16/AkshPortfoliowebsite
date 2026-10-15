@@ -101,28 +101,38 @@ export function runNodeEngine(bytes: Uint8Array, index: SheetIndex, opts: NodeEn
 
 const FUNCTION_NAME = /^[A-Z][A-Z0-9._]{0,39}$/;
 
+/** The most function names one read asks the engine about: the report names them, and a real model uses a few dozen at most. */
+export const MAX_PROBED_FUNCTIONS = 200;
+
 /**
  * The names (of those given) that the engine cannot compute: unknown to it (#NAME?) or known and not implemented (#N/IMPL). Asked of a
- * scratch workbook with each name called with no arguments; a name that is not a plain function name is never put into a formula.
+ * scratch workbook with each name called with no arguments; a name that is not a plain function name is never put into a formula. At most
+ * MAX_PROBED_FUNCTIONS names are asked about (a hostile workbook can use a million distinct made-up names).
  */
 export function probeFunctions(names: string[]): string[] {
-  const candidates = [...new Set(names.filter((n) => FUNCTION_NAME.test(n)))];
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  for (const n of names) {
+    if (candidates.length >= MAX_PROBED_FUNCTIONS) break;
+    if (!seen.has(n) && FUNCTION_NAME.test(n)) candidates.push(n);
+    seen.add(n);
+  }
   if (candidates.length === 0) return [];
   const model = new Model("probe", LOCALE, "UTC", LANGUAGE);
-  const missing: string[] = [];
+  const refused = new Set<string>();
   candidates.forEach((name, i) => {
     try {
       model.setUserInput(0, i + 1, 1, `=${name}()`);
     } catch {
       // a name the parser refuses is not one the engine computes
-      missing.push(name);
+      refused.add(name);
     }
   });
   model.evaluate();
-  candidates.forEach((name, i) => {
-    if (missing.includes(name) || model.getCellType(0, i + 1, 1) !== TYPE_ERROR) return;
+  return candidates.filter((name, i) => {
+    if (refused.has(name)) return true;
+    if (model.getCellType(0, i + 1, 1) !== TYPE_ERROR) return false;
     const kind = errorKind(String(model.getCellValue(0, i + 1, 1) ?? ""));
-    if (kind === "NAME" || kind === "NIMPL") missing.push(name);
+    return kind === "NAME" || kind === "NIMPL";
   });
-  return missing;
 }
