@@ -7,8 +7,8 @@ import { PendingButton } from "../pending-button";
 type Props = {
   /** Null when the state could not be read. */
   state: CaseState | null;
-  /** Whether the site owner has case studies switched on, as the database reads it. */
-  reveal: boolean;
+  /** Whether the site owner has case studies switched on, as the database reads it; null when it could not be read. */
+  reveal: boolean | null;
   draftAction: (formData: FormData) => Promise<void>;
 };
 
@@ -26,8 +26,7 @@ export function IdeaCaseBlock({ state, reveal, draftAction }: Props) {
       {state?.state === "ready" ? (
         <form action={draftAction} className="space-y-2">
           <p className="max-w-[60ch] text-body text-ink-body">
-            It can be published from {formatDate(state.earliest)} at the earliest, and only while the site owner has case studies switched on (now{" "}
-            {reveal ? "on" : "off"}).
+            It can be published from {formatDate(state.earliest)} at the earliest, and only while the site owner has case studies switched on ({reveal === null ? "could not be read just now" : `now ${reveal ? "on" : "off"}`}).
           </p>
           <PendingButton>Draft a case study</PendingButton>
         </form>

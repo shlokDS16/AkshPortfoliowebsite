@@ -72,13 +72,13 @@ describe("caseBlockFor", () => {
     });
   });
 
-  it("says nothing it cannot back: a database failure gives no state, and a switch that cannot be read is off", async () => {
+  it("says nothing it cannot back: a database failure gives no state, and a switch that cannot be read is neither on nor off", async () => {
     cases.buildRecord = async () => {
       throw new DbError("cases.test", "XX000", "boom");
     };
     cases.switches = async () => {
       throw new DbError("cases.test", "XX000", "boom");
     };
-    expect(await caseBlockFor(deps, FIXTURE_IDEA)).toEqual({ state: null, reveal: false });
+    expect(await caseBlockFor(deps, FIXTURE_IDEA)).toEqual({ state: null, reveal: null });
   });
 });

@@ -149,11 +149,11 @@ export async function caseSwitches(deps: CaseDeps): Promise<CaseSwitches> {
   return deps.cases.switches();
 }
 
-/** What the idea page's "Case study" block needs. Advisory: a failure to read either part gives no state and "off", never a guess. */
-export async function caseBlockFor(deps: CaseDeps, ideaId: string): Promise<{ state: CaseState | null; reveal: boolean }> {
+/** What the idea page's "Case study" block needs. Advisory: a failure to read either part gives null for that part, never a guess (a switch that could not be read is not "off"). */
+export async function caseBlockFor(deps: CaseDeps, ideaId: string): Promise<{ state: CaseState | null; reveal: boolean | null }> {
   const [state, switches] = await Promise.all([
     caseStateForIdea(deps, ideaId).catch(() => null),
     caseSwitches(deps).catch(() => null),
   ]);
-  return { state, reveal: switches?.reveal === true };
+  return { state, reveal: switches ? switches.reveal === true : null };
 }

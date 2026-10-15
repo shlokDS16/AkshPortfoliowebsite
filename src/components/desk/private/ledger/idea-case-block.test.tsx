@@ -9,10 +9,16 @@ const ITEM = "55555555-5555-4555-8555-555555555555";
 const ready: CaseState = { state: "ready", figuresTo: "2026-06-16", earliest: "2026-07-16" };
 const draft = vi.fn(async () => {});
 
-const show = (state: CaseState | null, reveal = false) =>
+const show = (state: CaseState | null, reveal: boolean | null = false) =>
   render(<IdeaCaseBlock state={state} reveal={reveal} draftAction={draft} />);
 
 describe("the case study block on a closed idea (spec s33.8)", () => {
+  it("does not guess the switch when it could not be read", () => {
+    show(ready, null);
+    expect(screen.getByText(/switched on \(could not be read just now\)\./)).toBeInTheDocument();
+    expect(screen.queryByText(/\(now (?:on|off)\)/)).toBeNull();
+  });
+
   it.each<CaseState["state"]>(["not_closed", "void"])("shows nothing for an idea that is %s", (state) => {
     const { container } = show({ state } as CaseState);
     expect(container).toBeEmptyDOMElement();
