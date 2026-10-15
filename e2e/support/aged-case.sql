@@ -29,6 +29,15 @@ declare
   k        integer;
   d        date;
 begin
+  -- Guards first, before anything writes. The placeholders are filled only by e2e/support/cases.ts; pasted into an SQL editor as it
+  -- is, the file stops here instead of falling into the 'case' branch.
+  if c_tag !~ '^[a-z0-9]{4,16}$' or c_mode not in ('case', 'review') then
+    raise exception 'aged-case: run only through e2e/support/cases.ts (placeholders not filled)';
+  end if;
+  -- supabase/seed.sql (local stack and CI only) sets admin_email to the reserved .test address; the hosted project's is set by hand.
+  if (select s.value from private.settings s where s.key = 'admin_email') is distinct from 'admin@desk.test' then
+    raise exception 'aged-case: this is not the local stack (admin_email is not the seed''s); refusing to rewrite the ledger';
+  end if;
   select p.id into v_admin from public.profiles p where p.role = 'admin' limit 1;
   if v_admin is null then
     raise exception 'aged-case: no admin profile on this database (sign in once first)';

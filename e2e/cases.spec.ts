@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { formatDate } from "@/lib/format";
 import { requireStack } from "./support/auth";
-import { addAgedReview, seedAgedCase, setSwitch, switchesOff, type AgedCase } from "./support/cases";
+import { addAgedReview, runRawFixture, seedAgedCase, setSwitch, switchesOff, type AgedCase } from "./support/cases";
 import { expectPublicCase, expectStillPublic } from "./support/case-pages";
 import { adminDb, expectNoViolationsInBothThemes, hydrated } from "./support/desk";
 import type { Db } from "@/lib/supabase/types";
@@ -12,14 +12,9 @@ import type { Db } from "@/lib/supabase/types";
 // visitor reads it. This is the only place where a ledger case is published, so it is also what gives public-cases.spec.ts a public
 // case to check (the cases-public-* projects run after it). It rewrites the local chain's fingerprints; `supabase db reset` before the next run.
 
-const NO_HEADING = "Looking back, the order book was the whole thesis. Nothing else carried it.";
-const LOOKING_BACK = [
-  "## What would prove me wrong",
-  "",
-  "I wrote that two quarters of a falling order book would show I was wrong. It fell for two quarters, so the thesis was wrong.",
-].join("\n");
+const LOOKING_BACK =
+  "I wrote that two quarters of a falling order book would show I was wrong. It fell for two quarters, so the thesis was wrong.";
 const CASE_OFF = "Case studies from the ledger are switched off by the site owner.";
-const NEEDS_HEADING = "Add a 'What would prove me wrong' section as a Markdown heading.";
 
 test.describe.configure({ mode: "serial" });
 
@@ -67,6 +62,10 @@ async function runGate(page: Page): Promise<number> {
   return rev;
 }
 
+test("the fixture file refuses to run with its placeholders unfilled", () => {
+  expect(runRawFixture()).toContain("placeholders not filled");
+});
+
 test("with both switches off, a drafted case study is refused with the plain sentence", async ({ page }) => {
   await page.goto(`/desk/ledger/${aged.ideaId}`);
   await hydrated(page);
@@ -109,17 +108,12 @@ test("with both switches off, a drafted case study is refused with the plain sen
   expect(row.data).toMatchObject({ visibility: "private", status: "draft" });
 });
 
-test("reveal on: a body without the heading is refused with the plain sentence; with it the case passes the gate", async ({ page }) => {
+test("reveal on: a plain Looking back paragraph passes the gate, and the page shows no kill-criterion heading", async ({ page }) => {
   setSwitch("ledger_reveal", true);
   await openItem(page);
   await expect(gate(page)).toContainText("On (site owner). Chart: off.");
-  await saveBody(page, NO_HEADING, "Without the heading");
-  await runGate(page);
-  await expect(gate(page).getByTestId("gate-decision")).toHaveAttribute("data-verdict", "fail");
-  await expect(gate(page).getByTestId("gate-failure").filter({ hasText: NEEDS_HEADING })).toBeVisible();
-  await expect(gate(page).getByTestId("gate-failure").filter({ hasText: CASE_OFF })).toHaveCount(0);
 
-  await saveBody(page, LOOKING_BACK, "With the heading");
+  await saveBody(page, LOOKING_BACK, "Looking back");
   await runGate(page);
   await expect(status(page, /^Published\.$/)).toBeVisible();
   await expect(gate(page).getByTestId("gate-decision")).toHaveAttribute("data-verdict", "pass");

@@ -31,6 +31,16 @@ function ownerSql(sql: string): void {
   }
 }
 
+/** The raw file, placeholders and all, as someone pasting it somewhere would run it. Returns what the refusal said, or null if it ran. */
+export function runRawFixture(): string | null {
+  try {
+    ownerSql(readFileSync(FIXTURE, "utf8"));
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 export type AgedCase = { tag: string; symbol: string; company: string; ideaId: string };
 
 function fixtureSql(tag: string, mode: "case" | "review"): string {
