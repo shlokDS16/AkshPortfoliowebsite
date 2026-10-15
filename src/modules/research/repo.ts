@@ -13,7 +13,7 @@ const ITEM_COLUMNS =
 const REVISION_COLUMNS = "id, item_id, rev_no, body_md, structured, schema_version, change_reason, author, created_at";
 
 type ItemRow = Omit<Tables<"items">, "search" | "file_no">; // file_no is read by the public views (Plan 1B), not the desk repo
-type RevisionRow = Tables<"item_revisions">;
+type RevisionRow = Omit<Tables<"item_revisions">, "concept_ids">; // concept_ids is read and written from Phase 4 Task 2 on
 
 function toItem(row: ItemRow): Item {
   return {

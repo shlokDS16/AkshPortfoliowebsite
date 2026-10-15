@@ -2,7 +2,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(24);
 
 -- publish_revision / unpublish_item / add_ and remove_lint_allowance: service_role only (ADR-003). The server
 -- action verifies the admin, then calls them through the service client with the admin as p_actor.
@@ -79,6 +79,9 @@ select throws_ok($$ select public.publish_revision('aaaaaaaa-0000-4000-8000-0000
 select throws_ok($$ select public.unpublish_item('aaaaaaaa-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001') $$,
   '42501', null, 'anon calling unpublish_item is denied');
 select throws_ok($$ select private.slugify('x') $$, '42501', null, 'anon cannot call the private slug helper');
+select throws_ok($$ select private.knowledge_gate_failures('note', null, null) $$, '42501', null,
+  'anon cannot call the knowledge gate helper (0021)');
+select throws_ok($$ select private.carry_concept_ids() $$, '42501', null, 'anon cannot call the concept carry trigger function (0020)');
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -87,6 +90,8 @@ select throws_ok($$ select public.publish_revision('bbbbbbbb-0000-4000-8000-0000
     'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', '{}'::jsonb) $$,
   '42501', null, 'authenticated calling publish_revision is denied');
 select throws_ok($$ select private.slugify('x') $$, '42501', null, 'authenticated cannot call the private slug helper');
+select throws_ok($$ select private.knowledge_gate_failures('note', null, null) $$, '42501', null,
+  'authenticated cannot call the knowledge gate helper (0021)');
 reset role;
 
 select * from finish();
