@@ -79,6 +79,25 @@ export const PRICE_NUMBER = new RegExp(
   "i",
 );
 
+/**
+ * Rule 10.7, a case study from the ledger prints no return and no rupee price, entry, exit or other. The gate and the hint
+ * test every sentence of a ledger case against PRICE_NUMBER above and this, whatever the lag. A return-shaped percent (a
+ * verb of movement or comparison near it, or a gain/loss word after it), a multiple ("up 3x"), or a currency amount that is
+ * not a size ("Rs 450"; "Rs 500 crore" and "20% growth" are not). Over-matching is the safe direction. Pending Shlok's approval.
+ */
+export const LEDGER_FIGURE = new RegExp(
+  [
+    String.raw`\b(?:up|down|rose|rise|fell|fall|gained|lost|returned|outperformed|underperformed|beat|lagged|trailed|ahead of|behind)\b[^.\n]{0,30}?${AMOUNT}\s*${PCT}`,
+    String.raw`${AMOUNT}\s*${PCT}\s*(?:gain|loss|return|rise|fall|drop|better|worse)`,
+    String.raw`\b(?:up|down|gained|lost|returned|rose|fell)\b[^.\n]{0,10}?${AMOUNT}\s*(?:x|times)\b`,
+    String.raw`(?:${CURRENCY_SIGN}|${CURRENCY_WORD})\s*${NUMBER}`,
+  ].join("|"),
+  "i",
+);
+export const LEDGER_FIGURE_MESSAGE = "A case study from the ledger prints no price or return (publishing rule 10.7).";
+/** The two patterns, in the order they are tried. */
+export const LEDGER_PRICE_PATTERNS: readonly RegExp[] = [PRICE_NUMBER, LEDGER_FIGURE];
+
 /** Words (2+ letters) that appear in the lexicon patterns, derived so a new lexicon word gets hyphen joins for free. */
 const PATTERN_WORDS = LEXICON.flatMap((entry) => entry.pattern.source.replace(/\\[a-zA-Z]/g, " ").match(/[a-z]{2,}/gi) ?? []);
 // Compounds and singulars that the pattern text spells with optional characters, and corporate compounds

@@ -6,3 +6,4 @@ export { allowableHashes } from "./decision";
 export type { DecisionRow, GateDecision, GateFailure } from "./decision";
 export type { BlockedItem } from "./blocked";
 export type { AllowanceRecord, AnnotatedBody, BodyFlag, BodySegment, ChecklistItem, ChecklistState } from "./preview";
+export { lintWords, type WordsFinding } from "./words";

@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { IdeaCaseBlock } from "@/components/desk/private/ledger/idea-case-block";
 import { EventForm } from "@/components/desk/private/ledger/event-form";
 import { IdeaScoreBlock } from "@/components/desk/private/ledger/idea-score";
 import { IdeaTimeline } from "@/components/desk/private/ledger/idea-timeline";
 import { formatDate } from "@/lib/format";
 import { errorText, noticeText } from "@/lib/messages";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { loadCaseBlock } from "@/modules/cases";
+import { draftCaseStudyAction } from "@/modules/cases/actions";
 import { requireAdmin } from "@/modules/identity";
 import { getIdeaPage } from "@/modules/ledger";
 import { addIdeaEventAction } from "@/modules/ledger/actions";
@@ -19,9 +22,12 @@ export default async function IdeaPage({ params, searchParams }: Props) {
   await requireAdmin();
   const { ideaId } = await params;
   const { error, notice } = await searchParams;
-  const page = await getIdeaPage(await createSupabaseServerClient(), ideaId);
+  const db = await createSupabaseServerClient();
+  const page = await getIdeaPage(db, ideaId);
   if (!page) notFound();
   const { idea, line } = page;
+  // Only a closed idea can become a case study; the others never ask the database (spec s33.8).
+  const caseBlock = idea.status === "closed" ? await loadCaseBlock(db, idea.id) : null;
   const message = errorText(error);
   const noticeMessage = noticeText(notice);
   return (
@@ -70,6 +76,7 @@ export default async function IdeaPage({ params, searchParams }: Props) {
       ) : null}
       <IdeaScoreBlock line={line} score={page.score} />
       <IdeaTimeline events={page.events} />
+      {caseBlock ? <IdeaCaseBlock state={caseBlock.state} reveal={caseBlock.reveal} draftAction={draftCaseStudyAction.bind(null, idea.id)} /> : null}
       <section aria-labelledby="add-h" id="new-entry" className="space-y-3">
         <h2 id="add-h" className="text-title text-ink desk:text-title-desk">
           Add to this idea

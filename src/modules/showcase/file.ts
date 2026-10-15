@@ -5,6 +5,7 @@ import {
   buildExhibits, buildFactGroups, buildKillTests, buildScenario, buildSourceList, buildViewBlocks, fullTextOf, readCaseFile, sentenceDiff,
   splitThesisBody,
 } from "@/modules/casefile";
+import { itemConcepts } from "./concepts";
 import { readingMinutes } from "./notes";
 import { withFactChecks } from "./provenance";
 import { ordinal, revisionsOf, servedFiles } from "./site";
@@ -66,6 +67,7 @@ export function buildFileView(s: PublicSnapshot, companySlug: string): FileView 
       { id: "facts", label: "Facts", count: cf.facts.length },
       { id: "history", label: "History", count: `R${revNo}` },
     ],
+    concepts: itemConcepts(s, item.id),
   };
 }
 

@@ -9,7 +9,7 @@ const s = buildSeedSnapshot();
 describe("site view models", () => {
   it("counts files, notes and process items; mistakes stay 0 until Phase 3; streak is counts only", () => {
     const chrome = buildSiteChrome(s);
-    expect(chrome.counts).toEqual({ files: 2, notes: 2, process: 1, mistakes: 0 });
+    expect(chrome.counts).toEqual({ files: 2, notes: 2, process: 1 });
     expect(chrome.streak.cells).toHaveLength(30);
     expect(chrome.streak.daysLogged).toBe(4);
     expect(chrome.streak.lastEntry).toBe("2026-10-05");

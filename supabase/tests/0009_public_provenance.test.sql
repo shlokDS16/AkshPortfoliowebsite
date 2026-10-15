@@ -10,8 +10,8 @@ select plan(23);
 -- Stand-ins for the compliance server action (ADR-003), as in 0005: they reach the gate as the function owner.
 create function public.test_publish(p_item uuid, p_rev uuid) returns text
 language sql security definer set search_path = ''
-as $$ select verdict from public.publish_revision((select auth.uid()), p_item, p_rev, 'sebi-unreg-2026-07',
-  jsonb_build_object('passed', true, 'revisionId', p_rev::text, 'policyVersion', 'sebi-unreg-2026-07')) $$;
+as $$ select verdict from public.publish_revision((select auth.uid()), p_item, p_rev, 'sebi-unreg-2026-07-v1.1',
+  jsonb_build_object('passed', true, 'revisionId', p_rev::text, 'policyVersion', 'sebi-unreg-2026-07-v1.1')) $$;
 create function public.test_unpublish(p_item uuid) returns text
 language sql security definer set search_path = ''
 as $$ select public.unpublish_item((select auth.uid()), p_item) $$;
@@ -131,7 +131,7 @@ select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-
 select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000003', 'F3', 99);
 select pg_temp.file_fact('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000004', 'F12', 99);
 insert into public.gate_decisions (item_id, revision_id, policy_version, verdict)
-  values ('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000004', 'sebi-unreg-2026-07', 'fail');
+  values ('a1000000-0000-4000-8000-000000000001', 'b1000000-0000-4000-8000-000000000004', 'sebi-unreg-2026-07-v1.1', 'fail');
 
 -- Structure and privileges: anon only (the capture_days precedent), definer, empty search_path, three columns.
 select ok(has_function_privilege('anon', 'public.public_fact_checks()', 'execute')

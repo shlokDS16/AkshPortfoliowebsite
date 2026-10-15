@@ -32,11 +32,13 @@ On a quiet day, steps 1 and 2 are enough.
 ### Capture a thought
 
 1. Open the **Capture** tab. The box is already selected.
-2. Type your thought. Optional: `$RELIANCE` links it to a company, `#capital-cycle` links it to a theme.
+2. Type your thought. Optional: `$RELIANCE` links it to a company, `#capital-cycle` links it to a concept (you can write several `#names`; the first 8 are linked).
 3. Press **Enter** to save. (**Shift+Enter** starts a new line.)
 4. Under the box you will see "Saved." If you are offline it says "Saved on this device, will sync (N waiting)." Nothing is lost.
 
-A `$SYMBOL` or `#theme` the site has not seen goes to the **Names** tab, where you choose **Same as ...**, **New company** (then **Yes, add it**), or **Not a company, keep as text**.
+A `$SYMBOL` or `#concept` the site has not seen goes to the **Names** tab, where you choose **Same as ...**, **New company** (then **Yes, add it**), or **Not a company, keep as text**.
+
+Every `#name` you write becomes a concept, with its own page under **Concepts** on the **Items** tab that gathers your notes on it. Start a capture with `r:` to log something you read; it stays private. Press **This month** on the Items tab to see what you learned.
 
 ### Start a company file
 
@@ -89,6 +91,11 @@ The entry price is set at the next close; the idea has no score until then.
 3. Choose **Write what I learned**. Fill **What you learned**, choose **Was the process sound?**, and tick at least one **What kind of mistake, if any?**
 4. Press **Save what I learned**. Your lessons are listed under **What I learned** on the Ledger page.
 
+### Write up a closed idea as a case study
+
+1. Close the idea and write the lesson. Open the idea: in the **Case study** block, press **Draft a case study** once the exit price is fixed.
+2. On its page, fill in **Learning objective** and **Holds position**, add your "Looking back" words if you want to (no price and no return in them), and run the publishing gate. It goes public only if Shlok has switched case studies on, and only 30 days after the latest entry it shows. Your entries cannot be edited there; if you write a new lesson, press **Refresh from the ledger**.
+
 ### Add prices when they are missing
 
 The desk fetches closing prices by itself each morning. Use the **Closes and corporate actions** page (from the Ledger tab) only when something is missing.
@@ -133,4 +140,4 @@ For anything else, copy the exact words on screen and send them to Shlok.
 
 ## 7. Not in this version
 
-Public case studies, charts or a public view of the Ledger; the spreadsheet valuation page; a newsletter; videos and transcripts; PDF export; logins for readers; voice notes; editing or removing a split or bonus (correct it with a new entry).
+A public view of the Ledger or any figure for how your ideas did (a closed idea can be written up as a case study, once Shlok switches that on); the spreadsheet valuation page; a newsletter; videos and transcripts; PDF export; logins for readers; voice notes; editing or removing a split or bonus (correct it with a new entry).

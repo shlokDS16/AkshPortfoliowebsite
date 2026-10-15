@@ -33,8 +33,8 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select is((select verdict from public.test_publish('d1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07',
-    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07"}'::jsonb)),
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
+    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07-v1.1"}'::jsonb)),
   'pass', 'precondition: u1 is published');
 -- Revision 2 is added only now: publish_revision() refuses a revision that has a newer sibling.
 insert into public.item_revisions (id, item_id, body_md) values
@@ -99,8 +99,8 @@ select throws_ok($$ update public.items set visibility = 'public' where id = 'd1
 select lives_ok($$ update public.items set title = 'Retract me, revised' where id = 'd1000000-0000-4000-8000-000000000001' $$,
   'a retracted item can be edited');
 select is((select verdict from public.test_publish('d1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000002', 'sebi-unreg-2026-07',
-    '{"passed":false,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"sebi-unreg-2026-07"}'::jsonb)),
+    'e1000000-0000-4000-8000-000000000002', 'sebi-unreg-2026-07-v1.1',
+    '{"passed":false,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"sebi-unreg-2026-07-v1.1"}'::jsonb)),
   'fail', 'a failed gate on a retracted item records a fail verdict');
 select results_eq($$
   select visibility, status, current_revision_id::text,
@@ -110,8 +110,8 @@ select results_eq($$
 $$, $$ values ('private'::text, 'published'::text, 'e1000000-0000-4000-8000-000000000001'::text, 1::bigint) $$,
   'the failed gate leaves the retracted item private on its old revision and records the fail row');
 select is((select verdict from public.test_publish('d1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000002', 'sebi-unreg-2026-07',
-    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"sebi-unreg-2026-07"}'::jsonb)),
+    'e1000000-0000-4000-8000-000000000002', 'sebi-unreg-2026-07-v1.1',
+    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"sebi-unreg-2026-07-v1.1"}'::jsonb)),
   'pass', 'republishing a retracted item goes through the gate');
 select results_eq($$
   select visibility, current_revision_id::text, slug from public.items where id = 'd1000000-0000-4000-8000-000000000001'

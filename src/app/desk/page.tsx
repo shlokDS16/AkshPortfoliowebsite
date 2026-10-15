@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import Link from "next/link";
 import { CaptureBar } from "@/components/desk/private/capture-bar";
 import { NeedsYouCard } from "@/components/desk/private/needs-you-card";
 import { QueuedCard } from "@/components/desk/private/queued-card";
@@ -21,6 +22,8 @@ import {
 import { refileCaptureAction } from "@/modules/capture/actions";
 import { listBlockedItems, type BlockedItem } from "@/modules/compliance";
 import { requireAdmin } from "@/modules/identity";
+import { createSupabaseKnowledgeDeps, monthCounts } from "@/modules/knowledge";
+import { monthOf } from "@/modules/knowledge/client";
 import { knownTokens, namesToReview, needsYouDocs } from "./desk-data";
 
 /** Name only in the log: a database message can carry row data. */
@@ -44,12 +47,13 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
   const db = await createSupabaseServerClient();
   const now = new Date();
   const today = istDate(now);
-  const [entries, blocked, names, known, documents] = await Promise.all([
+  const [entries, blocked, names, known, documents, month] = await Promise.all([
     read<CaptureListEntry[] | null>("captures", () => listCapturesSince(db, istDayStartUtc(addDays(today, -29))), null),
     read<BlockedItem[]>("blocked items", () => listBlockedItems(db), []),
     namesToReview(),
     knownTokens(),
     needsYouDocs(),
+    read<{ learnings: number; reads: number } | null>("this month", () => monthCounts(createSupabaseKnowledgeDeps(db), monthOf(now.toISOString())), null),
   ]);
   const unfiled = (entries ?? []).filter((e) => needsRefile(e, now) || e.parseError === "thesis-full");
   const groups = entries === null ? [] : groupTodayByCompany(entries, today);
@@ -126,6 +130,13 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
           <TodayList groups={groups} known={known} />
         </Tray>
       </div>
+      {month ? (
+        <p className="text-small text-ink-muted">
+          <Link href="/desk/learned" className="inline-flex min-h-11 items-center underline decoration-1 underline-offset-3">
+            This month: <span className="font-mono tabular-nums">{`${formatCount(month.learnings, "learning")}, ${formatCount(month.reads, "read")}`}</span>
+          </Link>
+        </p>
+      ) : null}
       {entries === null ? null : (
         <section aria-label="Capture streak">
           <StreakStrip variant="desk" {...toStreakData(captureStreak(entries.map((e) => istDate(e.createdAt)), today))} />

@@ -18,7 +18,7 @@ const ERRORS = {
   "item-not-found": "This item could not be found.",
   "public-item-locked": "This item is public. Unpublish it before changing its details.",
   "append-only": "Revisions are append-only: an existing revision cannot be changed or deleted. Save a new revision instead.",
-  "item-rule": "The database rejected these values. Check the fields (title, kind, linked company or theme) and try again.",
+  "item-rule": "The database rejected these values. Check the fields (title, kind, linked company or concept) and try again.",
   "access-denied": "You are not allowed to do that. Sign in again as the admin.",
   "body-too-long": "This revision is too long (200,000 characters max). Start a new item or shorten it.", // = BODY_TOO_LONG_MESSAGE (research/schema.ts; a test keeps them equal)
   "capture-not-refilable": "This capture is already filed, or is still being filed. Reload in a minute.",
@@ -30,6 +30,12 @@ const ERRORS = {
   "name-required": "Give the name.",
   "choose-sector": "Choose a sector from the list.",
   "name-on-public-item": "A public item names this. Unpublish that item before changing what this name is.",
+  // Concepts (Phase 4 Task 2; = ConceptDescriptionTooLongError in modules/catalog/errors.ts, a test keeps them equal). Pending Shlok's approval.
+  "concept-description-too-long": "That is over 2,000 characters. Shorten it.",
+  // = ConceptChangePendingError (modules/research/errors.ts), ConceptSelfLinkError and ConceptNotFoundError (modules/knowledge/errors.ts); tests keep them equal. Pending Shlok's approval.
+  "concept-change-pending": "A newer version of this note is waiting to be published. Publish it before changing the concepts.",
+  "concept-self-link": "A concept cannot be linked to itself.",
+  "concept-not-found": "This concept could not be found.",
   "no-figure-date": "This file has no dated figure yet, so there is nothing to set Figures to.",
   // Uploads (= DOCUMENT_ERROR_TEXT in modules/documents/errors.ts; a test keeps them equal).
   "upload-duplicate": "You uploaded this file before. Open the earlier copy.",
@@ -104,6 +110,14 @@ const ERRORS = {
   "ledger-fetch-busy": "A fetch is already running. Wait for it to finish, then reload this page.",
   "ledger-item-other-company": "That file is about a different company. Open the idea from the company's own file, or without a link to a file.",
   "ledger-day-shut": "NSE had no trading on that date, so a closing price cannot be typed for it. If NSE did trade that day, upload NSE's official file for it instead.",
+  // Case studies from the ledger (Plan 3b Task 2, spec s33.8; = CASE_ERROR_TEXT in modules/cases/errors.ts, a test keeps them equal). Pending Shlok's approval.
+  "case-not-found": "This idea could not be found.",
+  "case-not-closed": "This idea is still open. A case study can be drafted once it is closed.",
+  "case-void": "This idea was withdrawn, so it cannot be shown as a case study.",
+  "case-no-lesson": "A case study shows what you learned. Write the lesson first.",
+  "case-exit-pending": "The exit price is not fixed yet. A case study can be drafted once it is.",
+  "case-record-unreadable": "The ledger record could not be read. Run the integrity check on the Ledger page.",
+  "case-not-ledger": "This item does not carry a ledger record.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -148,6 +162,12 @@ const NOTICES = {
   "allowance-saved": "Sentence allowed. Run the publishing gate again.",
   "allowance-removed": "Allowance removed. Run the publishing gate again.",
   "company-public": "Company made public. It is listed only once a file that names it passes the gate.",
+  // Pending Shlok's approval (Phase 4 Task 2).
+  "concept-public": "Concept made public. It is shown only once a published note or file uses it.",
+  "concept-linked": "Linked.",
+  "concept-unlinked": "Link removed.",
+  "concepts-saved": "Concepts saved.",
+  "concept-description-saved": "Saved. Only you see this.",
   "figures-to-set": "Figures to updated to the latest figure date. Run the publishing gate again.",
   refiled: "Filed.",
   "name-saved": "Saved. The name is screened.",
@@ -157,6 +177,10 @@ const NOTICES = {
   // Closes page and corporate actions (Plan 3a Task 11, spec s31). Pending Shlok's approval.
   "close-entered": "Close stored as typed. It is marked on every score that uses it.",
   "action-added": "Action entered. It is marked on every score whose period it falls in.",
+  // Case studies from the ledger (Plan 3b Task 2). Pending Shlok's approval.
+  "case-drafted": "Drafted from the ledger. Add the learning objective and what you took from it, then run the gate.",
+  "case-refreshed": "Refreshed from the ledger. Run the publishing gate again.",
+  "case-unchanged": "This case study already matches the ledger.",
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-saved-readings-missing":

@@ -1,5 +1,9 @@
 *.sql text eol=lf
 *.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
 *.sh text eol=lf
 # The test PDFs are byte-exact (their xref tables count bytes): never convert line endings.
 *.pdf binary

@@ -34,7 +34,7 @@ test("process, mistakes and about render with the site disclosure; about states 
   await page.getByRole("link", { name: "How I keep a case file" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "How I keep a case file" })).toBeVisible();
   await page.goto("/mistakes");
-  await expect(page.getByText(/When one of Aksh's tests proves him wrong/)).toBeVisible();
+  await expect(page.getByText(/Closed cases in which Aksh judged his own process flawed, or named a kind of mistake, are listed here/)).toBeVisible();
   await page.goto("/about");
   await expect(page.locator("#disclosures")).toContainText("Aksh Agrawal is not a SEBI-registered Research Analyst");
   await expect(page.getByRole("heading", { name: "How a page gets published" })).toBeVisible();

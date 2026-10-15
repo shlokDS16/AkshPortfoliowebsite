@@ -66,3 +66,8 @@ This is an appended update. The text above is unchanged; where it differs, this 
 - **Record.** Every decision for an item that names a company (or is linked to an idea) records that the ledger was consulted (`gate_decisions.reasons.ledger.checked`, admin read only). The policy version string is unchanged.
 
 (Appended 2026-10-14, Plan 3a final fix wave.) The statement above that an item naming no company but linked to an idea is checked against the idea's company stays true in the database, but since the final fix wave no API role and no screen can create or change that link after the idea is opened: `ideas.item_id` is set only inside `open_idea()`, which accepts only a file of the idea's own company. Such a link therefore exists only if the database owner makes one by hand.
+
+## Update 2026-10-15 (Plan 3b): v1.1 addendum
+Appended pointer only. Case studies drawn from the track-record ledger are governed by `publishing-rules-v1.1-addendum.md`
+(new publishing rule 10, owner switches `ledger_reveal` and `ledger_chart`, both off by default). It takes effect with the policy
+version `sebi-unreg-2026-07-v1.1`, set by Plan 3b Task 1; the text above is unchanged.

@@ -4,7 +4,7 @@ import type {
   RevisionLogEntry, ScenarioData, SiteCounts, SourceChipData, SourceListItem, StreakData, UsedInRow, ViewBlockData, WhatChangedEntry,
 } from "@/lib/view-types";
 
-export const SITE_COUNTS: SiteCounts = { files: 2, notes: 2, process: 1, mistakes: 0 };
+export const SITE_COUNTS: SiteCounts = { files: 2, notes: 2, process: 1 };
 export const STREAK: StreakData = { cells: Array.from({ length: 30 }, (_, i) => i % 4 !== 0), daysLogged: 22, lastEntry: "2026-10-05" };
 export const FILE_SECTIONS: RailSection[] = [
   { id: "view", label: "View" },

@@ -2,7 +2,7 @@
 
 A guide for Aksh (daily use) and for Shlok (the short section near the end on running the site).
 
-Written 14 October 2026, from the code and the design documents as they stand on that day. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
+Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
 
 ## Contents
 
@@ -18,6 +18,8 @@ Written 14 October 2026, from the code and the design documents as they stand on
    - [4.6 The Ledger](#46-the-ledger)
    - [4.7 What a visitor sees on the public side](#47-what-a-visitor-sees-on-the-public-side)
    - [4.8 Your model on the desk](#48-your-model-on-the-desk)
+   - [4.9 Case studies](#49-case-studies)
+   - [4.10 Concepts, reads and your month](#410-concepts-reads-and-your-month)
 5. [The publishing rules in plain words](#5-the-publishing-rules-in-plain-words)
 6. [When something looks wrong](#6-when-something-looks-wrong)
 7. [For Shlok: running the site](#7-for-shlok-running-the-site)
@@ -80,7 +82,7 @@ There is no password. You sign in with a link sent to your email.
 This is the shortest useful routine. Each step is explained in section 4.
 
 1. **Open the desk.** Look at the top. If a red strip is showing, read it (section 6). If there is no red strip, nothing is late.
-2. **Capture what you noticed.** On the Capture tab, type one line and press Enter. Add `$SYMBOL` for a company and `#theme` for a theme. Do this whenever a thought comes, not only once a day.
+2. **Capture what you noticed.** On the Capture tab, type one line and press Enter. Add `$SYMBOL` for a company and `#concept` for each concept (up to 8). Do this whenever a thought comes, not only once a day.
 3. **Clear "Needs you".** On the Capture tab, the "Needs you" box lists what is waiting: a document ready to review, a name to screen, a publish that was stopped, a capture that was not filed. Open each card and deal with it.
 4. **Check the Inbox.** If a document says "Ready", press **Review**, check the figures it flags, and file the rest.
 5. **Open the Ledger tab.** Look at the lines at the top. Check the "Needs you" box there: ideas that need a price check, closed ideas with no lesson, ideas past their horizon. If your thinking on an open idea changed, add a note to it.
@@ -104,7 +106,7 @@ At the very top, a **red strip** appears only when something is late or broken. 
 
 **What it is for.** Getting a thought down in seconds, before you lose it. Every capture is saved exactly as you typed it, before the site tries to understand it, so nothing is lost if the understanding step fails.
 
-**Where.** The Capture tab opens with the box already selected. The box shows: "What did you just notice?   $company  #theme  t:  l:  p:".
+**Where.** The Capture tab opens with the box already selected. The box shows: "What did you just notice?   $company  #concept  t:  l:  p:  r:".
 
 **How to capture**
 
@@ -117,10 +119,11 @@ At the very top, a **red strip** appears only when something is late or broken. 
 | You type | What happens |
 |---|---|
 | `$RELIANCE` (a dollar sign and a company's NSE symbol) | Links the capture to that company. Capital or small letters both work. An unknown symbol shows as `$SYMBOL → New names` and the company waits on the Names tab for you to screen it. |
-| `#capital-cycle` | Links the capture to a theme. An unknown theme shows as `#theme → New names`. |
+| `#capital-cycle` | Links the capture to a concept. Every `#name` links, in the order you write them, up to 8 (the receipt says "Only the first 8 concepts were linked." past that). A run of `#names` at the end of the first line is left out of the title; a `#name` inside the sentence stays. An unknown concept shows as `#concept → New names`. |
 | `t:` at the very start | A thesis (your view on a company). With a `$SYMBOL` it starts that company's file, or adds a new revision to it if one exists. The receipt says "Thesis". |
 | `l:` at the very start | A learning note. The receipt says "Learning note, private". |
 | `p:` at the very start | A process note (how you work). The receipt says "Process note, private". |
+| `r:` at the very start | Something you read, for the reading log. The receipt says "Reading log, private". A read always stays private. |
 | A web address (https://...) anywhere | Kept with the capture. The desk does not open it by itself. See "Read this link" below. |
 | None of the above | A private note, listed under Today. |
 
@@ -128,7 +131,7 @@ A few details:
 
 - A thesis belongs to one company. If you start with `t:` and give no `$SYMBOL`, the box warns "A thesis belongs to one company. Add $SYMBOL, or this saves as a private draft without one."
 - `$` followed only by an amount (such as `$5M` or `$500cr`) is read as money, not a company.
-- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:` and `p:` for you.
+- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:`, `p:` and `r:` for you.
 - A capture can be up to 20,000 characters.
 
 **After you save**
@@ -154,15 +157,15 @@ A few details:
 
 ### 4.3 New names
 
-**What it is for.** The first time you write a `$SYMBOL` or `#theme` the site has not seen, it keeps your note and puts the name on a list. You say who it is, like a screener. This stops typos from becoming companies.
+**What it is for.** The first time you write a `$SYMBOL` or `#concept` the site has not seen, it keeps your note and puts the name on a list. You say who it is, like a screener. This stops typos from becoming companies.
 
 **Where.** The **Names** tab, headed "New names". The "Needs you" box on the Capture tab also shows a "New names" card with the button **Screen new names**.
 
 **How.** Each name has a card showing the name, when it was first seen and the line you wrote it in. Choose one:
 
 - **Same as ...** (shown when the site spotted a likely match). Joins this name to the existing one. After this, the old spelling files under the target.
-- **New company** (or **New theme**). A form opens. Fill in **Name** (and **Sector**, picked from a list, for a company). Press **Yes, add it**.
-- **Not a company, keep as text** (or **Not a theme, keep as text**). The word stays in your note as plain text.
+- **New company** (or **New concept**). A form opens. Fill in **Name** (and **Sector**, picked from a list, for a company). Press **Yes, add it**.
+- **Not a company, keep as text** (or **Not a concept, keep as text**). The word stays in your note as plain text.
 
 Your notes were saved either way.
 
@@ -578,7 +581,8 @@ Anyone can open these pages without signing in. The bar along the top (or bottom
 - **Files.** Every public file. You can search by symbol.
 - **A file.** The view, the tests, the facts with their sources, the revision history, and the disclosure. Under a filed figure's quote, if it has a record of where it came from: "Printed on p. N of <source>; matched by the desk and accepted by the analyst."
 - **Notes** and **Process.** Your learning notes and process notes that you published, each listing the files that use it. Until you publish any, they say "No learning notes yet ..." and "No process notes yet ...".
-- **Mistakes.** In this version the page shows only a placeholder: "Nothing here yet. When one of Aksh's tests proves him wrong, that file and the date are listed here first, next to what he wrote before."
+- **Mistakes.** Closed cases in which you judged your own process flawed, or named a kind of mistake, with your review words and a link to the case (section 4.9). Until one is public the page shows its placeholder: "Nothing here yet. Closed cases in which Aksh judged his own process flawed, or named a kind of mistake, are listed here with his own words and a link to the case."
+- **Closed cases** (`/cases`, no tab; linked from Process and Mistakes) and the **How this record is kept** section on Process. Both appear only while a case study from the ledger is public (section 4.9).
 - **About and disclosures.** Who you are, how a page gets published (the rules in section 5), and the standard disclosure.
 - **On every page,** a disclosure line: "For learning · Aksh is not SEBI-registered · Figures 30+ days old."
 
@@ -624,6 +628,74 @@ If a chosen result shows **Not available** after a change, the new inputs made t
 **If the calculator does not load.** The page says "The calculator did not load. Check the connection and reload. Your saved scenarios are safe." The workbook values stay on the page meanwhile.
 
 **Where to find it again.** The inbox card's **Open model**, the **Model** button in a company file's header (once a version is confirmed), or `/desk/models` for every company's newest model.
+
+### 4.9 Case studies
+
+**What it is.** When an idea is closed and you have written the lesson, you can turn it into a case study: a public page that shows what you expected, what happened and what you learned, in the words you sealed at the time. Each entry carries its fingerprint and a button that lets any reader check, in their own browser, that the fingerprint comes from the text shown. The page prints no result: no return, no rupee price, no "ended ahead". It is a past case, not a view on the share today.
+
+**It is off until Shlok switches it on.** Nothing is public unless the site owner has switched case studies on (and the chart on, for the chart) and the case passes the publishing checks. You can draft and write a case study at any time. If it is off, the checks say so: "Case studies from the ledger are switched off by the site owner." Shlok's two switches are in `docs/runbooks/case-study-switches.md`.
+
+**What is shown.** Your opening entry, every change of period, your closing entry and each lesson, with the dates the desk set. Never your notes, and never an entry about adding to or trimming a position. You do not pick entries; the desk takes those and no others.
+
+**How to write one.**
+
+1. Close the idea and write the lesson (section 4.6). The exit price must be fixed.
+2. Open the idea. On a closed idea the **Case study** block says what is missing: "A case study shows what you learned. Write the lesson first." or "The exit price is not fixed yet. A case study can be drafted once it is." When it is ready it says when it can go public at the earliest, and whether case studies are switched on now. Press **Draft a case study**. Pressing it twice makes one case study, not two. You land on its page.
+3. The page shows **From the ledger (sealed; cannot be edited)**: your entries exactly as sealed, with the dates and the entry and exit closes. You cannot change them here. There is no facts sheet for this kind of page.
+4. Fill in **Learning objective** (what a reader should learn from the case) and **Holds position**, and press **Save details**.
+5. If you want to, write what you see looking back in the body. It is shown under "Looking back" on the page, and it can stay empty. A price or a return in your words ("down 18% since I opened it", "trades at Rs 450") is refused by the check: this site prints no result. Press **Save revision**.
+6. On the publish checklist, read the line "Case studies from the ledger: On (site owner)." or "Off (site owner)." If the company is not public yet, press **Make <company> public**. Tick the box about your stance on the company, and press **Run the publishing gate**.
+
+**When it can go public.**
+
+- At least 30 days after the latest entry it shows (the "Figures to" date it carries is that entry's date, and the desk sets it).
+- No idea on that company is open. The gate says: "The ledger has an open idea on this company. A closed case can be published once no idea on the company is open."
+- One page per idea. "Another published case study already shows this idea."
+- The wording lint applies to your sealed words like any text. While you write an idea, a change of period, a close or a lesson, a hint can say: "If this idea is ever shown as a case study, this sentence would keep it off the site (<rule>). Sealed words cannot be changed later." It never stops you saving.
+
+**If the ledger changes.** A new lesson on a closed idea changes what the case study should show. The case page says: "The ledger has changed since this revision (a new lesson, or a day listed in the public file)." Press **Refresh from the ledger**; it makes a new revision with your body kept, then run the gate again. If the case is already public and the new lesson moves its "Figures to" date, the date is fixed while it is public and the page says: "Figures to is fixed while a case study is public. To use the ledger's date, <date>: Unpublish it, then Refresh from the ledger, then Publish." Do those three in that order. The page is down in between.
+
+**What a visitor sees.** The case at `/cases/<name>` with three sections (what you expected, what happened, what you learned), your "Looking back", and "How to check these entries"; a list at `/cases` (there is no tab for it); the cases in which you judged your own process flawed, or named a kind of mistake, on **Mistakes**; and a section "How this record is kept" on **Process**. While the public copy of the fingerprints is off, the page says what the check shows (that the text is the one the desk sealed at that place in its chain) and what it does not (when it was written).
+
+**Turning it off does not take pages down.** Switching a switch off stops new case studies and new revisions. A case that is already public stays public until you press **Unpublish** on its page.
+
+### 4.10 Concepts, reads and your month
+
+**What it is for.** Every `#name` you write becomes a concept. A concept has a page on the desk that gathers what you wrote about it: your learnings, your files, your process notes and what you read. The desk also keeps a reading log and puts your month together for you. All of this is private unless you choose to show a concept, and a read is never shown.
+
+**A concept comes from a `#name`.** Write `#capital-cycle` in a capture. The first time the site sees a name, it waits on the **Names** tab. Press **New concept**, type the name as you want it read, and press **Yes, add it**. Until you do, the concept says "Not checked yet. Check it on Names." You can link up to 8 concepts to one note, and the first one counts as its main concept.
+
+**The concepts page.** On the **Items** tab, press **Concepts** at the top. The list says, for each concept, whether it is Private or Public and how much you have under it. Press one to open it. The page has:
+
+- **In your words**: a box headed "What you mean by <the concept>". Write what the word means to you. Only you see it ("Private. Only you see this."). The desk never writes in it and never changes it.
+- Your notes and files that use the concept, in groups: **Learnings**, **Files and case studies**, **Process**, **Reads** and **Notes**, newest first.
+- **Related concepts**: links you make yourself. Under **Link a concept**, choose one and press **Link**. Press **Remove** next to one to take the link away. Pressing **Link** twice makes one link.
+- **Seen together in your notes**: when two concepts turn up in at least two of the same notes and are not linked yet, the desk lists them here, with the line "The desk found these in the same notes. Link one only if you see a connection." The desk only suggests. Nothing is linked until you press **Link**.
+
+**Change the concepts on a note.** On a note's page, the **Concepts** row shows its concepts. Press **Change**, find a concept, tap it to choose it, and press **Save concepts**. The order you tap is the order they are kept in. Saving makes a new version of the note with the same words. If the note is already public, that version waits for the publishing gate, like any edit, and the public page keeps showing the old one. While a version is waiting, you cannot change the concepts again. The page says: "A newer version of this note is waiting to be published. Publish it before changing the concepts."
+
+**The reason the desk writes.** A change of concepts gets a fixed change reason, for example "Concepts: added Capital cycle; removed Moats." Readers see a reason with the version, so it names only concepts that are public. Any other concept is counted, not named: "Concepts: added Capital cycle and 2 other concepts." A concept you have not made public never appears in a reason.
+
+**Showing a concept.** A concept is shown on the site only when both of these are true: you pressed **Make public** on it (on its own page, or on the note's publish checklist), and a published note or file uses it. Making a concept public shows nothing by itself.
+
+If a note uses a concept that is not public, the publish checklist says so. It reads "Concept "<name>" is not public yet." with the button **Make <name> public**, or "Concept "<name>" is not checked yet." with the link **Check it on Names**. If you run the gate anyway, it stops with one line for each such concept.
+
+Once the note passes, a visitor can open **/concepts**, which lists each public concept, and a concept's own page, which lists the published notes and files that use it, each with "Since" and a date. Each of those notes and files also shows a line headed **Concepts** with links to those pages. Nothing else about a concept is shown: not the words in your box, not your links between concepts, not your reads. A concept's page does not exist until a published note or file uses it.
+
+**Log a read.** Start a capture with `r:` and write what you read, for example `r: Marks, the Sea Change memo. Rates regime over #interest-rates`. The first line is the title, without the `#names` that end it (they link the concepts and stay in the text; you can edit the title on the note's page). A web address stays in the text. The receipt says "Reading log, private". A read is never published: its page says "A read stays private. It is not published." and has no publish checklist. A read is listed under **Reads** on its concept's page, on the **Items** tab (press **Reads** to see only reads) and on the month page.
+
+**Your month.** On the **Items** tab, press **This month**. The desk's home page also says "This month: n learnings, m reads" and links there. The page "What I learned in <Month Year>" is put together by the desk from your notes that start with `l:` and from your reads. Learnings are grouped under their first concept, with "No concept" last. Each line is your own title, word for word, with its date, and links to the note. The **Reads** come after. The desk counts and groups. It does not shorten, reword or rank anything. **Earlier month** and **Later month** move between months. The page is private, and it leaves out the lessons you wrote in the Ledger.
+
+**Messages you may see**
+
+| Message | What it means and what to do |
+|---|---|
+| "Concept "<name>" is not public yet." | A note you want to publish uses a concept you have not made public. Press **Make <name> public**, then run the gate again. |
+| "Concept "<name>" is not checked yet." | The name still waits on the Names tab. Press **Check it on Names** and add it as a concept. |
+| "A newer version of this note is waiting to be published. Publish it before changing the concepts." | Run the gate on the waiting version first. |
+| "Only the first 8 concepts were linked." | A capture had more than 8 `#names`. The rest stay in the text. |
+| "That is over 2,000 characters. Shorten it." | The box under **In your words** holds up to 2,000 characters. |
+| "A concept cannot be linked to itself." | Choose a different concept in **Link a concept**. |
 
 ---
 
@@ -796,6 +868,7 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 
 - **Voice notes.** `VOICE_NOTES` is unset. The drop bar hides voice notes and nothing is sent to Groq. To switch on you need Aksh's agreement (ADR-004 s8), and the open item about discarded transcript text staying in the database (Q22, debt M-4) needs its migration first. Its planned number, 0010, has since been taken by the ledger, so it will have a later number. Then set `VOICE_NOTES=on`.
 - **The public copy of the ledger's daily fingerprints.** `GITHUB_GIST_TOKEN` and `LEDGER_ANCHOR_GIST_ID` are unset. Days are still sealed in the database and wait. To switch on you need the owner decision (Q26: which GitHub account owns the gist), a public gist created by hand, and a fine-grained token with only the "Gists: write" permission. The file is public and shows the number of entries per day and their fingerprints (no names, words or prices). Do not put either value on Vercel until the owner has agreed. **Once any line is published, switching it off again turns the `ledger:anchor` step red** ("the public copy is switched off, but lines were published before"). The file is dated by GitHub. Its owner can still edit or delete it. The run compares the whole public file with every sealed line each day.
+- **Case studies from the ledger, and their chart.** Two rows in `private.settings`, `ledger_reveal` and `ledger_chart`, both absent (off). You turn them on in the Supabase SQL editor; the runbook `docs/runbooks/case-study-switches.md` has the exact SQL, what turning off does not do (it does not take a page down), and the checks to run before the first switch-on on the hosted project. Until Q27 is answered they stay off. Migrations 0017, 0018 and 0019 and the merge must land together, because every publish is refused in between.
 - **The pump workflow** needs `DESK_URL` and `CRON_SECRET` repository secrets to run. The last progress note says it was enabled on 14 October.
 
 ### Before the first real idea (read this before Aksh records anything)
@@ -813,7 +886,9 @@ They are in `docs/project-memory/unanswered-questions.md`. Do not copy them here
 
 ## 8. Not in this version
 
-- Public case studies, charts of your ideas' performance, or a public view of the Ledger. The public side shows company files and notes only.
+- A public reading log, a public month page, and public links between concepts. These stay on the desk. A concept can be shown; a read cannot.
+- A picture of how your concepts connect, joining two concepts into one, and renaming a concept.
+- A public view of the Ledger, or any figure for how your ideas did. A closed idea can be written up as a case study (section 4.9) once the site owner has switched case studies on; the page prints no result.
 - The spreadsheet valuation page (reading a model from a spreadsheet).
 - A newsletter.
 - Videos and transcripts.
@@ -824,7 +899,6 @@ They are in `docs/project-memory/unanswered-questions.md`. Do not copy them here
 - Charts, exports and a mistakes grid on the journal page. It is a list.
 - Editing or removing a corporate action. You correct it with a new entry.
 - Linking an existing idea to a company file after the fact.
-- The public **Mistakes** page is a placeholder ("Nothing here yet.") in this version.
 
 ---
 
@@ -841,6 +915,6 @@ Each of these is something I could not confirm from the code, the specs or the t
 7. **The exact withdraw window.** The page shows the time. The rules say at most 24 hours; the code mirrors a database function I did not read. Section 4.6 says "at most 24 hours; the form shows the exact time".
 8. **Whether the Items "Create item" form can attach a company.** It has only Kind and Title. Section 4.4 sends you to a capture or the review screen to start a company file.
 9. **The exact buttons for a few small screens** I read only through their code: the filed-figures tick boxes on the review screen (I describe them as ticks, by the "Tick at least one figure to file." message), the label of the save button on the "Type the value from the page" form, and the phone layout of the file page. I did not run the site.
-10. **The public Mistakes page.** The page code shows only the placeholder. I could not confirm that it fills from your files.
+10. **The public Mistakes page.** It now fills from published case studies (section 4.9). That is confirmed on the local stack only, with an invented company; nothing is public on the hosted site.
 11. **Whether the production site is open to everyone today.** The last progress note says the production address is reachable without a Vercel bypass, so the public side is already visible. Confirm that is what you want on launch day.
 12. **Legal confirmation.** The publishing rules say they are not legal advice and should be confirmed with a lawyer or NISM-certified analyst. The official SEBI circular PDFs are still to be saved under `docs/compliance/`.

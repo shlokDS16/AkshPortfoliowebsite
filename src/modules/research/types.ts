@@ -24,6 +24,8 @@ export type Revision = {
   revNo: number;
   bodyMd: string;
   structured: Record<string, unknown>;
+  /** Linked concepts in order (the first is the primary one). null on a revision written before Phase 4: read it as [item.themeId]. */
+  conceptIds: string[] | null;
   schemaVersion: number;
   changeReason: string | null;
   author: RevisionAuthor;
@@ -45,6 +47,8 @@ export type NewRevisionRow = {
   itemId: string;
   bodyMd: string;
   structured: Record<string, unknown>;
+  /** Absent or null = carry the previous revision's links (the database trigger decides); an array is explicit. */
+  conceptIds?: string[] | null;
   changeReason: string | null;
   author: RevisionAuthor;
 };

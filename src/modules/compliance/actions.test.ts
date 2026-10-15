@@ -66,6 +66,8 @@ const context = (bodyMd: string): PublishContext => ({
   companyName: null,
   companyOneLiner: null,
   themeName: null,
+  conceptNames: [],
+  conceptSlugs: [],
   allowances: [],
 });
 

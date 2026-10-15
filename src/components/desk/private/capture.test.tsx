@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe("CaptureText (M7: read-only chips get inline padding; the typing mirror stays glyph-aligned)", () => {
-  it("pads the t:, $SYM and #theme chips, not plain text or links; the capture mirror has no padding", () => {
+  it("pads the t:, $SYM and #concept chips, not plain text or links; the capture mirror has no padding", () => {
     const raw = "t: $KAVPUMP #capex https://x.in";
     const { container } = render(<CaptureText raw={raw} known={known} />);
     const padded = [...container.querySelectorAll("[class~='px-0.5']")].map((s) => s.textContent);
@@ -68,14 +68,15 @@ describe("CaptureReceipt and GrammarKeyRow", () => {
     expect(receipt.textContent).not.toMatch(/publish/i);
   });
 
-  it("offers the five grammar keys at thumb height without stealing focus", async () => {
+  it("offers the six grammar keys at thumb height without stealing focus", async () => {
     const onInsert = vi.fn();
     render(<GrammarKeyRow onInsert={onInsert} />);
     const keys = screen.getAllByRole("button");
-    expect(keys.map((k) => k.textContent)).toEqual(["$", "#", "t:", "l:", "p:"]);
+    expect(keys.map((k) => k.textContent)).toEqual(["$", "#", "t:", "l:", "p:", "r:"]);
     await userEvent.click(keys[2]);
     expect(onInsert).toHaveBeenCalledWith("t:");
     expect(keys[0]).toHaveClass("min-h-11");
+    expect(keys[5]).toHaveAccessibleName("r: read");
   });
 });
 

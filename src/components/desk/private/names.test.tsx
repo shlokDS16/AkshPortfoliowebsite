@@ -34,10 +34,17 @@ describe("NameCard", () => {
     expect(screen.getByRole("button", { name: "Yes, add it" })).toHaveAttribute("value", "new");
   });
 
-  it("a theme has no sector and no 'Same as'", async () => {
+  it("a concept has no sector and no 'Same as'", async () => {
     render(<NameCard name={{ ...stub, type: "theme", token: "#capex", suggestion: null }} action={vi.fn()} />);
-    await userEvent.click(screen.getByRole("button", { name: "New theme" }));
+    await userEvent.click(screen.getByRole("button", { name: "New concept" }));
     expect(screen.queryByLabelText("Sector")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Same as/ })).toBeNull();
+  });
+
+  it("says concept, not theme, on the card and the plain-text choice", () => {
+    render(<NameCard name={{ ...stub, type: "theme", token: "#capex", suggestion: null }} action={vi.fn()} />);
+    expect(screen.getByText(/^concept · first seen/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Not a concept, keep as text" })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/theme/i);
   });
 });

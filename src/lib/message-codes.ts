@@ -15,6 +15,10 @@ export const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   FACTS_SHEET_INVALID: "facts-sheet-invalid",
   NAME_NOT_SCREENED: "name-not-screened",
   NAME_ON_PUBLIC_ITEM: "name-on-public-item",
+  CONCEPT_DESCRIPTION_TOO_LONG: "concept-description-too-long",
+  CONCEPT_CHANGE_PENDING: "concept-change-pending",
+  CONCEPT_SELF_LINK: "concept-self-link",
+  CONCEPT_NOT_FOUND: "concept-not-found",
   NO_FIGURE_DATE: "no-figure-date",
   // DocumentError carries the message code itself.
   "upload-duplicate": "upload-duplicate",
@@ -85,4 +89,12 @@ export const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "ledger-note-too-long": "ledger-note-too-long",
   "ledger-fetch-busy": "ledger-fetch-busy",
   "ledger-item-other-company": "ledger-item-other-company",
+  // CaseError likewise.
+  "case-not-found": "case-not-found",
+  "case-not-closed": "case-not-closed",
+  "case-void": "case-void",
+  "case-no-lesson": "case-no-lesson",
+  "case-exit-pending": "case-exit-pending",
+  "case-record-unreadable": "case-record-unreadable",
+  "case-not-ledger": "case-not-ledger",
 };

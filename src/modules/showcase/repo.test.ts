@@ -1,15 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Db } from "@/lib/supabase/types";
-import { COMPANY_COLUMNS, createSupabaseShowcaseRepo, ITEM_COLUMNS, loadSnapshot, REVISION_COLUMNS } from "./repo";
+import { COMPANY_COLUMNS, CONCEPT_COLUMNS, CONCEPT_LINK_COLUMNS, createSupabaseShowcaseRepo, ITEM_COLUMNS, loadSnapshot, REVISION_COLUMNS } from "./repo";
 
-function fakeDb(rows: Record<string, unknown[]>, failingRpc: string[] = []) {
+function fakeDb(rows: Record<string, unknown[]>, failingRpc: string[] = [], failingViews: string[] = []) {
   const calls: { target: string; columns: string }[] = [];
   const db = {
     from(target: string) {
       return {
         select(columns: string) {
           calls.push({ target, columns });
-          const query = { order: () => query, then: (resolve: (v: unknown) => void) => resolve({ data: rows[target] ?? [], error: null }) };
+          const failing = failingViews.includes(target);
+          const result = failing ? { data: null, error: { message: `relation "public.${target}" does not exist`, code: "42P01" } } : { data: rows[target] ?? [], error: null };
+          const query = { order: () => query, range: () => query, then: (resolve: (v: unknown) => void) => resolve(result) };
           return query;
         },
       };
@@ -29,18 +31,29 @@ const itemRow = {
 };
 
 describe("showcase repo", () => {
-  it("reads only the three public views and two RPCs, always with explicit column lists (rule 9)", async () => {
+  it("reads only the five public views and two RPCs, always with explicit column lists (rule 9)", async () => {
     const { db, calls } = fakeDb({ capture_days: [{ day: "2026-10-05" }] });
     const repo = createSupabaseShowcaseRepo(db);
-    await Promise.all([repo.listItems(), repo.listRevisions(), repo.listCompanies(), repo.captureDays(30), repo.factChecks()]);
+    await Promise.all([repo.listItems(), repo.listRevisions(), repo.listCompanies(), repo.captureDays(30), repo.factChecks(), repo.listConcepts(), repo.listConceptLinks()]);
     expect(calls).toEqual([
       { target: "public_items", columns: ITEM_COLUMNS },
       { target: "public_item_revisions", columns: REVISION_COLUMNS },
       { target: "public_companies", columns: COMPANY_COLUMNS },
       { target: "capture_days", columns: '{"p_days":30}' },
       { target: "public_fact_checks", columns: "{}" },
+      { target: "public_themes", columns: CONCEPT_COLUMNS },
+      { target: "public_concept_links", columns: CONCEPT_LINK_COLUMNS },
     ]);
+    // The concept views are read through their public names only: the admin view, the edges and the description never.
+    expect(CONCEPT_COLUMNS).toBe("id, slug, name");
+    expect(CONCEPT_LINK_COLUMNS).toBe("item_id, revision_id, concept_id, position");
     for (const c of calls) expect(c.columns).not.toContain("*");
+  });
+
+  it("drops a row of kind reading_note: the public side has no read, whatever the gate says (D52)", async () => {
+    const { db } = fakeDb({ public_items: [{ ...itemRow, id: "i2", kind: "reading_note", slug: "a-read" }, { ...itemRow, id: "i3", kind: "learning", slug: "a-learning" }] });
+    const items = await createSupabaseShowcaseRepo(db).listItems();
+    expect(items.map((i) => i.id)).toEqual(["i3"]);
   });
 
   it("maps rows to camelCase and drops rows a view returned without identity", async () => {
@@ -115,5 +128,53 @@ describe("showcase repo", () => {
   it("the other reads stay strict: a failing capture_days call still rejects the snapshot", async () => {
     const { db } = fakeDb({}, ["capture_days"]);
     await expect(loadSnapshot(createSupabaseShowcaseRepo(db), "2026-10-12")).rejects.toThrow();
+  });
+
+  it("maps public_themes and public_concept_links, drops malformed rows, and keeps a position with a gap as it is", async () => {
+    const { db } = fakeDb({
+      public_themes: [{ id: "k1", slug: "moats", name: "Moats" }, { id: "k2", slug: null, name: "No slug" }, { id: null, slug: "x", name: "No id" }],
+      public_concept_links: [
+        { item_id: "i1", revision_id: "r1", concept_id: "k1", position: 5 },
+        { item_id: "i1", revision_id: "r1", concept_id: "k1", position: 0 },
+        { item_id: "i1", revision_id: "r1", concept_id: "k1", position: 1.5 },
+        { item_id: null, revision_id: "r1", concept_id: "k1", position: 1 },
+        { item_id: "i1", revision_id: "r1", concept_id: null, position: 1 },
+      ],
+    });
+    const repo = createSupabaseShowcaseRepo(db);
+    expect(await repo.listConcepts()).toEqual([{ id: "k1", slug: "moats", name: "Moats" }]);
+    expect(await repo.listConceptLinks()).toEqual([{ itemId: "i1", revisionId: "r1", conceptId: "k1", position: 5 }]);
+  });
+
+  it("a failing concept read degrades to none, logs only the code, and never throws (D60)", async () => {
+    const { db } = fakeDb({}, [], ["public_themes", "public_concept_links"]);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const repo = createSupabaseShowcaseRepo(db);
+      expect(await repo.listConcepts()).toEqual([]);
+      expect(await repo.listConceptLinks()).toEqual([]);
+      expect(log).toHaveBeenCalledTimes(2);
+      expect(JSON.stringify(log.mock.calls)).toContain("42P01");
+      expect(JSON.stringify(log.mock.calls)).not.toContain("does not exist");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("the snapshot builds without concepts when their views are missing, and carries them when they are there", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const missing = await loadSnapshot(createSupabaseShowcaseRepo(fakeDb({ public_items: [itemRow], capture_days: [{ day: "2026-10-05" }] }, [], ["public_themes", "public_concept_links"]).db), "2026-10-12");
+      expect(missing.concepts).toEqual([]);
+      expect(missing.conceptLinks).toEqual([]);
+      expect(missing.items.map((i) => i.id)).toEqual(["i1"]);
+      const there = await loadSnapshot(
+        createSupabaseShowcaseRepo(fakeDb({ public_items: [itemRow], capture_days: [], public_themes: [{ id: "k1", slug: "moats", name: "Moats" }] }).db),
+        "2026-10-12",
+      );
+      expect(there.concepts).toEqual([{ id: "k1", slug: "moats", name: "Moats" }]);
+    } finally {
+      log.mockRestore();
+    }
   });
 });

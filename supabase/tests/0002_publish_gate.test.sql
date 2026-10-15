@@ -22,12 +22,12 @@ insert into auth.users (id, email) values
   ('bbbbbbbb-0000-4000-8000-000000000002', 'stranger@pgtap.test');
 
 -- Test helpers (rolled back with the transaction): a well-formed lint result, and the verdict.
-create function public.test_lint(p_rev uuid, p_policy text default 'sebi-unreg-2026-07', p_passed boolean default true)
+create function public.test_lint(p_rev uuid, p_policy text default 'sebi-unreg-2026-07-v1.1', p_passed boolean default true)
 returns jsonb language sql immutable
 as $$ select jsonb_build_object('passed', p_passed, 'revisionId', p_rev::text, 'policyVersion', p_policy) $$;
 create function public.test_verdict(p_item uuid, p_rev uuid, p_passed boolean default true)
 returns text language sql
-as $$ select verdict from public.test_publish(p_item, p_rev, 'sebi-unreg-2026-07', public.test_lint(p_rev, 'sebi-unreg-2026-07', p_passed)) $$;
+as $$ select verdict from public.test_publish(p_item, p_rev, 'sebi-unreg-2026-07-v1.1', public.test_lint(p_rev, 'sebi-unreg-2026-07-v1.1', p_passed)) $$;
 grant execute on function public.test_lint(uuid, text, boolean), public.test_verdict(uuid, uuid, boolean)
   to authenticated;
 
@@ -117,17 +117,17 @@ select results_eq($$
 $$, $$ values ('lint'::text, 'false'::text) $$, 'reasons carries the failing rule and the lint result');
 
 select is((select verdict from public.test_publish('d2000000-0000-4000-8000-000000000002',
-    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07', '{}'::jsonb)),
+    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', '{}'::jsonb)),
   'fail', 'an empty lint result fails');
 select is((select verdict from public.test_publish('d2000000-0000-4000-8000-000000000002',
-    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07',
-    '{"passed":"true","revisionId":"e2000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07"}'::jsonb)),
+    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
+    '{"passed":"true","revisionId":"e2000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07-v1.1"}'::jsonb)),
   'fail', 'passed must be the JSON boolean true, not the string "true"');
 select is((select verdict from public.test_publish('d2000000-0000-4000-8000-000000000002',
-    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07', public.test_lint('e1000000-0000-4000-8000-000000000001'))),
+    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', public.test_lint('e1000000-0000-4000-8000-000000000001'))),
   'fail', 'a lint computed for another revision fails');
 select is((select verdict from public.test_publish('d2000000-0000-4000-8000-000000000002',
-    'e2000000-0000-4000-8000-000000000001', 'pol-2', public.test_lint('e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07'))),
+    'e2000000-0000-4000-8000-000000000001', 'pol-2', public.test_lint('e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1'))),
   'fail', 'a lint run under another policy version fails');
 select is((select verdict from public.test_publish('d2000000-0000-4000-8000-000000000002',
     'e2000000-0000-4000-8000-000000000001', '', public.test_lint('e2000000-0000-4000-8000-000000000001', ''))),
@@ -148,7 +148,7 @@ select results_eq($$
          reasons -> 'lint' ->> 'policyVersion'
     from public.gate_decisions where revision_id = 'e1000000-0000-4000-8000-000000000001'
 $$, $$ values ('d1000000-0000-4000-8000-000000000001'::text, 'e1000000-0000-4000-8000-000000000001'::text,
-               'sebi-unreg-2026-07'::text, 'pass'::text, 0, 'sebi-unreg-2026-07'::text) $$,
+               'sebi-unreg-2026-07-v1.1'::text, 'pass'::text, 0, 'sebi-unreg-2026-07-v1.1'::text) $$,
   'the pass is recorded with an empty failure list and the lint result');
 select is(public.test_verdict('db000000-0000-4000-8000-00000000000b', 'eb000000-0000-4000-8000-000000000001'),
   'pass', 'an item that already has a slug passes');
@@ -252,10 +252,10 @@ $$, $$ values ('private'::text, 'draft'::text, null::text, null::text) $$,
 
 -- Callers and bad input raise; nothing is recorded for them.
 select throws_ok($$ select public.test_publish('d1000000-0000-4000-8000-000000000001',
-    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07', public.test_lint('e2000000-0000-4000-8000-000000000001')) $$,
+    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', public.test_lint('e2000000-0000-4000-8000-000000000001')) $$,
   'P0002', null, 'a revision that belongs to another item raises');
 select throws_ok($$ select public.test_publish('ffffffff-0000-4000-8000-00000000000f',
-    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07', '{}'::jsonb) $$,
+    'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', '{}'::jsonb) $$,
   'P0002', null, 'an unknown item raises');
 reset role;
 set local role authenticated;

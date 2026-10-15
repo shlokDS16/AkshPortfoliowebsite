@@ -119,3 +119,88 @@ describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they im
     for (const [file, text] of reach) expect(text, file).not.toMatch(/supabase\/service|env\.server["']|SERVICE_ROLE|sb_secret/);
   });
 });
+
+// Plan 3b: the ledger is private. Public code reads the cached public snapshot and the record that is already in a published
+// revision; it never reaches the ledger's module, tables or admin functions (engineering rule 9).
+describe("Plan 3b: public case-study code never reaches the ledger", () => {
+  const LEDGER = /idea_events|idea_scores|prices_daily|market_days|ledger_anchors|corporate_actions|ledger_uploads|case_study_record|case_study_switches/;
+  const PRIVATE = /^(?:modules\/(?:ledger|cases|valuation|knowledge)|components\/desk\/private)(?:\/|$)/;
+  const own = [...walkFiles(join(ROOT, "app/(public)")), ...walkFiles(join(ROOT, "modules/showcase")), ...walkFiles(join(ROOT, "components/desk/case"))].filter(
+    (f) => !/\.test\.tsx?$/.test(f),
+  );
+  const relative = (f: string) => f.slice(ROOT.length + 1).replaceAll("\\", "/");
+  const reach = new Map<string, string>();
+  for (const entry of own) for (const [file, text] of closure(entry)) reach.set(file, text);
+
+  it("covers the case pages, the case components and the view builder", () => {
+    expect(own.map(relative)).toEqual(
+      expect.arrayContaining(["app/(public)/cases/page.tsx", "app/(public)/cases/[slug]/page.tsx", "components/desk/case/case-page.tsx", "components/desk/case/fingerprint-check.tsx", "modules/showcase/case-study.ts"]),
+    );
+  });
+
+  it("their own files, and every file they reach, name no ledger table, no upload or anchor table and neither admin function", () => {
+    for (const file of own) expect(readFileSync(file, "utf8"), relative(file)).not.toMatch(LEDGER);
+    for (const [file, text] of reach) if (!GENERATED.test(file)) expect(text, relative(file)).not.toMatch(LEDGER);
+  });
+
+  it("nothing they import, however deep, is the ledger, cases or valuation module or a private desk component", () => {
+    expect([...reach.keys()].map(relative).filter((n) => PRIVATE.test(n))).toEqual([]);
+    expect(reach.has(join(ROOT, "lib/supabase/service.ts"))).toBe(false);
+  });
+
+  it("the only client component of the case page is the fingerprint check", () => {
+    const clients = walkFiles(join(ROOT, "components/desk/case"))
+      .filter((f) => !/\.test\.tsx?$/.test(f) && /^["']use client["']/.test(readFileSync(f, "utf8")))
+      .map(relative);
+    expect(clients).toEqual(["components/desk/case/fingerprint-check.tsx"]);
+  });
+});
+
+// Plan 4: anon reads `item_revisions.concept_ids`, `public_concept_links` and `public_themes` and nothing else about concepts. His private
+// links (`concept_edges`), the admin view over every latest revision (`concept_links`) and a concept's description are never named by
+// public code, and public code never imports the knowledge module (which reads them).
+describe("Plan 4: public concept code never reaches the private learning graph", () => {
+  const PRIVATE_GRAPH = /concept_edges|(?<![A-Za-z_])concept_links\b|description_md|descriptionMd/;
+  const KNOWLEDGE = /^modules\/knowledge(?:\/|$)|^components\/desk\/private\//;
+  const relative = (f: string) => f.slice(ROOT.length + 1).replaceAll("\\", "/");
+  const publicComponents = readdirSync(join(ROOT, "components/desk"), { withFileTypes: true }).filter((e) => e.isFile() && /\.tsx?$/.test(e.name)).map((e) => join(ROOT, "components/desk", e.name));
+  const own = [...walkFiles(join(ROOT, "app/(public)")), ...walkFiles(join(ROOT, "modules/showcase")), ...walkFiles(join(ROOT, "components/desk/case")), ...publicComponents].filter(
+    (f) => !/\.test\.tsx?$/.test(f),
+  );
+  const reach = new Map<string, string>();
+  for (const entry of own) for (const [file, text] of closure(entry)) reach.set(file, text);
+
+  it("covers the concept pages, the Concepts line and the builder", () => {
+    expect(own.map(relative)).toEqual(
+      expect.arrayContaining(["app/(public)/concepts/page.tsx", "app/(public)/concepts/[slug]/page.tsx", "components/desk/concept-line.tsx", "components/desk/concept-page.tsx", "modules/showcase/concepts.ts"]),
+    );
+  });
+
+  it("the walker would catch each private name, and does not mistake the public view for the admin one", () => {
+    for (const bad of ["concept_edges", "from('concept_links')", "description_md", "descriptionMd"]) expect(bad).toMatch(PRIVATE_GRAPH);
+    expect("public_concept_links").not.toMatch(PRIVATE_GRAPH);
+  });
+
+  it("their own files name no edge, no admin concept view and no description", () => {
+    for (const file of own) expect(readFileSync(file, "utf8"), relative(file)).not.toMatch(PRIVATE_GRAPH);
+  });
+
+  it("nothing they import, however deep, is the knowledge module or a private desk component, and nothing they reach names those relations", () => {
+    expect([...reach.keys()].map(relative).filter((n) => KNOWLEDGE.test(n))).toEqual([]);
+    // Transitive reach includes shared barrels (the capture module's own import of the catalog). Every reached file is checked for the
+    // private relations and columns; exactly one names them, the catalog file that owns the description column. The public side
+    // reaches the catalog barrel through capture and never calls it (the import check below pins that no public file names it).
+    const naming = [...reach.entries()].filter(([f, text]) => !GENERATED.test(f) && PRIVATE_GRAPH.test(text)).map(([f]) => relative(f)).sort();
+    expect(naming).toEqual(["modules/catalog/concepts.ts"]);
+    const imported = [...reach.entries()].filter(([f]) => /modules\/showcase\/|app\/\(public\)\//.test(relative(f))).flatMap(([, text]) => [...text.matchAll(FROM)].map((m) => m[1] ?? m[2] ?? m[3]));
+    expect(imported.filter((spec) => /modules\/(knowledge|catalog)(?:\/|$)/.test(spec))).toEqual([]);
+  });
+
+  it("reads concepts only through the two public views and the revision column", () => {
+    const repo = readFileSync(join(ROOT, "modules/showcase/repo.ts"), "utf8");
+    expect(repo).toContain('from("public_themes")');
+    expect(repo).toContain('from("public_concept_links")');
+    expect(repo).not.toMatch(/from\("(?:themes|concept_edges|concept_links)"\)/);
+    expect(readFileSync(join(ROOT, "modules/showcase/repo.ts"), "utf8").match(/CONCEPT_COLUMNS = "([^"]+)"/)![1]).toBe("id, slug, name");
+  });
+});
