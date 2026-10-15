@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { derivedProblems } from "@/modules/showcase";
 import { buildRichSnapshot, buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
@@ -18,6 +20,13 @@ beforeEach(() => {
 describe("GET /feed.xml", () => {
   it("is refreshed hourly, through the same snapshot every publish and unpublish refreshes", () => {
     expect(revalidate).toBe(3600);
+  });
+
+  // Rule 11.5: an unpublished item leaves this surface with the public refresh, so it must read the one cached snapshot and keep no cache of its own.
+  it("reads only the shared snapshot and has no cache of its own", () => {
+    const source = readFileSync(join(__dirname, "route.ts"), "utf8");
+    expect(source).toContain("getSnapshot");
+    for (const own of ["unstable_cache", "fetch(", "force-static"]) expect(source).not.toContain(own);
   });
 
   it("serves the gated revisions as RSS", async () => {
