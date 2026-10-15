@@ -1954,6 +1954,8 @@ export type Database = {
         }
       }
       queue_age: { Args: Record<PropertyKey, never>; Returns: number }
+      redeem_pump_ticket: { Args: { p_token: string }; Returns: boolean }
+      register_clock_target: { Args: { p_url: string }; Returns: boolean }
       remove_lint_allowance: {
         Args: { p_actor: string; p_item_id: string; p_sentence_hash: string }
         Returns: boolean

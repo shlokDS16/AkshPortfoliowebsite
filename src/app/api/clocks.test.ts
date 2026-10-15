@@ -84,6 +84,7 @@ describe("GET /api/cron/daily", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(fake.beats).toEqual([
+      { job: "clock:register", ok: true, detail: "not production" },
       { job: "heartbeat:daily", ok: true, detail: "alive" },
       { job: "ledger:prices", ok: true, detail: "nothing to fetch" },
       { job: "ledger:score", ok: true, detail: "scored 0 ideas" },
@@ -110,13 +111,14 @@ describe("POST /api/jobs/run", () => {
     expect(await response.json()).toEqual({
       ok: true,
       results: [
+        { job: "clock:register", ok: true },
         { job: "heartbeat:pump", ok: true },
         { job: "ingestion:drain", ok: true },
         { job: "alerts:email", ok: true },
       ],
     });
     await call();
-    expect(fake.beats.map((b) => b.job)).toEqual(["heartbeat:pump", "ingestion:drain", "alerts:email", "heartbeat:pump", "ingestion:drain", "alerts:email"]);
+    expect(fake.beats.map((b) => b.job)).toEqual(["clock:register", "heartbeat:pump", "ingestion:drain", "alerts:email", "clock:register", "heartbeat:pump", "ingestion:drain", "alerts:email"]);
   });
 });
 
