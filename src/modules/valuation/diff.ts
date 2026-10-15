@@ -1,5 +1,5 @@
 import { parseAddr } from "./addr";
-import { DIFF_TOLERANCE } from "./limits";
+import { DIFF_TOLERANCE, MAX_STRING_CHARS } from "./limits";
 import type { CellClass, EngineValue, SavedType, SheetIndex } from "./types";
 import { errorKind } from "./values";
 
@@ -23,13 +23,23 @@ export function numbersEqual(a: number, b: number): boolean {
   return Math.abs(a - b) <= DIFF_TOLERANCE * Math.max(1, Math.abs(a), Math.abs(b));
 }
 
+/**
+ * A saved string the reader cut at the cap (`cutString` in read-workbook.ts: 1,998 or 1,999 characters and an ellipsis) is not Excel's whole
+ * string, so it can never equal the engine's. It is compared on the part that was kept: the engine's string must be longer than the cap and
+ * begin with it. The part past the cap is not verified (a string that differs only there reads as a match); a string that differs in the kept
+ * part still differs. Spec s5.4: strings are exact, and this is the exact rule applied to the characters the desk holds.
+ */
+function isCutOf(saved: string, engine: string): boolean {
+  return saved.endsWith("…") && saved.length >= MAX_STRING_CHARS - 1 && saved.length <= MAX_STRING_CHARS && engine.length > MAX_STRING_CHARS && engine.startsWith(saved.slice(0, -1));
+}
+
 function sameValue(saved: ClassifyInput["saved"], engine: EngineValue): boolean {
   switch (saved.t) {
     case "n":
       if (engine.kind === "n") return numbersEqual(saved.v as number, engine.v);
       return engine.kind === "empty" && saved.v === 0;
     case "s":
-      if (engine.kind === "s") return saved.v === engine.v;
+      if (engine.kind === "s") return saved.v === engine.v || isCutOf(saved.v as string, engine.v);
       return engine.kind === "empty" && saved.v === "";
     case "b":
       return engine.kind === "b" && saved.v === engine.v;

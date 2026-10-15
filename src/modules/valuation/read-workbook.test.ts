@@ -112,6 +112,19 @@ describe("readWorkbook: strings", () => {
     expect(a2[2]).toBe("y".repeat(2000));
     expect(index.stringsCut).toBe(1);
   });
+
+  it("a cut never splits a surrogate pair: the lone high half is dropped, so the text stays well-formed", () => {
+    // An emoji (two UTF-16 units) whose first unit would be the last one kept (index 1998).
+    const text = "x".repeat(1998) + "\u{1F600}" + "z".repeat(10);
+    const [a1] = readWorkbook(one([{ addr: "A1", v: text }])).sheets[0].cells;
+    const kept = a1[2] as string;
+    expect(kept).toBe("x".repeat(1998) + "\u2026");
+    expect(kept.isWellFormed()).toBe(true);
+    // A pair that ends exactly at the cut line is kept whole.
+    const [b1] = readWorkbook(one([{ addr: "A1", v: "x".repeat(1997) + "\u{1F600}" + "z".repeat(10) }])).sheets[0].cells;
+    expect(b1[2]).toBe("x".repeat(1997) + "\u{1F600}" + "\u2026");
+    expect((b1[2] as string).isWellFormed()).toBe(true);
+  });
 });
 
 describe("readWorkbook: refusals, each with its own code", () => {

@@ -65,6 +65,32 @@ describe("classifyCell: match and differs", () => {
   });
 });
 
+describe("classifyCell: a saved string that was cut at the cap", () => {
+  const MAX = 2_000;
+  const long = "x".repeat(MAX + 500);
+  const cut = "x".repeat(MAX - 1) + "\u2026";
+  const s = (v: string): EngineValue => ({ kind: "s", v });
+
+  it("matches the engine's full string when the kept part agrees (never a false differs)", () => {
+    expect(cls(["A1&B1", cut, "s"], s(long))).toBe("match");
+  });
+
+  it("a cut that dropped a lone high surrogate (1,999 characters kept) is still recognised", () => {
+    const full = "x".repeat(MAX - 2) + "\u{1F600}" + "z".repeat(10);
+    expect(cls(["A1&B1", "x".repeat(MAX - 2) + "\u2026", "s"], s(full))).toBe("match");
+  });
+
+  it("still differs when the kept part disagrees, or the engine's string is not longer than the cap", () => {
+    expect(cls(["A1&B1", cut, "s"], s("y" + long.slice(1)))).toBe("differs");
+    expect(cls(["A1&B1", cut, "s"], s("x".repeat(MAX - 1) + "!"))).toBe("differs");
+  });
+
+  it("a string that is not cut keeps the exact rule", () => {
+    expect(cls(["A1&B1", "abc\u2026", "s"], s("abcd"))).toBe("differs");
+    expect(cls(["A1&B1", "abc\u2026", "s"], s("abc\u2026"))).toBe("match");
+  });
+});
+
 describe("classifyCell: the other classes", () => {
   it("unsupported: the engine says not implemented", () => {
     expect(cls(["FOO(1)", 3, "n"], err("NIMPL", "#N/IMPL!"))).toBe("unsupported");

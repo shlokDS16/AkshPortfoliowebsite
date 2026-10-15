@@ -43,6 +43,14 @@ const XLFN = /_xlfn\.(?:_xlws\.)?|_xlws\./g;
 /** A name that points at another workbook ("[1]Sheet1!A1", "[Book.xlsx]Sheet1!A1") or at a URL or share. */
 const EXTERNAL_REF = /\[\d+\]|\.xls[xmb]?\]|:\/\/|^\\\\/i;
 
+/** The first MAX_STRING_CHARS - 1 UTF-16 units and an ellipsis; a high surrogate left at the end of the kept part is dropped with its pair. */
+function cutString(text: string): string {
+  let end = MAX_STRING_CHARS - 1;
+  const last = text.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end--;
+  return text.slice(0, end) + "…";
+}
+
 function savedValue(cell: CellObject): { v: number | string | boolean | null; t: SavedType; cut: boolean } {
   const { t, v } = cell;
   if (v === undefined || v === null || t === "z") return { v: null, t: "z", cut: false };
@@ -51,7 +59,7 @@ function savedValue(cell: CellObject): { v: number | string | boolean | null; t:
   if (t === "e") return { v: ERROR_TEXT[Number(v)] ?? "#UNKNOWN!", t: "e", cut: false };
   // Strings (and the rare date type, which cellDates:false never produces) are kept as plain text and cut at the cap.
   const text = String(v);
-  if (text.length > MAX_STRING_CHARS) return { v: text.slice(0, MAX_STRING_CHARS - 1) + "…", t: "s", cut: true };
+  if (text.length > MAX_STRING_CHARS) return { v: cutString(text), t: "s", cut: true };
   return { v: text, t: "s", cut: false };
 }
 
