@@ -8,11 +8,13 @@ import { FocusOnHash } from "@/components/desk/private/focus-on-hash";
 import { GateDecisionPanel } from "@/components/desk/private/gate-decision";
 import { History } from "@/components/desk/private/history";
 import { PublishChecklist } from "@/components/desk/private/publish-checklist";
+import { LedgerRecordPanel } from "@/components/desk/private/case/ledger-record-panel";
 import { RevisionEditor } from "@/components/desk/private/revision-editor";
 import { WordingGuide } from "@/components/desk/private/wording-guide";
 import { istDate } from "@/lib/dates";
 import { errorText, noticeText } from "@/lib/messages";
 import { setFiguresToAction, saveCaseFileRevisionAction } from "@/modules/casefile/actions";
+import { refreshCaseStudyAction } from "@/modules/cases/actions";
 import { makeCompanyPublicAction } from "@/modules/catalog/actions";
 import { unstageAction } from "@/modules/ingestion/actions";
 import { publishCheckedAction, unpublishItemAction } from "@/modules/compliance/actions";
@@ -33,7 +35,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
   if (!isItemId(id)) notFound();
   const data = await loadEditor(id);
   if (!data) notFound();
-  const { item, revisions, current, pending, latest, candidate, isFile, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure, model } = data;
+  const { item, revisions, current, pending, latest, candidate, isFile, isLedger, ledgerRecord, ledgerStatus, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure, model } = data;
   const isPublic = item.visibility === "public";
   const errorMessage = errorText(error);
   const noticeMessage = noticeText(notice);
@@ -97,6 +99,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
         ) : null}
         <DocLayout gate={gate}>
           {body ? <BodyPreview itemId={item.id} body={body} named={item.companyId !== null} /> : null}
+          {isLedger ? <LedgerRecordPanel record={ledgerRecord} status={ledgerStatus} refreshAction={refreshCaseStudyAction.bind(null, item.id)} /> : null}
           {!isPublic ? <FiguresToHint latest={latestFigure} figuresTo={item.dataAsOf} action={setFiguresToAction.bind(null, item.id)} /> : null}
           <MetaForm item={item} />
           <RevisionEditor
@@ -110,6 +113,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
             stagedReadings={stagedReadings}
             provenance={provenance}
             sendBack={unstageAction.bind(null, item.id)}
+            ledgerCase={isLedger}
           />
           <WordingGuide />
           <History revisions={revisions} currentId={current?.id ?? null} pendingIds={new Set(pending.map((r) => r.id))} from={from} to={to} />

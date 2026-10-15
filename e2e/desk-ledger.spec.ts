@@ -132,6 +132,11 @@ test("an idea's whole life: recorded, sealed, noted, scored, closed, learned fro
   await expect(page.getByText(/Closed on \d{1,2} \w{3} 20\d\d: thesis broken/)).toBeVisible();
   await expect(page.getByLabel("What do you want to add?").locator("option")).toHaveText(["Write what I learned"]);
   await expect(page.locator("[data-event]")).toHaveCount(3);
+  // A closed idea with no lesson: the case study block says to write the lesson first, and offers no draft.
+  await expect(page.getByRole("heading", { level: 2, name: "Case study" })).toBeVisible();
+  await expect(page.getByText("A case study shows what you learned. Write the lesson first.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Draft a case study" })).toHaveCount(0);
+  await expectNoViolationsInBothThemes(page);
 
   // Without a lesson it is a card under Needs you; after the lesson it is not.
   await page.goto("/desk/ledger");
@@ -148,6 +153,9 @@ test("an idea's whole life: recorded, sealed, noted, scored, closed, learned fro
   await expect(page.locator("[data-event]")).toHaveCount(4);
   await expect(page.locator("[data-event]").last()).toContainText("Process was flawed");
   await expect(page.locator("[data-event]").last()).toContainText("Tags: Timing, Luck");
+  // With the lesson written, the block waits for the exit close (it is a button only once the exit price is fixed).
+  await expect(page.getByRole("heading", { level: 2, name: "Case study" })).toBeVisible();
+  await expect(page.getByText(/^The exit price is not fixed yet\. A case study can be drafted once it is\.$|^It can be published from /)).toBeVisible();
   await expectNoViolationsInBothThemes(page);
 
   // Now it sits in Closed ideas, with its lesson written, and no longer needs you.

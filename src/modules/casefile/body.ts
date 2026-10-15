@@ -1,6 +1,12 @@
 // The prose subset (D7): paragraphs, ## headings, - lists, [F1] chips. Rendered as React text, never HTML.
 export const KILL_HEADING_RE = /^#{1,6}\s*what would prove me wrong\b.*$/im;
 
+/**
+ * What a case study from the ledger starts with: only the heading the app's lint requires in every case study (the Phase 1 rule),
+ * and none of his words or the machine's. He writes under it, or leaves it bare; a body of headings alone is not shown to readers.
+ */
+export const CASE_STUDY_BODY_TEMPLATE = "## What would prove me wrong\n\n";
+
 export type Inline = string | { chip: string };
 export type ProseBlock = { kind: "p"; inline: Inline[] } | { kind: "h"; text: string } | { kind: "ul"; items: Inline[][] };
 export type Condition = { id: string; text: string };

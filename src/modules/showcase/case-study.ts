@@ -52,6 +52,9 @@ function entryView(e: CaseEvent): CaseEntryView {
   };
 }
 
+/** The record's entries as the page shows them, in seq order: the desk's read-only copy of the record uses the same views (spec s33.8). */
+export const recordEntryViews = (record: CaseRecordV1): CaseEntryView[] => record.events.map(entryView);
+
 const PROCESS_CALLS = Object.keys(CASE_PROCESS_LABEL);
 const callLine = (call: CaseProcessCall) => `His call on his own process: ${CASE_PROCESS_LABEL[call]}.`;
 
@@ -75,8 +78,11 @@ function chartView(record: CaseRecordV1): CaseChartView | null {
   };
 }
 
+/** A body of headings alone (the template he was given, left as it was) says nothing, so none of it is shown. */
 function bodyBlocks(md: string): CaseBodyBlock[] {
-  return parseProse(md).map((b): CaseBodyBlock =>
+  const blocks = parseProse(md);
+  if (blocks.every((b) => b.kind === "h")) return [];
+  return blocks.map((b): CaseBodyBlock =>
     b.kind === "p" ? { kind: "p", text: inlineText(b.inline) } : b.kind === "ul" ? { kind: "ul", items: b.items.map(inlineText) } : b,
   );
 }

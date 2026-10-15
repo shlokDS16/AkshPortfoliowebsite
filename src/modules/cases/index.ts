@@ -2,6 +2,7 @@
 import "server-only";
 
 export { CASE_ERROR_TEXT, CaseError, caseErrorFromDb, type CaseErrorCode } from "./errors";
+export { loadCaseBlock, loadLedgerView } from "./desk";
 export { createSupabaseCasesRepo } from "./repo";
-export { caseStateForIdea, caseSwitches, draftCaseStudy, recordDiffers, refreshCaseStudy } from "./service";
-export type { CaseDeps, CaseState, CaseSwitches, CasesRepo } from "./types";
+export { caseBlockFor, caseStateForIdea, caseSwitches, draftCaseStudy, ledgerStatus, recordDiffers, refreshCaseStudy } from "./service";
+export type { CaseDeps, CaseState, CaseSwitches, CasesRepo, LedgerStatus } from "./types";

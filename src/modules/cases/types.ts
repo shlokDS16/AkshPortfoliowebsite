@@ -21,3 +21,6 @@ export type CaseState =
   | { state: "draft" | "public"; itemId: string };
 
 export type CaseDeps = { cases: CasesRepo; research: ResearchRepo };
+
+/** The ledger against one case study item (spec s33.8): see ledgerStatus. */
+export type LedgerStatus = { differs: boolean; figuresTo: string; dateOut: boolean; frozen: boolean };

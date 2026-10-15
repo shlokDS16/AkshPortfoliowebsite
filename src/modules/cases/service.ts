@@ -2,11 +2,11 @@ import { addDays, PUBLICATION_LAG_DAYS } from "@/lib/dates";
 import { ItemNotFoundError } from "@/lib/errors";
 import { isUuid } from "@/lib/ids";
 import { isRecord } from "@/lib/records";
-import { isLedgerCase, parseCaseRecord, type CaseRecordV1 } from "@/modules/casefile/client";
+import { CASE_STUDY_BODY_TEMPLATE, isLedgerCase, parseCaseRecord, type CaseRecordV1 } from "@/modules/casefile/client";
 import { addRevision, getItemWithHistory, isItemId, updateItemMeta, type Revision } from "@/modules/research";
 import { CaseError, type CaseErrorCode } from "./errors";
 import { jsonEqual } from "./json-equal";
-import type { CaseDeps, CaseState, CaseSwitches } from "./types";
+import type { CaseDeps, CaseState, CaseSwitches, LedgerStatus } from "./types";
 
 // Drafting and refreshing a case study from a closed idea. The record is the database's: this file asks for it, checks that it
 // reads, and copies it into a revision untouched. It never builds, edits or completes a record, and it never writes a word of the
@@ -54,7 +54,7 @@ async function latestLedgerRevision(deps: CaseDeps, itemId: string) {
 /**
  * Makes the private case study item for a closed idea, or returns the one that exists (a second tap makes nothing). The item is
  * a private draft: the learning objective and the Holds position are left empty for him (the gate requires them), and the body
- * is empty. Figures to is the record's own date. The item is filed under the company the sealed one has become.
+ * is the standard case study body (only the heading the lint needs). Figures to is the record's own date. The item is filed under the company the sealed one has become.
  */
 export async function draftCaseStudy(deps: CaseDeps, ideaId: string): Promise<{ itemId: string; created: boolean }> {
   if (!isUuid(ideaId)) throw new CaseError("case-not-found");
@@ -64,7 +64,7 @@ export async function draftCaseStudy(deps: CaseDeps, ideaId: string): Promise<{ 
   const companyId = await deps.cases.resolveCompany(record.company_id);
   const item = await deps.research.insertItem({ kind: "case_study", title: titleOf(record), companyId, themeId: null, learningObjective: null });
   const revision = await deps.research.insertRevision({
-    itemId: item.id, bodyMd: "", structured: { ledger: raw }, changeReason: "Drafted from the ledger", author: "aksh",
+    itemId: item.id, bodyMd: CASE_STUDY_BODY_TEMPLATE, structured: { ledger: raw }, changeReason: "Drafted from the ledger", author: "aksh",
   });
   await deps.research.updateItem(item.id, { currentRevisionId: revision.id, dataAsOf: record.figures_to });
   return { itemId: item.id, created: true };
@@ -88,7 +88,10 @@ export async function refreshCaseStudy(deps: CaseDeps, itemId: string): Promise<
   const isPublic = item.visibility === "public";
   if (jsonEqual(latest.structured.ledger, raw)) {
     // A refresh whose date step failed earlier: the record is current, Figures to is not.
-    if (!isPublic && item.dataAsOf !== record.figures_to) await updateItemMeta(deps.research, itemId, { dataAsOf: record.figures_to });
+    if (!isPublic && item.dataAsOf !== record.figures_to) {
+      await updateItemMeta(deps.research, itemId, { dataAsOf: record.figures_to });
+      return { changed: true, pendingGate: false };
+    }
     return { changed: false, pendingGate: false };
   }
   const saved = await addRevision(deps.research, {
@@ -96,6 +99,24 @@ export async function refreshCaseStudy(deps: CaseDeps, itemId: string): Promise<
   });
   if (!isPublic) await updateItemMeta(deps.research, itemId, { dataAsOf: record.figures_to });
   return { changed: true, pendingGate: saved.pendingGate };
+}
+
+/**
+ * What the item page says about the ledger: whether the record in the newest revision still equals a fresh build, which date the
+ * ledger now wants as Figures to, and whether the item's own date is behind it. While the item is public its date is frozen, so a
+ * moved date cannot be fixed by a refresh alone: it needs Unpublish, Refresh, Publish (the gate says case_figures_to otherwise).
+ * Null when the ledger cannot be read now: the screen then says nothing it cannot back.
+ */
+export async function ledgerStatus(deps: CaseDeps, itemId: string): Promise<LedgerStatus | null> {
+  try {
+    const { item, latest, idea } = await latestLedgerRevision(deps, itemId);
+    const { raw, record } = await buildChecked(deps, idea);
+    const dateOut = item.dataAsOf !== record.figures_to;
+    return { differs: !jsonEqual(latest.structured.ledger, raw), figuresTo: record.figures_to, dateOut, frozen: dateOut && item.visibility === "public" };
+  } catch (error) {
+    if (error instanceof CaseError) return null;
+    throw error;
+  }
 }
 
 const NOT_READY: Partial<Record<CaseErrorCode, "not_closed" | "void" | "no_lesson" | "exit_pending">> = {
@@ -126,4 +147,13 @@ export async function caseStateForIdea(deps: CaseDeps, ideaId: string): Promise<
 /** The two owner switches, as the database reads them (the desk says why a case study cannot be published). */
 export async function caseSwitches(deps: CaseDeps): Promise<CaseSwitches> {
   return deps.cases.switches();
+}
+
+/** What the idea page's "Case study" block needs. Advisory: a failure to read either part gives no state and "off", never a guess. */
+export async function caseBlockFor(deps: CaseDeps, ideaId: string): Promise<{ state: CaseState | null; reveal: boolean }> {
+  const [state, switches] = await Promise.all([
+    caseStateForIdea(deps, ideaId).catch(() => null),
+    caseSwitches(deps).catch(() => null),
+  ]);
+  return { state, reveal: switches?.reveal === true };
 }

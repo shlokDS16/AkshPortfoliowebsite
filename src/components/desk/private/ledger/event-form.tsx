@@ -12,10 +12,13 @@ import {
 } from "@/modules/ledger/client";
 import { errorProps, FormError, Hint, RadioGroup, SELECT } from "./fields";
 import { useSealedForm } from "./use-sealed-form";
+import { SealedWordsHint } from "./words-hint";
 
 type Props = { ideaId: string; allowed: AddKind[]; voidUntil: string | null; action: (previous: FormState, data: FormData) => Promise<FormState> };
 
 const ERROR_ID = "event-form-error";
+/** The entries a case study can show (D30); a note, a size change or a withdrawal never is. */
+const SHOWN_AS_CASE: AddKind[] = ["revise", "close", "review"];
 const HORIZONS = [
   { value: "keep", label: "Keep the horizon as it is" },
   ...HORIZON_CHOICES.map((c) => ({ value: String(c.days), label: c.label })),
@@ -116,6 +119,7 @@ export function EventForm({ ideaId, allowed, voidUntil, action }: Props) {
         <Label htmlFor="event-body">{LEDGER_WORDS_LABEL[kind]}</Label>
         <Textarea id="event-body" name="bodyMd" required rows={5} value={body} onChange={(e) => setBody(e.target.value)} {...errorProps(state.error, "body", ERROR_ID, "event-body-hint")} />
         <Hint id="event-body-hint">{LEDGER_SEALED_WARNING}</Hint>
+        {SHOWN_AS_CASE.includes(kind) ? <SealedWordsHint text={body} /> : null}
       </div>
       <FormError code={state.error} id={ERROR_ID} submitted={state} />
       <Button type="submit" disabled={!ready} aria-disabled={!ready || pending}>

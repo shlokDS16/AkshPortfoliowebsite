@@ -110,6 +110,14 @@ describe("buildCaseStudyView", () => {
     expect(buildCaseStudyView(one(), slug)!.lookingBack).toEqual([]);
   });
 
+  it("looking back is empty while the body is only the template's headings (a bare heading says nothing)", () => {
+    expect(buildCaseStudyView(one({ bodyMd: "## What would prove me wrong\n\n" }), slug)!.lookingBack).toEqual([]);
+    expect(buildCaseStudyView(one({ bodyMd: "## What would prove me wrong\n\nThe margin story reversing." }), slug)!.lookingBack).toEqual([
+      { kind: "h", text: "What would prove me wrong" },
+      { kind: "p", text: "The margin story reversing." },
+    ]);
+  });
+
   it("how to check: every entry in order with the fingerprint before it, the sealed text and its own fingerprint", () => {
     const rec = record();
     expect(view.checks.map((c) => c.kind)).toEqual(["open", "revise", "close", "review"]);

@@ -1,67 +1,29 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ItemNotFoundError } from "@/lib/errors";
-import { isRecord } from "@/lib/records";
+import { createFakeCases, type FakeCases } from "@/test/fakes/cases-repo";
 import { createMemoryResearchRepo, type MemoryResearchRepo } from "@/test/fakes/research-repo";
 import { caseRecordFixture, FIXTURE_COMPANY, FIXTURE_IDEA } from "@/test/fixtures/case-record";
 import { CASE_ERROR_TEXT, CaseError, caseErrorFromDb, type CaseErrorCode } from "./errors";
+import { CASE_STUDY_BODY_TEMPLATE } from "@/modules/casefile/client";
 import { caseStateForIdea, caseSwitches, draftCaseStudy, recordDiffers, refreshCaseStudy } from "./service";
-import type { CaseDeps, CasesRepo } from "./types";
+import type { CaseDeps } from "./types";
 import { errorCode, errorText } from "@/lib/messages";
 import { AccessDeniedError } from "@/lib/errors";
 import { DbError } from "@/lib/supabase/errors";
 
 const LIVE_COMPANY = "8a1f0f64-0000-4a00-8000-0000000000d2";
 
-type Fake = CasesRepo & {
-  record: unknown;
-  failure: CaseErrorCode | null;
-  aliases: Map<string, string>;
-  on: { reveal: boolean; chart: boolean };
-  built: number;
-  research: MemoryResearchRepo;
-};
-
-function fake(research: MemoryResearchRepo): Fake {
-  const self: Fake = {
-    record: JSON.parse(JSON.stringify(caseRecordFixture())),
-    failure: null,
-    aliases: new Map(),
-    on: { reveal: false, chart: false },
-    built: 0,
-    research,
-    async buildRecord(ideaId) {
-      self.built += 1;
-      if (self.failure) throw new CaseError(self.failure);
-      return isRecord(self.record) && self.record.idea === ideaId ? self.record : (() => { throw new CaseError("case-not-closed"); })();
-    },
-    async switches() {
-      return self.on;
-    },
-    async resolveCompany(id) {
-      return self.aliases.get(id) ?? id;
-    },
-    async findItemForIdea(ideaId) {
-      for (const r of research.revisions) {
-        const led = isRecord(r.structured) ? r.structured.ledger : null;
-        if (isRecord(led) && led.idea === ideaId) return r.itemId;
-      }
-      return null;
-    },
-  };
-  return self;
-}
-
 let research: MemoryResearchRepo;
-let cases: Fake;
+let cases: FakeCases;
 let deps: CaseDeps;
 beforeEach(() => {
   research = createMemoryResearchRepo();
-  cases = fake(research);
+  cases = createFakeCases(research);
   deps = { cases, research };
 });
 
 describe("draftCaseStudy", () => {
-  it("makes a private case study item with the record and no words, and sets Figures to", async () => {
+  it("makes a private case study item with the record and the standard body headings, and sets Figures to", async () => {
     const result = await draftCaseStudy(deps, FIXTURE_IDEA);
     expect(result.created).toBe(true);
     const item = research.items.get(result.itemId)!;
@@ -71,7 +33,9 @@ describe("draftCaseStudy", () => {
     });
     const revision = research.revisions.find((r) => r.itemId === item.id)!;
     expect(item.currentRevisionId).toBe(revision.id);
-    expect(revision).toMatchObject({ bodyMd: "", changeReason: "Drafted from the ledger", author: "aksh" });
+    expect(revision).toMatchObject({ bodyMd: CASE_STUDY_BODY_TEMPLATE, changeReason: "Drafted from the ledger", author: "aksh" });
+    // None of his words and none of the machine's are in the body: headings only.
+    expect(revision.bodyMd.split("\n").filter((l) => l.trim() !== "").every((l) => l.startsWith("#"))).toBe(true);
     expect(revision.structured).toEqual({ ledger: cases.record });
   });
 
@@ -142,6 +106,14 @@ describe("refreshCaseStudy", () => {
     const before = research.revisions.length;
     expect(await refreshCaseStudy(deps, id)).toEqual({ changed: false, pendingGate: false });
     expect(research.revisions).toHaveLength(before);
+  });
+
+  it("moves a stale Figures to on a private item whose record already matches, and says it changed something", async () => {
+    const id = await drafted();
+    research.items.set(id, { ...research.items.get(id)!, dataAsOf: "2026-06-01" });
+    expect(await refreshCaseStudy(deps, id)).toEqual({ changed: true, pendingGate: false });
+    expect(research.items.get(id)?.dataAsOf).toBe("2026-06-16");
+    expect(await refreshCaseStudy(deps, id)).toEqual({ changed: false, pendingGate: false });
   });
 
   it("on a public item stores the revision for the gate and leaves the frozen date alone", async () => {

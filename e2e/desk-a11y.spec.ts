@@ -1,5 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { adminDb } from "./support/desk";
+import { seedLedgerCaseItem } from "./support/case-item";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
@@ -61,3 +63,23 @@ test("a capture on /desk is acknowledged and stored (R2 row 4; unlock-to-saved i
   testInfo.annotations.push({ type: "capture-ms", description: String(Date.now() - started) });
   await expect(page.getByRole("region", { name: "Today" })).toContainText(text);
 });
+
+// Plan 3b Task 4: the item page of a case study from the ledger (the read-only record, no facts editor), in both themes, with no
+// sideways scroll. The idea page's "Case study" block is scanned inside desk-ledger.spec.ts, where a closed idea exists.
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`a ledger case study's item page (${colorScheme}): the record is read-only, there is no facts editor, and axe is clean`, async ({ page }, testInfo) => {
+    const item = await seedLedgerCaseItem(await adminDb(), testInfo.project.name.endsWith("mobile") ? "m" : "d");
+    await page.emulateMedia({ colorScheme });
+    await page.goto(`/desk/items/${item.id}`);
+    await expect(page.getByRole("heading", { level: 1, name: item.title })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "From the ledger (sealed; cannot be edited)" })).toBeVisible();
+    await expect(page.getByText("I waited too long on the monsoon signal.")).toBeVisible();
+    await expect(page.getByText("Whether the ledger has changed could not be read just now.")).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Text sheet" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Facts", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Save revision" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+    expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
+  });
+}

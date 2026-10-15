@@ -29,6 +29,8 @@ type Props = {
   provenance?: Record<string, FactProvenance>;
   /** Send a document's staged figures back to its review screen. */
   sendBack?: (documentId: string) => Promise<ActionResult>;
+  /** A case study from the ledger: the body and nothing else (no facts sheet; the record is the ledger's and is not edited here). */
+  ledgerCase?: boolean;
 };
 
 const NO_STAGED: StagedRow[] = [];
@@ -37,7 +39,7 @@ const NO_PROVENANCE: Record<string, FactProvenance> = {};
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Aksh's words and the facts are separate fields (CLAUDE.md); the facts (form or text sheet) are checked with the casefile schema's own rules as he types. */
-export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figuresTo = null, staged = NO_STAGED, stagedReadings = NO_READINGS, provenance = NO_PROVENANCE, sendBack }: Props) {
+export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figuresTo = null, staged = NO_STAGED, stagedReadings = NO_READINGS, provenance = NO_PROVENANCE, sendBack, ledgerCase = false }: Props) {
   const body = useRef<HTMLTextAreaElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const [bodyText, setBodyText] = useState(bodyMd);
@@ -98,7 +100,9 @@ export function RevisionEditor({ action, bodyMd, sheet, isPublic = false, figure
         <Label htmlFor="bodyMd">Body (Markdown)</Label>
         <Textarea ref={body} id="bodyMd" name="bodyMd" value={bodyText} onChange={(e) => setBodyText(e.target.value)} rows={14} />
         <p className="text-caption text-ink-muted">
-          Your words. For a company file: the view, then &quot;## What would prove me wrong&quot; with one &quot;- T1: …&quot; line per test. Cite a fact with [F1].
+          {ledgerCase
+            ? "Your words, shown under \"Looking back\" on the page. The entries from the ledger are not edited here. Keep the heading \"## What would prove me wrong\": the checks need it."
+            : "Your words. For a company file: the view, then \"## What would prove me wrong\" with one \"- T1: …\" line per test. Cite a fact with [F1]."}
         </p>
       </div>
       {sheet !== null && staged.length + stagedReadings.length > 0 ? (
