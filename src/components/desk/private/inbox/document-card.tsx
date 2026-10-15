@@ -12,6 +12,7 @@ import { PageChooser } from "./page-chooser";
 import { TranscriptCard } from "./transcript-card";
 import type { InboxActions } from "./types";
 import { useInboxAction } from "./use-inbox-action";
+import { WorkbookActions } from "./workbook-actions";
 
 const LOOK: Record<Tray, { word: string; icon: LucideIcon; rule: string; text: string }> = {
   ready: { word: "Ready", icon: Check, rule: "border-l-ink", text: "text-ink" },
@@ -40,6 +41,7 @@ export function DocumentCard({ doc, aiOn, actions }: Props) {
   const { pending, error, run } = useInboxAction();
   const { view } = doc;
   const look = LOOK[view.tray];
+  const workbook = doc.kind === "xlsx";
   const Icon = look.icon;
   const ticked = doc.pages.filter((p) => p.selected).length;
   // A page ticked while AI was off has no step yet: with AI on, one button queues them all.
@@ -64,6 +66,7 @@ export function DocumentCard({ doc, aiOn, actions }: Props) {
         <p className="mt-0.5 text-small text-ink-muted">
           Uploaded {formatDate(doc.createdAt)}
           {doc.pageCount ? ` · ${formatCount(doc.pageCount, "page")}` : ""}
+          {workbook ? " · Excel workbook" : ""}
         </p>
       </div>
       <p className="text-body text-ink-body">{view.message}</p>
@@ -71,7 +74,8 @@ export function DocumentCard({ doc, aiOn, actions }: Props) {
       {doc.status === "active" && view.tray === "ready" && doc.transcript !== null ? <TranscriptCard documentId={doc.id} transcript={doc.transcript} /> : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        {reviewable ? (
+        {workbook ? <WorkbookActions doc={doc} run={run} pending={pending} /> : null}
+        {!workbook && reviewable ? (
           <Link
             href={`/desk/inbox/${doc.id}/review`}
             className={cn(link, "transition-transform duration-(--motion-fast) ease-snap active:scale-(--press-scale)", view.tray === "ready" ? "bg-ink text-paper" : "border border-rule-strong bg-paper text-ink")}
@@ -79,7 +83,7 @@ export function DocumentCard({ doc, aiOn, actions }: Props) {
             Review
           </Link>
         ) : null}
-        {view.tray === "attention" ? (
+        {!workbook && view.tray === "attention" ? (
           <>
             <Link href="/desk/items" className={cn(link, "bg-ink text-paper transition-transform duration-(--motion-fast) ease-snap active:scale-(--press-scale)")}>
               Enter manually
@@ -97,7 +101,7 @@ export function DocumentCard({ doc, aiOn, actions }: Props) {
             Read the ticked pages
           </Button>
         ) : null}
-        {skippable ? (
+        {!workbook && skippable ? (
           <Button type="button" variant="outline" disabled={pending} onClick={() => void run(() => skipDocumentAction(doc.id))}>
             Skip this document
           </Button>

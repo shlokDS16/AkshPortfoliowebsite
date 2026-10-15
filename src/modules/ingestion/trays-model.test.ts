@@ -80,17 +80,20 @@ function stub(rows: unknown[] | null, error: { message: string } | null = null) 
 }
 
 describe("readModels", () => {
-  it("returns each workbook's status and counts, and asks nothing for none", async () => {
+  it("returns each workbook's version (for Open model) and, once read, its counts; asks nothing for none", async () => {
     const { db, ops } = stub([
-      { document_id: "a", status: "ready", sheet_count: 4, cell_count: 3912, formula_count: 1204 },
-      { document_id: "b", status: "confirmed", sheet_count: 1, cell_count: 5, formula_count: 2 },
-      { document_id: "c", status: "reading", sheet_count: null, cell_count: null, formula_count: null },
+      { id: "v-a", document_id: "a", status: "ready", sheet_count: 4, cell_count: 3912, formula_count: 1204 },
+      { id: "v-b", document_id: "b", status: "confirmed", sheet_count: 1, cell_count: 5, formula_count: 2 },
+      { id: "v-c", document_id: "c", status: "reading", sheet_count: null, cell_count: null, formula_count: null },
+      { id: "v-d", document_id: "d", status: "refused", sheet_count: null, cell_count: null, formula_count: null },
     ]);
-    const models = await readModels(db, ["a", "b", "c"]);
-    expect(models.get("a")).toEqual({ status: "ready", sheets: 4, cells: 3912, formulas: 1204 });
-    expect(models.get("b")).toEqual({ status: "confirmed", sheets: 1, cells: 5, formulas: 2 });
-    expect(models.has("c")).toBe(false); // nothing to say until it is read
-    expect(ops).toContainEqual(["in", "document_id", ["a", "b", "c"]]);
+    const models = await readModels(db, ["a", "b", "c", "d"]);
+    expect(models.get("a")).toEqual({ link: { versionId: "v-a", status: "ready" }, summary: { status: "ready", sheets: 4, cells: 3912, formulas: 1204 } });
+    expect(models.get("b")).toEqual({ link: { versionId: "v-b", status: "confirmed" }, summary: { status: "confirmed", sheets: 1, cells: 5, formulas: 2 } });
+    // Nothing for the card to say until it is read; the page link is still known.
+    expect(models.get("c")).toEqual({ link: { versionId: "v-c", status: "reading" }, summary: null });
+    expect(models.get("d")).toEqual({ link: { versionId: "v-d", status: "refused" }, summary: null });
+    expect(ops).toContainEqual(["in", "document_id", ["a", "b", "c", "d"]]);
     const none = stub([]);
     expect((await readModels(none.db, [])).size).toBe(0);
     expect(none.db.from).not.toHaveBeenCalled();
