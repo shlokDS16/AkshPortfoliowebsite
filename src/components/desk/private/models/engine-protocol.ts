@@ -15,8 +15,11 @@ export interface Engine {
   dispose(): void;
 }
 
-/** Opens the engine on the model at `url` (the signed link). Rejects when the chunk, the wasm or the model cannot be loaded. */
-export type Connect = (url: string, results: EngineCell[]) => Promise<Engine>;
+/**
+ * Opens the engine on the model at `url` (the signed link). Rejects when the chunk, the wasm or the model cannot be loaded, when the
+ * load takes more than 60 seconds, or when `signal` is aborted (which also ends the worker).
+ */
+export type Connect = (url: string, results: EngineCell[], options?: { signal?: AbortSignal }) => Promise<Engine>;
 
 export type ToWorker =
   | { type: "load"; id: number; url: string; results: EngineCell[] }

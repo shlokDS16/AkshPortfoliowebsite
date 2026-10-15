@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cellKey, formatNumber, fromEditText, isPercentFormat, MAX_SCENARIO_VALUE, toEditText, type ScenarioCell } from "@/modules/valuation/client";
@@ -22,9 +22,9 @@ export function CellName({ cell }: { cell: ScenarioCell }) {
   );
 }
 
-type RowProps = { cell: ScenarioCell; value: number; disabled: boolean; onChange: (value: number) => void; onReset: () => void };
+type RowProps = { cell: ScenarioCell; value: number; disabled: boolean; onChange: (value: number) => void; onReset: () => void; onValidity: (id: string, ok: boolean) => void };
 
-function InputRow({ cell, value, disabled, onChange, onReset }: RowProps) {
+function InputRow({ cell, value, disabled, onChange, onReset, onValidity }: RowProps) {
   const percent = isPercentFormat(cell.z);
   const [text, setText] = useState(() => toEditText(value, cell.z));
   const [shown, setShown] = useState(value);
@@ -35,6 +35,11 @@ function InputRow({ cell, value, disabled, onChange, onReset }: RowProps) {
     setText(toEditText(value, cell.z));
     setBad(false);
   }
+  // The calculator needs to know that a box shows text that is not a number (it stops Save).
+  useEffect(() => {
+    onValidity(cell.id, !bad);
+    return () => onValidity(cell.id, true);
+  }, [bad, cell.id, onValidity]);
   const key = cellKey(cell.sheet, cell.addr);
   const id = `in-${cell.id}`;
 
@@ -88,9 +93,9 @@ function InputRow({ cell, value, disabled, onChange, onReset }: RowProps) {
   );
 }
 
-type Props = { inputs: ScenarioCell[]; values: Record<string, number>; disabled: boolean; onChange: (id: string, value: number) => void; onReset: (id: string) => void };
+type Props = { inputs: ScenarioCell[]; values: Record<string, number>; disabled: boolean; onChange: (id: string, value: number) => void; onReset: (id: string) => void; onValidity: (id: string, ok: boolean) => void };
 
-export function InputsPanel({ inputs, values, disabled, onChange, onReset }: Props) {
+export function InputsPanel({ inputs, values, disabled, onChange, onReset, onValidity }: Props) {
   return (
     <section aria-labelledby="inputs-h" className="min-w-0">
       <h2 id="inputs-h" className="text-subtitle text-ink desk:text-subtitle-desk">
@@ -98,7 +103,7 @@ export function InputsPanel({ inputs, values, disabled, onChange, onReset }: Pro
       </h2>
       <ul>
         {inputs.map((cell) => (
-          <InputRow key={cell.id} cell={cell} value={values[cell.id] ?? cell.value} disabled={disabled} onChange={(v) => onChange(cell.id, v)} onReset={() => onReset(cell.id)} />
+          <InputRow key={cell.id} cell={cell} value={values[cell.id] ?? cell.value} disabled={disabled} onChange={(v) => onChange(cell.id, v)} onReset={() => onReset(cell.id)} onValidity={onValidity} />
         ))}
       </ul>
     </section>

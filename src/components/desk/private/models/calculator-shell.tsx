@@ -17,7 +17,7 @@ export function CalculatorShell({ cells, failed = false }: { cells: ScenarioCell
         {failed ? CALCULATOR_FAILED : CALCULATOR_LOADING}
       </p>
       <div className="grid grid-cols-1 gap-(--block-gap) desk:grid-cols-2">
-        <InputsPanel inputs={inputs} values={{}} disabled onChange={noop} onReset={noop} />
+        <InputsPanel inputs={inputs} values={{}} disabled onChange={noop} onReset={noop} onValidity={noop} />
         <ResultsPanel outputs={outputs} results={null} />
       </div>
     </div>

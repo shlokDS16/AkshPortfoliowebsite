@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { errorText } from "@/lib/messages";
 import { deleteValuationScenarioAction, saveValuationScenarioAction } from "@/modules/valuation/actions";
 import type { ScenarioRow } from "@/modules/valuation/client";
-import { UNSAVED, WORKBOOK_VALUES } from "./copy";
+import { FIX_INPUTS_FIRST, UNSAVED, WORKBOOK_VALUES } from "./copy";
 
 // The scenario picker (spec s7.3): "Workbook values" first and read-only (it is never changed or deleted: an edit becomes unsaved
 // changes), then his saved scenarios. "Save as scenario" stores the input values only, under his name and optional note; a saved one can
@@ -24,11 +24,13 @@ type Props = {
   picked: string;
   values: Record<string, number>;
   disabled: boolean;
+  /** An input box shows text that is not a number: saving would store a value other than the one shown. */
+  saveBlocked: boolean;
   onPick: (id: string) => void;
   onSaved: (id: string) => void;
 };
 
-export function ScenarioPicker({ versionId, scenarios, picked, values, disabled, onPick, onSaved }: Props) {
+export function ScenarioPicker({ versionId, scenarios, picked, values, disabled, saveBlocked, onPick, onSaved }: Props) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
@@ -119,7 +121,8 @@ export function ScenarioPicker({ versionId, scenarios, picked, values, disabled,
             <Textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={2} />
           </label>
           <p className="text-small text-ink-muted desk:text-small-desk">Saves the input values shown now. The workbook is not changed.</p>
-          <Button type="submit" disabled={pending || disabled || name.trim() === ""}>
+          {saveBlocked ? <p className="text-small text-bad">{FIX_INPUTS_FIRST}</p> : null}
+          <Button type="submit" disabled={pending || disabled || saveBlocked || name.trim() === ""}>
             Save
           </Button>
         </form>

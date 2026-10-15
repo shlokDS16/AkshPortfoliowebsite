@@ -8,6 +8,7 @@ import type { BlockReason, Report, VersionStatus } from "@/modules/valuation/cli
 export const RULE9_LINE = "Private. Scenario outputs from your workbook; never published (rule 9).";
 export const CALCULATOR_FAILED = "The calculator did not load. Check the connection and reload. Your saved scenarios are safe.";
 export const CALCULATOR_LOADING = "Loading the calculator. The workbook values are shown meanwhile.";
+export const FIX_INPUTS_FIRST = "Fix the inputs marked above first.";
 export const UPLOAD_FIXED = "Upload a fixed workbook";
 export const READING_NOTE = "Reading the workbook. This page shows the model once the read has finished.";
 

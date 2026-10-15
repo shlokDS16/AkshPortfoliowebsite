@@ -55,7 +55,7 @@ describe("Calculator", () => {
     render(<Calculator versionId="v" cells={cells} scenarios={[]} connect={connect} />);
     for (const name of ["Workbook value", "Scenario output", "Change"]) expect(screen.getByRole("columnheader", { name })).toBeInTheDocument();
     await waitFor(() => expect(within(outputRow()).getAllByText("115.04")).toHaveLength(2));
-    expect(connect).toHaveBeenCalledWith("https://storage.test/m.json", [{ sheet: "DCF", addr: "B13" }]);
+    expect(connect).toHaveBeenCalledWith("https://storage.test/m.json", [{ sheet: "DCF", addr: "B13" }], { signal: expect.any(AbortSignal) });
   });
 
   it("edits a percent cell in percent: 12.5 means 12.5%, and the output and the change follow", async () => {
@@ -117,6 +117,23 @@ describe("Calculator", () => {
     await waitFor(() => expect(saveValuationScenarioAction).toHaveBeenCalledWith({ versionId: "v", name: "Bear", note: "", values: { [COST]: 0.14, [GROWTH]: 0.04 } }));
   });
 
+  it("Save is off while an input shows text that is not a number, and on again once it is fixed", async () => {
+    const { connect } = fakeEngine();
+    render(<Calculator versionId="v" cells={cells} scenarios={[]} connect={connect} />);
+    await waitFor(() => expect(costField()).toBeEnabled());
+    fireEvent.click(screen.getByText("Save as scenario"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "Bear" } });
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save).toBeEnabled();
+    fireEvent.change(costField(), { target: { value: "12.5x" } });
+    expect(save).toBeDisabled();
+    expect(screen.getByText("Fix the inputs marked above first.")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Scenario" })).toBeEnabled();
+    fireEvent.change(costField(), { target: { value: "12.5" } });
+    expect(save).toBeEnabled();
+    expect(screen.queryByText("Fix the inputs marked above first.")).toBeNull();
+  });
+
   it("the sensitivity grid's centre is this scenario", async () => {
     const { engine, connect } = fakeEngine();
     render(<Calculator versionId="v" cells={cells} scenarios={[]} connect={connect} />);
@@ -127,6 +144,17 @@ describe("Calculator", () => {
     const centre = within(grid).getByText("this scenario").closest("td");
     expect(centre).toHaveTextContent("115.04this scenario");
     expect(within(grid).getAllByRole("row")).toHaveLength(6);
+  });
+
+  it("a refresh that brings the same cells again does not load the engine a second time", async () => {
+    const { connect } = fakeEngine();
+    const { rerender } = render(<Calculator versionId="v" cells={cells} scenarios={[]} connect={connect} />);
+    await waitFor(() => expect(costField()).toBeEnabled());
+    rerender(<Calculator versionId="v" cells={cells.map((c) => ({ ...c }))} scenarios={[bear]} connect={connect} />);
+    await waitFor(() => expect(screen.getByRole("option", { name: "Bear" })).toBeInTheDocument());
+    expect(costField()).toBeEnabled();
+    expect(connect).toHaveBeenCalledTimes(1);
+    expect(modelUrlAction).toHaveBeenCalledTimes(1);
   });
 
   it("a failed load shows the spec s8 sentence", async () => {

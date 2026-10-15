@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { modelUrlAction } from "@/modules/valuation/actions";
-import type { ResultValue, ScenarioCell, ScenarioRow } from "@/modules/valuation/client";
+import { cellKey, type ResultValue, type ScenarioCell, type ScenarioRow } from "@/modules/valuation/client";
 import { CALCULATOR_FAILED, CALCULATOR_LOADING } from "./copy";
 import type { Connect, Engine } from "./engine-protocol";
 import { InputsPanel } from "./inputs-panel";
@@ -22,15 +22,20 @@ type Status = "loading" | "ready" | "failed";
 
 function useEngine(versionId: string, outputs: ScenarioCell[], connect: Connect): { status: Status; engine: Engine | null } {
   const [state, setState] = useState<{ status: Status; engine: Engine | null }>({ status: "loading", engine: null });
-  const targets = useMemo(() => outputs.map((c) => ({ sheet: c.sheet, addr: c.addr })), [outputs]);
+  // A refresh after a save brings the same cells as new objects. The engine is keyed on which result cells there are, not on the array, so
+  // a save or a delete never loads the model again.
+  const resultKey = outputs.map((c) => cellKey(c.sheet, c.addr)).join("|");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- outputs changes identity on every refresh; resultKey says whether its content did
+  const targets = useMemo(() => outputs.map((c) => ({ sheet: c.sheet, addr: c.addr })), [resultKey]);
   useEffect(() => {
     let live = true;
     let opened: Engine | null = null;
+    const abort = new AbortController();
     (async () => {
       try {
         const link = await modelUrlAction(versionId);
         if (!link.ok) throw new Error(link.code);
-        opened = await connect(link.url, targets);
+        opened = await connect(link.url, targets, { signal: abort.signal });
         if (live) setState({ status: "ready", engine: opened });
         else opened.dispose();
       } catch {
@@ -39,7 +44,10 @@ function useEngine(versionId: string, outputs: ScenarioCell[], connect: Connect)
     })();
     return () => {
       live = false;
+      abort.abort();
       opened?.dispose();
+      // The engine is gone with this effect: nothing is sent to it while the next one loads.
+      setState({ status: "loading", engine: null });
     };
   }, [versionId, targets, connect]);
   return state;
@@ -53,6 +61,18 @@ export default function Calculator({ versionId, cells, scenarios, connect = conn
   const [picked, setPicked] = useState<string>(WORKBOOK);
   const [results, setResults] = useState<ResultValue[] | null>(null);
   const [broken, setBroken] = useState(false);
+  const [invalid, setInvalid] = useState<ReadonlySet<string>>(new Set());
+  const onValidity = useCallback(
+    (id: string, ok: boolean) =>
+      setInvalid((was) => {
+        if (ok !== was.has(id)) return was;
+        const next = new Set(was);
+        if (ok) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+    [],
+  );
   const { status, engine } = useEngine(versionId, outputs, connect);
   const seq = useRef(0);
 
@@ -98,11 +118,11 @@ export default function Calculator({ versionId, cells, scenarios, connect = conn
           {CALCULATOR_LOADING}
         </p>
       ) : null}
-      <ScenarioPicker versionId={versionId} scenarios={scenarios} picked={shown} values={values} disabled={status !== "ready"} onPick={pick} onSaved={setPicked} />
+      <ScenarioPicker versionId={versionId} scenarios={scenarios} picked={shown} values={values} disabled={status !== "ready"} saveBlocked={invalid.size > 0} onPick={pick} onSaved={setPicked} />
       <div>
         <FirstResultBar outputs={outputs} results={failed ? null : results} />
         <div className="grid grid-cols-1 gap-(--block-gap) pt-2 desk:grid-cols-2">
-          <InputsPanel inputs={inputs} values={values} disabled={status !== "ready"} onChange={edit} onReset={(id) => edit(id, workbook[id])} />
+          <InputsPanel inputs={inputs} values={values} disabled={status !== "ready"} onChange={edit} onReset={(id) => edit(id, workbook[id])} onValidity={onValidity} />
           <ResultsPanel outputs={outputs} results={failed ? null : results} />
         </div>
       </div>

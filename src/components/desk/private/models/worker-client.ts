@@ -6,10 +6,13 @@ import type { Connect, Engine, FromWorker, ToWorker } from "./engine-protocol";
 
 type Request = ToWorker extends infer T ? (T extends { id: number } ? Omit<T, "id"> : never) : never;
 
-export const connectWorker: Connect = async (url, results) => {
+export const LOAD_TIMEOUT_MS = 60_000;
+
+export const connectWorker: Connect = async (url, results, options) => {
   const worker = new Worker(new URL("./engine.worker.ts", import.meta.url), { type: "module" });
   const waiting = new Map<number, { resolve: (v: ResultValue[]) => void; reject: (e: Error) => void }>();
   let seq = 0;
+  let stopped = false;
   const failAll = () => {
     for (const w of waiting.values()) w.reject(new Error("calculator stopped"));
     waiting.clear();
@@ -25,24 +28,39 @@ export const connectWorker: Connect = async (url, results) => {
   worker.onmessageerror = failAll;
   const send = (request: Request) =>
     new Promise<ResultValue[]>((resolve, reject) => {
+      // A stopped worker drops what it is sent, so a request to it would wait for ever: refuse it here.
+      if (stopped) return reject(new Error("calculator stopped"));
       seq += 1;
       waiting.set(seq, { resolve, reject });
       worker.postMessage({ ...request, id: seq } as ToWorker);
     });
 
+  const stop = () => {
+    stopped = true;
+    failAll();
+    worker.terminate();
+  };
+
   const engine: Engine = {
     evaluate: (inputs) => send({ type: "evaluate", inputs }),
     grid: (base, a, b, points, result) => send({ type: "grid", base, a: { sheet: a.sheet, addr: a.addr }, b: { sheet: b.sheet, addr: b.addr }, points, result: { sheet: result.sheet, addr: result.addr } }),
-    dispose: () => {
-      failAll();
-      worker.terminate();
-    },
+    dispose: stop,
   };
+  const signal = options?.signal;
+  if (signal?.aborted) {
+    stop();
+    throw new Error("calculator stopped");
+  }
+  signal?.addEventListener("abort", stop, { once: true });
+  const timer = setTimeout(stop, LOAD_TIMEOUT_MS);
   try {
     await send({ type: "load", url, results });
   } catch (error) {
-    engine.dispose();
+    stop();
     throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", stop);
   }
   return engine;
 };
