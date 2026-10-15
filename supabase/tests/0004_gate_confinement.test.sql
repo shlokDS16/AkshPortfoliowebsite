@@ -71,8 +71,8 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select throws_ok($$ select public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
-    public.test_lint('e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', true)) $$,
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2',
+    public.test_lint('e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', true)) $$,
   '42501', null, 'an authenticated admin session cannot execute publish_revision, even naming itself');
 select throws_ok($$ select public.unpublish_item('aaaaaaaa-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001') $$,
   '42501', null, 'an authenticated admin session cannot execute unpublish_item');
@@ -93,12 +93,12 @@ reset role;
 -- service_role: the actor must be an admin, and the policy version is pinned.
 set local role service_role;
 select throws_ok($$ select public.publish_revision('bbbbbbbb-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
-    public.test_lint('e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', true)) $$,
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2',
+    public.test_lint('e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', true)) $$,
   '42501', null, 'a non-admin actor cannot publish');
 select throws_ok($$ select public.publish_revision(null, 'd1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
-    public.test_lint('e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', true)) $$,
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2',
+    public.test_lint('e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', true)) $$,
   '42501', null, 'a null actor cannot publish');
 select throws_ok($$ select public.unpublish_item('bbbbbbbb-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001') $$,
   '42501', null, 'a non-admin actor cannot unpublish');
@@ -107,8 +107,8 @@ select is((select verdict from public.publish_revision('aaaaaaaa-0000-4000-8000-
     public.test_lint('e1000000-0000-4000-8000-000000000001', 'pol-1', true))),
   'fail', 'a self-consistent lint under any policy version but the pinned one fails');
 select is((select verdict from public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001',
-    'd1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
-    public.test_lint('e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', true))),
+    'd1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2',
+    public.test_lint('e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', true))),
   'pass', 'service_role with a verified admin actor and the pinned policy publishes');
 reset role;
 select ok((select reasons -> 'failures' @> '[{"rule":"policy"}]'::jsonb from public.gate_decisions
@@ -125,8 +125,8 @@ select throws_ok($$ select public.unpublish_item('aaaaaaaa-0000-4000-8000-000000
 -- Allowances: only a rule 1 sentence flagged by the latest decision, on the latest revision.
 -- d2's gate fails with rule 1 findings (hashes 1 and 4) and a rule 2 finding (hash 2).
 select is((select verdict from public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001',
-    'd2000000-0000-4000-8000-000000000002', 'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
-    public.test_lint('e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', false, jsonb_build_array(
+    'd2000000-0000-4000-8000-000000000002', 'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2',
+    public.test_lint('e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', false, jsonb_build_array(
       jsonb_build_object('rule', '1', 'sentenceHash', repeat('1', 64)),
       jsonb_build_object('rule', '1', 'sentenceHash', repeat('4', 64)),
       jsonb_build_object('rule', '2', 'sentenceHash', repeat('2', 64)))))),

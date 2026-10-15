@@ -88,8 +88,8 @@ select set_config('request.jwt.claims',
 
 -- Publish g1 through the gate.
 select is((select verdict from public.test_publish('d1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
-    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07-v1.1"}'::jsonb)),
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2',
+    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07-v1.2"}'::jsonb)),
   'pass', 'g1 is published through the gate');
 select is(current_setting('app.publish_gate', true), 'off', 'the gate is closed again after publish_revision returns');
 

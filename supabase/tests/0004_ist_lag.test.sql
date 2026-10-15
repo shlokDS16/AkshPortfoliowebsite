@@ -33,8 +33,8 @@ update public.items set current_revision_id = 'e2000000-0000-4000-8000-000000000
  where id = 'd2000000-0000-4000-8000-000000000002';
 select set_config('app.publish_gate', 'off', true);
 insert into public.gate_decisions (item_id, revision_id, policy_version, verdict) values
-  ('d1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', 'pass'),
-  ('d2000000-0000-4000-8000-000000000002', 'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1', 'pass');
+  ('d1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', 'pass'),
+  ('d2000000-0000-4000-8000-000000000002', 'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', 'pass');
 -- Case studies for the gate's own rule 3 check.
 insert into public.items (id, kind, title, learning_objective, data_as_of) values
   ('d3000000-0000-4000-8000-000000000003', 'case_study', 'Case thirty', 'Learn.', public.test_ist_today() - 30),
@@ -45,8 +45,8 @@ insert into public.item_revisions (id, item_id, body_md) values
 
 create function public.test_case_verdict(p_item uuid, p_rev uuid) returns text language sql
 as $$ select verdict from public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', p_item, p_rev,
-       'sebi-unreg-2026-07-v1.1', jsonb_build_object('passed', true, 'revisionId', p_rev::text,
-       'policyVersion', 'sebi-unreg-2026-07-v1.1')) $$;
+       'sebi-unreg-2026-07-v1.2', jsonb_build_object('passed', true, 'revisionId', p_rev::text,
+       'policyVersion', 'sebi-unreg-2026-07-v1.2')) $$;
 grant execute on function public.test_case_verdict(uuid, uuid) to service_role;
 
 -- The definitions no longer read the session date.

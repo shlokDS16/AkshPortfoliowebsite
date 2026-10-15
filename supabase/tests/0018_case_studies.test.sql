@@ -150,11 +150,11 @@ select ok(has_function_privilege('service_role', 'public.publish_revision(uuid, 
       and not has_function_privilege('authenticated', 'public.publish_revision(uuid, uuid, uuid, text, jsonb)', 'execute')
       and not has_function_privilege('public', 'public.publish_revision(uuid, uuid, uuid, text, jsonb)', 'execute'),
   'publish_revision is executable by service_role only');
-select ok((select p.prosrc like '%sebi-unreg-2026-07-v1.1%' and p.prosrc like '%private.case_gate_failures%'
+select ok((select p.prosrc like '%sebi-unreg-2026-07-v1.2%' and p.prosrc like '%private.case_gate_failures%'
               and p.prosrc like '%A newer revision exists; publish the latest.%' and p.prosrc like '%private.ledger_gate_item_failures%'
               and p.prosrc like '%file_no_seq%'
          from pg_proc p where p.oid = 'public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure),
-  'publish_revision pins policy v1.1, calls rule 10 and still carries the older checks');
+  'publish_revision pins policy v1.2, calls rule 10 and still carries the older checks');
 select ok((select p.prosrc !~* 'public\.ideas\M' and p.prosrc ~* 'public\.idea_events' from pg_proc p
             where p.oid = 'private.case_study_record(uuid)'::regprocedure),
   'the builder reads the sealed events and never the ideas projection');
@@ -361,7 +361,7 @@ begin
 end $$;
 create function pg_temp.addrev(p_ikey text, p_rkey text, p_struct jsonb) returns void language sql as $$
   insert into public.item_revisions (id, item_id, body_md, structured) values (pg_temp.co('R_' || p_rkey), pg_temp.co('I_' || p_ikey), '', p_struct) $$;
-create function pg_temp.vr(p_ikey text, p_rkey text, p_policy text default 'sebi-unreg-2026-07-v1.1') returns text language plpgsql as $$
+create function pg_temp.vr(p_ikey text, p_rkey text, p_policy text default 'sebi-unreg-2026-07-v1.2') returns text language plpgsql as $$
 declare d public.gate_decisions;
 begin
   d := public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', pg_temp.co('I_' || p_ikey), pg_temp.co('R_' || p_rkey), p_policy,
@@ -524,7 +524,7 @@ select pg_temp.csitem('OLD', 'CS9');
 select is(pg_temp.vr('OLD', 'OLD', 'sebi-unreg-2026-07'), 'fail', 'the v1 policy string is refused');
 select is((select g.reasons -> 'failures' -> 0 ->> 'message' from public.gate_decisions g join pg_temp.decs x on x.decision_id = g.id
             where x.item_id = pg_temp.co('I_OLD') order by x.n desc limit 1),
-  'This database accepts only policy version sebi-unreg-2026-07-v1.1.', 'saying which version it accepts');
+  'This database accepts only policy version sebi-unreg-2026-07-v1.2.', 'saying which version it accepts');
 
 -- 7. listed_on: the sealed day of the close entry is published; the first review's hash is missing from the stored line of its day.
 select pg_temp.sw('ledger_reveal', 'off');

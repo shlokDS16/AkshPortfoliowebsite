@@ -21,10 +21,10 @@ insert into auth.users (id, email) values ('aaaaaaaa-0000-4000-8000-000000000001
 
 create function public.test_lint(p_rev uuid, p_passed boolean default true)
 returns jsonb language sql immutable
-as $$ select jsonb_build_object('passed', p_passed, 'revisionId', p_rev::text, 'policyVersion', 'sebi-unreg-2026-07-v1.1') $$;
+as $$ select jsonb_build_object('passed', p_passed, 'revisionId', p_rev::text, 'policyVersion', 'sebi-unreg-2026-07-v1.2') $$;
 create function public.test_verdict(p_item uuid, p_rev uuid, p_passed boolean default true)
 returns text language sql
-as $$ select verdict from public.test_publish(p_item, p_rev, 'sebi-unreg-2026-07-v1.1', public.test_lint(p_rev, p_passed)) $$;
+as $$ select verdict from public.test_publish(p_item, p_rev, 'sebi-unreg-2026-07-v1.2', public.test_lint(p_rev, p_passed)) $$;
 grant execute on function public.test_lint(uuid, boolean), public.test_verdict(uuid, uuid, boolean) to authenticated;
 
 insert into public.items (id, kind, title, learning_objective) values
