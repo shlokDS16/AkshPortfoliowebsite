@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildXlsx, colLetters, type CellSpec, type XlsxSpec } from "@/test/xlsx-builder";
 import { XlsxRefusal, type RefusalCode } from "./refusal";
@@ -210,8 +211,37 @@ describe("the packages that read workbooks", () => {
     expect(manifest.dependencies.xlsx).toBe("https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz");
   });
 
+  it("the lockfile pins the SheetJS tarball by an sha512 integrity, so a swapped CDN file fails the install", () => {
+    const lock = readFileSync(new URL("../../../pnpm-lock.yaml", import.meta.url), "utf8");
+    const entry = /^ {2}xlsx@https:\/\/cdn\.sheetjs\.com\/xlsx-0\.20\.3\/xlsx-0\.20\.3\.tgz:\r?\n {4}resolution: \{([^}\r\n]*)\}/m.exec(lock);
+    expect(entry, "the xlsx package entry").not.toBeNull();
+    expect(entry![1]).toMatch(/tarball: https:\/\/cdn\.sheetjs\.com\/xlsx-0\.20\.3\/xlsx-0\.20\.3\.tgz/);
+    expect(entry![1]).toMatch(/integrity: sha512-[A-Za-z0-9+/]{86}==/);
+  });
+
   it("xlsx, @ironcalc/nodejs and @ironcalc/wasm are licensed MIT or Apache-2.0", () => {
     for (const name of ["xlsx", "@ironcalc/nodejs", "@ironcalc/wasm"]) expect(pkg(name).license, name).toMatch(ok);
+  });
+
+  it("every @ironcalc/nodejs-<platform> binary package that is installed is licensed MIT or Apache-2.0, and the lockfile lists none the main package does not declare", () => {
+    // pnpm installs only the optional binary for the machine it runs on (win32-x64 here, linux-x64-gnu in CI), so the licence of the others cannot
+    // be read from disk. What is checked instead: the installed one, and that the lockfile holds no platform package beyond those the main
+    // package declares (a stranger would be a different publisher's code).
+    const scope = dirname(realpathSync(new URL("../../../node_modules/@ironcalc/nodejs", import.meta.url)));
+    const installed = readdirSync(scope).filter((n) => n.startsWith("nodejs-"));
+    expect(installed.length, "this machine's binary is installed").toBeGreaterThanOrEqual(1);
+    for (const dir of installed) {
+      const manifest = JSON.parse(readFileSync(join(scope, dir, "package.json"), "utf8")) as { name: string; license: string };
+      expect(manifest.name).toBe(`@ironcalc/${dir}`);
+      expect(manifest.license, manifest.name).toMatch(ok);
+    }
+    const main = JSON.parse(readFileSync(join(scope, "nodejs", "package.json"), "utf8")) as { optionalDependencies?: Record<string, string> };
+    const declared = Object.keys(main.optionalDependencies ?? {}).filter((n) => n.startsWith("@ironcalc/nodejs-"));
+    const lock = readFileSync(new URL("../../../pnpm-lock.yaml", import.meta.url), "utf8");
+    const locked = [...new Set([...lock.matchAll(/^ {2}'(@ironcalc\/nodejs-[a-z0-9-]+)@/gm)].map((m) => m[1]))];
+    expect(declared.length).toBeGreaterThanOrEqual(10);
+    expect(locked.length).toBeGreaterThanOrEqual(1);
+    for (const name of locked) expect(declared, name).toContain(name);
   });
 
   it("the IronCalc packages are pinned exactly", () => {
