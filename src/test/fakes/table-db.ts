@@ -22,7 +22,8 @@ export function createTableDb(tables: Record<string, Row[]>): TableDb {
     let op: "select" | "insert" | "update" = "select";
     let payload: Row | Row[] = {};
     const filters: Filter[] = [];
-    let ordering: string[] = [];
+    let ordering: { col: string; ascending: boolean }[] = [];
+    let cap: number | null = null;
     let returning = false;
     const run = () => {
       log.push({ table, op });
@@ -37,10 +38,17 @@ export function createTableDb(tables: Record<string, Row[]>): TableDb {
       const hit = rows.filter((r) => filters.every((f) => f(r)));
       if (op === "update") for (const r of hit) Object.assign(r, payload);
       const sorted = [...hit].sort((a, b) => {
-        for (const col of ordering) if (String(a[col] ?? "") !== String(b[col] ?? "")) return String(a[col] ?? "") < String(b[col] ?? "") ? -1 : 1;
+        for (const { col, ascending } of ordering) {
+          const x = a[col] ?? "";
+          const y = b[col] ?? "";
+          if (x === y) continue;
+          const below = typeof x === "number" && typeof y === "number" ? x < y : String(x) < String(y);
+          return below === ascending ? -1 : 1;
+        }
         return 0;
       });
-      return { data: op === "select" || returning ? sorted.map((r) => ({ ...r })) : null, error: null };
+      const kept = cap === null ? sorted : sorted.slice(0, cap);
+      return { data: op === "select" || returning ? kept.map((r) => ({ ...r })) : null, error: null };
     };
     const builder: Record<string, unknown> = {
       select: () => {
@@ -53,7 +61,9 @@ export function createTableDb(tables: Record<string, Row[]>): TableDb {
       neq: (col: string, value: unknown) => (filters.push((r) => r[col] !== value), builder),
       in: (col: string, values: unknown[]) => (filters.push((r) => values.includes(r[col])), builder),
       is: (col: string, value: unknown) => (filters.push((r) => (r[col] ?? null) === value), builder),
-      order: (col: string) => (ordering.push(col), builder),
+      order: (col: string, options?: { ascending?: boolean }) => (ordering.push({ col, ascending: options?.ascending ?? true }), builder),
+      limit: (n: number) => ((cap = n), builder),
+      maybeSingle: () => Promise.resolve(run()).then((r) => ({ ...r, data: (r.data as Row[] | null)?.[0] ?? null })),
       then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) => Promise.resolve(run()).then(resolve, reject),
     };
     ordering = [];

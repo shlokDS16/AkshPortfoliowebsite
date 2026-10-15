@@ -4,7 +4,7 @@ import type { Db } from "@/lib/supabase/types";
 import { isModelObject } from "./flows";
 import type { RefusalCode } from "./refusal";
 import type { ScenarioRow, VersionRow, VersionStatus } from "./records";
-import { createSupabaseValuationRepo } from "./repo";
+import { createSupabaseValuationRepo, type ValuationRepo } from "./repo";
 import type { Designation } from "./suggest";
 import type { ModelObject, Report } from "./types";
 import { confirmRows, scenarioCells, type ConfirmData, type ScenarioCell } from "./views";
@@ -44,10 +44,10 @@ async function companyLabels(db: Db, ids: string[]): Promise<Map<string, string>
   return new Map(data.map((c) => [c.id, c.nse_symbol ? `$${c.nse_symbol}` : c.name]));
 }
 
-async function readModel(db: Db, path: string | null): Promise<ModelObject | null> {
+async function readModel(repo: ValuationRepo, path: string | null): Promise<ModelObject | null> {
   if (!path) return null;
   try {
-    const parsed: unknown = JSON.parse(new TextDecoder().decode(await createSupabaseValuationRepo(db).getModel(path)));
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(await repo.getModel(path)));
     return isModelObject(parsed) ? parsed : null;
   } catch {
     return null;
@@ -61,17 +61,17 @@ async function versionsOf(db: Db, companyId: string) {
 }
 
 /** The previous confirmed version's choices and model, for the carry-forward rule (spec s7.2), or null. */
-async function previousConfirmed(db: Db, version: VersionRow, all: Awaited<ReturnType<typeof versionsOf>>) {
+async function previousConfirmed(repo: ValuationRepo, version: VersionRow, all: Awaited<ReturnType<typeof versionsOf>>) {
   const prev = all.find((v) => v.version_no < version.versionNo && v.status === "confirmed");
   if (!prev) return null;
-  const model = await readModel(db, prev.model_path);
+  const model = await readModel(repo, prev.model_path);
   if (!model) return null;
-  const cells: Designation[] = (await createSupabaseValuationRepo(db).listCells(prev.id)).map((c) => ({ sheet: c.sheet, addr: c.addr, role: c.role }));
+  const cells: Designation[] = (await repo.listCells(prev.id)).map((c) => ({ sheet: c.sheet, addr: c.addr, role: c.role }));
   return { versionNo: prev.version_no, model, cells };
 }
 
-export async function loadModelPage(db: Db, versionId: string): Promise<ModelPageData | null> {
-  const repo = createSupabaseValuationRepo(db);
+/** `repo` is for tests; the page uses the one on Aksh's session. */
+export async function loadModelPage(db: Db, versionId: string, repo: ValuationRepo = createSupabaseValuationRepo(db)): Promise<ModelPageData | null> {
   const version = await repo.getVersion(versionId);
   if (!version) return null;
   const [labels, doc, all] = await Promise.all([
@@ -88,9 +88,9 @@ export async function loadModelPage(db: Db, versionId: string): Promise<ModelPag
   };
   if (version.status === "refused" || version.status === "reading") return { mode: version.status, head };
 
-  const model = await readModel(db, version.modelPath);
+  const model = await readModel(repo, version.modelPath);
   if (!model) return { mode: "unreadable", head };
-  if (version.status === "ready") return { mode: "confirm", head, confirm: confirmRows(model, await previousConfirmed(db, version, all)) };
+  if (version.status === "ready") return { mode: "confirm", head, confirm: confirmRows(model, await previousConfirmed(repo, version, all)) };
   const [cells, scenarios] = await Promise.all([repo.listCells(version.id), repo.listScenarios(version.id)]);
   return { mode: "scenarios", head, cells: scenarioCells(model, cells), scenarios };
 }
