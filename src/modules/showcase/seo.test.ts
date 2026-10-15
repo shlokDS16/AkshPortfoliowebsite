@@ -14,6 +14,14 @@ const CASE_SLUG = "lc1-a-closed-idea";
 const DETAIL: [SeoRoute, string][] = [
   ["file", "kavpump"], ["note", NOTES[0].slug], ["processNote", PROCESS_NOTE.slug], ["case", CASE_SLUG], ["concept", "receivable-days"],
 ];
+/** Every number in a JSON-LD tree with its key path, except the position of a breadcrumb's ListItem. */
+function numbersIn(value: unknown, path: string, parent: { "@type"?: string } | null = null): string[] {
+  if (typeof value === "number") return parent?.["@type"] === "ListItem" && path.endsWith(".position") ? [] : [`${path}=${value}`];
+  if (Array.isArray(value)) return value.flatMap((v, i) => numbersIn(v, `${path}.${i}`, parent));
+  if (value && typeof value === "object") return Object.entries(value).flatMap(([k, v]) => numbersIn(v, `${path}.${k}`, value as { "@type"?: string }));
+  return [];
+}
+
 const INDEX: SeoRoute[] = ["home", "files", "notes", "process", "cases", "mistakes", "concepts", "about"];
 
 describe("pageMetadata", () => {
@@ -146,6 +154,22 @@ describe("jsonLdFor", () => {
   it("never rates, prices or offers: no Review, Rating, Offer, FinancialProduct, InvestmentOrDeposit or price anywhere", () => {
     for (const route of INDEX) expect(JSON.stringify(jsonLdFor(route, rich, undefined, SITE)), route).not.toMatch(/Review|Rating|Offer|FinancialProduct|InvestmentOrDeposit|"price"/);
     for (const [route, slug] of DETAIL) expect(JSON.stringify(jsonLdFor(route, rich, slug, SITE)), route).not.toMatch(/Review|Rating|Offer|FinancialProduct|InvestmentOrDeposit|"price"/);
+  });
+
+  // Spec s4.3 (as amended 2026-10-16): no numeric property, except the integer position schema.org requires on a breadcrumb's list items.
+  it("carries no number anywhere except the position of a breadcrumb's list items", () => {
+    const numbers: string[] = [];
+    for (const route of INDEX) numbers.push(...numbersIn(jsonLdFor(route, rich, undefined, SITE), route));
+    for (const [route, slug] of DETAIL) numbers.push(...numbersIn(jsonLdFor(route, rich, slug, SITE), route));
+    expect(numbers).toEqual([]);
+  });
+
+  it("the number check bites: a count, a numeric version or a position outside a list item is reported", () => {
+    expect(numbersIn({ "@type": "Article", wordCount: 900, version: 2, itemListElement: [{ "@type": "ListItem", position: 1 }, { "@type": "Thing", position: 2 }] }, "x")).toEqual([
+      "x.wordCount=900",
+      "x.version=2",
+      "x.itemListElement.1.position=2",
+    ]);
   });
 });
 
