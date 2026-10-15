@@ -1,5 +1,5 @@
 import { parseFactsSheet } from "@/modules/casefile/client";
-import type { PublicItemRow, PublicRevisionRow, PublicSnapshot } from "@/modules/showcase";
+import type { PublicConceptLink, PublicConceptRow, PublicItemRow, PublicRevisionRow, PublicSnapshot } from "@/modules/showcase";
 import { KAVERI, NOTES, PROCESS_NOTE, SAHYADRI } from "@/test/fixtures/casefile";
 
 const cf = (sheet: string) => parseFactsSheet(sheet).caseFile;
@@ -45,6 +45,9 @@ export function buildSeedSnapshot(today = "2026-10-06"): PublicSnapshot {
       { itemId: "i1", factId: "F3", pageNo: 152 },
       { itemId: "i2", factId: "F1", pageNo: 44 },
     ],
+    // Plan 4: the deploy state. No concept is public, so no page shows a concept line and /concepts is a 404.
+    concepts: [],
+    conceptLinks: [],
     today,
   };
 }
@@ -75,4 +78,10 @@ export function withLedgerCase(snapshot: PublicSnapshot, record: unknown, patch:
   };
   const revision: PublicRevisionRow = { id: revisionId, itemId: id, revNo: 1, bodyMd: item.bodyMd, structured, changeReason: "Drafted from the ledger", createdAt: publishedAt };
   return { ...snapshot, items: [...snapshot.items, item], revisions: [...snapshot.revisions, revision] };
+}
+
+/** Plan 4: public concepts and their links, as public_themes and public_concept_links return them. `links` are [itemId, revisionId, conceptId, position]. */
+export function withConcepts(snapshot: PublicSnapshot, concepts: PublicConceptRow[], links: [string, string, string, number][]): PublicSnapshot {
+  const conceptLinks: PublicConceptLink[] = links.map(([itemId, revisionId, conceptId, position]) => ({ itemId, revisionId, conceptId, position }));
+  return { ...snapshot, concepts: [...snapshot.concepts, ...concepts], conceptLinks: [...snapshot.conceptLinks, ...conceptLinks] };
 }

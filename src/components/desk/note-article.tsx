@@ -1,6 +1,7 @@
 import { formatDate } from "@/lib/format";
 import type { NoteView } from "@/modules/showcase";
 import { BlockHeader } from "./block-header";
+import { ConceptLine } from "./concept-line";
 import { Disclosure } from "./disclosure";
 import { UsedIn } from "./used-in";
 import { ViewBlock } from "./view-block";
@@ -22,6 +23,7 @@ export function NoteArticle({ note }: { note: NoteView }) {
       </p>
       <div className="mt-(--block-gap)">
         <ViewBlock blocks={note.body} />
+        <ConceptLine concepts={note.concepts} />
       </div>
       {note.kind === "learning" ? (
         <section className="mt-(--section-gap)">
