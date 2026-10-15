@@ -25,7 +25,7 @@ beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), "desk-client-test-"));
   const bytes = dcfBook();
   index = readWorkbook(bytes);
-  node = runNodeEngine(bytes, index, { tmpDir: dir });
+  node = await runNodeEngine(bytes, index, { tmpDir: dir });
   cells = formulaCells(index);
   engine = await loadEngine(node.engineBytes, initFromFile, cells);
 });

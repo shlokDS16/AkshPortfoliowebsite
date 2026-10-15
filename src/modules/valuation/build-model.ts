@@ -2,7 +2,7 @@ import "server-only";
 import { diffWorkbook } from "./diff";
 import { probeFunctions, runNodeEngine } from "./engine-node";
 import { buildGraph } from "./graph";
-import { MAX_EVAL_ESTIMATE_MS, MODEL_OBJECT_MAX_BYTES, READ_BUDGET_MS } from "./limits";
+import { ENGINE_MAX_MS, MAX_EVAL_ESTIMATE_MS, MODEL_OBJECT_MAX_BYTES, READ_BUDGET_MS } from "./limits";
 import { readWorkbook } from "./read-workbook";
 import { XlsxRefusal } from "./refusal";
 import { buildReport } from "./report";
@@ -46,7 +46,10 @@ export async function buildModel(bytes: Uint8Array, opts: BuildOptions = {}): Pr
   const graph = buildGraph(index, tokenizer);
   stage("graph");
   if (graph.estimatedEvalMs > MAX_EVAL_ESTIMATE_MS) throw new XlsxRefusal("too_complex");
-  const engine = runNodeEngine(bytes, index, { tmpDir: opts.tmpDir, checkpoint: stage });
+  // The engine runs in a child process killed at its deadline: the engine's own cap, or what is left of the read's budget (never under 5 s,
+  // so a slow process start is not taken for a heavy workbook).
+  const timeoutMs = Math.min(ENGINE_MAX_MS, Math.max(5_000, budget - (now() - started)));
+  const engine = await runNodeEngine(bytes, index, { tmpDir: opts.tmpDir, checkpoint: stage, timeoutMs });
 
   const functionsOf = (key: string) => graph.functions(graph.id(key)!);
   const classes = diffWorkbook(index, engine.values, functionsOf);

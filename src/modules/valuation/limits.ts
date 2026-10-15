@@ -50,3 +50,9 @@ export const MAX_SCENARIO_VALUE = 1e15;
  * spec sets, because the estimate is an upper bound but not a guarantee and the call cannot be interrupted.
  */
 export const MAX_EVAL_ESTIMATE_MS = 30_000;
+
+/**
+ * The hard deadline on the engine (load, evaluate and read, in a child process that is killed past it): the 60 s line of spec s4.6. The
+ * estimate above cannot see ranges built by OFFSET or INDIRECT, so this is what bounds them.
+ */
+export const ENGINE_MAX_MS = 60_000;
