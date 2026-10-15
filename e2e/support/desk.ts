@@ -59,8 +59,11 @@ export async function expectNoViolations(page: Page): Promise<void> {
 export async function expectNoViolationsInBothThemes(page: Page): Promise<void> {
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
-    // Buttons transition their colours (--motion-fast): scan once those have settled, not mid-fade.
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
+    // Buttons transition their colours (--motion-fast): scan once those have settled, not mid-fade. Capped at 2 s: a transition that
+    // starts on a button inside a closed <details> (its content is skipped, never rendered) can stay "running" for ever (Plan 2.7 Task 3).
+    await page.evaluate(() =>
+      Promise.race([Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))), new Promise((resolve) => setTimeout(resolve, 2_000))]),
+    );
     await expectNoViolations(page);
   }
   await page.emulateMedia({ colorScheme: "light" });

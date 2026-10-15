@@ -110,7 +110,8 @@ test("a workbook is read, its cells confirmed, a scenario recalculated, saved an
   await noSideScroll(page);
 
   // The served wasm is public (the proxy only covers /desk); the model page, signed out, is the login page.
-  const anon = await browser.newContext({ baseURL: E2E_SITE_URL });
+  // An empty storage state: the project's admin session must not carry over into this context.
+  const anon = await browser.newContext({ baseURL: E2E_SITE_URL, storageState: { cookies: [], origins: [] } });
   const wasm = await anon.request.get("/vendor/ironcalc-0.8.4.wasm");
   expect(wasm.status()).toBe(200);
   expect(wasm.headers()["content-type"]).toContain("application/wasm");
