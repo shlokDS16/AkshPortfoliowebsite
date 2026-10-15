@@ -599,3 +599,37 @@ sentence passed the same rules as his written ones. That is a control an AMC's o
 **5c.** The letter contains nothing new: only his own titles and reasons for pages that already passed the gate, sent when he
 presses, archived in public before it goes out, and frozen once sent. An allocator reading a year of the archive sees exactly
 what a subscriber saw, with dates, which is the opposite of a newsletter that can be quietly rewritten.
+
+## Amendment 2026-10-16 (5a as built)
+Written after the Part 5a review (`.superpowers/sdd/2026-10-16-phase-5a-ledger/review.md`). Where this section and s4 to s6 disagree,
+this section describes the build and the reason is given. Append only.
+
+- **(a) A note's masthead prints "Figures to" when the note has a `dataAsOf`** (`src/app/(public)/notes/[slug]/page.tsx`). s5 says a
+  note has none. Rule 11.4 asks every printed copy to say how current its figures are, so the build keeps the date when there is one.
+- **(b) An open `details` prints whole; a closed one prints its summary only** (`src/app/print.css`). s5 says summary only. A reader
+  who opened a block wants it on paper, and a closed one never showed its text on screen.
+- **(c) The print-only disclosure is not doubled.** s5 says a file prints both the Disclosure block and the print-only copy. Where the
+  screen already shows the Disclosure block (a file, a closed case, a note that names a company), that block prints and no second
+  copy is rendered. `PrintDisclosure` renders only on pages that show the short strip alone.
+- **(d) `/about` is typed `AboutPage`, not `CollectionPage`** in JSON-LD. The page is one document, not a list.
+- **(e) The private-copy banner lives in `DeskShell`**, not `src/app/desk/layout.tsx`. `DeskShell` wraps every desk route, so the
+  banner reaches the same pages; the margin box that repeats it is in `print.css` (see technical debt, 2026-10-16).
+- **(f) `src/app/robots.ts` is `force-dynamic`** (controller addition 1). It answers from `VERCEL_ENV` at request time so a preview
+  deployment disallows crawling without a rebuild. It is the only derived route that reads the server env, and a test pins that.
+- **(g) The feed builder is `feedEntries` plus `renderRss`**, not `buildFeed`. The first lists the served revisions and the ledger
+  cases (each re-checked against the 30-day lag); the second writes the XML.
+- **(h) s4.3, "never any numeric property", gains one exception:** the integer `position` of the `ListItem` entries of a
+  `BreadcrumbList`, which schema.org requires. `seo.test.ts` walks every JSON-LD node of every route and fails on any other number.
+- **(i) s5 and rule 11.4, the outcome for pages that name no one security.** Every printed public page carries the standard
+  disclosure in full, with one exception that is not an exception to the text: `/about` already shows it on screen. The register,
+  the other index pages, a concept page and a note that names no company now print it too. On those pages the position line reads
+  "Position in the security discussed: stated on each file." (`SITE_POSITION`, the wording `/about` already prints). The value
+  "Not disclosed" is kept for a page about a security whose position he has not stated; it is no longer used for a page that names
+  none. This is not a new string; the earlier "Not disclosed for a note without a company" proposal is withdrawn.
+- **(j) Share cards (s4.4):** the file card now cuts company and learning objective on a word boundary with "…", with the same slot
+  budgets as the other four cards (72 and 120 characters), so all five cards follow s4.4.
+- **(k) Retraction (rule 11.5) has its own proof.** `e2e/cases.spec.ts` unpublishes a case and checks that the feed, the sitemap
+  and the case's share card no longer serve it; the unit tests for the feed and the sitemap pin that both read the shared snapshot
+  and keep no cache of their own. The isolation test now walks the public pages and the print components as well as the derived routes.
+- **(l) XML text (s4.2):** `escapeXml` also drops U+FFFE and U+FFFF, which XML 1.0 forbids, so one stray character cannot make the
+  whole feed unreadable.
