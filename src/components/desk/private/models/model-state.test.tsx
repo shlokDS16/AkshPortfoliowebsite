@@ -14,7 +14,7 @@ const DOC = "0b9f3c1e-7a42-4c55-9e1d-2f6a8b3c4d5e";
 
 describe("the model page with no model yet", () => {
   it("stuck: the sentence, Try again (a new pass of the read) and a fixed upload; no busy indicator", async () => {
-    render(<StuckState documentId={DOC} message={REFUSAL_MESSAGES.too_slow} />);
+    render(<StuckState documentId={DOC} message={REFUSAL_MESSAGES.too_slow} retryable />);
     expect(screen.getByText(REFUSAL_MESSAGES.too_slow)).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
@@ -22,6 +22,13 @@ describe("the model page with no model yet", () => {
     await waitFor(() => expect(retryStepAction).toHaveBeenCalledWith(DOC));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     expect(screen.getByRole("link", { name: "Upload a fixed workbook" })).toHaveAttribute("href", "/desk/inbox#upload");
+  });
+
+  it("stuck with nothing to retry (a skipped document, or a read that finished without a result): the sentence and a fixed upload, no Try again", () => {
+    render(<StuckState documentId={DOC} message="You skipped this document." retryable={false} />);
+    expect(screen.getByText("You skipped this document.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Upload a fixed workbook" })).toBeInTheDocument();
   });
 
   it("refused: the exact sentence and a fixed upload, no Try again", () => {

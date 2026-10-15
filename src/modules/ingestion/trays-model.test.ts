@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Db } from "@/lib/supabase/types";
 import { REFUSAL_MESSAGES } from "@/modules/valuation/client";
 import { readModels, workbookReadState } from "./model-read";
-import { MODEL_CONFIRMED, MODEL_READING, modelReadText, WORKBOOK_GAVE_UP, WORKBOOK_NOT_READ } from "./model-copy";
+import { MODEL_CONFIRMED, MODEL_READING, modelReadText, WORKBOOK_GAVE_UP, WORKBOOK_NOT_READ, WORKBOOK_SKIPPED } from "./model-copy";
 import { STOPPED_TWICE } from "./stopped";
 import { trayFor, type DocState } from "./trays";
 
@@ -120,13 +120,25 @@ describe("workbookReadState: a version still reading with no live step is stuck 
   });
 
   it("stopped twice reads as too large to read in one go; another stop keeps its own sentence", () => {
-    expect(workbookReadState([row(1, "needs_attention", STOPPED_TWICE)])).toEqual({ stuck: true, message: REFUSAL_MESSAGES.too_slow });
-    expect(workbookReadState([row(1, "needs_attention", WORKBOOK_GAVE_UP)])).toEqual({ stuck: true, message: WORKBOOK_GAVE_UP });
+    expect(workbookReadState([row(1, "needs_attention", STOPPED_TWICE)])).toEqual({ stuck: true, retryable: true, message: REFUSAL_MESSAGES.too_slow });
+    expect(workbookReadState([row(1, "needs_attention", WORKBOOK_GAVE_UP)])).toEqual({ stuck: true, retryable: true, message: WORKBOOK_GAVE_UP });
   });
 
-  it("no step, a skipped one or a finished one without a result is stuck, with the plain sentence", () => {
-    for (const steps of [[], [row(1, "skipped")], [row(1, "done")], [row(1, "needs_attention")]]) {
-      expect(workbookReadState(steps)).toEqual({ stuck: true, message: WORKBOOK_NOT_READ });
+  it("no step, a skipped one or a finished one without a result is stuck, with the plain sentence, and Try again has nothing to retry", () => {
+    for (const steps of [[], [row(1, "skipped")], [row(1, "done")]]) {
+      expect(workbookReadState(steps)).toEqual({ stuck: true, retryable: false, message: WORKBOOK_NOT_READ });
+    }
+  });
+
+  it("only a read that stopped for attention can be tried again", () => {
+    expect(workbookReadState([row(1, "needs_attention")])).toEqual({ stuck: true, retryable: true, message: WORKBOOK_NOT_READ });
+  });
+
+  it("a document Aksh skipped or finished is closed: its own sentence, no Try again, whatever the steps say", () => {
+    for (const status of ["skipped", "done"] as const) {
+      for (const steps of [[], [row(1, "needs_attention")], [row(1, "queued")]]) {
+        expect(workbookReadState(steps, status)).toEqual({ stuck: true, retryable: false, message: WORKBOOK_SKIPPED });
+      }
     }
   });
 });

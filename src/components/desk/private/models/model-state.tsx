@@ -43,24 +43,26 @@ export function RefusedState({ message }: { message: string }) {
   );
 }
 
-export function StuckState({ documentId, message }: { documentId: string; message: string }) {
+export function StuckState({ documentId, message, retryable }: { documentId: string; message: string; retryable: boolean }) {
   const router = useRouter();
   const { pending, error, run } = useInboxAction();
   return (
     <Attention message={message}>
-      <Button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          void run(async () => {
-            const result = await retryStepAction(documentId);
-            if (result.ok) router.refresh();
-            return result;
-          })
-        }
-      >
-        Try again
-      </Button>
+      {retryable ? (
+        <Button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            void run(async () => {
+              const result = await retryStepAction(documentId);
+              if (result.ok) router.refresh();
+              return result;
+            })
+          }
+        >
+          Try again
+        </Button>
+      ) : null}
       <Upload />
       {error ? (
         <p role="alert" className="w-full text-small text-bad">

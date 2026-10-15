@@ -42,7 +42,7 @@ export default async function ModelPage({ params }: Props) {
       ) : null}
       {data.mode === "refused" ? <RefusedState message={head.refusal ? refusalMessage(head.refusal) : VALUATION_TEXT.not_ready} /> : null}
       {data.mode === "unreadable" ? <RefusedState message={VALUATION_TEXT.model_unreadable} /> : null}
-      {read ? read.stuck ? <StuckState documentId={head.documentId} message={read.message} /> : <ReadingState /> : null}
+      {read ? read.stuck ? <StuckState documentId={head.documentId} message={read.message} retryable={read.retryable} /> : <ReadingState /> : null}
     </article>
   );
 }

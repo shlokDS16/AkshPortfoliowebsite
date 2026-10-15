@@ -13,6 +13,8 @@ export const MODEL_CONFIRMED = "Model confirmed. Open it to try scenarios.";
 export const WORKBOOK_GAVE_UP = "This workbook could not be read after three tries. Try again, or upload it again.";
 /** The sentence for a read that stopped without storing why. */
 export const WORKBOOK_NOT_READ = "This workbook could not be read.";
+/** A workbook Aksh skipped or finished while its version was still being read: nothing will read it now. Pending Shlok's approval. */
+export const WORKBOOK_SKIPPED = "You skipped this document, so its workbook is not read. Upload the workbook again to read it.";
 
 const n = (count: number) => count.toLocaleString("en-US");
 const plural = (count: number, one: string) => `${n(count)} ${count === 1 ? one : `${one}s`}`;
