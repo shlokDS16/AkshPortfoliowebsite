@@ -5,7 +5,7 @@ import { failure, type ValuationFailure } from "./copy";
 import { MAX_LABEL_CHARS, MAX_SHEET_NAME_CHARS } from "./limits";
 import type { ChosenCell } from "./records";
 import type { ValuationRepo } from "./repo";
-import { checkChoice, checkScenario } from "./service";
+import { checkChoice, checkScenario, hasControlChar } from "./service";
 import type { ModelObject } from "./types";
 
 // What the four actions do once the admin is known (actions.ts checks that): validate the browser's claim, check the version's state, check
@@ -56,6 +56,7 @@ export async function runConfirm(repo: ValuationRepo, input: unknown): Promise<C
   const outputs = cells.length - inputs;
   const unique = new Set(cells.map((c) => `${c.sheet}!${c.addr}`)).size === cells.length;
   if (inputs < 1 || inputs > MAX_INPUTS || outputs < 1 || outputs > MAX_OUTPUTS || !unique || cells.some((c) => (c.label?.length ?? 0) > MAX_LABEL_CHARS)) return failure("bad_request");
+  if (cells.some((c) => hasControlChar(c.sheet) || (c.label !== null && hasControlChar(c.label)))) return failure("bad_request");
 
   try {
     const version = await repo.getVersion(claim.data.versionId);
@@ -102,6 +103,8 @@ export async function runSaveScenario(repo: ValuationRepo, input: unknown): Prom
     if (c === "55000") return failure("not_confirmed");
     if (c === "P0002") return failure("not_found");
     if (c === "22023") return failure("scenario_values");
+    // 54000: the database's cap of 50 scenarios a version. No new sentence; the generic one, and not logged as an unexpected failure.
+    if (c === "54000") return failure("save_failed");
     return unexpected(error);
   }
 }

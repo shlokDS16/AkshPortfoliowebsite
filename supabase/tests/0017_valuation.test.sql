@@ -3,7 +3,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(117);
+select plan(131);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -385,6 +385,19 @@ select set_config('storage.allow_delete_query', 'true', true);
 select is_empty($$ delete from storage.objects where bucket_id = 'documents' and name like 'models/%' returning 1 $$,
   'the admin cannot remove a model object');
 select set_config('storage.allow_delete_query', 'false', true);
+-- No control character in a sheet name or a label (version 2 is still ready here).
+select throws_ok($$ select public.confirm_valuation_version((select v from ctx where k = 'v2'),
+    jsonb_build_array(jsonb_build_object('sheet', 'DC' || chr(7) || 'F', 'addr', 'B2', 'role', 'input'), jsonb_build_object('sheet', 'DCF', 'addr', 'B9', 'role', 'output'))) $$,
+  '22023', null, 'a sheet name with a control character is refused');
+select throws_ok($$ select public.confirm_valuation_version((select v from ctx where k = 'v2'),
+    jsonb_build_array(jsonb_build_object('sheet', 'DCF', 'addr', 'B2', 'role', 'input', 'label', 'Cost' || chr(7)), jsonb_build_object('sheet', 'DCF', 'addr', 'B9', 'role', 'output'))) $$,
+  '22023', null, 'a label with a bell character is refused');
+select throws_ok($$ select public.confirm_valuation_version((select v from ctx where k = 'v2'),
+    jsonb_build_array(jsonb_build_object('sheet', 'DCF', 'addr', 'B2', 'role', 'input', 'label', 'Cost' || chr(9) || 'of equity'), jsonb_build_object('sheet', 'DCF', 'addr', 'B9', 'role', 'output'))) $$,
+  '22023', null, 'a label with a tab is refused');
+select throws_ok($$ select public.confirm_valuation_version((select v from ctx where k = 'v2'),
+    jsonb_build_array(jsonb_build_object('sheet', 'DCF', 'addr', 'B2', 'role', 'input', 'label', 'Cost' || chr(133)), jsonb_build_object('sheet', 'DCF', 'addr', 'B9', 'role', 'output'))) $$,
+  '22023', null, 'a label with a C1 control character (U+0085) is refused');
 -- A scenario value must be for an input of the same version, not an input of another one.
 select lives_ok($$ select public.confirm_valuation_version((select v from ctx where k = 'v2'),
     '[{"sheet":"DCF","addr":"B2","role":"input"},{"sheet":"DCF","addr":"B9","role":"output"}]'::jsonb) $$,
@@ -399,6 +412,34 @@ select lives_ok($$ insert into public.job_steps (job_id, kind, page_no, pass) va
 select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select throws_ok($$ insert into public.job_steps (job_id, kind, page_no, pass) values ((select v from ctx where k = 'job'), 'xlsx_read', 1, 3) $$,
   '42501', null, 'a non-admin cannot');
+reset role;
+
+-- 13. Scenario text and the cap per version (version 1 holds only the owner's 'Direct' scenario here).
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select throws_ok($$ select public.save_valuation_scenario((select v from ctx where k = 'v1'), 'Bad' || chr(10) || 'name', '', jsonb_build_object((select v::text from cells where k = 'b2'), 1)) $$,
+  '22023', null, 'a scenario name with a line break is refused');
+select throws_ok($$ select public.save_valuation_scenario((select v from ctx where k = 'v1'), 'Bad' || chr(7), '', jsonb_build_object((select v::text from cells where k = 'b2'), 1)) $$,
+  '22023', null, 'a scenario name with a bell character is refused');
+select throws_ok($$ select public.save_valuation_scenario((select v from ctx where k = 'v1'), 'Fine', 'a' || chr(7), jsonb_build_object((select v::text from cells where k = 'b2'), 1)) $$,
+  '22023', null, 'a note with a bell character is refused');
+select throws_ok($$ select public.save_valuation_scenario((select v from ctx where k = 'v1'), 'Fine', 'a' || chr(133), jsonb_build_object((select v::text from cells where k = 'b2'), 1)) $$,
+  '22023', null, 'a note with a C1 control character is refused');
+reset role;
+insert into public.valuation_scenarios (version_id, name) select (select v from ctx where k = 'v1'), 'Filler ' || g from generate_series(1, 49) g;
+select is((select count(*) from public.valuation_scenarios where version_id = (select v from ctx where k = 'v1')), 50::bigint, 'version 1 now holds 50 scenarios');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select throws_ok($$ select public.save_valuation_scenario((select v from ctx where k = 'v1'), 'One too many', '', jsonb_build_object((select v::text from cells where k = 'b2'), 1)) $$,
+  '54000', 'valuation: at most 50 scenarios for a version', 'a 51st scenario for a version is refused');
+select is((select count(*) from public.valuation_scenarios where version_id = (select v from ctx where k = 'v1')), 50::bigint, 'and nothing was written');
+select lives_ok($$ delete from public.valuation_scenarios where name = 'Filler 1' $$, 'deleting one makes room');
+select lives_ok($$ select public.save_valuation_scenario((select v from ctx where k = 'v1'), 'Room again', E'line one
+	line two
+line three', jsonb_build_object((select v::text from cells where k = 'b2'), 1)) $$,
+  'a note may hold line breaks and tabs (it is typed in a multi-line box)');
+select throws_ok($$ select public.save_valuation_scenario((select v from ctx where k = 'v1'), 'Full again', '', jsonb_build_object((select v::text from cells where k = 'b2'), 1)) $$,
+  '54000', null, 'and the cap holds again at 50');
 reset role;
 
 select * from finish();

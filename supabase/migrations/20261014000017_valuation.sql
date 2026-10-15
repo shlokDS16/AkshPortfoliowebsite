@@ -233,6 +233,10 @@ begin
        or ((e ->> 'label') is not null and char_length(btrim(e ->> 'label')) > 80) then
       raise exception 'valuation: a cell is malformed' using errcode = '22023';
     end if;
+    -- no control character (C0, DEL, C1) in a sheet name or his label; they render as text, so this is tidiness, not an injection guard
+    if (e ->> 'sheet') ~ '[\u0001-\u001f\u007f-\u009f]' or (e ->> 'label') ~ '[\u0001-\u001f\u007f-\u009f]' then
+      raise exception 'valuation: a cell is malformed' using errcode = '22023';
+    end if;
   end loop;
   select count(*) filter (where x.value ->> 'role' = 'input'), count(*) filter (where x.value ->> 'role' = 'output')
     into v_inputs, v_outputs from jsonb_array_elements(p_cells) as x;
@@ -272,6 +276,14 @@ begin
   end if;
   if v_name is null or char_length(v_name) not between 1 and 80 or char_length(v_note) > 500 then
     raise exception 'valuation: the name or the note is not allowed' using errcode = '22023';
+  end if;
+  -- no control character in the name; the note may hold line breaks and tabs (it is typed in a multi-line box) but no other
+  if v_name ~ '[\u0001-\u001f\u007f-\u009f]' or v_note ~ '[\u0001-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]' then
+    raise exception 'valuation: the name or the note is not allowed' using errcode = '22023';
+  end if;
+  -- at most 50 scenarios a version (the version row is locked above, so two saves cannot both pass at 49)
+  if (select count(*) from public.valuation_scenarios s where s.version_id = p_version_id) >= 50 then
+    raise exception 'valuation: at most 50 scenarios for a version' using errcode = '54000';
   end if;
   if p_values is null or jsonb_typeof(p_values) <> 'object' then
     raise exception 'valuation: the values must be an object' using errcode = '22023';

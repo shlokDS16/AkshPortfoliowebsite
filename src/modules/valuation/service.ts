@@ -49,6 +49,11 @@ export function checkChoice(model: ModelObject, chosen: ChosenCell[]): ChoiceVer
   return { ok: true };
 }
 
+/** A control character (C0, DEL, C1) in text he typed or a sheet name. The database refuses the same set (migration 0017). */
+export const hasControlChar = (text: string): boolean => /\p{Cc}/u.test(text);
+/** The same, for a note: tabs and line breaks are fine (it is typed in a multi-line box). */
+const hasControlCharInNote = (text: string): boolean => /[^\P{Cc}\t\n\r]/u.test(text);
+
 const NAME_MAX = 80;
 const NOTE_MAX = 500;
 
@@ -64,6 +69,7 @@ export function checkScenario(cells: CellRow[], body: { name: unknown; note?: un
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const note = body.note === undefined || body.note === null ? "" : typeof body.note === "string" ? body.note.trim() : null;
   if (name.length < 1 || name.length > NAME_MAX || note === null || note.length > NOTE_MAX) return { ok: false, code: "scenario_name" };
+  if (hasControlChar(name) || hasControlCharInNote(note)) return { ok: false, code: "scenario_name" };
   const inputs = new Set(cells.filter((c) => c.role === "input").map((c) => c.id));
   const entries = Object.entries(body.values);
   if (entries.length < 1 || entries.length > 40) return { ok: false, code: "scenario_values" };

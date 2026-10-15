@@ -82,6 +82,9 @@ describe("runConfirm", () => {
     ["a role of target", { versionId: VERSION, cells: [{ ...cell("B2", "input"), role: "target" }, cell("B8", "output")] }],
     ["a label over 80 characters", { versionId: VERSION, cells: [cell("B2", "input", "l".repeat(81)), cell("B8", "output")] }],
     ["a sheet name over 31 characters", { versionId: VERSION, cells: [{ ...cell("B2", "input"), sheet: "s".repeat(32) }, cell("B8", "output")] }],
+    ["a label with a control character", { versionId: VERSION, cells: [cell("B2", "input", "Cost\u0007"), cell("B8", "output")] }],
+    ["a label with a C1 control character", { versionId: VERSION, cells: [cell("B2", "input", "Cost\u0085of equity"), cell("B8", "output")] }],
+    ["a sheet name with a control character", { versionId: VERSION, cells: [{ ...cell("B2", "input"), sheet: "D\u0001CF" }, cell("B8", "output")] }],
     ["nothing", null],
     ["a string", "confirm"],
   ])("refuses %s as a bad request, before the database", async (_what, input) => {
@@ -169,6 +172,23 @@ describe("runSaveScenario", () => {
     expect(await runSaveScenario(repo, { versionId: VERSION, name: "Bear", values: { [ids.B2]: 2 } })).toMatchObject({ ok: false, code: "name_taken" });
     expect(await runSaveScenario(ready(), { versionId: VERSION, name: "Bear", values: { [ids.B2]: 1 } })).toMatchObject({ ok: false, code: "not_confirmed" });
     expect(await runSaveScenario(createMemoryValuationRepo(), { versionId: VERSION, name: "Bear", values: { [ids.B2]: 1 } })).toMatchObject({ ok: false, code: "not_found" });
+  });
+
+  it("a control character in the name or the note is scenario_name; a note may hold line breaks", async () => {
+    const { repo, ids } = await confirmed();
+    for (const body of [{ name: "Be\nar" }, { name: "Bear\u0007" }, { name: "Bear", note: "a\u0007b" }, { name: "Bear", note: "a\u0085b" }]) {
+      expect(await runSaveScenario(repo, { versionId: VERSION, ...body, values: { [ids.B2]: 1 } })).toMatchObject({ ok: false, code: "scenario_name" });
+    }
+    expect(repo.scenarios.size).toBe(0);
+    expect(await runSaveScenario(repo, { versionId: VERSION, name: "Bear", note: "one\n\ttwo\r\nthree", values: { [ids.B2]: 1 } })).toMatchObject({ ok: true });
+  });
+
+  it("the database's 50-scenario cap (54000) is the generic save sentence, not logged as unexpected", async () => {
+    const { repo, ids } = await confirmed();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    repo.failNext("saveScenario", new DbError("valuation.saveScenario", "54000", null));
+    expect(await runSaveScenario(repo, { versionId: VERSION, name: "Bear", values: { [ids.B2]: 1 } })).toMatchObject({ ok: false, code: "save_failed" });
+    expect(log).not.toHaveBeenCalled();
   });
 
   it("refuses a claim of the wrong shape", async () => {
