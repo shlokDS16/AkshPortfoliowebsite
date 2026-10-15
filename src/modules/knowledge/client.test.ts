@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { MAX_CONCEPTS } from "@/modules/research";
 import {
   countsByGroup,
   groupConceptItems,
   groupMonth,
   groupOfKind,
   isMonth,
+  MAX_ITEM_CONCEPTS,
   monthBounds,
+  monthLabel,
   monthOf,
   normaliseEdge,
   primaryConceptByItem,
@@ -190,5 +193,18 @@ describe("suggestRelated", () => {
     const links = [link("i1", "x"), link("i1", "a"), link("i1", "a", 2), link("i1", "x", 2)];
     expect(suggestRelated(links, [], "x", names)).toEqual([]);
     expect(suggestRelated([], [], "x", names)).toEqual([]);
+  });
+});
+
+describe("monthLabel", () => {
+  it("names the month in words, whatever the machine's timezone", () => {
+    expect(monthLabel("2026-10")).toBe("October 2026");
+    expect(monthLabel("2027-01")).toBe("January 2027");
+  });
+});
+
+describe("MAX_ITEM_CONCEPTS", () => {
+  it("equals the research limit the database check also holds", () => {
+    expect(MAX_ITEM_CONCEPTS).toBe(MAX_CONCEPTS);
   });
 });

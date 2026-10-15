@@ -144,3 +144,15 @@ export async function saveItemConcepts(deps: KnowledgeDeps, itemId: string, conc
   }
   return setItemConcepts(deps.research, itemId, wanted, labels);
 }
+
+/** The picker's choices: screened live concepts by name, with status. A stub waits on the Names tab and is not offered. */
+export async function screenedConceptRefs(deps: KnowledgeDeps): Promise<ConceptRef[]> {
+  return (await deps.concepts.listScreened()).map(refOf).sort(byName);
+}
+
+/** Live concepts (a stub included, archived never) in the order of `ids`: the chips on an item and the lines of its checklist. */
+export async function conceptRefs(deps: KnowledgeDeps, ids: readonly string[]): Promise<ConceptRef[]> {
+  if (ids.length === 0) return [];
+  const found = new Map((await deps.concepts.byIds([...new Set(ids)])).map((c) => [c.id, refOf(c)]));
+  return ids.flatMap((id) => found.get(id) ?? []);
+}

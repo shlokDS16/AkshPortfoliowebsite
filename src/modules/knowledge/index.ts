@@ -4,5 +4,5 @@ import "server-only";
 
 export { ConceptNotFoundError, ConceptSelfLinkError } from "./errors";
 export { createSupabaseKnowledgeDeps, createSupabaseKnowledgeRepo } from "./repo";
-export { conceptIndex, conceptPage, linkConcepts, monthCounts, monthPage, saveItemConcepts, unlinkConcepts } from "./service";
+export { conceptIndex, conceptPage, conceptRefs, linkConcepts, monthCounts, monthPage, saveItemConcepts, screenedConceptRefs, unlinkConcepts } from "./service";
 export type { ConceptIndexRow, ConceptPageView, ConceptSource, KnowledgeDeps, KnowledgeRepo, MonthCounts, MonthView } from "./types";

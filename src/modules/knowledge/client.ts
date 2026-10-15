@@ -161,3 +161,14 @@ export function suggestRelated(links: readonly ConceptLinkRow[], edges: readonly
   const nameOf = (id: string) => names.get(id) ?? "";
   return out.sort((a, b) => b.shared - a.shared || nameOf(a.conceptId).localeCompare(nameOf(b.conceptId), "en") || a.conceptId.localeCompare(b.conceptId)).slice(0, MAX_SUGGESTIONS);
 }
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] as const;
+
+/** "October 2026" for "2026-10". Plain table, so it never depends on the machine's locale or timezone. */
+export function monthLabel(month: string): string {
+  const [year, mon] = month.split("-").map(Number) as [number, number];
+  return `${MONTH_NAMES[mon - 1]} ${year}`;
+}
+
+/** At most this many concepts on one revision (a second copy for browser code; a test keeps it equal to research MAX_CONCEPTS). */
+export const MAX_ITEM_CONCEPTS = 8;

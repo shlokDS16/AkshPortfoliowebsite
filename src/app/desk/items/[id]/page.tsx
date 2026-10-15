@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BodyPreview } from "@/components/desk/private/body-preview";
+import { ItemConcepts } from "@/components/desk/private/concepts/item-concepts";
 import { DocLayout } from "@/components/desk/private/doc-pane/doc-layout";
 import { DocWorkspace, OpenDocumentButton } from "@/components/desk/private/doc-pane/workspace";
 import { FiguresToHint } from "@/components/desk/private/figures-to-hint";
@@ -15,11 +16,13 @@ import { istDate } from "@/lib/dates";
 import { errorText, noticeText } from "@/lib/messages";
 import { setFiguresToAction, saveCaseFileRevisionAction } from "@/modules/casefile/actions";
 import { refreshCaseStudyAction } from "@/modules/cases/actions";
-import { makeCompanyPublicAction } from "@/modules/catalog/actions";
+import { makeCompanyPublicAction, makeConceptPublicAction } from "@/modules/catalog/actions";
 import { unstageAction } from "@/modules/ingestion/actions";
 import { publishCheckedAction, unpublishItemAction } from "@/modules/compliance/actions";
 import { requireAdmin } from "@/modules/identity";
+import { saveConceptsAction } from "@/modules/knowledge/actions";
 import { isItemId } from "@/modules/research";
+import { conceptChecks } from "./concepts";
 import { loadEditor } from "./load";
 import { MetaForm } from "./meta-form";
 
@@ -35,19 +38,26 @@ export default async function ItemPage({ params, searchParams }: Props) {
   if (!isItemId(id)) notFound();
   const data = await loadEditor(id);
   if (!data) notFound();
-  const { item, revisions, current, pending, latest, candidate, isFile, isLedger, ledgerRecord, ledgerStatus, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure, model } = data;
+  const { item, revisions, current, pending, latest, candidate, isFile, isLedger, ledgerRecord, ledgerStatus, concepts, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure, model } = data;
   const isPublic = item.visibility === "public";
+  const isRead = item.kind === "reading_note";
   const errorMessage = errorText(error);
   const noticeMessage = noticeText(notice);
   const alsoMessage = noticeText(also);
   const companyLabel = company ? (company.nseSymbol ? `$${company.nseSymbol}` : company.name) : null;
-  const gate = (
+  // A read is never published (D52): its side panel says so instead of offering the gate.
+  const gate = isRead ? (
+    <aside id="gate" tabIndex={-1} className="min-w-0 desk:sticky desk:top-[calc(var(--top-bar-h)+16px)] desk:self-start">
+      <p className="rounded-sm border border-rule px-3 py-2 text-small text-ink">A read stays private. It is not published.</p>
+    </aside>
+  ) : (
     <aside id="gate" tabIndex={-1} className="min-w-0 space-y-4 desk:sticky desk:top-[calc(var(--top-bar-h)+16px)] desk:self-start">
       <PublishChecklist
         items={preview?.items ?? []}
         rule4Needed={preview?.rule4Needed ?? false}
         companyName={company?.name ?? null}
         companyAction={company ? makeCompanyPublicAction.bind(null, company.id, item.id) : null}
+        concepts={candidate && concepts ? conceptChecks(concepts.linked, (id) => makeConceptPublicAction.bind(null, id, item.id)) : []}
         publishAction={candidate ? publishCheckedAction.bind(null, item.id, candidate.id) : null}
         publishLabel={candidate ? `Run the publishing gate on revision #${candidate.revNo}` : ""}
         figureReminder={isFile}
@@ -97,6 +107,7 @@ export default async function ItemPage({ params, searchParams }: Props) {
             {current?.revNo}.
           </p>
         ) : null}
+        {concepts ? <ItemConcepts linked={concepts.linked} options={concepts.screened} save={saveConceptsAction.bind(null, item.id)} blocked={pending.length > 0} /> : null}
         <DocLayout gate={gate}>
           {body ? <BodyPreview itemId={item.id} body={body} named={item.companyId !== null} /> : null}
           {isLedger ? <LedgerRecordPanel record={ledgerRecord} status={ledgerStatus} refreshAction={refreshCaseStudyAction.bind(null, item.id)} /> : null}

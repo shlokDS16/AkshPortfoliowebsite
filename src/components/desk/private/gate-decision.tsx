@@ -4,6 +4,7 @@ import { istDateTime } from "@/lib/dates";
 import { allowSentenceAction } from "@/modules/compliance/actions";
 import { RULE_TITLES, type GateDecision, type LintField } from "@/modules/compliance/client";
 import { splitAtMatch } from "./match-split";
+import { uniqueFindings } from "./unique-findings";
 
 const FIELD_LABELS: Record<LintField, string> = {
   title: "Title",
@@ -61,7 +62,7 @@ export function GateDecisionPanel({ itemId, decision, decisionRevNo, latestId }:
           </p>
         ) : null}
         <ul className="space-y-3">
-          {decision.failures.map((failure, index) => (
+          {uniqueFindings(decision.failures).map((failure, index) => (
             <li key={index} data-testid="gate-failure" data-rule={failure.rule} className="border-l-2 border-bad bg-bad-wash p-2">
               <p className="font-semibold">{RULE_TITLES[failure.rule] ?? `Rule ${failure.rule}`}</p>
               <p>{failure.message}</p>
@@ -90,7 +91,7 @@ export function GateDecisionPanel({ itemId, decision, decisionRevNo, latestId }:
           ))}
         </ul>
         {decision.allowedBy.length > 0 ? (
-          <p className="text-ink-muted">Allowed as educational usage: {decision.allowedBy.map((a) => `"${a.sentence}"`).join(", ")}</p>
+          <p className="text-ink-muted">Allowed as educational usage: {[...new Set(decision.allowedBy.map((a) => a.sentence))].map((s) => `"${s}"`).join(", ")}</p>
         ) : null}
       </div>
     </section>
