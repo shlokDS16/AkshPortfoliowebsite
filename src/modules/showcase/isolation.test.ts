@@ -138,8 +138,9 @@ describe("Plan 3b: public case-study code never reaches the ledger", () => {
     );
   });
 
-  it("their own files name no ledger table, no upload or anchor table and neither admin function", () => {
+  it("their own files, and every file they reach, name no ledger table, no upload or anchor table and neither admin function", () => {
     for (const file of own) expect(readFileSync(file, "utf8"), relative(file)).not.toMatch(LEDGER);
+    for (const [file, text] of reach) if (!GENERATED.test(file)) expect(text, relative(file)).not.toMatch(LEDGER);
   });
 
   it("nothing they import, however deep, is the ledger, cases or valuation module or a private desk component", () => {

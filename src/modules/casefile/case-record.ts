@@ -1,7 +1,7 @@
 import { isRecord } from "@/lib/records";
 import { isIsoDate } from "./lag";
 
-// The ledger record of a case study, version 1 (spec s33.2). The database builds it (private.case_study_record); the desk copies
+// The ledger record of a case study, version 1 (spec s33.2). The database builds it (the ledger's record builder, migration 0018); the desk copies
 // it into `structured.ledger` verbatim and the publish gate rebuilds it and requires an exact match. This file only READS it:
 // the field names are the record's own (snake_case), and a value this parser does not recognise gives null, never a partial
 // record, so a page shows a whole record or nothing. Public-safe: no database, no server-only import.
