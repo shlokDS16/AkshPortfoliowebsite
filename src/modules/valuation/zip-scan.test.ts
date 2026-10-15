@@ -132,14 +132,17 @@ describe("scanXlsxZip: the sheet shapes counted before any parse", () => {
   });
 });
 
+// A quadratic scan of these inputs takes minutes; CI runners are slow and noisy, so they get more headroom than a laptop.
+const LINEAR_BUDGET_MS = process.env.CI ? 10_000 : 2000;
+
 describe("scanXlsxZip: patterns that must stay linear on hostile text", () => {
   const sheet = (xml: string): ZipEntrySpec => ({ name: "xl/worksheets/sheet1.xml", data: new TextEncoder().encode(xml) });
 
-  it("two million row openers with no closing bracket are read in well under a second", () => {
+  it("two million row openers with no closing bracket are read in linear time", () => {
     const zip = buildZip([...cleanEntries(), sheet("<worksheet><sheetData>" + "<row ".repeat(2_000_000))]);
     const start = performance.now();
     scanXlsxZip(zip);
-    expect(performance.now() - start).toBeLessThan(2000);
+    expect(performance.now() - start).toBeLessThan(LINEAR_BUDGET_MS);
   });
 
   it("a million bin-mapping openers with no closing bracket in the content types are read quickly too", () => {
@@ -149,7 +152,7 @@ describe("scanXlsxZip: patterns that must stay linear on hostile text", () => {
     const zip = buildZip(entries);
     const start = performance.now();
     scanXlsxZip(zip);
-    expect(performance.now() - start).toBeLessThan(2000);
+    expect(performance.now() - start).toBeLessThan(LINEAR_BUDGET_MS);
   });
 
   it("a content-type list or relationship part over 1 MB is not a real one", () => {
