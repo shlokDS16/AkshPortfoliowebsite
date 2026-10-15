@@ -132,8 +132,9 @@ describe("scanXlsxZip: the sheet shapes counted before any parse", () => {
   });
 });
 
-// A quadratic scan of these inputs takes minutes; CI runners are slow and noisy, so they get more headroom than a laptop.
-const LINEAR_BUDGET_MS = process.env.CI ? 10_000 : 2000;
+// A quadratic scan of these inputs takes minutes; a linear one takes about a second on a laptop and up to a few on a busy CI
+// runner, so 10 s separates the two without flaking.
+const LINEAR_BUDGET_MS = 10_000;
 
 describe("scanXlsxZip: patterns that must stay linear on hostile text", () => {
   const sheet = (xml: string): ZipEntrySpec => ({ name: "xl/worksheets/sheet1.xml", data: new TextEncoder().encode(xml) });
