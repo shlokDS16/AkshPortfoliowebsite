@@ -3,6 +3,7 @@ import type { LlmPort, LlmRequest, LlmResult } from "@/lib/providers/llm";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
 import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
+import { createMemoryValuationRepo } from "@/test/fakes/valuation-repo";
 import { createMemoryUsageRepo, type MemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { CLASSIFY_BATCH, CLASSIFY_MAX_COMPLETION, CLASSIFY_PAGE_CHARS } from "../caps";
 import { machineDocuments, type StepDeps } from "../deps";
@@ -44,7 +45,7 @@ function fake(...results: LlmResult<unknown>[]) {
 function ctx(s: { documents: MemoryDocumentsRepo; usage: MemoryUsageRepo | UsageRepo }, llm: LlmPort | null, step: Partial<Step>, opts: { clock?: () => number } = {}): StepContext {
   const deps: StepDeps = {
     llm, ocr: null, transcriber: null, models: { text: "test-text", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
-    repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
+    repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo(), valuation: createMemoryValuationRepo() },
     now: () => new Date(T0), clock: opts.clock ?? (() => T0),
   };
   const full: Step = {

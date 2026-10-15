@@ -3,6 +3,7 @@ import { createFixtureLlm } from "@/lib/providers/fixture-llm";
 import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
 import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
+import { createMemoryValuationRepo } from "@/test/fakes/valuation-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { machineDocuments, type StepDeps } from "../deps";
 import type { Step, StepContext } from "../types";
@@ -45,7 +46,7 @@ function run(tests: unknown[], step: Partial<Step> = {}, companyId: string | nul
   const research = createMemoryResearch({ [COMPANY]: { itemId: ITEM, title: "Kaveri", structured: file(tests) } });
   const deps: StepDeps = {
     llm: createFixtureLlm(), ocr: null, transcriber: null, models: { text: "m", vision: "v", classify: "c", whisper: "w" },
-    repos: { documents: machineDocuments(documents), usage: createMemoryUsageRepo(), proposals, research, digests: createMemoryDigestsRepo() },
+    repos: { documents: machineDocuments(documents), usage: createMemoryUsageRepo(), proposals, research, digests: createMemoryDigestsRepo(), valuation: createMemoryValuationRepo() },
     now: () => new Date(T0), clock: () => T0,
   };
   const full: Step = {

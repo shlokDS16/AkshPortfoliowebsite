@@ -4,6 +4,7 @@ import type { LlmPort, LlmRequest, LlmResult } from "@/lib/providers/llm";
 import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
 import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
+import { createMemoryValuationRepo } from "@/test/fakes/valuation-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { MAX_PROPOSALS_PER_DOCUMENT, PAGE_CHAR_LIMIT, REREAD_MAX_COMPLETION } from "../caps";
 import { PROMPT_VERSION, REREAD_PROMPT_VERSION } from "../prompts";
@@ -41,7 +42,7 @@ function setup(pageText = PL_TEXT) {
 function ctx(s: ReturnType<typeof setup>, llm: LlmPort, step: Partial<Step> = {}): StepContext {
   const deps: StepDeps = {
     llm, ocr: null, transcriber: null, models: { text: "test-model", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
-    repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: s.proposals, research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
+    repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: s.proposals, research: createMemoryResearch(), digests: createMemoryDigestsRepo(), valuation: createMemoryValuationRepo() },
     now: () => new Date(T0), clock: () => T0,
   };
   const full: Step = {

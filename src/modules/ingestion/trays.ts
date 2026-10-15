@@ -1,13 +1,19 @@
 import { pagesNotSortedText } from "@/lib/messages";
 import type { DocumentStatus } from "@/modules/documents/client";
+import { REFUSAL_MESSAGES } from "@/modules/valuation/client";
+import { MODEL_CONFIRMED, MODEL_READING, modelReadText, WORKBOOK_NOT_READ } from "./model-copy";
 import { OCR_ATTENTION_TEXT, scansNotice } from "./ocr-copy";
 import { isScanHeavy, PAGE_STEP_KINDS } from "./page-steps";
+import { STOPPED_TWICE } from "./stopped";
 import type { StepKind, StepStatus, WaitReason } from "./types";
 import { TRANSCRIPT_READY, TYPING_OUT } from "./voice-copy";
 
 // Which tray a document sits in, and what its card says (spec s7). Derived, never stored. Pure: no clock, no I/O.
 
 export type Tray = "ready" | "attention" | "reading" | "paused" | "waiting" | "finished";
+
+/** A valuation workbook's version once it has been read (migration 0017): its status and the counts the read found. Machine columns only. */
+export type ModelSummary = { status: "ready" | "confirmed"; sheets: number; cells: number; formulas: number };
 
 export type DocState = {
   status: DocumentStatus;
@@ -20,6 +26,8 @@ export type DocState = {
   photo?: boolean;
   /** A voice note whose transcript is typed out and waits for Aksh (transcript_status pending, page 1 has text). */
   transcript?: boolean;
+  /** A valuation workbook that has been read (kind xlsx); absent for every other document and until the read has finished. */
+  model?: ModelSummary | null;
   /** Machine-read claims stored for the document (the pane shows them); 0 or absent when no digest found any. */
   digestClaims?: number;
   /** Pages the classifier gave up on (a let-go batch): the card says so once it is ready, so no page is skipped unseen. */
@@ -111,7 +119,9 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
     const whole = stuck.find((s) => !isPageStep(s));
     let message: string;
     if (whole) {
-      message = whole.lastError ?? (whole.kind === "pdf_text" ? PDF_NOT_OPENED_TEXT : whole.kind === "transcribe" ? VOICE_COULD_NOT_BE_TYPED : CHOOSING_FAILED);
+      message = whole.lastError ?? (whole.kind === "pdf_text" ? PDF_NOT_OPENED_TEXT : whole.kind === "transcribe" ? VOICE_COULD_NOT_BE_TYPED : whole.kind === "xlsx_read" ? WORKBOOK_NOT_READ : CHOOSING_FAILED);
+      // A workbook whose read stopped twice is, to Aksh, one that is too large to read in one go (spec s8).
+      if (whole.kind === "xlsx_read" && whole.lastError === STOPPED_TWICE) message = REFUSAL_MESSAGES.too_slow;
     }
     else {
       message = d.photo ? PHOTO_COULD_NOT_BE_READ : `${pages.length === 1 ? "Page" : "Pages"} ${pageList(pages)} could not be read.`;
@@ -151,7 +161,11 @@ export function trayFor(d: DocState, now: Date, eta: string | null): TrayView {
     return view("reading", `Reading commentary: ${counts.extractDone} of ${counts.extractTotal} pages${eta ? `, ${eta}` : ""}`);
   }
   if (unfinished.some((s) => s.kind === "transcribe")) return view("reading", TYPING_OUT);
+  if (unfinished.some((s) => s.kind === "xlsx_read")) return view("reading", MODEL_READING);
   if (unfinished.length > 0) return view("reading", CHOOSING);
+
+  // A read workbook waits for Aksh to choose its cells; its counts are not figures to check.
+  if (d.model) return view("ready", d.model.status === "confirmed" ? MODEL_CONFIRMED : modelReadText(d.model));
 
   // A typed-out voice note is Aksh's own words waiting for his check; it is never counted as figures (ruling R13).
   if (d.transcript) return view("ready", TRANSCRIPT_READY);

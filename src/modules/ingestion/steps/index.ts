@@ -8,6 +8,7 @@ import { selectPagesStep } from "./select-pages";
 import { textPages } from "./text-pages";
 import { transcribe } from "./transcribe";
 import { visionPage } from "./vision-page";
+import { xlsxRead } from "./xlsx-read";
 
 // Step handlers take every repo through ctx.deps.repos (ruling R7) and never import a Supabase client or touch the
 // client the drain holds (ingestion.graph.test.ts).
@@ -22,4 +23,5 @@ export const HANDLERS: Record<StepKind, StepHandler> = {
   text_pages: textPages,
   classify_pages: classifyPagesStep,
   digest_page: digestPage,
+  xlsx_read: xlsxRead,
 };
