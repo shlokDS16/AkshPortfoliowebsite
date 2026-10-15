@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { InvalidInputError, ItemNotFoundError, PublicItemLockedError } from "@/lib/errors";
 import { isLedgerCase } from "@/modules/casefile/client";
-import { conceptChangeReason, dedupeIds, unionConceptIds } from "./concepts";
+import { conceptChangeReason, dedupeIds, unionConceptIds, type ConceptLabel } from "./concepts";
+import { ConceptChangePendingError } from "./errors";
 import {
   addRevisionInput,
   appendRevisionInput,
@@ -133,8 +134,9 @@ const conceptList = z.array(z.guid()).max(MAX_CONCEPTS);
 
 /**
  * His concept picker saves here (spec s7): one new revision with the newest body and structured copied as they are, the
- * concepts set, and the change reason from a fixed template filled with `names` (concept id to name; an id with no
- * name is a caller bug). On a private item items.theme_id follows the first concept; on a public item the revision waits
+ * concepts set, and the change reason from a fixed template filled with `labels` (concept id to its name and whether it is
+ * public now; an id with no label is a caller bug). The reason publishes with the revision, so it names only public
+ * concepts. A change is refused (ConceptChangePendingError) while a revision already waits for the gate. On a private item items.theme_id follows the first concept; on a public item the revision waits
  * for the gate and theme_id stays (it is frozen). The same list, in the same order, writes nothing and returns the
  * newest revision.
  */
@@ -142,24 +144,25 @@ export async function setItemConcepts(
   repo: ResearchRepo,
   itemId: string,
   conceptIds: readonly string[],
-  names: Readonly<Record<string, string>>,
+  labels: Readonly<Record<string, ConceptLabel>>,
 ): Promise<RevisionResult> {
   const wanted = dedupeIds(conceptList.parse([...conceptIds]));
   const history = await getItemWithHistory(repo, itemId);
   if (!history) throw new ItemNotFoundError(itemId);
   const latest = history.revisions[0];
   if (!latest) throw new ItemNotFoundError(itemId);
-  const nameOf = (id: string): string => {
-    const name = Object.hasOwn(names, id) ? names[id] : undefined;
-    if (!name) throw new InvalidInputError();
-    return name;
+  const labelOf = (id: string): ConceptLabel => {
+    const label = Object.hasOwn(labels, id) ? labels[id] : undefined;
+    if (!label?.name) throw new InvalidInputError();
+    return label;
   };
   const before = latest.conceptIds ?? (history.item.themeId ? [history.item.themeId] : []);
   if (before.length === wanted.length && before.every((id, i) => id === wanted[i])) {
     return { item: history.item, revision: latest, pendingGate: history.item.currentRevisionId !== latest.id };
   }
-  const added = wanted.filter((id) => !before.includes(id)).map(nameOf);
-  const removed = before.filter((id) => !wanted.includes(id)).map(nameOf);
+  if (history.pending.length > 0) throw new ConceptChangePendingError();
+  const added = wanted.filter((id) => !before.includes(id)).map(labelOf);
+  const removed = before.filter((id) => !wanted.includes(id)).map(labelOf);
   const result = await addRevision(repo, {
     itemId,
     bodyMd: latest.bodyMd,

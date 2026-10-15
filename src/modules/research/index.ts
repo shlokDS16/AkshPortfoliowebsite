@@ -25,6 +25,8 @@ export type { DiffLine, Item, ItemPatch, ItemWithHistory, NewItemRow, NewRevisio
 export { diffRevisions } from "./diff";
 export { bodyHoldsText } from "./match";
 export { createSupabaseResearchRepo } from "./repo";
+export { listItemsByIds, listItemsCreatedBetween } from "./lookup";
 export { addRevision, appendRevision, createItem, getItemWithHistory, listRecentItems, setItemConcepts, updateItemMeta } from "./service";
-export { conceptChangeReason, unionConceptIds } from "./concepts";
+export { conceptChangeReason, unionConceptIds, type ConceptLabel } from "./concepts";
+export { ConceptChangePendingError } from "./errors";
 export { latestFileForCompany } from "./queries";

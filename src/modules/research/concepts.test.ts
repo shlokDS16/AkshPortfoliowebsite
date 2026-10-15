@@ -1,27 +1,44 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { InvalidInputError, ItemNotFoundError } from "@/lib/errors";
+import { errorCode, errorText } from "@/lib/messages";
 import { createMemoryResearchRepo } from "@/test/fakes/research-repo";
-import { conceptChangeReason, unionConceptIds } from "./concepts";
+import { conceptChangeReason, unionConceptIds, type ConceptLabel } from "./concepts";
+import { ConceptChangePendingError } from "./errors";
 import { addRevision, appendRevision, createItem, setItemConcepts } from "./service";
 
 const [A, B, C, D] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
-const names = { [A]: "A", [B]: "B", [C]: "C", [D]: "D" };
+const pub = (name: string): ConceptLabel => ({ name, isPublic: true });
+const priv = (name: string): ConceptLabel => ({ name, isPublic: false });
+const names = { [A]: pub("A"), [B]: pub("B"), [C]: pub("C"), [D]: pub("D") };
 
 describe("conceptChangeReason (the fixed template, his act)", () => {
   it("names what was added, what was removed, or both", () => {
-    expect(conceptChangeReason(["A", "B"], [])).toBe("Concepts: added A, B.");
-    expect(conceptChangeReason([], ["C"])).toBe("Concepts: removed C.");
-    expect(conceptChangeReason(["A", "B"], ["C"])).toBe("Concepts: added A, B; removed C.");
+    expect(conceptChangeReason([pub("A"), pub("B")], [])).toBe("Concepts: added A, B.");
+    expect(conceptChangeReason([], [pub("C")])).toBe("Concepts: removed C.");
+    expect(conceptChangeReason([pub("A"), pub("B")], [pub("C")])).toBe("Concepts: added A, B; removed C.");
   });
 
   it("says the order changed when the set did not", () => {
     expect(conceptChangeReason([], [])).toBe("Concepts: order changed.");
   });
 
+  it("never names a concept that is not public: it counts them in plain words", () => {
+    expect(conceptChangeReason([priv("Secret")], [])).toBe("Concepts: added 1 private concept.");
+    expect(conceptChangeReason([priv("S1"), priv("S2")], [])).toBe("Concepts: added 2 private concepts.");
+    expect(conceptChangeReason([pub("A"), priv("S1"), priv("S2")], [priv("S3"), pub("C")])).toBe(
+      "Concepts: added A and 2 private concepts; removed C and 1 private concept.",
+    );
+    expect(conceptChangeReason([], [priv("S3")])).toBe("Concepts: removed 1 private concept.");
+  });
+
+  it("counts a label that does not say it is public (fails closed)", () => {
+    expect(conceptChangeReason([{ name: "Maybe" } as ConceptLabel], [])).toBe("Concepts: added 1 private concept.");
+  });
+
   it("falls back to counts when the names would pass the 300-unit reason limit", () => {
-    const long = "N".repeat(120);
-    expect(conceptChangeReason([long, long, long], ["C"])).toBe("Concepts: added 3; removed 1.");
+    const long = pub("N".repeat(120));
+    expect(conceptChangeReason([long, long, long], [pub("C")])).toBe("Concepts: added 3; removed 1.");
   });
 });
 
@@ -152,5 +169,52 @@ describe("setItemConcepts (spec s7)", () => {
     await expect(setItemConcepts(repo, item.id, Array.from({ length: 9 }, () => randomUUID()), {})).rejects.toThrow();
     await expect(setItemConcepts(repo, randomUUID(), [A], names)).rejects.toBeInstanceOf(ItemNotFoundError);
     await expect(setItemConcepts(repo, item.id, [randomUUID()], names)).rejects.toBeInstanceOf(InvalidInputError);
+  });
+
+  it("writes no private concept's name into the reason of the revision it saves", async () => {
+    const repo = createMemoryResearchRepo();
+    const { item } = await createItem(repo, { kind: "learning", title: "T", conceptIds: [A, C] });
+    const labels = { [A]: pub("A"), [B]: priv("Secret idea"), [C]: priv("Hidden one"), [D]: pub("D") };
+    const { revision } = await setItemConcepts(repo, item.id, [A, B, D], labels);
+    expect(revision.changeReason).toBe("Concepts: added D and 1 private concept; removed 1 private concept.");
+    expect(JSON.stringify(repo.revisions)).not.toMatch(/Secret idea|Hidden one/);
+  });
+
+  it("refuses a concept change while a revision is waiting for the gate, and writes nothing", async () => {
+    const repo = createMemoryResearchRepo();
+    const { item } = await createItem(repo, { kind: "learning", title: "T", conceptIds: [A] });
+    repo.setVisibility(item.id, "public");
+    await setItemConcepts(repo, item.id, [A, B], names);
+    expect(repo.revisions).toHaveLength(2);
+    await expect(setItemConcepts(repo, item.id, [A], names)).rejects.toBeInstanceOf(ConceptChangePendingError);
+    await expect(setItemConcepts(repo, item.id, [A, B, C], names)).rejects.toBeInstanceOf(ConceptChangePendingError);
+    expect(repo.revisions).toHaveLength(2);
+  });
+
+  it("refuses after any pending revision (a capture append counts), but a private item is never blocked", async () => {
+    const repo = createMemoryResearchRepo();
+    const { item } = await createItem(repo, { kind: "thesis", title: "T", bodyMd: "v1", conceptIds: [A] });
+    repo.setVisibility(item.id, "public");
+    await appendRevision(repo, { itemId: item.id, appendMd: "more", conceptIds: [B] });
+    await expect(setItemConcepts(repo, item.id, [A], names)).rejects.toBeInstanceOf(ConceptChangePendingError);
+    const priv2 = await createItem(repo, { kind: "note", title: "P", conceptIds: [A] });
+    await setItemConcepts(repo, priv2.item.id, [B], names);
+    await expect(setItemConcepts(repo, priv2.item.id, [C], names)).resolves.toBeTruthy();
+  });
+
+  it("an unchanged list on an item with a pending revision writes nothing and is not an error", async () => {
+    const repo = createMemoryResearchRepo();
+    const { item } = await createItem(repo, { kind: "learning", title: "T", conceptIds: [A] });
+    repo.setVisibility(item.id, "public");
+    await setItemConcepts(repo, item.id, [A, B], names);
+    const result = await setItemConcepts(repo, item.id, [A, B], names);
+    expect(result.pendingGate).toBe(true);
+    expect(repo.revisions).toHaveLength(2);
+  });
+
+  it("the refusal shows as the same plain sentence on the desk", () => {
+    const error = new ConceptChangePendingError();
+    expect(errorCode(error)).toBe("concept-change-pending");
+    expect(errorText(errorCode(error))).toBe(error.message);
   });
 });

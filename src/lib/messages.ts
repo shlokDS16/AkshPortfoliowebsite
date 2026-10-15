@@ -32,6 +32,8 @@ const ERRORS = {
   "name-on-public-item": "A public item names this. Unpublish that item before changing what this name is.",
   // Concepts (Phase 4 Task 2; = ConceptDescriptionTooLongError in modules/catalog/errors.ts, a test keeps them equal). Pending Shlok's approval.
   "concept-description-too-long": "That is over 2,000 characters. Shorten it.",
+  // = ConceptChangePendingError (modules/research/errors.ts; a test keeps them equal). Pending Shlok's approval.
+  "concept-change-pending": "A newer version of this note is waiting to be published. Publish it before changing the concepts.",
   "no-figure-date": "This file has no dated figure yet, so there is nothing to set Figures to.",
   // Uploads (= DOCUMENT_ERROR_TEXT in modules/documents/errors.ts; a test keeps them equal).
   "upload-duplicate": "You uploaded this file before. Open the earlier copy.",
