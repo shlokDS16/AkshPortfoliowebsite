@@ -1,7 +1,7 @@
 import { isPastLag } from "@/lib/dates";
 import { isRecord } from "@/lib/records";
-import { isIsoDate, latestFigureDate } from "@/modules/casefile/client";
-import { LEXICON, PRICE_NUMBER } from "./lexicon";
+import { isIsoDate, isLedgerCase, latestFigureDate } from "@/modules/casefile/client";
+import { LEDGER_FIGURE_MESSAGE, LEDGER_PRICE_PATTERNS, LEXICON, PRICE_NUMBER } from "./lexicon";
 import { matchViews } from "./normalise";
 import { sentenceHash } from "./hash";
 import { POLICY_VERSION, type LintAllowed, type LintField, type LintFinding, type LintInput, type LintResult, type LintRule } from "./rules";
@@ -13,6 +13,18 @@ function walk(value: unknown, units: TextUnit[], citedQuote: boolean): void {
   if (typeof value === "string") units.push({ field: "structured", text: value, citedQuote });
   else if (Array.isArray(value)) value.forEach((v) => walk(v, units, citedQuote));
   else if (isRecord(value)) Object.values(value).forEach((v) => walk(v, units, citedQuote));
+}
+
+/**
+ * A ledger case study's record (publishing rule 10.8, D42): the words he sealed are his and are linted, once each; everything else
+ * in the record (hashes, sealed text, times, dates, chart points, the company's name and symbol, his choices) is made by the machine
+ * or is catalog data and is not prose. The gate refuses a record that differs from the ledger's, so these are the words that publish.
+ */
+function walkLedger(ledger: unknown, units: TextUnit[]): void {
+  const events = isRecord(ledger) && Array.isArray(ledger.events) ? ledger.events : [];
+  for (const event of events) {
+    if (isRecord(event) && typeof event.words === "string") units.push({ field: "structured", text: event.words, citedQuote: false });
+  }
 }
 
 /** The whole public surface (ADR-001 s8.3). OG text is derived from title and learning objective. */
@@ -27,8 +39,12 @@ function collectUnits(input: LintInput): TextUnit[] {
     plain("companyName", input.companyName),
     plain("companyOneLiner", input.companyOneLiner),
     plain("themeName", input.themeName),
+    ...input.conceptNames.map((name) => plain("conceptName", name)),
+    // A slug reads as words: hyphens are spaces, as for the item slug above.
+    ...input.conceptSlugs.map((slug) => plain("conceptSlug", slug.replace(/-/g, " "))),
   ];
-  const { sources, ...rest } = input.structured;
+  const { sources, ledger, ...rest } = input.structured;
+  walkLedger(ledger, units);
   for (const source of Array.isArray(sources) ? sources : sources === undefined ? [] : [sources]) {
     if (!isRecord(source)) {
       walk(source, units, false);
@@ -63,11 +79,13 @@ const structural = (rule: LintRule, message: string, field: LintField | null = n
   message,
 });
 
-/** Pure: no I/O. Allowances are honoured for rule 1 only; rules 2, 3, 5, 6 and structure are never allowanceable. */
+/** Pure: no I/O. Allowances are honoured for rule 1 only; rules 2, 3, 5, 6, 10 and structure are never allowanceable. */
 export function lintText(input: LintInput): LintResult {
   const findings: LintFinding[] = [];
   const allowedBy: LintAllowed[] = [];
   const checkPrices = input.companyId !== null && !dataIsLagged(input);
+  // Rule 10.7: a case study from the ledger prints no price or return in his words, whatever the lag. Never allowanceable.
+  const ledgerCase = isLedgerCase(input.structured);
 
   for (const unit of collectUnits(input)) {
     for (const sentence of splitSentences(unit.text)) {
@@ -83,7 +101,11 @@ export function lintText(input: LintInput): LintResult {
           findings.push({ rule: entry.rule, field: unit.field, sentence, sentenceHash: hash, match: match[0], message: entry.message });
         }
       }
-      const price = checkPrices ? firstMatch(PRICE_NUMBER, views) : null;
+      const ledgerFigure = ledgerCase && !unit.citedQuote ? LEDGER_PRICE_PATTERNS.map((p) => firstMatch(p, views)).find(Boolean) ?? null : null;
+      if (ledgerFigure) {
+        findings.push({ rule: "10", field: unit.field, sentence, sentenceHash: hash, match: ledgerFigure[0], message: LEDGER_FIGURE_MESSAGE });
+      }
+      const price = checkPrices && !ledgerFigure ? firstMatch(PRICE_NUMBER, views) : null;
       if (price) {
         findings.push({
           rule: "3",
@@ -103,7 +125,8 @@ export function lintText(input: LintInput): LintResult {
   if (input.companyId !== null && input.holdsPosition === null) {
     findings.push(structural("5", "Set 'Holds position' (yes, no or not disclosed) for an item that names a company."));
   }
-  if ((input.kind === "thesis" || input.kind === "case_study") && !/^#{1,6}\s*what would prove me wrong\b/im.test(input.bodyMd)) {
+  // A ledger case study's body is optional (spec s33.5): the record is the case, his body is only "Looking back".
+  if ((input.kind === "thesis" || (input.kind === "case_study" && !ledgerCase)) && !/^#{1,6}\s*what would prove me wrong\b/im.test(input.bodyMd)) {
     findings.push(structural("structure", "Add a 'What would prove me wrong' section as a Markdown heading.", "body"));
   }
   if (input.kind === "case_study" && !dataIsLagged(input)) {

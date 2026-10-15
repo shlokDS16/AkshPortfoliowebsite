@@ -15,9 +15,11 @@ export const LINT_FIELDS = [
   "companyName",
   "companyOneLiner",
   "themeName",
+  "conceptName",
+  "conceptSlug",
 ] as const;
 export type LintField = (typeof LINT_FIELDS)[number];
-export type LintRule = "1" | "2" | "3" | "5" | "6" | "structure";
+export type LintRule = "1" | "2" | "3" | "5" | "6" | "10" | "structure";
 
 /**
  * The optional public fields are required-but-nullable on purpose: a caller must decide what to pass
@@ -37,6 +39,9 @@ export type LintInput = {
   companyName: string | null;
   companyOneLiner: string | null;
   themeName: string | null;
+  /** Names and slugs of the live concepts the revision links (its concept_ids), in order. Public with the revision, like themeName. */
+  conceptNames: string[];
+  conceptSlugs: string[];
   companyId: string | null;
   holdsPosition: HoldsPosition | null;
   dataAsOf: string | null;

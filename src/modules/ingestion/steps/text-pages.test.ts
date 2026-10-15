@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
 import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
+import { createMemoryValuationRepo } from "@/test/fakes/valuation-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { TEXT_PAGES_PER_STEP } from "../caps";
 import { machineDocuments, type StepDeps } from "../deps";
@@ -31,7 +32,7 @@ function ctx(repo: MemoryDocumentsRepo, step: Partial<Step> = {}): StepContext {
   const deps: StepDeps = {
     llm: null, ocr: null, transcriber: null,
     models: { text: "t", vision: "v", classify: "c", whisper: "w" },
-    repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
+    repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo(), valuation: createMemoryValuationRepo() },
     now: () => new Date(T0),
     clock: () => T0,
   };

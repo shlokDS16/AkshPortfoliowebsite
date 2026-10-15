@@ -12,6 +12,8 @@ export const INBOX_ERROR_TEXT = {
   "reread-closed": "You marked this document done or skipped, so its pages are not read again.",
   "reread-not-ready": "This page is not ready to be read again. Wait for its first reading to finish.",
   "reread-limit": "This page has been read as many times as the desk allows.",
+  // Workbook retry (Plan 2.7 final review I3). Pending Shlok's approval.
+  "workbook-retry-limit": "This workbook has been tried as many times as the desk allows. Remove sheets the valuation does not use, save it and upload it again.",
 } as const;
 
 export type InboxErrorCode = keyof typeof INBOX_ERROR_TEXT;
@@ -38,6 +40,8 @@ export const REVIEW_ERROR_TEXT = {
   "nothing-to-file": "Tick at least one figure to file.",
   "company-locked": "Some of this document's figures are already in its company's file, so the company cannot be changed.",
   "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
+  // Plan 2.7 Task 3 (pending Shlok approval): a workbook's model versions are numbered under its company (deferral D2).
+  "workbook-company-locked": "A workbook stays with the company it was uploaded for, because its model versions are numbered under that company.",
 } as const;
 
 export type ReviewErrorCode = keyof typeof REVIEW_ERROR_TEXT;

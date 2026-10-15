@@ -55,13 +55,33 @@ export async function expectNoViolations(page: Page): Promise<void> {
   expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
 }
 
-/** WCAG 2.2 A/AA in light, then in dark (the desk follows the OS); leaves the page in light. */
+/**
+ * Waits until no animation on a rendered element is still going, for at most 5 s, and then throws naming what is still going (a scan taken
+ * mid-fade reads the wrong colours, and a silent cap would hide an animation that never ends). An element that is not rendered (inside a
+ * closed <details>, say) is skipped: its animation can stay "running" for ever, and axe does not look at it either.
+ */
+async function settleVisibleAnimations(page: Page): Promise<void> {
+  const stuck = await page.evaluate(async () => {
+    const going = () =>
+      document.getAnimations().flatMap((a) => {
+        const target = (a.effect as KeyframeEffect | null)?.target;
+        if (!(target instanceof Element) || !target.checkVisibility()) return [];
+        if (a.playState !== "running") return [];
+        return [`${target.tagName.toLowerCase()}${target.id ? `#${target.id}` : ""}${typeof target.className === "string" && target.className ? `.${target.className.trim().split(/\s+/).join(".")}` : ""}`];
+      });
+    const deadline = Date.now() + 5_000;
+    while (going().length > 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
+    return going();
+  });
+  if (stuck.length > 0) throw new Error(`animations still running on: ${stuck.join(", ")}`);
+}
+
+/** WCAG 2.2 A/AA in light, then in dark (the desk follows the OS); leaves the page in light. Motion is reduced for the scan, so transitions end at once. */
 export async function expectNoViolationsInBothThemes(page: Page): Promise<void> {
   for (const colorScheme of ["light", "dark"] as const) {
-    await page.emulateMedia({ colorScheme });
-    // Buttons transition their colours (--motion-fast): scan once those have settled, not mid-fade.
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
+    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    await settleVisibleAnimations(page);
     await expectNoViolations(page);
   }
-  await page.emulateMedia({ colorScheme: "light" });
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
 }

@@ -10,6 +10,9 @@ export type MemoryDocumentsRepo = DocumentsRepo & {
   pages: Map<string, PageRow>;
   storageBytes: number;
   removed: string[];
+  /** The documents finishUpload recorded a valuation version for (migration 0017), and a switch to make that fail. */
+  valuationStarts: string[];
+  failValuationStart: boolean;
   /** documents.fetched_from by document id, as insertUploading set it. */
   fetchedFrom: Map<string, string | null>;
   /** The next insert of this hash loses a race: another request inserts the same file first. */
@@ -37,6 +40,8 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
     fetchedFrom,
     storageBytes: 0,
     removed: [],
+    valuationStarts: [],
+    failValuationStart: false,
     simulateRace(sha256, earlierId) {
       race = { sha256, earlierId };
     },
@@ -82,6 +87,11 @@ export function createMemoryDocumentsRepo(): MemoryDocumentsRepo {
     async removeObject(path) {
       repo.removed.push(path);
       objects.delete(path);
+    },
+    async startValuationVersion(documentId) {
+      if (repo.failValuationStart) throw new DbError("documents.startValuationVersion", "P0001", "valuation: failed");
+      if (!repo.valuationStarts.includes(documentId)) repo.valuationStarts.push(documentId);
+      return `version-of-${documentId}`;
     },
     async listForCompany(companyId) {
       // Like repo.ts: no unfinished upload, newest filing first (undated last), then newest upload.

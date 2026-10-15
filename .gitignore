@@ -49,3 +49,6 @@ yarn-error.log*
 
 # vitest cache
 .vitest/
+
+# the IronCalc wasm copied out of node_modules by scripts/copy-ironcalc-wasm.mjs (postinstall)
+public/vendor/ironcalc-*.wasm

@@ -5,6 +5,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { createDigestsRepo, createProposalsRepo, createQueueRepo, createUsageRepo, drain, DRAIN_MS, HANDLERS, machineDocuments, OCR_MAX_BYTES, pruneUsage, type DrainDeps, type DrainSummary } from "@/modules/ingestion";
 import { latestFileForCompany } from "@/modules/research";
+import { createSupabaseValuationRepo, machineValuation } from "@/modules/valuation";
 import { ALERT_STEP } from "./alert-steps";
 import { CLOCK_REGISTER_STEP } from "./clock-steps";
 import { LEDGER_DAILY_STEPS } from "./ledger-steps";
@@ -47,6 +48,7 @@ function buildDeps(): DrainDeps {
       usage: createUsageRepo(db),
       proposals: createProposalsRepo(db),
       digests: createDigestsRepo(db),
+      valuation: machineValuation(createSupabaseValuationRepo(db)),
       research: { latestFileForCompany: (companyId) => latestFileForCompany(db, companyId) },
     },
     now: () => new Date(),

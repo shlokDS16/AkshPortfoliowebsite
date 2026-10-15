@@ -1,0 +1,15 @@
+diff --git a/wasm.js b/wasm.js
+index e9031b3479cc9ae6d801b2d1718392060a1fe1a4..3ba9f15e5c6153c04dcebffb7293c43ab48a2a8c 100644
+--- a/wasm.js
++++ b/wasm.js
+@@ -2009,7 +2009,9 @@ async function __wbg_init(module_or_path) {
+     }
+ 
+     if (module_or_path === undefined) {
+-        module_or_path = new URL('wasm_bg.wasm', import.meta.url);
++        // Desk patch: the default `new URL('wasm_bg.wasm', import.meta.url)` makes the bundler emit a second, unused copy of the wasm.
++        // The desk always passes module_or_path (the copy served from public/vendor), so there is no default.
++        throw new Error('ironcalc wasm: module_or_path is required');
+     }
+     const imports = __wbg_get_imports();
+ 

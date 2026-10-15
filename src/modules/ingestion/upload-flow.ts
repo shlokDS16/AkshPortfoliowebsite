@@ -21,6 +21,8 @@ export const FIRST_STEP: Partial<Record<DocumentKind, { job: JobKind; step: NewS
   // A fetched web page and pasted text are stored as text and cut into pages (ruling R1); a fetched PDF is a pdf.
   url: { job: "ingest_url", step: { kind: "text_pages", pageNo: 1 } },
   text: { job: "ingest_text", step: { kind: "text_pages", pageNo: 1 } },
+  // A valuation workbook (2.7): one step reads it whole. job_steps wants a page number on every step but select_pages, so it is 1.
+  xlsx: { job: "ingest_xlsx", step: { kind: "xlsx_read", pageNo: 1 } },
 };
 
 /** A recording's length as the browser measured it, kept on its first step to size the reservation. A claim, so only a plain positive number passes. */

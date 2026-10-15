@@ -32,6 +32,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # Plan 2.7 Task 3: IronCalc only on the model page, no SheetJS or native engine in the browser, the served wasm is the package's.
+      - run: pnpm check:bundles
 
   # One Supabase CLI everywhere: 2.119.0, the exact devDependency (`pnpm supabase ...` locally).
   db:
@@ -46,13 +48,13 @@ jobs:
       - run: supabase db reset
       - run: supabase test db
 
-  # Every Playwright project (anon, setup, desk-mobile, desk-desktop) against a LOCAL Supabase stack.
+  # Every Playwright project (anon, setup, seed, public-*, desk-*, cases, cases-public-*, concepts, concepts-public-*, signout) against a LOCAL Supabase stack.
   # No repository secrets and no hosted project: playwright.config.ts reads the local URL and keys
   # from `supabase status -o env`, refuses a non-local API URL, then builds and starts the app with
   # that explicit env (NEXT_PUBLIC_* are inlined at build time, so the build happens in the web server step).
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

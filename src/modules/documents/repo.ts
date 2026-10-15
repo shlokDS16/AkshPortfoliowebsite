@@ -3,6 +3,7 @@ import { dbError, jobDbError } from "@/lib/supabase/errors";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Db } from "@/lib/supabase/types";
 import type { DocumentKind } from "./kinds";
+import { documentStorage } from "./storage-repo";
 import { POSTGREST_ROWS } from "./limits";
 import type { PageVerdict } from "./selector";
 import type { Basis, DocSourceType, DocumentListItem, DocumentRow, DocumentStatus, PageForExtraction, PageForReading, PageKind, PageText, TranscriptStatus } from "./types";
@@ -43,6 +44,8 @@ export interface DocumentsRepo {
   objectInfo(path: string): Promise<{ size: number; mimetype: string } | null>;
   removeObject(path: string): Promise<void>;
   listForCompany(companyId: string): Promise<DocumentListItem[]>;
+  /** Records the valuation version of an uploaded workbook (migration 0017; the admin's session). Idempotent per document; returns the version id. */
+  startValuationVersion(documentId: string): Promise<string>;
 
   // Job code (the secret-key client; migration 0006 grants). Errors carry the operation and code only.
   /** The stored original's bytes. */
@@ -113,6 +116,7 @@ function toColumns(patch: DocumentPatch): UpdateColumns {
 /** Runs on the admin's cookie session: RLS (admin only) and the private bucket's policies apply to every call. */
 export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
   return {
+    ...documentStorage(db),
     async findBySha(sha256) {
       const { data, error } = await db.from("documents").select("id, created_at, status").eq("sha256", sha256).maybeSingle();
       if (error) throw dbError("documents.findBySha", error);
@@ -154,26 +158,10 @@ export function createSupabaseDocumentsRepo(db: Db): DocumentsRepo {
       if (!row || row.storage_bytes === null || row.database_bytes === null) throw new AccessDeniedError();
       return { storageBytes: Number(row.storage_bytes), databaseBytes: Number(row.database_bytes) };
     },
-    async signUpload(path) {
-      const { data, error } = await db.storage.from(BUCKET).createSignedUploadUrl(path);
-      if (error) throw dbError("documents.signUpload", { message: error.message });
-      return { path: data.path, token: data.token };
-    },
-    async putObject(path, bytes, contentType) {
-      const { error } = await db.storage.from(BUCKET).upload(path, bytes, { contentType, upsert: false });
-      if (error) throw dbError("documents.putObject", { message: error.message });
-    },
-    async objectInfo(path) {
-      const { data, error } = await db.storage.from(BUCKET).list("", { search: path, limit: 1 });
-      if (error) throw dbError("documents.objectInfo", { message: error.message });
-      // `search` is a prefix match: only the exact name counts.
-      const object = data.find((o) => o.name === path);
-      if (!object?.metadata) return null;
-      return { size: Number(object.metadata.size), mimetype: String(object.metadata.mimetype) };
-    },
-    async removeObject(path) {
-      const { error } = await db.storage.from(BUCKET).remove([path]);
-      if (error) throw dbError("documents.removeObject", { message: error.message });
+    async startValuationVersion(documentId) {
+      const { data, error } = await db.rpc("start_valuation_version", { p_document_id: documentId });
+      if (error) throw dbError("documents.startValuationVersion", error);
+      return data;
     },
     async listForCompany(companyId) {
       const { data, error } = await db

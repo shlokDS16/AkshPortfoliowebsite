@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { POLICY_VERSION } from "./policy";
+import { POLICY_VERSION, RULE_TITLES } from "./policy";
 
 const MIGRATIONS = resolve(__dirname, "../../../supabase/migrations");
 
@@ -15,5 +15,13 @@ describe("the policy version is pinned identically in TypeScript and SQL (ADR-00
     const latest = defining.at(-1) ?? "";
     const pinned = /c_policy\s+constant\s+text\s*:=\s*'([^']+)'/.exec(latest)?.[1];
     expect(pinned).toBe(POLICY_VERSION);
+  });
+});
+
+describe("rule labels for the knowledge checks", () => {
+  it("names the concept and reading-log checks, and the theme check says concept", () => {
+    expect(RULE_TITLES.concept).toBe("Linked concept");
+    expect(RULE_TITLES.reading_note).toBe("Reading log");
+    expect(RULE_TITLES.theme).toBe("Linked concept");
   });
 });

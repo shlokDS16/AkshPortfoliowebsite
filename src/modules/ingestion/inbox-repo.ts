@@ -25,6 +25,8 @@ export interface InboxRepo {
   pageSteps(jobId: string): Promise<{ pageNo: number; kind: StepKind }[]>;
   /** The page's extract_page step in its newest pass (a re-read adds passes), or null when it has none. */
   latestExtract(jobId: string, pageNo: number): Promise<{ pass: number; status: StepStatus } | null>;
+  /** A workbook's xlsx_read step (page 1) in its newest pass, or null when it has none. */
+  latestWorkbookRead(jobId: string): Promise<{ pass: number; status: StepStatus } | null>;
   /**
    * Aksh's click on a re-read: the page's figures and test readings that are still waiting for his check become rejected, as his
    * decision, and marked superseded (told apart from the figures he drops himself), so the new pass's rows replace them. Accepted, edited and filed ones are never touched. Returns how many were rejected.
@@ -55,6 +57,20 @@ export function createSupabaseInboxRepo(db: Db): InboxRepo {
       .maybeSingle();
     if (error) throw dbError(where, error);
     return data?.id ?? null;
+  }
+
+  async function newestPass(jobId: string, kind: StepKind, pageNo: number, where: string): Promise<{ pass: number; status: StepStatus } | null> {
+    const { data, error } = await db
+      .from("job_steps")
+      .select("pass, status")
+      .eq("job_id", jobId)
+      .eq("kind", kind)
+      .eq("page_no", pageNo)
+      .order("pass", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw dbError(where, error);
+    return data ? { pass: data.pass, status: data.status as StepStatus } : null;
   }
 
   return {
@@ -104,19 +120,8 @@ export function createSupabaseInboxRepo(db: Db): InboxRepo {
         return [{ pageNo: r.page_no, kind: r.kind as StepKind }];
       });
     },
-    async latestExtract(jobId, pageNo) {
-      const { data, error } = await db
-        .from("job_steps")
-        .select("pass, status")
-        .eq("job_id", jobId)
-        .eq("kind", "extract_page")
-        .eq("page_no", pageNo)
-        .order("pass", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw dbError("inbox.latestExtract", error);
-      return data ? { pass: data.pass, status: data.status as StepStatus } : null;
-    },
+    latestExtract: (jobId, pageNo) => newestPass(jobId, "extract_page", pageNo, "inbox.latestExtract"),
+    latestWorkbookRead: (jobId) => newestPass(jobId, "xlsx_read", 1, "inbox.latestWorkbookRead"),
     async rejectPendingOn(documentId, pageNo) {
       const decided = { status: "rejected", decided_at: now(), superseded: true };
       const figures = await db.from("proposals").update(decided).eq("document_id", documentId).eq("page_no", pageNo).eq("status", "pending").select("id");

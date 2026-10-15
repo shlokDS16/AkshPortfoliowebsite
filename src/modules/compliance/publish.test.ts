@@ -27,6 +27,8 @@ function context(patch: Partial<PublishContext["item"]> = {}, bodyMd = "Utilisat
     companyName: null,
     companyOneLiner: null,
     themeName: null,
+    conceptNames: [],
+    conceptSlugs: [],
     allowances: [],
     ...rest,
   };
@@ -73,6 +75,12 @@ describe("runPublishGate", () => {
     const decision = await runPublishGate(deps(createFakeComplianceRepo(ctx)), ITEM, REV);
     const fields = decision.failures.filter((f) => f.rule === "1" || f.rule === "2").map((f) => f.field);
     expect(fields).toEqual(expect.arrayContaining(["changeReason", "companyOneLiner", "themeName"]));
+  });
+
+  it("lints the linked concepts' names and slugs the repo loaded for this revision", async () => {
+    const ctx = context({}, "Neutral.", { conceptNames: ["Accumulate on dips"], conceptSlugs: ["accumulate-on-dips"] });
+    const decision = await runPublishGate(deps(createFakeComplianceRepo(ctx)), ITEM, REV);
+    expect(decision.failures.filter((f) => f.rule === "1").map((f) => f.field)).toEqual(["conceptName", "conceptSlug"]);
   });
 
   it("applies the lint's date rules with the injected IST date", async () => {

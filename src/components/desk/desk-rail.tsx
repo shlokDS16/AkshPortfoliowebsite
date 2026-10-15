@@ -18,7 +18,8 @@ const SITE: { id: RailCurrent; label: string; href: string; count?: keyof SiteCo
   { id: "files", label: "Files", href: "/companies", count: "files" },
   { id: "notes", label: "Learning notes", href: "/notes", count: "notes" },
   { id: "process", label: "Process", href: "/process", count: "process" },
-  { id: "mistakes", label: "Mistakes", href: "/mistakes", count: "mistakes" },
+  // No number beside Mistakes: it lists his own calls, and a bare count would read as a tally (addendum s6).
+  { id: "mistakes", label: "Mistakes", href: "/mistakes" },
   { id: "about", label: "About and disclosures", href: "/about" },
 ];
 

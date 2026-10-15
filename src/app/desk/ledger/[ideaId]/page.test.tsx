@@ -7,7 +7,7 @@ import { buildIdeaPage } from "@/modules/ledger";
 import { closedIdea, event, idea, score } from "@/test/fixtures/ledger";
 
 const IDEA = "33333333-3333-4333-8333-333333333333";
-const state = vi.hoisted(() => ({ repo: null as unknown, notFound: 0 }));
+const state = vi.hoisted(() => ({ repo: null as unknown, notFound: 0, block: { state: null, reveal: false } as unknown, asked: 0 }));
 
 vi.mock("@/modules/identity", () => ({ requireAdmin: vi.fn(async () => ({ email: "admin@desk.test" })) }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn(async () => ({})) }));
@@ -22,6 +22,13 @@ vi.mock("@/modules/ledger", async (importOriginal) => ({
   getIdeaPage: (_db: unknown, id: string) => buildIdeaPage(state.repo as never, id, new Date("2026-10-13T06:00:00.000Z")),
 }));
 vi.mock("@/modules/ledger/actions", () => ({ addIdeaEventAction: vi.fn() }));
+vi.mock("@/modules/cases", () => ({
+  loadCaseBlock: vi.fn(async () => {
+    state.asked += 1;
+    return state.block;
+  }),
+}));
+vi.mock("@/modules/cases/actions", () => ({ draftCaseStudyAction: vi.fn() }));
 
 import IdeaPage from "./page";
 
@@ -48,6 +55,8 @@ const entries = (n = 1) =>
 
 beforeEach(() => {
   state.notFound = 0;
+  state.asked = 0;
+  state.block = { state: null, reveal: false };
 });
 
 describe("the idea page", () => {
@@ -96,5 +105,32 @@ describe("the idea page", () => {
     const markup = await html({ ideaId: IDEA });
     expect(markup).toContain("&lt;img src=x onerror=alert(1)&gt; **bold**");
     expect(markup).not.toContain("<img");
+  });
+
+  it("asks for the case study block only on a closed idea, and puts it after the entries", async () => {
+    state.repo = createFakeLedgerRepo({ ideas: [open()], events: entries() });
+    expect(await html({ ideaId: IDEA })).not.toContain("Case study");
+    expect(state.asked).toBe(0);
+    state.repo = createFakeLedgerRepo({ ideas: [idea({ id: IDEA, status: "void" })], events: entries() });
+    await html({ ideaId: IDEA });
+    expect(state.asked).toBe(0);
+    state.block = { state: { state: "no_lesson" }, reveal: false };
+    state.repo = createFakeLedgerRepo({ ideas: [closedIdea({ id: IDEA, processCall: null })], events: entries(), scores: [score({ ideaId: IDEA })] });
+    const markup = await html({ ideaId: IDEA });
+    expect(state.asked).toBe(1);
+    expect(markup).toContain("A case study shows what you learned. Write the lesson first.");
+    expect(markup.indexOf("What you wrote")).toBeLessThan(markup.indexOf('id="case-study"'));
+  });
+
+  it("offers the draft button for a ready idea and links a drafted one to its item", async () => {
+    state.repo = createFakeLedgerRepo({ ideas: [closedIdea({ id: IDEA })], events: entries(), scores: [score({ ideaId: IDEA })] });
+    state.block = { state: { state: "ready", figuresTo: "2026-06-16", earliest: "2026-07-16" }, reveal: true };
+    const ready = await html({ ideaId: IDEA });
+    expect(ready).toContain("Draft a case study");
+    expect(ready).toContain("(now on)");
+    state.block = { state: { state: "draft", itemId: "55555555-5555-4555-8555-555555555555" }, reveal: true };
+    const drafted = await html({ ideaId: IDEA });
+    expect(drafted).toContain('href="/desk/items/55555555-5555-4555-8555-555555555555"');
+    expect(drafted).not.toContain("Draft a case study");
   });
 });

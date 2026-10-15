@@ -10,6 +10,7 @@ import type { FormState } from "@/modules/ledger/actions";
 import { HORIZON_CHOICES, LEDGER_EXPECTS_TEXT, LEDGER_SEALED_WARNING, type PickCompany } from "@/modules/ledger/client";
 import { WordingGuide } from "../wording-guide";
 import { errorProps, FormError, Hint, RadioGroup, SELECT } from "./fields";
+import { SealedWordsHint } from "./words-hint";
 import { useSealedForm } from "./use-sealed-form";
 
 type Props = {
@@ -121,6 +122,7 @@ export function IdeaForm({ companies, action, companyId = "", itemId }: Props) {
             {...errorProps(state.error, "body", ERROR_ID, "idea-body-hint")}
           />
           <Hint id="idea-body-hint">{LEDGER_SEALED_WARNING}</Hint>
+          <SealedWordsHint text={body} />
         </div>
         <FormError code={state.error} id={ERROR_ID} submitted={state} />
         <Button type="submit" disabled={!ready} aria-disabled={!ready || pending}>

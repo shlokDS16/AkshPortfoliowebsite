@@ -4,7 +4,7 @@ import { formatDate, formatFileNo } from "@/lib/format";
 import { countStatuses } from "@/lib/test-status";
 import type { HomeStats, RegisterFile, SiteChrome, StreakData, WhatChangedEntry } from "@/lib/view-types";
 import { captureStreak, toStreakData } from "@/modules/capture";
-import { buildKillTests, isIsoDate, isLagged, readCaseFile, sentenceDiff, splitThesisBody } from "@/modules/casefile";
+import { buildKillTests, isIsoDate, isLagged, isLedgerCase, readCaseFile, sentenceDiff, splitThesisBody } from "@/modules/casefile";
 import type { PublicCompanyRow, PublicItemRow, PublicSnapshot } from "./types";
 
 export type FileRow = { item: PublicItemRow & { fileNo: number; dataAsOf: string }; company: PublicCompanyRow };
@@ -18,7 +18,8 @@ export function files(s: PublicSnapshot): FileRow[] {
   return s.items
     .flatMap((item) => {
       const company = s.companies.find((c) => c.id === item.companyId);
-      return (item.kind === "thesis" || item.kind === "case_study") && company && item.fileNo !== null && isIsoDate(item.dataAsOf) && isLagged(item.dataAsOf, s.today)
+      // A ledger case study is never a file (Plan 3b D36): no company page, not in the register or the counts, whatever it carries.
+      return (item.kind === "thesis" || item.kind === "case_study") && !isLedgerCase(item.structured) && company && item.fileNo !== null && isIsoDate(item.dataAsOf) && isLagged(item.dataAsOf, s.today)
         ? [{ item: { ...item, fileNo: item.fileNo, dataAsOf: item.dataAsOf }, company }]
         : [];
     })
@@ -58,7 +59,7 @@ export function buildStreak(s: PublicSnapshot): StreakData {
 
 export function buildSiteChrome(s: PublicSnapshot): SiteChrome {
   const count = (kind: string) => s.items.filter((i) => i.kind === kind).length;
-  return { counts: { files: servedFiles(s).length, notes: count("learning"), process: count("process"), mistakes: 0 }, streak: buildStreak(s) };
+  return { counts: { files: servedFiles(s).length, notes: count("learning"), process: count("process") }, streak: buildStreak(s) };
 }
 
 export function buildRegister(s: PublicSnapshot): RegisterFile[] {

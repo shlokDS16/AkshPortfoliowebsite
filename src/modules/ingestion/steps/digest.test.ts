@@ -3,6 +3,7 @@ import { createFixtureLlm } from "@/lib/providers/fixture-llm";
 import type { LlmPort, LlmRequest, LlmResult } from "@/lib/providers/llm";
 import type { OcrPort } from "@/lib/providers/ocr";
 import { createMemoryDigestsRepo, type MemoryDigestsRepo } from "@/test/fakes/digests-repo";
+import { createMemoryValuationRepo } from "@/test/fakes/valuation-repo";
 import { createMemoryDocumentsRepo, type MemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch, type MemoryProposalsRepo } from "@/test/fakes/proposals-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
@@ -53,7 +54,7 @@ function ctx(s: Setup, llm: LlmPort | null, step: Partial<Step> = {}, ocr: OcrPo
   const deps: StepDeps = {
     llm, ocr, transcriber: null,
     models: { text: "test-model", vision: "test-vision", classify: "test-classify", whisper: "test-whisper" },
-    repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: s.proposals, research: createMemoryResearch(), digests: s.digests },
+    repos: { documents: machineDocuments(s.documents), usage: s.usage, proposals: s.proposals, research: createMemoryResearch(), digests: s.digests, valuation: createMemoryValuationRepo() },
     now: () => new Date(T0),
     clock: () => T0,
   };

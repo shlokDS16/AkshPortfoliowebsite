@@ -65,3 +65,23 @@ describe("setCompany", () => {
     expect((await docs.get(DOC))?.companyId).toBeNull();
   });
 });
+
+describe("setCompany on a valuation workbook (Plan 2.7 Task 3, deferral D2)", () => {
+  const BOOK = "3e2c0f4a-7d85-4f39-8c1a-5f9d8e7c6a43";
+  beforeEach(async () => {
+    await docs.insertUploading({ id: BOOK, title: "Model", kind: "xlsx", storagePath: `${BOOK}.xlsx`, sha256: "d".repeat(64), bytes: 10, companyId: KAVERI, filedOn: null, sourceUrl: null });
+    await docs.update(BOOK, { status: "active" });
+  });
+
+  it("refuses to move it to another company: its model versions are numbered under the first one", async () => {
+    const error = await setCompany(ports, BOOK, OTHER).then(() => null, (e: unknown) => e);
+    expect(error).toBeInstanceOf(ReviewError);
+    expect((error as ReviewError).code).toBe("workbook-company-locked");
+    expect((await docs.get(BOOK))?.companyId).toBe(KAVERI);
+  });
+
+  it("the same company again is harmless", async () => {
+    await setCompany(ports, BOOK, KAVERI);
+    expect((await docs.get(BOOK))?.companyId).toBe(KAVERI);
+  });
+});

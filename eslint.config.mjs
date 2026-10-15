@@ -6,8 +6,11 @@ const NO_APP = { group: ["@/app/*", "@/app/**"], message: "Nothing imports app/*
 // ops has two extra, deliberately narrow entries: the service-free public health entry and the
 // server-only job entry (controller ruling R6). ops.graph.test.ts proves what each can reach.
 const OPS_ENTRY_POINTS = ["!@/modules/ops/health", "!@/modules/ops/jobs"];
+// valuation has one more: the browser engine for the model page's Web Worker (Plan 2.7 Task 3, D18). valuation.graph.test.ts proves
+// that the worker is its only importer, so the IronCalc wasm glue never reaches another chunk.
+const VALUATION_ENGINE_ENTRY = "!@/modules/valuation/engine";
 const MODULE_ENTRY_POINTS = {
-  group: ["@/modules/*/*", "@/modules/*/*/**", "!@/modules/*/index", "!@/modules/*/actions", "!@/modules/*/client", ...OPS_ENTRY_POINTS],
+  group: ["@/modules/*/*", "@/modules/*/*/**", "!@/modules/*/index", "!@/modules/*/actions", "!@/modules/*/client", ...OPS_ENTRY_POINTS, VALUATION_ENGINE_ENTRY],
   message: "Import a module through its index, actions or client entry point only (spec s4).",
 };
 const NO_SECRET_CLIENT = {

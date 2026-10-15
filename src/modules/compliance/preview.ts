@@ -22,13 +22,15 @@ type PreviewInput = {
   structureProblems: string[];
   /** Absent when the item names no company or the ledger could not be asked; the checklist then keeps the hand check only. */
   ledger?: LedgerGateInput | null;
+  /** Present only for a case study that carries a ledger record: the owner's two switches as the database reads them (null: could not be read). */
+  ledgerCase?: { switches: { reveal: boolean; chart: boolean } | null };
 };
 
 /**
  * D17 (revised, R8): the gate's own pure lint on the saved revision, shown before a run. Advisory only: the
  * database gate still decides and records, and the run button never waits for this.
  */
-export function previewGate({ ctx, today, companyPublic, structureProblems, ledger = null }: PreviewInput): GatePreview {
+export function previewGate({ ctx, today, companyPublic, structureProblems, ledger = null, ledgerCase }: PreviewInput): GatePreview {
   const { item } = ctx;
   const lint = lintText(buildLintInput(ctx, today));
   const isFile = item.kind === "thesis" || item.kind === "case_study";
@@ -50,8 +52,9 @@ export function previewGate({ ctx, today, companyPublic, structureProblems, ledg
     ),
     row("rule-5", "Position disclosed", "5", item.companyId ? "Holds position is set" : "No company named"),
     row("rule-6", "What this teaches", "6", "Learning objective is set"),
-    row("structure", "File structure", "structure", isFile ? "View, tests and facts line up" : "Not a company file", structureProblems),
+    row("structure", "File structure", "structure", ledgerCase ? "Body and ledger record only; no facts sheet." : isFile ? "View, tests and facts line up" : "Not a company file", structureProblems),
   ];
+  if (ledgerCase) items.push(caseSwitchRow(ledgerCase.switches));
   if (item.companyId) {
     items.push({ id: "company", name: "Company is public", state: companyPublic ? "pass" : "fail", detail: companyPublic ? "The company can be listed" : "Make the company public before publishing." });
   }
@@ -74,6 +77,13 @@ export function previewGate({ ctx, today, companyPublic, structureProblems, ledg
     });
   }
   return { lint, items, failing: items.filter((i) => i.state === "fail").length, rule4Needed };
+}
+
+/** Publishing rule 10.1: a ledger case study can be published only while the site owner has the switch on (the gate refuses otherwise). */
+function caseSwitchRow(switches: { reveal: boolean; chart: boolean } | null): ChecklistItem {
+  const name = "Case studies from the ledger";
+  if (!switches) return { id: "case-switches", name, state: "manual", detail: "The site owner's switches could not be read just now. The gate decides." };
+  return { id: "case-switches", name, state: switches.reveal ? "pass" : "fail", detail: `${switches.reveal ? "On" : "Off"} (site owner). Chart: ${switches.chart ? "on" : "off"}.` };
 }
 
 /**

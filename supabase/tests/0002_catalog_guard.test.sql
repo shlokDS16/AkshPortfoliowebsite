@@ -39,8 +39,8 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
 select is((select verdict from public.test_publish('d1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07',
-    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07"}'::jsonb)),
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
+    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07-v1.1"}'::jsonb)),
   'pass', 'precondition: the first item is public');
 
 -- Rejected while a public item uses it.

@@ -4,6 +4,7 @@ export { aiPagesToday } from "./allowance";
 export { estimateReadyBy, formatReadyBy, type Eta, type EtaInput } from "./eta";
 export type { NewStep, Step, StepKind, StepOutcome, StepStatus, WaitReason } from "./types";
 export type { InboxDoc } from "./inbox";
+export type { ModelLink } from "./model-read";
 export type { DocState, Tray, TrayView } from "./trays";
 export { UPLOAD_NOT_FINISHED } from "./trays";
 export { TRANSCRIPT_READY } from "./voice-copy";

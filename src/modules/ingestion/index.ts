@@ -16,6 +16,7 @@ export { createQueueRepo, type FinishPatch, type QueueRepo } from "./queue-repo"
 export { drain, STOPPED_TWICE, type DrainSummary } from "./runner";
 export { HANDLERS } from "./steps";
 export { countInbox, listCompanyOptions, listInbox, type InboxDoc } from "./inbox";
+export { readWorkbookStep, type WorkbookRead } from "./model-read";
 export { listNeedsYou, needsYouFrom, type NeedsYouDoc } from "./needs-you";
 export { readSelected, setPageSelected, type InboxPorts } from "./inbox-ops";
 export { runInbox } from "./inbox-run";

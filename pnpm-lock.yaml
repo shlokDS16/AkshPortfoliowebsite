@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@ironcalc/wasm@0.8.4':
+    hash: 348e683a485a29f9228bef11c8ef811e4908d92260a39870fed568143502aca9
+    path: patches/@ironcalc__wasm@0.8.4.patch
+
 importers:
 
   .:
@@ -14,6 +19,12 @@ importers:
       '@cantoo/pdf-lib':
         specifier: 2.11.1
         version: 2.11.1(html-entities@2.6.0)
+      '@ironcalc/nodejs':
+        specifier: 0.8.3
+        version: 0.8.3
+      '@ironcalc/wasm':
+        specifier: 0.8.4
+        version: 0.8.4(patch_hash=348e683a485a29f9228bef11c8ef811e4908d92260a39870fed568143502aca9)
       '@number-flow/react':
         specifier: 0.6.2
         version: 0.6.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -56,6 +67,9 @@ importers:
       unpdf:
         specifier: 1.8.1
         version: 1.8.1
+      xlsx:
+        specifier: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+        version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -622,6 +636,81 @@ packages:
     engines: {node: '>=20.9.0'}
     cpu: [x64]
     os: [win32]
+
+  '@ironcalc/nodejs-android-arm-eabi@0.8.3':
+    resolution: {integrity: sha512-PJde6hdwTH5v1cIHBwNTwLJsb/oVspKKPZz7rhww5nfBKp1+TZl74M2pxeYKDaR4jceor1gaPZdXGVYQ2u8RjA==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [android]
+
+  '@ironcalc/nodejs-android-arm64@0.8.3':
+    resolution: {integrity: sha512-2DSHFlq9CsSdxZHfWBLIzNHBeb/DQozd/iQLjgzRCpBhj2osZgWlXrug2etoCEsNWj4coRLVm3VyDyEXSqKQRg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [android]
+
+  '@ironcalc/nodejs-darwin-arm64@0.8.3':
+    resolution: {integrity: sha512-GWX9UMrmr+v3ednfb/paKL2GYoIfJdF5KO+S0qnwUF027FJQAphGC8ELHuCIRdwikBZp1kAAb4QpJ8zzHF/prQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@ironcalc/nodejs-darwin-universal@0.8.3':
+    resolution: {integrity: sha512-NqF06O4PCS18jvjpV3RaFKVV17X40trUmnCnUukR9lRg7VZYSKvkxYa33DgiPhW1CP09zSeRifmHwH924K+mow==}
+    engines: {node: '>= 10'}
+    os: [darwin]
+
+  '@ironcalc/nodejs-darwin-x64@0.8.3':
+    resolution: {integrity: sha512-kFsCBoPneqWp8sOP9BC3ZYNmYpEED/SAFBa595nV1J59rMvqjdxnWNNG5lN5/a9q1+7sVjn6NCQYfPX9cvZ0Ew==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@ironcalc/nodejs-linux-arm-gnueabihf@0.8.3':
+    resolution: {integrity: sha512-3EzTwxDOUynB3GhTbH1m+dAsxNtLBII+8/GdxR7nEEwmR//7hAkaM9GU5yyzT8lIE2a40QawsZNnjq3LkM++xQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [linux]
+
+  '@ironcalc/nodejs-linux-arm64-gnu@0.8.3':
+    resolution: {integrity: sha512-uLpZrPJKtL4Agi2SfEkBnYQFfir2QP+exgVQi0LOze0pQOd+CmcgeUPAZWDAfntMxfxBJ+tF5BgQYNIE5DHYSA==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@ironcalc/nodejs-linux-riscv64-gnu@0.8.3':
+    resolution: {integrity: sha512-Ht/GflZXaKn08dddz7ry74C9ZYIM2QMuTdAmoVSEB34gLdV+QtkaBcL5ot2ZmM1sIT9SK7y6QKTrvb1z0J1VuQ==}
+    engines: {node: '>= 10'}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@ironcalc/nodejs-linux-x64-gnu@0.8.3':
+    resolution: {integrity: sha512-n44IrdxUGuGru4HwNuieWN7fmsPOGTjlhcGwe2p+8rE4hrccCiB7Njh92hDnatCVjGHjsLV9tkXA2RWvGne1qg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@ironcalc/nodejs-win32-arm64-msvc@0.8.3':
+    resolution: {integrity: sha512-bWMARXOcjqlwQVDkqcJeqtTAXqm19IshTkNJif1xv38VK+uj0crzBmi0XXiP00oGx5f7XAb1Qmc8GK8TLjocAw==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@ironcalc/nodejs-win32-x64-msvc@0.8.3':
+    resolution: {integrity: sha512-cqgECHsriftU5ru/hLS5WLtNbrEr9iQWXnLf8SdrPWMdX8hX9X3a+llcuu5PPueOYUjL+xpQWtBoEXAe1T5maQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@ironcalc/nodejs@0.8.3':
+    resolution: {integrity: sha512-gCnA/GHHp9+/VLX9QpUiCpgKkG/7F/RZhAslxDssERSZBfbZIoHe/fgibMbDIBuaZ21DEbejZ0tRkENYVN27TQ==}
+    engines: {node: '>= 10'}
+
+  '@ironcalc/wasm@0.8.4':
+    resolution: {integrity: sha512-kdOr3nzb170Wrd2S371QEuCRC3q1EoBdu9CCOU06E3L2dr3cswOuSJmlJM4KHumqFaWEpWb2kiBfOz/szgZ/3Q==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -3748,6 +3837,12 @@ packages:
     resolution: {integrity: sha512-c16PKLIRxBYpR3jSWsdS7SFp0COm5SOQdiFjY818dYFHJbMGuLBszpF07LBWmOS1uzrHa9VGdynsEgoeKy0oOQ==}
     engines: {node: '>=20'}
 
+  xlsx@https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz:
+    resolution: {integrity: sha512-oLDq3jw7AcLqKWH2AhCpVTZl8mf6X2YReP+Neh0SJUzV/BdZYjth94tG5toiMB1PPrYtxOCfaoUCkvtuH+3AJA==, tarball: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz}
+    version: 0.20.3
+    engines: {node: '>=0.8'}
+    hasBin: true
+
   xml-name-validator@5.0.0:
     resolution: {integrity: sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg==}
     engines: {node: '>=18'}
@@ -4304,6 +4399,55 @@ snapshots:
 
   '@img/sharp-win32-x64@0.35.5':
     optional: true
+
+  '@ironcalc/nodejs-android-arm-eabi@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-android-arm64@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-darwin-arm64@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-darwin-universal@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-darwin-x64@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-linux-arm-gnueabihf@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-linux-arm64-gnu@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-linux-riscv64-gnu@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-linux-x64-gnu@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-win32-arm64-msvc@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs-win32-x64-msvc@0.8.3':
+    optional: true
+
+  '@ironcalc/nodejs@0.8.3':
+    optionalDependencies:
+      '@ironcalc/nodejs-android-arm-eabi': 0.8.3
+      '@ironcalc/nodejs-android-arm64': 0.8.3
+      '@ironcalc/nodejs-darwin-arm64': 0.8.3
+      '@ironcalc/nodejs-darwin-universal': 0.8.3
+      '@ironcalc/nodejs-darwin-x64': 0.8.3
+      '@ironcalc/nodejs-linux-arm-gnueabihf': 0.8.3
+      '@ironcalc/nodejs-linux-arm64-gnu': 0.8.3
+      '@ironcalc/nodejs-linux-riscv64-gnu': 0.8.3
+      '@ironcalc/nodejs-linux-x64-gnu': 0.8.3
+      '@ironcalc/nodejs-win32-arm64-msvc': 0.8.3
+      '@ironcalc/nodejs-win32-x64-msvc': 0.8.3
+
+  '@ironcalc/wasm@0.8.4(patch_hash=348e683a485a29f9228bef11c8ef811e4908d92260a39870fed568143502aca9)': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -7505,6 +7649,8 @@ snapshots:
     dependencies:
       is-wsl: 3.1.1
       powershell-utils: 0.2.1
+
+  xlsx@https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz: {}
 
   xml-name-validator@5.0.0: {}
 

@@ -1,10 +1,10 @@
 import type { FileNo, ISODate, SourceRef, SourceType, TestCounts, TestStatus } from "./desk-types";
 
 // ---- Chrome (Task 3) ----
-export type RailCurrent = "desk" | "files" | "notes" | "process" | "mistakes" | "about";
+export type RailCurrent = "desk" | "files" | "notes" | "process" | "mistakes" | "cases" | "concepts" | "about";
 export type TabCurrent = "desk" | "files" | "notes" | "about";
 export type RailSection = { id: string; label: string; count?: number | string };
-export type SiteCounts = { files: number; notes: number; process: number; mistakes: number };
+export type SiteCounts = { files: number; notes: number; process: number };
 export type StreakData = { cells: boolean[]; daysLogged: number; lastEntry: ISODate | null };
 export type DatelineData = { revNo: number; revCount: number; revisedOn: ISODate; firstWrittenOn: ISODate; dataAsOf: ISODate };
 export type SiteChrome = { counts: SiteCounts; streak: StreakData };

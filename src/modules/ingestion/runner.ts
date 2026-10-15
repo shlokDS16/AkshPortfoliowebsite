@@ -3,11 +3,13 @@ import { safeErrorText } from "@/lib/supabase/errors";
 import { LEASE_EXPIRY_LIMIT, MIN_STEP_MS, PROVIDER_FAILURE_LIMIT, SCHEMA_FAILURE_LIMIT } from "./caps";
 import type { DrainDeps, StepDeps } from "./deps";
 import type { QueueRepo } from "./queue-repo";
+import { WORKBOOK_GAVE_UP } from "./model-copy";
+import { STOPPED_TWICE } from "./stopped";
 import type { StepHandler, StepKind, StepOutcome } from "./types";
 
 export type DrainSummary = { ran: number; done: number; deferred: number; attention: number; leaseLost: number };
 
-export const STOPPED_TWICE = "This step stopped twice before finishing.";
+export { STOPPED_TWICE };
 /** Shown on the Needs-attention card when retries run out; the technical note follows in brackets. */
 export const PROVIDER_GAVE_UP = "This step could not finish after three tries. Try again, or enter the figures yourself.";
 export const SCHEMA_GAVE_UP = "The AI's reading of this page came back in the wrong form twice. Try again, or enter the figures yourself.";
@@ -18,8 +20,10 @@ const text = (e: unknown) => safeErrorText(e).slice(0, ERROR_MAX);
 const note = (error: string) => error.replace(/^(\S+) \(([^()]*)\)$/, "$1, $2");
 /** Pending Shlok approval, spec s16.9: a voice note has no figures to enter by hand. */
 export const VOICE_GAVE_UP = "This voice note could not be typed out after three tries. Try again, or skip it.";
+/** A workbook has no figures to enter by hand (2.7). */
+const providerGaveUp = (kind: StepKind) => (kind === "transcribe" ? VOICE_GAVE_UP : kind === "xlsx_read" ? WORKBOOK_GAVE_UP : PROVIDER_GAVE_UP);
 const gaveUp = (failure: "schema" | "provider", error: string, kind: StepKind) =>
-  `${failure === "schema" ? SCHEMA_GAVE_UP : kind === "transcribe" ? VOICE_GAVE_UP : PROVIDER_GAVE_UP} (${note(error)})`.slice(0, ERROR_MAX);
+  `${failure === "schema" ? SCHEMA_GAVE_UP : providerGaveUp(kind)} (${note(error)})`.slice(0, ERROR_MAX);
 
 /** What a handler gets: everything but the client (ruling R7), so a step cannot reach the database except through repos. */
 const stepDeps = (deps: DrainDeps): StepDeps => ({ llm: deps.llm, ocr: deps.ocr, transcriber: deps.transcriber, models: deps.models, repos: deps.repos, now: deps.now, clock: deps.clock });

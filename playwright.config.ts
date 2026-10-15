@@ -18,6 +18,8 @@ const desk = {
   dependencies: ["seed"],
 };
 
+const PUBLIC_PROJECTS = ["375", "1280"].flatMap((w) => [`public-${w}`, `public-${w}-dark`]);
+
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/support/global-setup.ts",
@@ -68,9 +70,45 @@ export default defineConfig({
       ...desk,
       use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
     },
+    // Plan 3b Task 5 (D43): a case study end to end on a seeded idea that the owner has moved back in time. It re-seals the whole
+    // local chain and the sealed days, so it runs after every other ledger, public and desk project, and never against a hosted
+    // project (e2e/support/cases.ts refuses to run without the local stack). It publishes one real case through the real gate and
+    // leaves it public, with both owner switches off again.
+    {
+      name: "cases",
+      testMatch: spec("cases"),
+      dependencies: ["anon", ...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop"], // anon writes sealed days and clears closes (clocks.spec.ts): it must finish first
+      use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
+    },
+    // The public case pages again, now that the loop above has left one case public: the published half of public-cases.spec.ts
+    // (axe, one h1, no sideways scroll, the in-browser fingerprint check) runs here. In the public-* projects, which run first, that
+    // half skips because nothing is public yet (the deploy state, which those projects check instead).
+    ...(["375", "1280"] as const).map((w) => ({
+      name: `cases-public-${w}`,
+      testMatch: spec("public-cases"),
+      dependencies: ["cases"],
+      use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
+    })),
+    // Plan 4 Task 6: the learning-graph loop end to end (a capture with two #names, Names, the gate's refusal, "Make public" on both, a pass,
+    // a signed-out visitor). It publishes one note that links two public concepts through the real gate and leaves it public, so it runs
+    // after every public, desk and case project, which all expect the deploy state (no public concept).
+    {
+      name: "concepts",
+      testMatch: spec("concepts"),
+      dependencies: ["anon", ...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop", "cases"],
+      use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
+    },
+    // The public concept pages again, now that the loop above has left two concepts public: the published half of public-concepts.spec.ts
+    // (axe, one h1, no sideways scroll, the 44 px targets on the phone) runs here; in the public-* projects it skips.
+    ...(["375", "1280"] as const).map((w) => ({
+      name: `concepts-public-${w}`,
+      testMatch: spec("public-concepts"),
+      dependencies: ["concepts"],
+      use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
+    })),
     // Signing out revokes every session of the admin (GoTrue's default scope), including the stored
-    // one the desk projects share, so this runs last and only after both desk projects have finished.
-    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop"] },
+    // one the desk projects share, so this runs last and only after the desk, case and concept projects have finished.
+    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts"] },
   ],
   webServer: {
     command: stack ? `pnpm build && pnpm start -p ${E2E_PORT}` : `pnpm start -p ${E2E_PORT}`,

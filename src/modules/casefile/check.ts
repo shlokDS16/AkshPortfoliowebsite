@@ -1,6 +1,7 @@
 import { splitThesisBody } from "./body";
 import { fiscalYearEnd } from "./figures";
 import { EMPTY_CASEFILE, validateCaseFile, type CaseFile } from "./schema";
+import { isLedgerCase, parseCaseRecord } from "./case-record";
 import { httpUrl } from "./safe";
 
 /** Editor checklist "File structure": chips and readings must line up with Aksh's text. */
@@ -28,8 +29,15 @@ export function checkCaseFile(bodyMd: string, cf: CaseFile): string[] {
   return [...problems];
 }
 
-/** Shared by the editor checklist and publishCheckedAction: a new item's {} reads as an empty file. */
+/**
+ * Shared by the editor checklist and publishCheckedAction: a new item's {} reads as an empty file. A case study from the ledger has
+ * no facts sheet and no tests (it is its body plus the record, D41); the database gate checks the rest. A record that cannot be read
+ * is said here, in plain words, instead of leaving it to the gate's less direct refusal.
+ */
 export function fileProblems(bodyMd: string, structured: unknown): string[] {
+  if (isLedgerCase(structured)) {
+    return parseCaseRecord((structured as Record<string, unknown>).ledger) ? [] : ["The ledger record in this revision cannot be read. Refresh it from the ledger."];
+  }
   const raw = structured && typeof structured === "object" && Object.keys(structured).length > 0 ? structured : EMPTY_CASEFILE;
   const result = validateCaseFile(raw);
   return result.ok ? checkCaseFile(bodyMd, result.data) : result.issues;

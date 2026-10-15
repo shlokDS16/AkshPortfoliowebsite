@@ -38,5 +38,37 @@ describe("PublicFrame", () => {
     expect(tabFor("files")).toBe("files");
     expect(tabFor("process")).toBeNull();
     expect(tabFor("mistakes")).toBeNull();
+    expect(tabFor("cases")).toBeNull();
+  });
+
+  it("case pages (Plan 3b): the phone back link goes to the cases, and no rail item or tab claims the page", () => {
+    mockMatchMedia();
+    mockIntersectionObserver();
+    renderWithMotion(
+      <PublicFrame
+        current="cases"
+        chrome={{ counts: SITE_COUNTS, streak: STREAK }}
+        strip={{ variant: "file", holdsPosition: "no", dataAsOf: "2026-06-16" }}
+        topBar="file"
+        back={{ href: "/cases", label: "Cases" }}
+      >
+        <h1>Kaveri Seed</h1>
+      </PublicFrame>,
+    );
+    expect(screen.getByRole("link", { name: "Back to Cases" })).toHaveAttribute("href", "/cases");
+    expect(document.querySelectorAll("nav [aria-current]")).toHaveLength(0);
+  });
+
+  it("the rail shows no number beside Mistakes: the page lists his own calls and carries no count (addendum s6)", () => {
+    mockMatchMedia();
+    mockIntersectionObserver();
+    renderWithMotion(
+      <PublicFrame current="mistakes" chrome={{ counts: SITE_COUNTS, streak: STREAK }} strip={{ variant: "site" }}>
+        <h1>Mistakes</h1>
+      </PublicFrame>,
+    );
+    const rail = screen.getByRole("navigation", { name: "Site" });
+    expect(within(rail).getByRole("link", { name: "Mistakes" })).toHaveTextContent(/^Mistakes$/);
+    expect(within(rail).getByRole("link", { name: /^Learning notes/ })).toHaveTextContent(/\d/);
   });
 });

@@ -9,14 +9,14 @@ import type { DocumentsRepo } from "./repo";
 import type { DocumentRow, StartUploadInput } from "./types";
 
 const TITLE_MAX = 160;
-const KNOWN_EXTENSION = /\.(pdf|jpe?g|png|webp|mp3|m4a|webm)$/i;
+const KNOWN_EXTENSION = /\.(pdf|jpe?g|png|webp|mp3|m4a|webm|xlsx)$/i;
 
 /**
  * The browser's claim about a file, checked at the boundary (R24). Strict: a client cannot pass a path or
  * any other key. Size and type limits are checked afterwards so they produce their own message codes.
  */
 export const startUploadInputSchema = z.strictObject({
-  kind: z.enum(["pdf", "image", "audio"]),
+  kind: z.enum(["pdf", "image", "audio", "xlsx"]),
   fileName: z.string().trim().min(1).max(255),
   bytes: z.int().min(1),
   mime: z.string().max(255),
@@ -35,7 +35,7 @@ export function titleFromFileName(fileName: string, kind: UploadKind = "pdf"): s
   return title.length > 0 ? title : UPLOAD_KINDS[kind].fallbackTitle;
 }
 
-const TOO_LARGE = { pdf: "upload-too-large", image: "upload-image-too-large", audio: "voice-too-large" } as const;
+const TOO_LARGE = { pdf: "upload-too-large", image: "upload-image-too-large", audio: "voice-too-large", xlsx: "upload-xlsx-too-large" } as const;
 
 /** The voice switch (VOICE_NOTES, ruling R8) is read by the caller, never here: off is the default and refuses every voice note. */
 export type StartUploadOptions = { voiceOn?: boolean };
@@ -57,6 +57,8 @@ export async function startUpload(
   // An exact match: "image/jpeg;codecs=x" is refused, the browser sends the bare type (Task 1 carry).
   if (!rule.mimes.includes(claim.mime) || !rule.name.test(claim.fileName)) throw new DocumentError("upload-unsupported");
   if (claim.bytes > rule.maxBytes) throw new DocumentError(TOO_LARGE[claim.kind]);
+  // A workbook is read against one company (spec 2.7 D12): there is nothing to file it under otherwise.
+  if (claim.kind === "xlsx" && claim.companyId === null) throw new DocumentError("upload-xlsx-needs-company");
   // A recording longer than the hour allowance could never be read in one go (Whisper seconds are capped per hour).
   if (claim.kind === "audio" && (claim.seconds ?? 0) > VOICE_MAX_SECONDS) throw new DocumentError("voice-too-long");
 
@@ -101,13 +103,18 @@ export async function assertRoomFor(repo: DocumentsRepo, bytes: number): Promise
   if (storageBytes + bytes > STORAGE_REFUSE * STORAGE_BYTES) throw new DocumentError("upload-storage-full");
 }
 
-/** The same file again: the partial object goes, the room is checked, and this attempt's company, date and link replace the old ones. */
+/**
+ * The same file again: the partial object goes, the room is checked, and this attempt's company, date and link replace the old ones. A
+ * workbook keeps the company it was started with: a finish that failed after recording its valuation version numbered it under that
+ * company, and a version is never moved (2.7 deferral D2).
+ */
 async function resume(repo: DocumentsRepo, documentId: string, claim: StartUploadClaim) {
   const doc = await repo.get(documentId);
   if (!doc?.storagePath) throw new InvalidInputError();
   if (await repo.objectInfo(doc.storagePath)) await repo.removeObject(doc.storagePath);
   await assertRoomFor(repo, claim.bytes);
-  await repo.update(documentId, { companyId: claim.companyId, filedOn: claim.filedOn, sourceUrl: claim.sourceUrl });
+  const companyId = doc.kind === "xlsx" && doc.companyId !== null ? doc.companyId : claim.companyId;
+  await repo.update(documentId, { companyId, filedOn: claim.filedOn, sourceUrl: claim.sourceUrl });
   const signed = await repo.signUpload(doc.storagePath);
   return { documentId, path: signed.path, token: signed.token };
 }
@@ -115,6 +122,7 @@ async function resume(repo: DocumentsRepo, documentId: string, claim: StartUploa
 /**
  * Activates a document once its object is really there: the stored size must equal the size recorded at start
  * and the stored type must be the one its path's extension names. Never moves a document that is already past `uploading`.
+ * A workbook's valuation version is recorded first (idempotent per document), so a failure leaves the document uploading and the same finish can be run again.
  */
 export async function finishUpload(repo: DocumentsRepo, documentId: string): Promise<DocumentRow> {
   if (!isUuid(documentId)) throw new InvalidInputError();
@@ -131,6 +139,7 @@ export async function finishUpload(repo: DocumentsRepo, documentId: string): Pro
     throw new DocumentError("upload-missing");
   }
 
+  if (doc.kind === "xlsx") await repo.startValuationVersion(documentId);
   await repo.update(documentId, { status: "active" });
   return { ...doc, status: "active" };
 }

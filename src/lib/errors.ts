@@ -38,7 +38,7 @@ export class AppendOnlyError extends DeskError {
 export class ItemRuleError extends DeskError {
   readonly code = "ITEM_RULE";
   constructor() {
-    super("The database rejected these values. Check the fields (title, kind, linked company or theme) and try again.");
+    super("The database rejected these values. Check the fields (title, kind, linked company or concept) and try again.");
     this.name = "ItemRuleError";
   }
 }

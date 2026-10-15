@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { KAVERI } from "@/test/fixtures/casefile";
 import { checkCaseFile, fileProblems } from "./check";
 import { parseFactsSheet } from "./sheet";
+import { caseRecordFixture } from "@/test/fixtures/case-record";
 import { inlineText, parseInline, parseProse, splitThesisBody } from "./body";
 
 describe("thesis body template (D6)", () => {
@@ -72,5 +73,17 @@ describe("fileProblems (the editor checklist and the publish action share it)", 
   it("is clean for the seed file", () => {
     const cf = parseFactsSheet(KAVERI.revisions[1].sheet).caseFile;
     expect(fileProblems(KAVERI.revisions[1].bodyMd, cf)).toEqual([]);
+  });
+});
+
+describe("file problems for a ledger case study", () => {
+  it("has none: it has no facts sheet and no tests (its body is only his words)", () => {
+    expect(fileProblems("Looking back.", { ledger: caseRecordFixture() })).toEqual([]);
+    expect(fileProblems("", { ledger: caseRecordFixture() })).toEqual([]);
+  });
+
+  it("says one plain sentence when the record in the revision cannot be read", () => {
+    expect(fileProblems("", { ledger: { v: 2 } })).toEqual(["The ledger record in this revision cannot be read. Refresh it from the ledger."]);
+    expect(fileProblems("", { ledger: null })).toEqual(["The ledger record in this revision cannot be read. Refresh it from the ledger."]);
   });
 });

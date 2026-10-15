@@ -153,7 +153,7 @@ describe("a realistic file: today at least 30 days after dataAsOf, every figure 
     expect(figureDates(cf).every((d) => d <= view.dataAsOf)).toBe(true);
     const lint = lintText({
       revisionId: "r", kind: "thesis", title: "T", slug: "t", learningObjective: "Learn to read a file.", bodyMd: "V.\n\n## What would prove me wrong\n- T1: x.",
-      structured: cf as unknown as Record<string, unknown>, changeReason: null, companyName: null, companyOneLiner: null, themeName: null,
+      structured: cf as unknown as Record<string, unknown>, changeReason: null, companyName: null, companyOneLiner: null, themeName: null, conceptNames: [], conceptSlugs: [],
       companyId: "c1", holdsPosition: "no", dataAsOf: view.dataAsOf, today: "2026-10-06", allowances: new Set(),
     });
     expect(lint.findings.filter((f) => f.field === "structured")).toEqual([]);
@@ -223,7 +223,7 @@ describe("checked-against-page line (Plan 2b Task 9, R5 and R19)", () => {
   it("the fixed sentence passes the publishing lint as public body text", () => {
     const lint = lintText({
       revisionId: "r", kind: "thesis", title: "T", slug: "t", learningObjective: "Learn to read a file.", bodyMd: checkedAgainstPageText(131, "Annual report 2025-26"),
-      structured: {}, changeReason: null, companyName: null, companyOneLiner: null, themeName: null,
+      structured: {}, changeReason: null, companyName: null, companyOneLiner: null, themeName: null, conceptNames: [], conceptSlugs: [],
       companyId: "c1", holdsPosition: "no", dataAsOf: "2026-08-22", today: "2026-10-06", allowances: new Set(),
     });
     expect(lint.findings.filter((f) => f.rule !== "structure")).toEqual([]); // the structure rule is about a whole file, not this line

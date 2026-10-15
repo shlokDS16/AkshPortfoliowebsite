@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
 import { isItemId } from "@/modules/research";
 import { setCompanyPublic } from "./companies";
+import { setThemePublic } from "./concepts";
 import { decideName, SECTORS } from "./names";
 
 export async function makeCompanyPublicAction(companyId: string, itemId: string): Promise<void> {
@@ -21,6 +22,20 @@ export async function makeCompanyPublicAction(companyId: string, itemId: string)
   }
   revalidatePath(back);
   doneTo(back, "company-public", "#gate");
+}
+
+/** The item checklist's "Make public" for a linked concept: same as the company line. Screened concepts only; exposes nothing by itself. */
+export async function makeConceptPublicAction(conceptId: string, itemId: string): Promise<void> {
+  await requireAdmin();
+  const back = isItemId(itemId) ? `/desk/items/${itemId}` : "/desk/items";
+  if (!isItemId(conceptId) || !isItemId(itemId)) failTo(back, new InvalidInputError(), "catalog");
+  try {
+    await setThemePublic(await createSupabaseServerClient(), conceptId);
+  } catch (error) {
+    failTo(back, error, "catalog");
+  }
+  revalidatePath(back);
+  doneTo(back, "concept-public", "#gate");
 }
 
 const decisionInput = z.discriminatedUnion("kind", [

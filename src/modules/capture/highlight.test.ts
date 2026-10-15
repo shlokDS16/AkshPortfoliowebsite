@@ -43,6 +43,13 @@ describe("highlightCapture (the parser's own spans)", () => {
     expect(tokens.filter((t) => t.kind !== "plain")).toEqual([{ text: "$KAVPUMP", kind: "company" }]);
   });
 
+  it("colours r: as a key too", () => {
+    expect(highlightCapture("r: memo #rates", known).filter((t) => t.kind !== "plain")).toEqual([
+      { text: "r:", kind: "key" },
+      { text: "#rates", kind: "theme-new" },
+    ]);
+  });
+
   it("a prefix after leading whitespace keeps the span on the key itself", () => {
     expect(highlightCapture("  l: margins", known)[1]).toEqual({ text: "l:", kind: "key" });
   });

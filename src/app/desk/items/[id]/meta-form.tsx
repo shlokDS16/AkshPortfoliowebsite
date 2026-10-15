@@ -2,10 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDate } from "@/lib/format";
 import type { Item } from "@/modules/research";
 import { updateItemMetaAction } from "@/modules/research/actions";
 
-export function MetaForm({ item }: { item: Item }) {
+/** `figuresToFromLedger`: a case study from the ledger takes its Figures to from the ledger alone, so the date is shown and not edited. */
+export function MetaForm({ item, figuresToFromLedger = false }: { item: Item; figuresToFromLedger?: boolean }) {
   const locked = item.visibility === "public";
   return (
     <form key={item.updatedAt} action={updateItemMetaAction.bind(null, item.id)} className="space-y-3 rounded border p-3">
@@ -43,8 +45,18 @@ export function MetaForm({ item }: { item: Item }) {
             </select>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="dataAsOf">Figures to</Label>
-            <Input id="dataAsOf" name="dataAsOf" type="date" defaultValue={item.dataAsOf ?? ""} />
+            {figuresToFromLedger ? (
+              <>
+                <p className="text-small font-medium text-ink">Figures to</p>
+                <p className="text-body text-ink">{item.dataAsOf ? formatDate(item.dataAsOf) : "Not set"}</p>
+                <p className="text-small text-ink-muted">Set from the ledger. Refresh from the ledger moves it.</p>
+              </>
+            ) : (
+              <>
+                <Label htmlFor="dataAsOf">Figures to</Label>
+                <Input id="dataAsOf" name="dataAsOf" type="date" defaultValue={item.dataAsOf ?? ""} />
+              </>
+            )}
           </div>
         </div>
         <Button type="submit" size="sm">

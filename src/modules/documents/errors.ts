@@ -1,5 +1,5 @@
 import { DeskError } from "@/lib/errors";
-import { LINK_MAX_BYTES, LINK_TIMEOUT_MS, TEXT_MAX_CHARS, TEXT_MIN_CHARS, VOICE_MAX_MB, VOICE_MAX_MINUTES } from "./limits";
+import { LINK_MAX_BYTES, LINK_TIMEOUT_MS, TEXT_MAX_CHARS, TEXT_MIN_CHARS, VOICE_MAX_MB, VOICE_MAX_MINUTES, XLSX_MAX_BYTES } from "./limits";
 
 /**
  * Fixed text per code (errata R11): equal to the entries in src/lib/messages.ts (a test keeps them equal).
@@ -8,10 +8,13 @@ import { LINK_MAX_BYTES, LINK_TIMEOUT_MS, TEXT_MAX_CHARS, TEXT_MIN_CHARS, VOICE_
 export const DOCUMENT_ERROR_TEXT = {
   "upload-duplicate": "You uploaded this file before. Open the earlier copy.",
   "upload-too-large": "Over 50 MB. Upload the financial statements section, or compress the file.",
-  "upload-unsupported": "Drop a PDF, a photo or a voice note.",
+  "upload-unsupported": "Drop a PDF, a photo, a voice note or an .xlsx workbook.",
   "upload-image-too-large": "This photo is still over 1 MB after shrinking; crop it to the table.",
   "upload-storage-full": "Storage is over 90% full. Mark finished documents as done to free space.",
   "upload-missing": "The upload did not arrive complete. Upload the file again.",
+  // Valuation workbooks (2.7 Task 2; wording pending Shlok approval).
+  "upload-xlsx-too-large": `This workbook is over ${XLSX_MAX_BYTES / 1_048_576} MB. Remove sheets or pictures the valuation does not use and upload again.`,
+  "upload-xlsx-needs-company": "Choose the company this workbook is for, then upload it again.",
   "voice-off": "Voice notes are not switched on yet.",
   "voice-too-large": `This voice note is over ${VOICE_MAX_MB} MB. Record a shorter one.`,
   "voice-too-long": `This voice note is longer than ${VOICE_MAX_MINUTES} minutes. Record a shorter one.`,

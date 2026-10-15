@@ -191,6 +191,56 @@ export type Database = {
           },
         ]
       }
+      concept_edges: {
+        Row: {
+          concept_a: string
+          concept_b: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          concept_a: string
+          concept_b: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          concept_a?: string
+          concept_b?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concept_edges_concept_a_fkey"
+            columns: ["concept_a"]
+            isOneToOne: false
+            referencedRelation: "public_themes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concept_edges_concept_a_fkey"
+            columns: ["concept_a"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concept_edges_concept_b_fkey"
+            columns: ["concept_b"]
+            isOneToOne: false
+            referencedRelation: "public_themes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concept_edges_concept_b_fkey"
+            columns: ["concept_b"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       corporate_actions: {
         Row: {
           company_id: string
@@ -521,8 +571,22 @@ export type Database = {
             foreignKeyName: "fact_provenance_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_provenance_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "fact_provenance_revision_id_fkey"
@@ -590,8 +654,22 @@ export type Database = {
             foreignKeyName: "gate_decisions_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "gate_decisions_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_decisions_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "gate_decisions_revision_id_fkey"
@@ -892,6 +970,7 @@ export type Database = {
           author: string
           body_md: string
           change_reason: string | null
+          concept_ids: string[] | null
           created_at: string
           id: string
           item_id: string
@@ -903,6 +982,7 @@ export type Database = {
           author?: string
           body_md?: string
           change_reason?: string | null
+          concept_ids?: string[] | null
           created_at?: string
           id?: string
           item_id: string
@@ -914,6 +994,7 @@ export type Database = {
           author?: string
           body_md?: string
           change_reason?: string | null
+          concept_ids?: string[] | null
           created_at?: string
           id?: string
           item_id?: string
@@ -1015,8 +1096,22 @@ export type Database = {
             foreignKeyName: "items_current_revision_fk"
             columns: ["current_revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "items_current_revision_fk"
+            columns: ["current_revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "items_current_revision_fk"
+            columns: ["current_revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "items_current_revision_fk"
@@ -1455,8 +1550,22 @@ export type Database = {
             foreignKeyName: "proposals_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "proposals_revision_id_fkey"
@@ -1618,8 +1727,22 @@ export type Database = {
             foreignKeyName: "reading_proposals_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
             referencedRelation: "item_revisions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
           },
           {
             foreignKeyName: "reading_proposals_revision_id_fkey"
@@ -1670,8 +1793,208 @@ export type Database = {
         }
         Relationships: []
       }
+      valuation_cells: {
+        Row: {
+          addr: string
+          id: string
+          label: string | null
+          role: string
+          sheet: string
+          version_id: string
+        }
+        Insert: {
+          addr: string
+          id?: string
+          label?: string | null
+          role: string
+          sheet: string
+          version_id: string
+        }
+        Update: {
+          addr?: string
+          id?: string
+          label?: string | null
+          role?: string
+          sheet?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_cells_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "valuation_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      valuation_scenario_values: {
+        Row: {
+          cell_id: string
+          scenario_id: string
+          value: number
+        }
+        Insert: {
+          cell_id: string
+          scenario_id: string
+          value: number
+        }
+        Update: {
+          cell_id?: string
+          scenario_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_scenario_values_cell_id_fkey"
+            columns: ["cell_id"]
+            isOneToOne: false
+            referencedRelation: "valuation_cells"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_scenario_values_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: false
+            referencedRelation: "valuation_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      valuation_scenarios: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          note: string
+          version_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          note?: string
+          version_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_scenarios_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "valuation_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      valuation_versions: {
+        Row: {
+          cell_count: number | null
+          company_id: string
+          confirmed_at: string | null
+          created_at: string
+          document_id: string
+          engine: Json | null
+          formula_count: number | null
+          id: string
+          model_path: string | null
+          read_at: string | null
+          refusal: string | null
+          report: Json | null
+          sheet_count: number | null
+          status: string
+          version_no: number
+        }
+        Insert: {
+          cell_count?: number | null
+          company_id: string
+          confirmed_at?: string | null
+          created_at?: string
+          document_id: string
+          engine?: Json | null
+          formula_count?: number | null
+          id?: string
+          model_path?: string | null
+          read_at?: string | null
+          refusal?: string | null
+          report?: Json | null
+          sheet_count?: number | null
+          status?: string
+          version_no: number
+        }
+        Update: {
+          cell_count?: number | null
+          company_id?: string
+          confirmed_at?: string | null
+          created_at?: string
+          document_id?: string
+          engine?: Json | null
+          formula_count?: number | null
+          id?: string
+          model_path?: string | null
+          read_at?: string | null
+          refusal?: string | null
+          report?: Json | null
+          sheet_count?: number | null
+          status?: string
+          version_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valuation_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valuation_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: true
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
+      concept_links: {
+        Row: {
+          concept_id: string | null
+          item_id: string | null
+          position: number | null
+          revision_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       public_companies: {
         Row: {
           bse_code: string | null
@@ -1701,6 +2024,30 @@ export type Database = {
           slug?: string | null
         }
         Relationships: []
+      }
+      public_concept_links: {
+        Row: {
+          concept_id: string | null
+          item_id: string | null
+          position: number | null
+          revision_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       public_item_revisions: {
         Row: {
@@ -1834,6 +2181,14 @@ export type Database = {
           day: string
         }[]
       }
+      case_study_record: { Args: { p_idea_id: string }; Returns: Json }
+      case_study_switches: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          chart: boolean
+          reveal: boolean
+        }[]
+      }
       check_ledger_anchors: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1880,6 +2235,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      confirm_valuation_version: {
+        Args: { p_cells: Json; p_version_id: string }
+        Returns: undefined
       }
       enter_closes: {
         Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
@@ -1994,8 +2353,21 @@ export type Database = {
           reservation_id: string
         }[]
       }
+      save_valuation_scenario: {
+        Args: {
+          p_name: string
+          p_note: string
+          p_values: Json
+          p_version_id: string
+        }
+        Returns: string
+      }
       score_ideas: { Args: Record<PropertyKey, never>; Returns: number }
       seal_ledger_days: { Args: Record<PropertyKey, never>; Returns: number }
+      start_valuation_version: {
+        Args: { p_document_id: string }
+        Returns: string
+      }
       storage_usage: {
         Args: Record<PropertyKey, never>
         Returns: {

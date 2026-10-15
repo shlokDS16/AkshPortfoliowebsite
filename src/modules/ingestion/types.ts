@@ -1,9 +1,9 @@
 // Browser-safe types for the ingestion job engine (ADR-004 s4.4). No runtime code here.
 import type { StepDeps } from "./deps";
 
-export type StepKind = "pdf_text" | "select_pages" | "extract_page" | "ocr_page" | "vision_page" | "transcribe" | "text_pages" | "classify_pages" | "digest_page";
+export type StepKind = "pdf_text" | "select_pages" | "extract_page" | "ocr_page" | "vision_page" | "transcribe" | "text_pages" | "classify_pages" | "digest_page" | "xlsx_read";
 /** jobs.kind (migration 0008): one per document kind. */
-export type JobKind = "ingest_pdf" | "ingest_image" | "ingest_audio" | "ingest_url" | "ingest_text";
+export type JobKind = "ingest_pdf" | "ingest_image" | "ingest_audio" | "ingest_url" | "ingest_text" | "ingest_xlsx";
 export type StepStatus = "queued" | "running" | "done" | "skipped" | "needs_attention";
 export type WaitReason = "groq_minute" | "groq_day" | "ai_off" | "ocr_day" | "ocr_off" | "voice_hour" | "voice_day";
 

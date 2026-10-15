@@ -5,6 +5,7 @@ import { GROQ_CAPS, TOKENS_PER_PAGE_DEFAULT } from "./caps";
 import { estimateReadyBy, formatReadyBy } from "./eta";
 import { listedPages, readInboxPages, type InboxPageRow, type ListedPage } from "./inbox-pages";
 import { readDigestCounts } from "./digest-read";
+import { readModels, type ModelLink } from "./model-read";
 import { readTranscripts } from "./inbox-transcripts";
 import { readUnsortedPages, unsortedStillOpen } from "./unsorted-read";
 import { PAGE_STEP_KINDS } from "./page-steps";
@@ -35,6 +36,8 @@ export type InboxDoc = {
    */
   transcript: string | null;
   view: TrayView;
+  /** A valuation workbook's version, for its "Open model" link; null for every other document (Plan 2.7 Task 3). */
+  model: ModelLink | null;
   /**
    * Statement pages and ticked pages, plus every scan page (so Aksh can tick them), never page text: `firstLine` is the first
    * line of the page, at most 120 characters. A photo is one page and has no list. `read` is true once the page's figures are read.
@@ -122,7 +125,8 @@ export async function listInbox(
 
   // Voice notes that wait for Aksh to check what was typed out (the document is open and he has not decided).
   const voiceIds = open.data.filter((d) => d.kind === "audio" && d.status === "active" && d.transcript_status === "pending").map((d) => d.id);
-  const [jobs, pages, companies, proposals, transcripts, digests, unsorted] = await Promise.all([
+  const workbookIds = open.data.filter((d) => d.kind === "xlsx" && d.status === "active").map((d) => d.id);
+  const [jobs, pages, companies, proposals, transcripts, digests, unsorted, models] = await Promise.all([
     activeIds.length === 0
       ? { data: [], error: null }
       : db
@@ -143,6 +147,7 @@ export async function listInbox(
     readTranscripts(db, voiceIds),
     readDigestCounts(db, activeIds),
     readUnsortedPages(db, activeIds),
+    readModels(db, workbookIds),
   ]);
   if (jobs.error) throw dbError("inbox.listSteps", jobs.error);
   if (companies.error) throw dbError("inbox.listCompanies", companies.error);
@@ -182,6 +187,7 @@ export async function listInbox(
       aiOn,
       photo: d.kind === "image",
       transcript: transcripts.has(d.id),
+      model: models.get(d.id)?.summary ?? null,
       pending: waiting.get(d.id)?.pending ?? 0,
       flagged: waiting.get(d.id)?.flagged ?? 0,
       decided: waiting.get(d.id)?.decided ?? 0,
@@ -202,6 +208,7 @@ export async function listInbox(
       flagged: state.flagged,
       decided: state.decided,
       transcript: transcripts.get(d.id) ?? null,
+      model: models.get(d.id)?.link ?? null,
       view: trayFor(state, now, etaFor(steps, now)),
       // A photo is one page: nothing to tick. Every other document lists its scans, so a mixed one can have them read too.
       pages: listedPages(d.kind, pagesOf.get(d.id) ?? [], readPageNumbers(stepsOf.get(d.id) ?? [])),

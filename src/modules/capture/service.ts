@@ -4,7 +4,7 @@ import { isUniqueViolation } from "@/lib/supabase/errors";
 import { ensureCompany, ensureTheme, type CatalogRepo, type Company, type Theme } from "@/modules/catalog";
 import { appendRevision, BODY_TOO_LONG_MESSAGE, createItem, type ResearchRepo } from "@/modules/research";
 import { asFilingError, CAPTURE_TOO_LONG_MESSAGE, EMPTY_CAPTURE_MESSAGE, type FilingErrorCode } from "./messages";
-import { parseCapture, type CaptureKind, type ParsedCapture } from "./parse";
+import { MAX_LINKED_CONCEPTS, parseCapture, type CaptureKind, type ParsedCapture } from "./parse";
 import { clipUnits } from "./text";
 import { CAPTURE_SOURCES, type CaptureRecord, type CaptureRepo } from "./types";
 
@@ -39,7 +39,8 @@ const duplicateOf = (record: CaptureRecord): SaveCaptureResult => ({
   parseError: asFilingError(record.parsed?.error),
 });
 
-type Filed = { itemId: string; company: Company | null; theme: Theme | null };
+/** `theme` is the first concept (items.theme_id, kept for the gate's theme check); `themes` is every one linked, in order. */
+type Filed = { itemId: string; company: Company | null; theme: Theme | null; themes: Theme[] };
 
 /** A thesis append past the body limit is not a failure to retry: filing it again would fail the same way. */
 export const bodyTooLong = (e: unknown) => e instanceof ZodError && e.issues.some((i) => i.message === BODY_TOO_LONG_MESSAGE);
@@ -53,15 +54,31 @@ export async function firstResolved<T>(tokens: string[], resolve: (token: string
   return null;
 }
 
+/**
+ * Every #name in order that resolves to a row (an ignored one is skipped and takes no place), at most 8. Resolution stops
+ * at the 8th, so a 9th tag makes no stub: it stays plain text in the body.
+ */
+export async function resolveConcepts(catalog: CatalogRepo, tokens: string[]): Promise<Theme[]> {
+  const found = new Map<string, Theme>();
+  for (const token of tokens) {
+    if (found.size >= MAX_LINKED_CONCEPTS) break;
+    const theme = await ensureTheme(catalog, token);
+    if (theme) found.set(theme.id, theme);
+  }
+  return [...found.values()];
+}
+
 export async function fileCapture(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<Filed> {
   const company = await firstResolved(parsed.symbols, (s) => ensureCompany(deps.catalog, s));
-  const theme = await firstResolved(parsed.themes, (t) => ensureTheme(deps.catalog, t));
+  const themes = await resolveConcepts(deps.catalog, parsed.themes);
+  const theme = themes[0] ?? null;
+  const conceptIds = themes.length > 0 ? themes.map((t) => t.id) : null;
   if (parsed.kind === "thesis" && company) {
     const existing = await deps.research.findThesisForCompany(company.id);
     if (existing) {
       const changeReason = clipUnits(parsed.firstLine, REASON_MAX).trim() || null;
-      await appendRevision(deps.research, { itemId: existing.id, appendMd: parsed.body, changeReason });
-      return { itemId: existing.id, company, theme };
+      await appendRevision(deps.research, { itemId: existing.id, appendMd: parsed.body, changeReason, conceptIds });
+      return { itemId: existing.id, company, theme, themes };
     }
   }
   const title = parsed.kind === "thesis" && company ? `${company.nseSymbol ?? company.name} thesis` : parsed.title;
@@ -71,8 +88,9 @@ export async function fileCapture(deps: SaveCaptureDeps, parsed: ParsedCapture):
     bodyMd: parsed.body,
     companyId: company?.id ?? null,
     themeId: theme?.id ?? null,
+    conceptIds,
   });
-  return { itemId: item.id, company, theme };
+  return { itemId: item.id, company, theme, themes };
 }
 
 /**

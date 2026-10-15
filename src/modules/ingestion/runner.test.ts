@@ -4,10 +4,12 @@ import type { Db } from "@/lib/supabase/types";
 import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
 import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
+import { createMemoryValuationRepo } from "@/test/fakes/valuation-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
 import { MIN_STEP_MS } from "./caps";
 import { machineDocuments, type DrainDeps } from "./deps";
 import type { QueueRepo } from "./queue-repo";
+import { WORKBOOK_GAVE_UP } from "./model-copy";
 import { drain, PROVIDER_GAVE_UP, SCHEMA_GAVE_UP, VOICE_GAVE_UP } from "./runner";
 import type { NewStep, Step, StepContext, StepHandler, StepKind, StepOutcome } from "./types";
 
@@ -31,7 +33,7 @@ function deps(time = fakeTime()): DrainDeps {
       usage: createMemoryUsageRepo(),
       proposals: createMemoryProposalsRepo(),
       research: createMemoryResearch(),
-      digests: createMemoryDigestsRepo(),
+      digests: createMemoryDigestsRepo(), valuation: createMemoryValuationRepo(),
     },
     now: time.now,
     clock: time.clock,
@@ -100,6 +102,7 @@ const handlers = (h: Partial<Record<StepKind, StepHandler>>): Record<StepKind, S
   text_pages: h.text_pages ?? always({ kind: "done" }),
   classify_pages: h.classify_pages ?? always({ kind: "done" }),
   digest_page: h.digest_page ?? always({ kind: "done" }),
+  xlsx_read: h.xlsx_read ?? always({ kind: "done" }),
 });
 
 describe("drain", () => {
@@ -174,6 +177,12 @@ describe("drain", () => {
     await drain(deps(), m.repo, handlers({ transcribe: always({ kind: "retry", failure: "provider", error: "HTTP 503" }) }), 240_000);
     expect(m.steps[0]).toMatchObject({ status: "needs_attention", lastError: `${VOICE_GAVE_UP} (HTTP 503)` });
     expect(VOICE_GAVE_UP).not.toMatch(/figures/);
+  });
+
+  it("a workbook that fails three times says so in its own words, not the figures sentence", async () => {
+    const m = memoryRepo([step("xlsx_read", 1, { providerFailures: 2 })]);
+    await drain(deps(), m.repo, handlers({ xlsx_read: always({ kind: "retry", failure: "provider", error: "HTTP 503" }) }), 240_000);
+    expect(m.steps[0]).toMatchObject({ status: "needs_attention", lastError: `${WORKBOOK_GAVE_UP} (HTTP 503)` });
   });
 
   it("after three database failures Aksh reads a plain sentence with the operation and code beside it", async () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LlmPort } from "@/lib/providers/llm";
 import { createMemoryDigestsRepo } from "@/test/fakes/digests-repo";
+import { createMemoryValuationRepo } from "@/test/fakes/valuation-repo";
 import { createMemoryDocumentsRepo } from "@/test/fakes/documents-repo";
 import { createMemoryProposalsRepo, createMemoryResearch } from "@/test/fakes/proposals-repo";
 import { createMemoryUsageRepo } from "@/test/fakes/usage-repo";
@@ -27,7 +28,7 @@ function run(pages: string[]) {
   pages.forEach((text, i) => void repo.insertPages(DOC, [{ pageNo: i + 1, text }]));
   const deps: StepDeps = {
     llm: fakeLlm, ocr: null, models: { text: "m", vision: "v", classify: "c", whisper: "w" }, transcriber: null,
-    repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo() },
+    repos: { documents: machineDocuments(repo), usage: createMemoryUsageRepo(), proposals: createMemoryProposalsRepo(), research: createMemoryResearch(), digests: createMemoryDigestsRepo(), valuation: createMemoryValuationRepo() },
     now: () => new Date(T0), clock: () => T0,
   };
   const step = { id: "s", jobId: "j", kind: "select_pages", pageNo: null, args: {}, status: "running", schemaFailures: 0, providerFailures: 0, leaseExpiries: 0, notBefore: "", leaseOwner: "o", lastError: null } as const;

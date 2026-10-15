@@ -106,8 +106,9 @@ select throws_ok($$ update public.documents set transcript_status = 'done' where
 select ok((select not b.public and b.file_size_limit = 52428800
                   and b.allowed_mime_types = array['application/pdf', 'image/jpeg', 'image/png', 'image/webp',
                                                    'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/webm', 'text/plain']
+                         || array['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/json']
              from storage.buckets b where b.id = 'documents'),
-  'bucket documents is private, 50 MB, and takes PDF, photos, voice and text/plain');
+  'bucket documents is private, 50 MB, and takes PDF, photos, voice, text/plain and (0017) the workbook and the model object');
 
 -- 5. Jobs and steps: new kinds, wait reasons and the pass column.
 select lives_ok($$ insert into public.jobs (id, kind, document_id) values

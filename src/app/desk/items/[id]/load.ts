@@ -2,11 +2,15 @@ import { istDate } from "@/lib/dates";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { fileProblems, latestFigureDate, readCaseFile, serializeFactsSheet } from "@/modules/casefile/client";
 import { getCompanyBrief } from "@/modules/catalog";
+import { loadLedgerView } from "@/modules/cases";
 import { allowableHashes, annotateBody, createSupabaseComplianceRepo, getLatestDecision, previewGate } from "@/modules/compliance";
 import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { listStagedForItem, listStagedReadingsForItem, provenanceForItem } from "@/modules/ingestion";
 import { ledgerGateFacts } from "@/modules/ledger";
 import { createSupabaseResearchRepo, getItemWithHistory } from "@/modules/research";
+import { confirmedModelFor } from "@/modules/valuation";
+import { loadItemConcepts } from "./concepts";
+import { ledgerCaseOf } from "./ledger-case";
 
 /** Everything the editor shows, read once per request (admin session; RLS admin policies apply). */
 export async function loadEditor(id: string) {
@@ -16,10 +20,12 @@ export async function loadEditor(id: string) {
   const { item, revisions, current, pending } = history;
   const compliance = createSupabaseComplianceRepo(db);
   const latest = revisions[0] ?? null;
-  // The gate can be run on the newest revision unless it is already the live one.
-  const candidate = latest && (item.visibility !== "public" || latest.id !== current?.id) ? latest : null;
-  const isFile = item.kind === "thesis" || item.kind === "case_study";
-  const [ctx, allowances, company, decision, documents, staged, stagedReadings, provenance] = await Promise.all([
+  // The gate can be run on the newest revision unless it is already the live one. A read is never published (Phase 4 D52): no gate to run.
+  const candidate = item.kind !== "reading_note" && latest && (item.visibility !== "public" || latest.id !== current?.id) ? latest : null;
+  // A case study from the ledger is its body plus the record (D41): no facts sheet, no staged figures, no documents pane.
+  const { isLedger, record: ledgerRecord } = ledgerCaseOf(latest?.structured);
+  const isFile = (item.kind === "thesis" || item.kind === "case_study") && !isLedger;
+  const [ctx, allowances, company, decision, documents, staged, stagedReadings, provenance, model, ledgerView, concepts] = await Promise.all([
     candidate ? compliance.loadPublishContext(item.id, candidate.id) : Promise.resolve(null),
     compliance.listAllowances(item.id),
     item.companyId ? getCompanyBrief(db, item.companyId) : Promise.resolve(null),
@@ -31,6 +37,12 @@ export async function loadEditor(id: string) {
     // Test readings Aksh accepted for this file's tests: they fill the test rows' reading fields, never a status.
     isFile ? listStagedReadingsForItem(db, item.id) : Promise.resolve([]),
     isFile ? provenanceForItem(db, item.id) : Promise.resolve({}),
+    // The header's private "Model" link (Plan 2.7 Task 3): the company's newest confirmed valuation model. A link is not worth a broken editor.
+    item.companyId ? confirmedModelFor(db, item.companyId).catch(() => null) : Promise.resolve(null),
+    // The ledger against this case study, and the owner's two switches (advisory; the database gate decides).
+    isLedger ? loadLedgerView(db, item.id) : Promise.resolve(null),
+    // The Concepts row: chips of the newest version and the picker's choices (null: unreadable, the row is left out).
+    loadItemConcepts(db, item, latest),
   ]);
   // What the sealed ledger says about this company, asked of the same database function the gate uses. Advisory: if it cannot
   // be read the checklist falls back to the hand check alone (never to "clear"), and the database gate still decides.
@@ -42,6 +54,7 @@ export async function loadEditor(id: string) {
         companyPublic: company ? company.visibility === "public" : null,
         structureProblems: isFile ? fileProblems(ctx.revision.bodyMd, ctx.revision.structured) : [],
         ledger,
+        ledgerCase: isLedger ? { switches: ledgerView?.switches ?? null } : undefined,
       })
     : null;
   return {
@@ -52,6 +65,10 @@ export async function loadEditor(id: string) {
     latest,
     candidate,
     isFile,
+    isLedger,
+    ledgerRecord,
+    ledgerStatus: ledgerView?.status ?? null,
+    concepts,
     company,
     documents,
     staged,
@@ -63,5 +80,6 @@ export async function loadEditor(id: string) {
     body: ctx && preview ? annotateBody(ctx.revision.bodyMd, preview.lint, allowances, allowableHashes(decision, latest?.id ?? null)) : null,
     sheet: isFile ? serializeFactsSheet(readCaseFile(latest?.structured ?? null)) : null,
     latestFigure: isFile ? latestFigureDate(latest?.structured ?? null) : null,
+    model,
   };
 }

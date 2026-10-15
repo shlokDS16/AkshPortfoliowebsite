@@ -49,3 +49,10 @@ describe("Read this link in the Today list", () => {
     expect(screen.getByRole("button", { name: /Read this link/ })).toBeEnabled();
   });
 });
+
+describe("the kind line of a Today entry", () => {
+  it("names a read as a reading log entry", () => {
+    render(<TodayList groups={groups("r: Marks memo #rates")} known={known} />);
+    expect(screen.getByText("reading log")).toBeInTheDocument();
+  });
+});

@@ -1,6 +1,7 @@
 import { ZodError } from "zod";
 import { DeskError } from "./errors";
 import { formatDate } from "./format";
+import { ERROR_CODE_BY_TYPED } from "./message-codes";
 
 /**
  * Failures reach a desk screen as a fixed code in the redirect URL (`?error=title-required`), never as free
@@ -17,7 +18,7 @@ const ERRORS = {
   "item-not-found": "This item could not be found.",
   "public-item-locked": "This item is public. Unpublish it before changing its details.",
   "append-only": "Revisions are append-only: an existing revision cannot be changed or deleted. Save a new revision instead.",
-  "item-rule": "The database rejected these values. Check the fields (title, kind, linked company or theme) and try again.",
+  "item-rule": "The database rejected these values. Check the fields (title, kind, linked company or concept) and try again.",
   "access-denied": "You are not allowed to do that. Sign in again as the admin.",
   "body-too-long": "This revision is too long (200,000 characters max). Start a new item or shorten it.", // = BODY_TOO_LONG_MESSAGE (research/schema.ts; a test keeps them equal)
   "capture-not-refilable": "This capture is already filed, or is still being filed. Reload in a minute.",
@@ -29,14 +30,22 @@ const ERRORS = {
   "name-required": "Give the name.",
   "choose-sector": "Choose a sector from the list.",
   "name-on-public-item": "A public item names this. Unpublish that item before changing what this name is.",
+  // Concepts (Phase 4 Task 2; = ConceptDescriptionTooLongError in modules/catalog/errors.ts, a test keeps them equal). Pending Shlok's approval.
+  "concept-description-too-long": "That is over 2,000 characters. Shorten it.",
+  // = ConceptChangePendingError (modules/research/errors.ts), ConceptSelfLinkError and ConceptNotFoundError (modules/knowledge/errors.ts); tests keep them equal. Pending Shlok's approval.
+  "concept-change-pending": "A newer version of this note is waiting to be published. Publish it before changing the concepts.",
+  "concept-self-link": "A concept cannot be linked to itself.",
+  "concept-not-found": "This concept could not be found.",
   "no-figure-date": "This file has no dated figure yet, so there is nothing to set Figures to.",
   // Uploads (= DOCUMENT_ERROR_TEXT in modules/documents/errors.ts; a test keeps them equal).
   "upload-duplicate": "You uploaded this file before. Open the earlier copy.",
   "upload-too-large": "Over 50 MB. Upload the financial statements section, or compress the file.",
-  "upload-unsupported": "Drop a PDF, a photo or a voice note.",
+  "upload-unsupported": "Drop a PDF, a photo, a voice note or an .xlsx workbook.",
   "upload-image-too-large": "This photo is still over 1 MB after shrinking; crop it to the table.",
   "upload-storage-full": "Storage is over 90% full. Mark finished documents as done to free space.",
   "upload-missing": "The upload did not arrive complete. Upload the file again.",
+  "upload-xlsx-too-large": "This workbook is over 10 MB. Remove sheets or pictures the valuation does not use and upload again.",
+  "upload-xlsx-needs-company": "Choose the company this workbook is for, then upload it again.",
   "voice-off": "Voice notes are not switched on yet.",
   // The two voice limits are derived in modules/documents/errors.ts from limits.ts; a test keeps these equal to that.
   "voice-too-large": "This voice note is over 25 MB. Record a shorter one.",
@@ -59,6 +68,8 @@ const ERRORS = {
   "reread-closed": "You marked this document done or skipped, so its pages are not read again.",
   "reread-not-ready": "This page is not ready to be read again. Wait for its first reading to finish.",
   "reread-limit": "This page has been read as many times as the desk allows.",
+  // Workbook retry (Plan 2.7 final review I3). Pending Shlok's approval.
+  "workbook-retry-limit": "This workbook has been tried as many times as the desk allows. Remove sheets the valuation does not use, save it and upload it again.",
   // Review screen (= REVIEW_ERROR_TEXT in modules/ingestion/errors.ts; a test keeps them equal).
   "type-value-first": "Type the value from the page first.",
   "figure-incomplete": "Add the period, the as-of date and the unit.",
@@ -71,6 +82,7 @@ const ERRORS = {
   "nothing-to-file": "Tick at least one figure to file.",
   "company-locked": "Some of this document's figures are already in its company's file, so the company cannot be changed.",
   "document-closed": "You marked this document done or skipped, so its figures can no longer be reviewed or filed.",
+  "workbook-company-locked": "A workbook stays with the company it was uploaded for, because its model versions are numbered under that company.",
   // Ledger (= LEDGER_ERROR_TEXT in modules/ledger/errors.ts; a test keeps them equal). Pending Shlok's approval, spec s19.
   "ledger-no-symbol": "This company has no NSE symbol yet. Add it under Names first.",
   "ledger-company-not-ready": "This company is still waiting for review, or has been merged into another. Settle it under Names, then record the idea on the company it became.",
@@ -98,6 +110,14 @@ const ERRORS = {
   "ledger-fetch-busy": "A fetch is already running. Wait for it to finish, then reload this page.",
   "ledger-item-other-company": "That file is about a different company. Open the idea from the company's own file, or without a link to a file.",
   "ledger-day-shut": "NSE had no trading on that date, so a closing price cannot be typed for it. If NSE did trade that day, upload NSE's official file for it instead.",
+  // Case studies from the ledger (Plan 3b Task 2, spec s33.8; = CASE_ERROR_TEXT in modules/cases/errors.ts, a test keeps them equal). Pending Shlok's approval.
+  "case-not-found": "This idea could not be found.",
+  "case-not-closed": "This idea is still open. A case study can be drafted once it is closed.",
+  "case-void": "This idea was withdrawn, so it cannot be shown as a case study.",
+  "case-no-lesson": "A case study shows what you learned. Write the lesson first.",
+  "case-exit-pending": "The exit price is not fixed yet. A case study can be drafted once it is.",
+  "case-record-unreadable": "The ledger record could not be read. Run the integrity check on the Ledger page.",
+  "case-not-ledger": "This item does not carry a ledger record.",
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -105,87 +125,6 @@ export type ErrorCode = keyof typeof ERRORS;
 const ERROR_CODE_BY_TEXT = new Map<string, ErrorCode>(
   (Object.entries(ERRORS) as [ErrorCode, string][]).map(([code, text]) => [text, code]),
 );
-const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
-  ITEM_NOT_FOUND: "item-not-found",
-  PUBLIC_ITEM_LOCKED: "public-item-locked",
-  REVISION_APPEND_ONLY: "append-only",
-  ITEM_RULE: "item-rule",
-  INVALID_INPUT: "invalid-input",
-  ACCESS_DENIED: "access-denied",
-  CAPTURE_NOT_REFILABLE: "capture-not-refilable",
-  HAND_CHECK_REQUIRED: "hand-check-required",
-  FILE_STRUCTURE: "file-structure",
-  FACTS_SHEET_INVALID: "facts-sheet-invalid",
-  NAME_NOT_SCREENED: "name-not-screened",
-  NAME_ON_PUBLIC_ITEM: "name-on-public-item",
-  NO_FIGURE_DATE: "no-figure-date",
-  // DocumentError carries the message code itself.
-  "upload-duplicate": "upload-duplicate",
-  "upload-too-large": "upload-too-large",
-  "upload-unsupported": "upload-unsupported",
-  "upload-image-too-large": "upload-image-too-large",
-  "upload-storage-full": "upload-storage-full",
-  "upload-missing": "upload-missing",
-  "voice-off": "voice-off",
-  "voice-too-large": "voice-too-large",
-  "voice-too-long": "voice-too-long",
-  "link-invalid": "link-invalid",
-  "link-blocked": "link-blocked",
-  "link-failed": "link-failed",
-  "link-redirects": "link-redirects",
-  "link-too-large": "link-too-large",
-  "link-timeout": "link-timeout",
-  "link-unsupported": "link-unsupported",
-  "link-empty": "link-empty",
-  "text-too-short": "text-too-short",
-  "text-too-long": "text-too-long",
-  // InboxError likewise.
-  "page-budget-reached": "page-budget-reached",
-  "budget-range": "budget-range",
-  "ai-off": "ai-off",
-  "reread-closed": "reread-closed",
-  "reread-not-ready": "reread-not-ready",
-  "reread-limit": "reread-limit",
-  // ReviewError likewise.
-  "type-value-first": "type-value-first",
-  "figure-incomplete": "figure-incomplete",
-  "figure-not-a-number": "figure-not-a-number",
-  "figure-filed": "figure-filed",
-  "filed-on-required": "filed-on-required",
-  "checks-left": "checks-left",
-  "not-this-file": "not-this-file",
-  "no-company": "no-company",
-  "nothing-to-file": "nothing-to-file",
-  "document-closed": "document-closed",
-  "company-locked": "company-locked",
-  // LedgerError likewise.
-  "ledger-no-symbol": "ledger-no-symbol",
-  "ledger-company-not-ready": "ledger-company-not-ready",
-  "ledger-not-open": "ledger-not-open",
-  "ledger-not-closed": "ledger-not-closed",
-  "ledger-void-too-late": "ledger-void-too-late",
-  "ledger-words-required": "ledger-words-required",
-  "ledger-body-too-long": "ledger-body-too-long",
-  "ledger-bad-horizon": "ledger-bad-horizon",
-  "ledger-bad-input": "ledger-bad-input",
-  "ledger-is-void": "ledger-is-void",
-  "ledger-opposite-open": "ledger-opposite-open",
-  "ledger-not-found": "ledger-not-found",
-  "ledger-integrity": "ledger-integrity",
-  "ledger-day-shut": "ledger-day-shut",
-  "ledger-bad-close": "ledger-bad-close",
-  "ledger-bad-date": "ledger-bad-date",
-  "ledger-close-too-early": "ledger-close-too-early",
-  "ledger-close-weekend": "ledger-close-weekend",
-  "ledger-close-not-stored": "ledger-close-not-stored",
-  "ledger-close-kept-official": "ledger-close-kept-official",
-  "ledger-close-too-old": "ledger-close-too-old",
-  "ledger-bad-factor": "ledger-bad-factor",
-  "ledger-action-duplicate": "ledger-action-duplicate",
-  "ledger-note-too-long": "ledger-note-too-long",
-  "ledger-fetch-busy": "ledger-fetch-busy",
-  "ledger-item-other-company": "ledger-item-other-company",
-};
 
 /**
  * The only way a failure reaches a desk screen: a validation message we wrote or a typed DeskError
@@ -223,6 +162,12 @@ const NOTICES = {
   "allowance-saved": "Sentence allowed. Run the publishing gate again.",
   "allowance-removed": "Allowance removed. Run the publishing gate again.",
   "company-public": "Company made public. It is listed only once a file that names it passes the gate.",
+  // Pending Shlok's approval (Phase 4 Task 2).
+  "concept-public": "Concept made public. It is shown only once a published note or file uses it.",
+  "concept-linked": "Linked.",
+  "concept-unlinked": "Link removed.",
+  "concepts-saved": "Concepts saved.",
+  "concept-description-saved": "Saved. Only you see this.",
   "figures-to-set": "Figures to updated to the latest figure date. Run the publishing gate again.",
   refiled: "Filed.",
   "name-saved": "Saved. The name is screened.",
@@ -232,6 +177,10 @@ const NOTICES = {
   // Closes page and corporate actions (Plan 3a Task 11, spec s31). Pending Shlok's approval.
   "close-entered": "Close stored as typed. It is marked on every score that uses it.",
   "action-added": "Action entered. It is marked on every score whose period it falls in.",
+  // Case studies from the ledger (Plan 3b Task 2). Pending Shlok's approval.
+  "case-drafted": "Drafted from the ledger. Add the learning objective and what you took from it, then run the gate.",
+  "case-refreshed": "Refreshed from the ledger. Run the publishing gate again.",
+  "case-unchanged": "This case study already matches the ledger.",
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-saved-readings-missing":

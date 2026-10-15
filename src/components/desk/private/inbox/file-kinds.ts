@@ -1,9 +1,9 @@
-import { AUDIO_MIMES, bareMime, PDF_MIME, UPLOAD_KINDS, type UploadKind } from "@/modules/documents/client";
+import { AUDIO_MIMES, bareMime, PDF_MIME, UPLOAD_KINDS, XLSX_MIME, type UploadKind } from "@/modules/documents/client";
 
-// What the drop bar takes (ruling R12): a PDF, a photo or screenshot, and (only while VOICE_NOTES is on) a voice note.
+// What the drop bar takes (ruling R12): a PDF, a photo or screenshot, an .xlsx valuation workbook (2.7), and (only while VOICE_NOTES is on) a voice note.
 // Links join with their own task.
 
-const BASE_ACCEPT = "application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
+const BASE_ACCEPT = `application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp,${XLSX_MIME},.xlsx`;
 const VOICE_ACCEPT = "audio/mpeg,audio/mp4,audio/x-m4a,audio/webm,.mp3,.m4a,.webm";
 
 /** The file picker's filter. Voice notes are offered only while the switch is on. */
@@ -22,6 +22,8 @@ export function kindOfFile(file: Pick<File, "name" | "type">): UploadKind | null
     const rule = UPLOAD_KINDS[kind];
     if (rule.name.test(file.name) && (type === "" || rule.mimes.includes(type))) return kind;
   }
+  // A browser reports a workbook as "" or application/octet-stream as often as by its own type; the name decides, and the job checks the bytes.
+  if (UPLOAD_KINDS.xlsx.name.test(file.name) && (type === "" || type === "application/octet-stream" || UPLOAD_KINDS.xlsx.mimes.includes(type))) return "xlsx";
   return UPLOAD_KINDS.audio.name.test(file.name) && soundLike(type) ? "audio" : null;
 }
 
@@ -33,6 +35,7 @@ const AUDIO_BY_EXTENSION: Record<string, (typeof AUDIO_MIMES)[number]> = { mp3: 
  */
 export function claimedMime(kind: UploadKind, file: Pick<File, "name" | "type">): string {
   if (kind === "pdf") return PDF_MIME;
+  if (kind === "xlsx") return XLSX_MIME;
   const type = bareMime(file.type);
   if (kind === "image") return type;
   if ((AUDIO_MIMES as readonly string[]).includes(type)) return type;

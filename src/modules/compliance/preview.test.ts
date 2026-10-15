@@ -14,6 +14,8 @@ const ctx = (over: Partial<PublishContext["item"]> = {}, bodyMd = "Utilisation p
   companyName: "Kaveri Pumps (fictional)",
   companyOneLiner: null,
   themeName: null,
+  conceptNames: [],
+  conceptSlugs: [],
   allowances: [],
 });
 
@@ -159,5 +161,36 @@ describe("annotateBody (B: the note sits beside the sentence)", () => {
     const inBody = lint.findings.filter((f) => f.field === "body").length;
     expect(inBody).toBeGreaterThan(1);
     expect(body.unplaced.filter((f) => f.field === "body")).toHaveLength(inBody - 1);
+  });
+});
+
+describe("previewGate for a case study from the ledger (spec s33.8)", () => {
+  const caseCtx = ctx({ kind: "case_study" }, "Margins held.");
+  const run = (ledgerCase?: Parameters<typeof previewGate>[0]["ledgerCase"]) =>
+    previewGate({ ctx: caseCtx, today: "2026-10-06", companyPublic: true, structureProblems: [], ledgerCase });
+  const line = (result: ReturnType<typeof previewGate>) => result.items.find((i) => i.id === "case-switches");
+
+  it("adds no switch line for anything that is not a ledger case", () => {
+    expect(line(run())).toBeUndefined();
+  });
+
+  it("adds the owner-switch line: on is a pass, off fails, and the chart is named either way", () => {
+    expect(line(run({ switches: { reveal: true, chart: false } }))).toEqual({
+      id: "case-switches", name: "Case studies from the ledger", state: "pass", detail: "On (site owner). Chart: off.",
+    });
+    expect(line(run({ switches: { reveal: false, chart: true } }))).toMatchObject({ state: "fail", detail: "Off (site owner). Chart: on." });
+  });
+
+  it("counts a switch that is off as a failing line, so the summary does not say 'passes'", () => {
+    expect(run({ switches: { reveal: false, chart: false } }).failing).toBe(1);
+    expect(run({ switches: { reveal: true, chart: false } }).failing).toBe(0);
+  });
+
+  it("says plainly when the switches could not be read, and leaves the decision to the gate", () => {
+    expect(line(run({ switches: null }))).toMatchObject({ state: "manual", detail: "The site owner's switches could not be read just now. The gate decides." });
+  });
+
+  it("describes the structure row as body and record only, with no facts sheet", () => {
+    expect(run({ switches: { reveal: true, chart: false } }).items.find((i) => i.id === "structure")?.detail).toBe("Body and ledger record only; no facts sheet.");
   });
 });
