@@ -135,9 +135,12 @@ describe("the desk's 'send now' and the setup check", () => {
   it("lettersOn follows the settings: off unless all three are set on production, or the fixture is chosen off a deployment", () => {
     env.value = { ADMIN_EMAIL: "a@desk.test" };
     expect(lettersOn()).toBe(false);
-    env.value = { ADMIN_EMAIL: "a@desk.test", DISTRIBUTION_ADAPTER: "fixture" };
+    env.value = { ADMIN_EMAIL: "a@desk.test", DISTRIBUTION_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" };
     expect(lettersOn()).toBe(true);
-    env.value = { ADMIN_EMAIL: "a@desk.test", DISTRIBUTION_ADAPTER: "fixture", VERCEL_ENV: "production" };
+    env.value = { ADMIN_EMAIL: "a@desk.test", DISTRIBUTION_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321", VERCEL_ENV: "production" };
+    expect(lettersOn()).toBe(false);
+    // The fixture against a database that is not on this machine is off (review finding 9).
+    env.value = { ADMIN_EMAIL: "a@desk.test", DISTRIBUTION_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: "https://abc.supabase.co" };
     expect(lettersOn()).toBe(false);
     env.value = { ADMIN_EMAIL: "a@desk.test", RESEND_LETTERS_KEY: "re_x".padEnd(20, "x"), LETTERS_FROM: "A <a@verified.example>", LETTERS_SEGMENT_ID: "00000000-0000-4000-8000-000000000001", VERCEL_ENV: "preview" };
     expect(lettersOn()).toBe(false);
