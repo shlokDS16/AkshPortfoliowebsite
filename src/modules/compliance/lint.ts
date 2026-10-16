@@ -4,7 +4,7 @@ import { isIsoDate, isLedgerCase, latestFigureDate } from "@/modules/casefile/cl
 import { LEDGER_FIGURE_MESSAGE, LEDGER_PRICE_PATTERNS, LEXICON, PRICE_NUMBER } from "./lexicon";
 import { matchViews } from "./normalise";
 import { sentenceHash, textSha256 } from "./hash";
-import { POLICY_VERSION, type LintAllowed, type LintField, type LintFinding, type LintInput, type LintResult, type LintRule } from "./rules";
+import { POLICY_VERSION, type LintAllowed, type LintField, type LintFinding, type LintInput, type LintResult, type LintRule, type OutsideSource } from "./rules";
 import { splitSentences } from "./sentences";
 
 /** The machine's keys in a video's `structured` record: identifiers and hashes, not prose. His chapter titles are the rest. */
@@ -18,7 +18,14 @@ const VIDEO_MACHINE_KEYS: ReadonlySet<string> = new Set(["schema", "youtubeId", 
 const LETTER_MACHINE_KEYS: ReadonlySet<string> = new Set(["schema"]);
 const LETTER_ENTRY_MACHINE_KEYS: ReadonlySet<string> = new Set(["revisionId", "kind", "path", "revNo", "detail", "holdsPosition"]);
 
-type TextUnit = { field: LintField; text: string; citedQuote: boolean };
+/**
+ * The machine's keys in an entry of a company file's `structured.studied` (rule 14): the link's id, whether its title is shown and the hash
+ * of what was read. His `note` is the rest, and is linted again as his words, as is any key this list does not know.
+ */
+const STUDIED_MACHINE_KEYS: ReadonlySet<string> = new Set(["link", "show", "metaSha"]);
+
+/** `outside`: the text is somebody else's (rule 14), so a figure in it is refused whatever the file's date, and never allowanceable. */
+type TextUnit = { field: LintField; text: string; citedQuote: boolean; outside?: "text" | "link" };
 
 function walk(value: unknown, units: TextUnit[], citedQuote: boolean): void {
   if (typeof value === "string") units.push({ field: "structured", text: value, citedQuote });
@@ -35,6 +42,42 @@ function walkLedger(ledger: unknown, units: TextUnit[]): void {
   const events = isRecord(ledger) && Array.isArray(ledger.events) ? ledger.events : [];
   for (const event of events) {
     if (isRecord(event) && typeof event.words === "string") units.push({ field: "structured", text: event.words, citedQuote: false });
+  }
+}
+
+function walkStudied(studied: unknown, units: TextUnit[]): void {
+  if (!Array.isArray(studied)) {
+    walk(studied, units, false);
+    return;
+  }
+  for (const entry of studied) {
+    if (isRecord(entry)) walk(Object.fromEntries(Object.entries(entry).filter(([k]) => !STUDIED_MACHINE_KEYS.has(k))), units, false);
+    else walk(entry, units, false);
+  }
+}
+
+/** A link as a reader's eye reads it: the host and the path, hyphens, underscores and slashes read as spaces; the query and the fragment are not part of what is shown. */
+function linkText(url: string): string {
+  let host = url;
+  let path = "";
+  try {
+    const u = new URL(url);
+    host = u.hostname.replace(/^www\./, "");
+    path = u.pathname;
+    path = decodeURIComponent(path);
+  } catch {
+    // an address that cannot be read is linted as it stands
+  }
+  return `${host} ${path}`.replace(/[-_/]+/g, " ");
+}
+
+/** The words of the outside sources a reader would see (rule 14): the link always, the title and the site name only when the entry shows them and the hash matches. */
+function outsideUnits(sources: readonly OutsideSource[], units: TextUnit[]): void {
+  for (const source of sources) {
+    units.push({ field: "outsideLink", text: linkText(source.url), citedQuote: false, outside: "link" });
+    if (!source.show || !source.read) continue;
+    if (source.title) units.push({ field: "outsideTitle", text: source.title, citedQuote: false, outside: "text" });
+    if (source.siteName) units.push({ field: "outsideSite", text: source.siteName, citedQuote: false, outside: "text" });
   }
 }
 
@@ -70,8 +113,10 @@ function collectUnits(input: LintInput): TextUnit[] {
     // A video's transcript, every word (rule 12.2). The text is not edited anywhere, so only an allowance can clear a sentence.
     ...(input.transcript == null ? [] : [plain("transcript", input.transcript)]),
   ];
-  const { sources, ledger, ...rest } = input.structured;
+  const { sources, ledger, studied, ...rest } = input.structured;
   walkLedger(ledger, units);
+  walkStudied(studied, units);
+  outsideUnits(input.outside, units);
   for (const source of Array.isArray(sources) ? sources : sources === undefined ? [] : [sources]) {
     if (!isRecord(source)) {
       walk(source, units, false);
@@ -104,6 +149,11 @@ function firstMatch(pattern: RegExp, views: readonly string[]): RegExpExecArray 
   return null;
 }
 
+/** The hash of every entry whose title the lint read: shown, and the words it was given are the table's current ones. */
+function studiedHashes(sources: readonly OutsideSource[]): string[] {
+  return sources.flatMap((s) => (s.show && s.read && s.metaSha !== null ? [s.metaSha] : []));
+}
+
 const structural = (rule: LintRule, message: string, field: LintField | null = null): LintFinding => ({
   rule,
   field,
@@ -112,6 +162,10 @@ const structural = (rule: LintRule, message: string, field: LintField | null = n
   match: null,
   message,
 });
+
+// Rule 3 for somebody else's words (rule 14.4). Pending Shlok's approval.
+const OUTSIDE_TEXT_FIGURE = "A price, return or valuation figure in someone else's title or name is not shown. Untick 'Show its title and picture' to show the link alone.";
+const OUTSIDE_LINK_FIGURE = "A price, return or valuation figure in this link's address. Take the source off the file.";
 
 /** Pure: no I/O. Allowances are honoured for rule 1 only; rules 2, 3, 5, 6, 10 and structure are never allowanceable. */
 export function lintText(input: LintInput): LintResult {
@@ -134,6 +188,13 @@ export function lintText(input: LintInput): LintResult {
         } else {
           findings.push({ rule: entry.rule, field: unit.field, sentence, sentenceHash: hash, match: match[0], message: entry.message });
         }
+      }
+      if (unit.outside) {
+        // Somebody else's words: their date is unknown and may be today, so any price, return or valuation figure is refused, however old the file's
+        // "Figures to" is. Rule 3, never allowanceable; unticking the title keeps the link alone (rule 14.4).
+        const figure = LEDGER_PRICE_PATTERNS.map((p) => firstMatch(p, views)).find(Boolean) ?? null;
+        if (figure) findings.push({ rule: "3", field: unit.field, sentence, sentenceHash: hash, match: figure[0], message: unit.outside === "link" ? OUTSIDE_LINK_FIGURE : OUTSIDE_TEXT_FIGURE });
+        continue;
       }
       const ledgerFigure = ledgerCase && !unit.citedQuote ? LEDGER_PRICE_PATTERNS.map((p) => firstMatch(p, views)).find(Boolean) ?? null : null;
       if (ledgerFigure) {
@@ -189,5 +250,6 @@ export function lintText(input: LintInput): LintResult {
     findings,
     allowedBy,
     ...(input.transcript == null ? {} : { transcriptSha: textSha256(input.transcript) }),
+    ...(studiedHashes(input.outside).length === 0 ? {} : { studied: studiedHashes(input.outside) }),
   };
 }

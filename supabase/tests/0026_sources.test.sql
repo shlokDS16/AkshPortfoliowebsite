@@ -5,7 +5,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(62);
+select plan(66);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -207,6 +207,35 @@ select ok((select bool_and(has_function_privilege('service_role', f, 'execute') 
 select ok(not has_table_privilege('service_role', 'public.source_links', 'insert,update,delete')
       and has_table_privilege('service_role', 'public.source_links', 'select'),
   'the service role reads links and writes them only through record_source_fetch');
+
+-- 7. The two counters (Task 3). As the admin: storage_usage counts a source picture with the documents (the figure rises by the size of one
+-- picture); as anon: capture_days leaves out the day of a capture the server filed as a source and still counts a day with an ordinary
+-- capture. (Storage rows cannot be deleted from SQL, so the test compares against what was there.)
+reset role;
+select set_config('request.jwt.claims', '', true);
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select set_config('pgtap.before', (select storage_bytes::text from public.storage_usage()), true);
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into storage.objects (bucket_id, name, metadata) values ('source-thumbs', 'yt/' || repeat('c', 64) || '.jpg', '{"size": 234}');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select is((select storage_bytes from public.storage_usage()), current_setting('pgtap.before')::bigint + 234, 'storage_usage counts a source picture');
+select set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
+select ok((select storage_bytes is null and database_bytes is null from public.storage_usage()), 'storage_usage is still nulls for a non-admin');
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into public.captures (raw_text, parsed, created_at) values
+  ('s: https://example.com/a', '{"kind": "source"}', now() - interval '40 days'),
+  ('a thought from a day before', '{"kind": "note"}', now() - interval '41 days');
+set local role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+select is((select count(*) from public.capture_days(60) where day = (now() at time zone 'Asia/Kolkata')::date - 40), 0::bigint,
+  'capture_days does not count the day of a saved source');
+select is((select count(*) from public.capture_days(60) where day = (now() at time zone 'Asia/Kolkata')::date - 41), 1::bigint,
+  'and still counts the day of an ordinary capture');
+reset role;
 
 select * from finish();
 rollback;

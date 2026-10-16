@@ -19,6 +19,10 @@ const FIELD_LABELS: Record<LintField, string> = {
   conceptName: "Linked concept name",
   conceptSlug: "Linked concept slug",
   transcript: "Transcript",
+  // Rule 14 (Phase 5d). Pending Shlok's approval.
+  outsideTitle: "Title of an outside source",
+  outsideSite: "Site or channel name of an outside source",
+  outsideLink: "Address of an outside source",
 };
 
 function Highlight({ sentence, match }: { sentence: string; match: string | null }) {

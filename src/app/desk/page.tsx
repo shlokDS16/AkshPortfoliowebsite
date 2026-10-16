@@ -146,7 +146,7 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
       ) : null}
       {entries === null ? null : (
         <section aria-label="Capture streak">
-          <StreakStrip variant="desk" {...toStreakData(captureStreak(entries.map((e) => istDate(e.createdAt)), today))} />
+          <StreakStrip variant="desk" {...toStreakData(captureStreak(entries.filter((e) => !e.isSource).map((e) => istDate(e.createdAt)), today))} />
         </section>
       )}
     </div>

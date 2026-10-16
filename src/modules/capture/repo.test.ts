@@ -12,6 +12,12 @@ const row = (parsed: unknown) => ({
 });
 
 describe("toListEntry", () => {
+  it("reads a capture filed as a source (D108: not a streak day)", () => {
+    expect(toListEntry(row({ kind: "source" })).isSource).toBe(true);
+    expect(toListEntry(row({ kind: "note" })).isSource).toBe(false);
+    expect(toListEntry(row(null)).isSource).toBe(false);
+  });
+
   it("passes a known filing error code through", () => {
     expect(toListEntry(row({ error: "filing-failed" })).parseError).toBe("filing-failed");
     expect(toListEntry(row({ error: "link-failed" })).parseError).toBe("link-failed");

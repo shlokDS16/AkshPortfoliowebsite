@@ -1,4 +1,5 @@
-import type { Address, Resolver, SafeFetchDeps, Transport, TransportResponse } from "./safe-fetch";
+import { enc, reply, SOURCE_FIXTURE_HOSTS, sourceFixture } from "./fixture-sources";
+import type { Address, Resolver, SafeFetchDeps, Transport } from "./safe-fetch";
 
 // The link fetch's stand-in for local e2e and CI (Plan 2b Task 5, rulings R18 and R27): a DNS table and a transport that serve a
 // few made-up sites, so a test can follow a link without a network. It replaces only the two things safeFetch takes as inputs;
@@ -7,11 +8,11 @@ import type { Address, Resolver, SafeFetchDeps, Transport, TransportResponse } f
 
 const PUBLIC: Address = { address: "93.184.216.34", family: 4 };
 const PRIVATE: Address = { address: "10.0.0.5", family: 4 };
-const enc = (text: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(text);
 
 /** Made-up hosts: every name ends in .test; `internal.test` answers a private address (to see the guard refuse it); others do not exist. */
 export const fixtureResolver: Resolver = async (host) => {
   if (host === "internal.test") return [PRIVATE];
+  if (SOURCE_FIXTURE_HOSTS.has(host)) return [PUBLIC];
   if (host.endsWith(".test")) return [PUBLIC];
   throw new Error("ENOTFOUND");
 };
@@ -38,20 +39,13 @@ function fixturePdf(lines: string[]): Uint8Array {
   return enc(out);
 }
 
-const reply = (status: number, headers: Record<string, string>, body: Uint8Array = new Uint8Array(0)): TransportResponse => ({
-  status,
-  headers,
-  body: (async function* () {
-    yield body;
-  })(),
-  close: () => undefined,
-});
-
 /**
  * What the made-up sites say. `/<anything>.pdf` on bse.test is a one-page results PDF carrying that name (so a test makes its own
  * bytes); `/q/<name>` on results.test is a results page with a table; `/go/<name>` on redirect.test sends on to it.
  */
 export const fixtureTransport: Transport = async ({ url }) => {
+  const source = sourceFixture(url);
+  if (source) return source;
   const [first, name = "x"] = url.pathname.split("/").filter(Boolean);
   if (url.hostname === "bse.test" && first?.endsWith(".pdf")) {
     const lines = [

@@ -3,6 +3,7 @@ import { DeskError } from "./errors";
 import { formatDate } from "./format";
 import { ERROR_CODE_BY_TYPED } from "./message-codes";
 import { LETTER_ERROR_TEXT, LETTER_NOTICE_TEXT } from "./messages-letters";
+import { SOURCE_ERROR_TEXT } from "./messages-sources";
 
 /**
  * Failures reach a desk screen as a fixed code in the redirect URL (`?error=title-required`), never as free
@@ -131,6 +132,8 @@ const ERRORS = {
   "video-fetch-busy": "A fetch is already running. Wait for it to finish, then reload this page.",
   // Letters (Phase 5c Task 12; messages-letters.ts). Pending Shlok's approval.
   ...LETTER_ERROR_TEXT,
+  // Sources (Phase 5d Task 3; messages-sources.ts). Pending Shlok's approval.
+  ...SOURCE_ERROR_TEXT,
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;

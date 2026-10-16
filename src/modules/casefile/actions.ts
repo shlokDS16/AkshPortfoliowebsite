@@ -37,7 +37,9 @@ export async function saveCaseFileRevisionAction(itemId: string, formData: FormD
       const parsed = parseFactsSheet(sheet);
       if (parsed.errors.length > 0) throw new FactsSheetError();
       caseFile = parsed.caseFile;
-      structured = parsed.caseFile;
+      // The sheet rebuilds the record from the facts alone. The outside sources he chose to show (rule 14) are not on the sheet, and only the
+      // sources module writes them: the key is carried forward from the newest revision, unchanged, never from the form.
+      structured = "studied" in previous ? { ...parsed.caseFile, studied: previous.studied } : parsed.caseFile;
     } else {
       structured = previous;
     }

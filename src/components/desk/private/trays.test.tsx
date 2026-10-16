@@ -82,6 +82,7 @@ const entry = (over: Partial<CaptureListEntry>): CaptureListEntry => ({
   companyName: null,
   parseError: null,
   parsedMissing: false,
+  isSource: false,
   ...over,
 });
 const GROUPS: TodayGroup[] = [

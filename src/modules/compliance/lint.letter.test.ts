@@ -14,7 +14,7 @@ const entry = (patch: Record<string, unknown> = {}) => ({
 const base: LintInput = {
   revisionId: "5b1d9c1e-0a53-4f3e-8c53-2d6a9a7e1f10", kind: "letter", title: "What changed this month", slug: "what-changed-this-month",
   learningObjective: "See which notes moved and why.", bodyMd: "Two notes moved.", structured: { schema: "letter/1", entries: [entry()] },
-  changeReason: null, companyName: null, companyOneLiner: null, themeName: null, conceptNames: [], conceptSlugs: [], transcript: null, companyId: null,
+  changeReason: null, companyName: null, companyOneLiner: null, themeName: null, conceptNames: [], conceptSlugs: [], transcript: null, outside: [], companyId: null,
   holdsPosition: null, dataAsOf: null, today: "2026-10-16", allowances: new Set<string>(),
 };
 const lint = (patch: Partial<LintInput>) => lintText({ ...base, ...patch });

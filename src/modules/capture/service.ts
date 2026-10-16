@@ -1,5 +1,5 @@
 import { z, ZodError } from "zod";
-import { errorShapeText } from "@/lib/errors";
+import { DeskError, errorShapeText } from "@/lib/errors";
 import { isUniqueViolation } from "@/lib/supabase/errors";
 import { ensureCompany, ensureTheme, type CatalogRepo, type Company, type Theme } from "@/modules/catalog";
 import { appendRevision, BODY_TOO_LONG_MESSAGE, createItem, type ResearchRepo } from "@/modules/research";
@@ -28,7 +28,17 @@ export interface VideoFiling {
   findByYoutubeId(youtubeId: string): Promise<{ itemId: string } | null>;
   insertSource(itemId: string, youtubeId: string): Promise<unknown>;
 }
-export type SaveCaptureDeps = { captures: CaptureRepo; catalog: CatalogRepo; research: ResearchRepo; videos?: VideoFiling };
+/**
+ * What an `s:` capture needs from the sources module (Phase 5d), passed in by the action for the same reason as `VideoFiling` (sources'
+ * `createSourceFiling` builds one). A `v:` capture is filed through it when there is no `videos` filing (the own-channel videos are off).
+ * Without it an `s:` capture is not filed at all, never half filed.
+ */
+export interface SourceFiling {
+  /** The link as it would be saved, or null when it is not a link a source can be. */
+  parseLink(url: string): string | null;
+  save(input: { url: string; note: string; companyIds: string[]; themeIds: string[] }): Promise<{ id: string; answer: string; duplicate: boolean }>;
+}
+export type SaveCaptureDeps = { captures: CaptureRepo; catalog: CatalogRepo; research: ResearchRepo; videos?: VideoFiling; sources?: SourceFiling };
 export type SaveCaptureResult = {
   captureId: string;
   itemId: string | null;
@@ -36,6 +46,10 @@ export type SaveCaptureResult = {
   duplicate: boolean;
   /** A fixed code (see messages.ts), never error text. */
   parseError: FilingErrorCode | null;
+  /** What the desk says about a saved source (fixed sentences from the sources module); absent for every other kind. */
+  sourceAnswer?: string;
+  /** The id of a source saved for the first time: the action starts its first read after the answer (a repeat is not read again). */
+  sourceReadId?: string;
 };
 
 // UTF-16 units, matching the research schema's changeReason .max(300).
@@ -51,7 +65,10 @@ const duplicateOf = (record: CaptureRecord): SaveCaptureResult => ({
 });
 
 /** `theme` is the first concept (items.theme_id, kept for the gate's theme check); `themes` is every one linked, in order. */
-type Filed = { itemId: string; company: Company | null; theme: Theme | null; themes: Theme[] };
+type Filed = { itemId: string | null; company: Company | null; theme: Theme | null; themes: Theme[]; sourceAnswer?: string; sourceReadId?: string };
+
+/** A source note past the 4,000 characters a source holds (the sources module's own typed refusal) is not a failure to retry either. */
+const isSourceNoteFull = (e: unknown) => e instanceof DeskError && e.code === "source-note-full";
 
 /** A thesis append past the body limit is not a failure to retry: filing it again would fail the same way. */
 export const bodyTooLong = (e: unknown) => e instanceof ZodError && e.issues.some((i) => i.message === BODY_TOO_LONG_MESSAGE);
@@ -122,7 +139,46 @@ async function fileVideo(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<
   return { itemId: item.id, company, theme: themes[0] ?? null, themes };
 }
 
+/** An `s:` capture with no link a source can be (spec s6.1). Recorded as the filing error `no-source-link`; nothing is filed. */
+export class NoSourceLinkError extends Error {
+  constructor() {
+    super("no source link");
+    this.name = "NoSourceLinkError";
+  }
+}
+
+/** The most companies one source is attached to (migration 0026; sources' MAX_SOURCE_COMPANIES says the same, a test keeps them equal). */
+export const MAX_SOURCE_COMPANIES = 5;
+
+/** Every $symbol in order that resolves to a company (an ignored one is skipped), at most 5. */
+async function resolveCompanies(catalog: CatalogRepo, tokens: string[]): Promise<Company[]> {
+  const found = new Map<string, Company>();
+  for (const token of tokens) {
+    if (found.size >= MAX_SOURCE_COMPANIES) break;
+    const company = await ensureCompany(catalog, token);
+    if (company) found.set(company.id, company);
+  }
+  return [...found.values()];
+}
+
+/**
+ * Files an `s:` capture (or a `v:` while the own-channel videos are off) as a source: no item is made. The note is his text with only the
+ * prefix and the chosen link taken out; his tags stay in it. Companies and concepts are resolved only after the link is known to be usable,
+ * so a refused capture leaves no stub names behind.
+ */
+async function fileSource(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<Filed> {
+  const sources = deps.sources;
+  if (!sources) throw new Error("filing a source needs the sources repo");
+  const url = parsed.urls.find((u) => sources.parseLink(u) !== null);
+  if (!url) throw new NoSourceLinkError();
+  const companies = await resolveCompanies(deps.catalog, parsed.symbols);
+  const themes = await resolveConcepts(deps.catalog, parsed.themes);
+  const saved = await sources.save({ url, note: parsed.body.replace(url, "").trim(), companyIds: companies.map((c) => c.id), themeIds: themes.map((t) => t.id) });
+  return { itemId: null, company: companies[0] ?? null, theme: themes[0] ?? null, themes, sourceAnswer: saved.answer, ...(saved.duplicate ? {} : { sourceReadId: saved.id }) };
+}
+
 export async function fileCapture(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<Filed> {
+  if (parsed.kind === "source" || (parsed.kind === "video" && !deps.videos && deps.sources)) return fileSource(deps, parsed);
   if (parsed.kind === "video") return fileVideo(deps, parsed);
   const company = await firstResolved(parsed.symbols, (s) => ensureCompany(deps.catalog, s));
   const themes = await resolveConcepts(deps.catalog, parsed.themes);
@@ -172,8 +228,16 @@ export async function saveCapture(deps: SaveCaptureDeps, input: SaveCaptureInput
   try {
     filed = await fileCapture(deps, parsed);
   } catch (error) {
-    if (!(error instanceof NotYoutubeLinkError)) console.error("capture filing failed", errorShapeText(error));
-    const code: FilingErrorCode = error instanceof NotYoutubeLinkError ? "not-youtube-link" : bodyTooLong(error) ? "thesis-full" : "filing-failed";
+    if (!(error instanceof NotYoutubeLinkError) && !(error instanceof NoSourceLinkError)) console.error("capture filing failed", errorShapeText(error));
+    const code: FilingErrorCode = error instanceof NotYoutubeLinkError
+      ? "not-youtube-link"
+      : error instanceof NoSourceLinkError
+        ? "no-source-link"
+        : isSourceNoteFull(error)
+          ? "source-note-full"
+          : bodyTooLong(error)
+            ? "thesis-full"
+            : "filing-failed";
     try {
       await deps.captures.attach(capture.id, { parsed: { ...parsed, error: code, errorDetail: errorShapeText(error) } });
     } catch {
@@ -184,7 +248,8 @@ export async function saveCapture(deps: SaveCaptureDeps, input: SaveCaptureInput
 
   try {
     await deps.captures.attach(capture.id, {
-      parsed: { ...parsed },
+      // A source is recorded as one even when it came in as a v: (the desk's streak does not count sources).
+      parsed: filed.sourceAnswer === undefined ? { ...parsed } : { ...parsed, kind: "source" },
       itemId: filed.itemId,
       companyId: filed.company?.id ?? null,
       themeId: filed.theme?.id ?? null,
@@ -194,5 +259,6 @@ export async function saveCapture(deps: SaveCaptureDeps, input: SaveCaptureInput
     console.error("capture link failed", errorShapeText(error));
     return { captureId: capture.id, itemId: filed.itemId, kind: parsed.kind, duplicate: false, parseError: "link-failed" };
   }
-  return { captureId: capture.id, itemId: filed.itemId, kind: parsed.kind, duplicate: false, parseError: null };
+  const kind: CaptureKind = filed.sourceAnswer === undefined ? parsed.kind : "source";
+  return { captureId: capture.id, itemId: filed.itemId, kind, duplicate: false, parseError: null, ...(filed.sourceAnswer === undefined ? {} : { sourceAnswer: filed.sourceAnswer }), ...(filed.sourceReadId === undefined ? {} : { sourceReadId: filed.sourceReadId }) };
 }

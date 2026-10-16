@@ -19,7 +19,8 @@ const CELLS = new Set(["td", "th"]);
 
 const isLetter = (c: string | undefined): boolean => c !== undefined && /[A-Za-z]/.test(c);
 
-function decodeEntities(text: string): string {
+/** Decodes the named and numeric entities a page uses (the names in ENTITIES only); anything else stays as written. */
+export function decodeEntities(text: string): string {
   return text.replace(/&(#x[0-9a-fA-F]{1,6}|#\d{1,7}|[A-Za-z][A-Za-z0-9]{1,8});/g, (whole, body: string) => {
     if (body[0] === "#") {
       const code = body[1] === "x" || body[1] === "X" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);

@@ -10,6 +10,9 @@
 --   4. purge_stale_source_data(): YouTube data not checked in 30 days is cleared (YouTube API Developer Policies III.E.4; Q55).
 --   5. RLS, the anon read path (public_studied, a security_invoker view; masked machine columns through a definer helper), the
 --      private bucket source-thumbs and its read policies.
+--   6. Two counters learn about sources (Task 3): the desk's storage meter counts source-thumbs as well as documents, and the public
+--      capture streak does not count a saved link (D108). Both are create or replace of the 0006 and 0005 bodies with one line changed;
+--      owners and grants are kept.
 -- Never edit this file after it reaches the hosted project; add a later migration instead.
 -- =============================================================================
 
@@ -368,3 +371,30 @@ grant execute on function private.studied_shown(uuid, text) to anon, authenticat
 revoke execute on function private.studied_is_public(uuid, uuid), private.guard_source_link(), private.guard_source_link_public(),
   private.guard_source_link_company(), private.limit_source_link_rows()
   from public, anon, authenticated, service_role;
+
+-- 6a. The desk's storage meter (spec s9: "the existing storage meter, Task 3 makes it count source-thumbs"). 0006's body, with the pictures
+-- added. Still admin-only numbers (nulls for anyone else).
+create or replace function public.storage_usage()
+returns table (storage_bytes bigint, database_bytes bigint)
+language sql stable security definer set search_path = ''
+as $$
+  select
+    case when private.is_admin() then
+      (select coalesce(sum((o.metadata ->> 'size')::bigint), 0) from storage.objects o where o.bucket_id in ('documents', 'source-thumbs'))
+    end,
+    case when private.is_admin() then pg_database_size(current_database()) end;
+$$;
+
+-- 6b. The public capture streak (D108: a saved source is not a day of writing). 0005's body, with the captures that the server filed as a
+-- source left out (the capture action records parsed.kind = 'source' for an s: capture and for a v: that was filed as a source).
+create or replace function public.capture_days(p_days integer default 30)
+returns table (day date)
+language sql stable security definer set search_path = ''
+as $$
+  select distinct (c.created_at at time zone 'Asia/Kolkata')::date
+    from public.captures c
+   where (c.created_at at time zone 'Asia/Kolkata')::date
+         > (now() at time zone 'Asia/Kolkata')::date - least(greatest(p_days, 1), 60)
+     and coalesce(c.parsed ->> 'kind', '') <> 'source'
+   order by 1;
+$$;

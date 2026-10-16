@@ -60,6 +60,7 @@ export function createMemoryCaptureRepo(): MemoryCaptureRepo {
           companyName: null,
           parseError: asFilingError(r.parsed?.error),
           parsedMissing: r.parsed === null,
+          isSource: r.parsed?.kind === "source",
         }));
     },
   };

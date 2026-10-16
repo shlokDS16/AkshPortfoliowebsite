@@ -11,6 +11,7 @@ import { CLOCK_REGISTER_STEP } from "./clock-steps";
 import { LEDGER_DAILY_STEPS } from "./ledger-steps";
 import { LETTER_PURGE_STEP, LETTER_RECONCILE_STEP, LETTER_SEND_STEP } from "./letter-steps";
 import { DAILY_STEPS, PUMP_STEPS } from "./schedule";
+import { SOURCE_FETCH_STEP, SOURCE_RECHECK_STEP } from "./source-steps";
 import type { Step } from "./steps";
 import { VIDEO_CHECK_STEP, VIDEO_FETCH_STEP } from "./video-steps";
 
@@ -91,16 +92,17 @@ async function sweep(): Promise<string> {
   return sweepText(summary, await pruneUsage(createSupabaseServiceClient()));
 }
 
-/** The clock registration first, then Phase 1's clocks (each its own heartbeat), then the ingestion drain, then the video fetch (one API call, about 10 s at most; "videos off" until the YouTube settings are set), then the letter send (claims one approved send, at most three, within 150 s; "letters off" until the letters settings are set), then the alert email (about 15 s at most). */
+/** The clock registration first, then Phase 1's clocks (each its own heartbeat), then the ingestion drain, then the video fetch (one API call, about 10 s at most; "videos off" until the YouTube settings are set), then the letter send (claims one approved send, at most three, within 150 s; "letters off" until the letters settings are set), then the source read (up to 5 saved links, 40 s at most), then the alert email (about 15 s at most). */
 export const SERVER_PUMP_STEPS: readonly Step[] = [
   CLOCK_REGISTER_STEP,
   ...PUMP_STEPS,
   { job: "ingestion:drain", run: async () => summaryText(await drainFor(DRAIN_MS.pump)) },
   VIDEO_FETCH_STEP,
   LETTER_SEND_STEP,
+  SOURCE_FETCH_STEP,
   ALERT_STEP,
 ];
-/** The heartbeat, then the ledger (closes, scores; about 45 s at most), then the ingestion sweep (200 s), then the video check (a few API calls and writes, a minute at most; "videos off" until the YouTube settings are set), then the letters: the reader list made equal to Resend's (120 s at most; "letters off" until set) and the retention purge (one call), then the alert email (about 15 s). A step that fails does not stop the next. */
+/** The heartbeat, then the ledger (closes, scores; about 45 s at most), then the ingestion sweep (200 s), then the video check (a few API calls and writes, a minute at most; "videos off" until the YouTube settings are set), then the letters: the reader list made equal to Resend's (120 s at most; "letters off" until set) and the retention purge (one call), then the source re-check (the 30-day purge, then YouTube links not checked in 25 days: 40 at most, 60 s), then the alert email (about 15 s). A step that fails does not stop the next. */
 export const SERVER_DAILY_STEPS: readonly Step[] = [
   CLOCK_REGISTER_STEP,
   ...DAILY_STEPS,
@@ -109,5 +111,6 @@ export const SERVER_DAILY_STEPS: readonly Step[] = [
   VIDEO_CHECK_STEP,
   LETTER_RECONCILE_STEP,
   LETTER_PURGE_STEP,
+  SOURCE_RECHECK_STEP,
   ALERT_STEP,
 ];

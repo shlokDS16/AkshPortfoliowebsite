@@ -7,7 +7,7 @@ import { firstLink } from "./first-link";
 import { toKnownTokens } from "./known-tokens";
 import { ReadLinkButton } from "./read-link-button";
 
-const KIND_WORD = { note: "private note", thesis: "thesis", learning: "learning note", process: "process note", reading_note: "reading log", video: "video" } as const;
+const KIND_WORD = { note: "private note", thesis: "thesis", learning: "learning note", process: "process note", reading_note: "reading log", video: "video", source: "source" } as const;
 
 /** Today's captures grouped by company (spec s5), newest first; kind and time per row (segment 4 C). */
 export function TodayList({ groups, known }: { groups: TodayGroup[]; known: KnownTokenLists }) {

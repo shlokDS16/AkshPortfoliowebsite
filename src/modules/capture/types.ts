@@ -26,6 +26,8 @@ export type CaptureListEntry = {
   parseError: FilingErrorCode | null;
   /** No parse was ever recorded: a function killed mid-filing, or a lost link. */
   parsedMissing: boolean;
+  /** Filed as a source (an s: capture, or a v: while own videos are off): a saved link is not a day of writing, so the desk's streak leaves it out (D108). */
+  isSource: boolean;
 };
 
 export type CaptureAttachment = {

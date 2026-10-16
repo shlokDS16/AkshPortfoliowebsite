@@ -58,6 +58,7 @@ test.describe("job routes", () => {
         { job: "videos:check", ok: true }, // the e2e server runs the fixture YouTube, so these steps do run (they answer "videos off" without it)
         { job: "letters:reconcile", ok: true }, // the fixture letters port runs here too (they answer "letters off" without it); nothing is emailed
         { job: "letters:purge", ok: true },
+        { job: "sources:recheck", ok: true },
         { job: "alerts:email", ok: true },
       ],
     });
@@ -71,6 +72,7 @@ test.describe("job routes", () => {
         { job: "ingestion:drain", ok: true },
         { job: "videos:fetch", ok: true },
         { job: "letters:send", ok: true },
+        { job: "sources:fetch", ok: true },
         { job: "alerts:email", ok: true },
       ],
     });
@@ -237,6 +239,7 @@ test.describe("the daily run with an idea on file (fixture market data)", () => 
         { job: "videos:check", ok: true },
         { job: "letters:reconcile", ok: true },
         { job: "letters:purge", ok: true },
+        { job: "sources:recheck", ok: true },
         { job: "alerts:email", ok: true },
       ],
     });
