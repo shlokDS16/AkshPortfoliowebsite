@@ -173,3 +173,6 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - The review caught caption-parsing regexes that took minutes on a hostile 1 MB file, YouTube data that could outlive YouTube's 30-day storage limit, and e2e runs that reached i.ytimg.com; all fixed, and an e2e guard now fails any test that touches an outside host.
 - A laptop restart cut Task 9 short; the work was recovered from a checkpoint commit and finished.
 - Evidence at 769fb3a: unit 5911, pgTAP 2435, full e2e 463 passed, 0 failed.
+
+## 2026-10-16 (evening) - 5c Task 11: letters adapter and no-send guards
+- Resend letters transport (shared HTTP with the alert mailer), a guard that sends nothing without a live approval row read from SQL, a fixture, env names; nothing sent (report docs/plans/2026-10-16-phase-5c-T11-report.md).

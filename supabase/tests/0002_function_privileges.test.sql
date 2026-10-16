@@ -57,8 +57,8 @@ select is_empty($$
                            'register_clock_target', 'redeem_pump_ticket', 'record_video_fetch', 'purge_stale_video_data',
                            'letters_issue_confirmations', 'letters_confirmation_failed', 'letters_bin', 'letters_erase',
                            'letters_purge', 'letters_mark_left', 'confirmed_subscribers', 'set_letters_signup',
-                           'approve_letter_send', 'claim_letter_send', 'finish_letter_send')
-$$, 'service_role can execute no function in public except the four gate functions, claim_job_step, the usage ledger trio, verify_ledger_chain (0010), the five market functions (0011: store_fetched_closes, store_uploaded_closes, mark_market_day_shut, score_ideas, tracked_symbols) and the two anchor functions (0013: seal_ledger_days, verify_ledger_anchors) and the two alert functions (0015: alert_step, alert_sent) and the two pump-clock functions (0016: register_clock_target, redeem_pump_ticket) and record_video_fetch and purge_stale_video_data (0022) and the eight reader functions (0024) and the three send doors (0025)');
+                           'approve_letter_send', 'claim_letter_send', 'finish_letter_send', 'letters_send_live', 'letters_confirmation_live')
+$$, 'service_role can execute no function in public except the four gate functions, claim_job_step, the usage ledger trio, verify_ledger_chain (0010), the five market functions (0011: store_fetched_closes, store_uploaded_closes, mark_market_day_shut, score_ideas, tracked_symbols) and the two anchor functions (0013: seal_ledger_days, verify_ledger_anchors) and the two alert functions (0015: alert_step, alert_sent) and the two pump-clock functions (0016: register_clock_target, redeem_pump_ticket) and record_video_fetch and purge_stale_video_data (0022) and the eight reader functions (0024) and the three send doors and the two live-approval checks (0025)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
@@ -124,7 +124,7 @@ select ok((select bool_and(p.prosecdef) from pg_proc p
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public'
               and (p.proname like 'letters%' or p.proname like '%letter_send' or p.proname in ('confirmed_subscribers', 'set_letters_signup'))),
-  15, 'exactly fifteen public letters functions exist (4 doors, 8 reader functions, 3 send doors)');
+  17, 'exactly seventeen public letters functions exist (4 doors, 8 reader functions, 3 send doors, 2 live-approval checks)');
 
 -- Behaviour, through real roles.
 set local role anon;

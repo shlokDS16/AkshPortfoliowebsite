@@ -2782,6 +2782,10 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      letters_confirmation_live: {
+        Args: { p_email: string; p_id: string; p_sent_at: string }
+        Returns: boolean
+      }
       letters_erase: {
         Args: { p_actor: string; p_id: string }
         Returns: number
@@ -2802,6 +2806,10 @@ export type Database = {
       letters_request: {
         Args: { p_adult: boolean; p_email: string; p_notice_version: string }
         Returns: undefined
+      }
+      letters_send_live: {
+        Args: { p_broadcast_id: string; p_id: string; p_kind: string }
+        Returns: boolean
       }
       mark_market_day_shut: {
         Args: { p_trade_date: string }

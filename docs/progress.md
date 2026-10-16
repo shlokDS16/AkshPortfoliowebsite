@@ -60,6 +60,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done+verified · `[!]` blocked 
     5. **Approvals (any time):** new copy in the task reports of 2.7, 3b, 4, 5a, 5b; decisions 3b D26-D44, Phase 4 D45-D56, Phase 5 D57-D97; Q46-Q51 defaults. Two rulings made today: the video placeholder (no Google request before Play) and Q49 (a spoken sentence is cleared only by a rule 1 allowance).
     6. **Needs a lawyer or a purchase:** Q41 (grievance contact for letters, DPDP), Q44 (an Unlisted video is reachable before the gate passes it), Q45 (no postal address in the letter footer); 5c letters need a verified domain at Resend (Q9/Q36/Q42) before any real send.
   - NEXT (controller): 5c letters (Tasks 10-16) can be built and tested with fixture sends now; real sends wait for item 6.
+  - 5c Task 11 built 2026-10-16 (branch phase-5c-letters, not pushed): the Resend letters adapter behind an approval guard, the fixture, env names, the two live-approval checks appended to 0025; unit 5983, pgTAP 2637, typecheck, lint, build and bundle check green. Report `docs/plans/2026-10-16-phase-5c-T11-report.md`. Next: Task 12.
 - **Blocked on:** nothing. Q29 waits on Aksh's first real idea.
 
 ## Phase 0 - Kickoff and planning

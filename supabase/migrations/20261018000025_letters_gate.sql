@@ -379,3 +379,35 @@ revoke execute on function public.approve_letter_send(uuid, uuid, uuid, text), p
   public.finish_letter_send(uuid, text, text, integer, text) from public, anon, authenticated, service_role;
 grant execute on function public.approve_letter_send(uuid, uuid, uuid, text), public.claim_letter_send(),
   public.finish_letter_send(uuid, text, text, integer, text) to service_role;
+
+-- The adapter's last question before an email leaves (Task 11; spec s9.2): is there a recorded, live approval for exactly this
+-- send? Read-only, never raises, false for anything unknown. src/lib/providers/letters-guard.ts asks it before every send call.
+-- A send: the row is `sending` of this kind under a live lease (claimed in the last 10 minutes, the window after which
+-- claim_letter_send hands it out again), with exactly this broadcast id recorded (null: none yet, the draft is still to be
+-- created; a self test never has one).
+create function public.letters_send_live(p_id uuid, p_kind text, p_broadcast_id text)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+  select coalesce((
+    select s.status = 'sending' and s.claimed_at > now() - interval '10 minutes'
+           and s.broadcast_id is not distinct from p_broadcast_id
+           and (s.kind = 'subscribers' or p_broadcast_id is null)
+      from public.letter_sends s
+     where s.id = p_id and s.kind = p_kind), false)
+$$;
+-- A confirmation email: letters_issue_confirmations (admin actor) issued it to this reader, at this address, at this time (to the
+-- millisecond, as a JavaScript date holds it), in the last hour, and the link is still unused and unexpired.
+create function public.letters_confirmation_live(p_id uuid, p_email text, p_sent_at timestamptz)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+  select coalesce((
+    select b.status = 'sent' and b.confirm_token_hash is not null and b.confirm_expires_at > now()
+           and b.confirm_sent_at > now() - interval '1 hour'
+           and abs(extract(epoch from b.confirm_sent_at - p_sent_at)) < 0.001
+      from public.subscribers b
+     where b.id = p_id and b.email = lower(btrim(p_email))), false)
+$$;
+revoke execute on function public.letters_send_live(uuid, text, text), public.letters_confirmation_live(uuid, text, timestamptz)
+  from public, anon, authenticated, service_role;
+grant execute on function public.letters_send_live(uuid, text, text), public.letters_confirmation_live(uuid, text, timestamptz)
+  to service_role;

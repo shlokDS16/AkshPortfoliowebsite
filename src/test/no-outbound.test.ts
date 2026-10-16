@@ -8,9 +8,21 @@ describe("the global fetch refuses the Phase 5 outbound hosts", () => {
     ["https://www.googleapis.com/anything"],
     ["https://api.resend.com/broadcasts"],
     ["https://api.resend.com/contacts"],
+    ["https://API.Resend.com/emails"],
+    ["https://youtube.googleapis.com/youtube/v3/videos"],
+    ["https://eu.api.resend.com/emails"],
+    ["https://api.resend.com./emails"],
   ])("%s", async (url) => {
     await expect(fetch(url)).rejects.toThrow(/no outbound call in a test/);
     await expect(fetch(new Request(url))).rejects.toThrow(/no outbound call in a test/);
     await expect(fetch(new URL(url))).rejects.toThrow(/no outbound call in a test/);
+  });
+});
+
+describe("the guard is by host, not by prefix", () => {
+  it("does not block a host that only ends in the same letters", async () => {
+    const real = globalThis.fetch;
+    // A refused connection is fine here: the point is that the guard did not answer.
+    await expect(real("http://127.0.0.1:9/notresend.com").catch((error: Error) => error.message)).resolves.not.toMatch(/no outbound call in a test/);
   });
 });
