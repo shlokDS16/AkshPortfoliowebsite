@@ -115,10 +115,10 @@ test("a PDF of each public page is dated, addressed and carries the standard dis
     }
     if (name === "video") {
       // The transcript and the chapters print whole, with the machine's label; the player and its button do not.
-      expect(text, "the transcript prints").toContain("Transcript");
-      expect(text, "the transcript label prints").toContain("Typed by machine from the video's captions and not edited.");
-      expect(text, "the chapters print").toContain("Chapters");
-      for (const gone of ["Play video", "loads YouTube"]) expect(text, `${name}: ${gone}`).not.toContain(gone);
+      expect(containsSquashed(text, "Transcript"), "the transcript prints").toBe(true);
+      expect(containsSquashed(text, "Typed by machine from the video's captions and not edited."), "the transcript label prints").toBe(true);
+      expect(containsSquashed(text, "Chapters"), "the chapters print").toBe(true);
+      for (const gone of ["Play video", "loads YouTube"]) expect(containsSquashed(text, gone), `${name}: ${gone}`).toBe(false);
     }
     if (name === "case") {
       // Rule 10.7: no result figure, no id, no verdict on a printed case study.
