@@ -24,6 +24,7 @@ let db: Db;
 let letterPath = "";
 let letterId = "";
 let letterSlug = "";
+let letterCard = "";
 
 test.beforeAll(async () => {
   requireStack();
@@ -99,7 +100,10 @@ async function expectOnThePublicSite(page: Page) {
   await noSideways(page);
   await clean(page);
 
-  const card = await page.request.get(`/letters/${letterSlug}/opengraph-image`);
+  // The card has a hashed address that the page names itself (og:image); a reader's link preview follows that.
+  letterCard = (await page.locator("meta[property='og:image']").getAttribute("content")) ?? "";
+  expect(letterCard).toContain(`/letters/${letterSlug}/opengraph-image`);
+  const card = await page.request.get(letterCard);
   expect(card.status()).toBe(200);
   expect(card.headers()["content-type"]).toBe("image/png");
   expect(await (await page.request.get("/feed.xml")).text()).toContain(`/letters/${letterSlug}#r`);
@@ -191,7 +195,7 @@ test("the letter shows in the list with its line, then comes off the archive", a
   await expect(row).toContainText("Private. Not on the archive yet.");
   // Unpublishing takes it off every public surface at once: the page, its card, the feed and the sitemap. With sign-ups closed the archive is a 404 again.
   expect((await page.request.get(`/letters/${letterSlug}`)).status()).toBe(404);
-  expect((await page.request.get(`/letters/${letterSlug}/opengraph-image`)).status()).toBe(404);
+  expect((await page.request.get(letterCard)).status()).toBe(404);
   expect(await (await page.request.get("/feed.xml")).text()).not.toContain(`/letters/${letterSlug}`);
   expect(await (await page.request.get("/sitemap.xml")).text()).not.toContain("/letters");
   expect((await page.request.get("/letters")).status()).toBe(404);

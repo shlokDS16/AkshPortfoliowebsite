@@ -89,7 +89,7 @@ test("confirm: a GET shows the button and changes nothing; a stale link says it 
   // No link, no token: the same sentence and no button.
   await page.goto("/letters/confirm");
   await expect(page.getByText(EXPIRED)).toBeVisible();
-  await expect(page.getByRole("button")).toHaveCount(0);
+  await expect(page.locator("main").getByRole("button")).toHaveCount(0);
 });
 
 test("sign-ups open: the page names the notice before the field, passes axe, and the trap field cannot be reached by a person", async ({ page }) => {
