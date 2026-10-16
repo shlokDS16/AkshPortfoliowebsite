@@ -38,7 +38,8 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
           <Label htmlFor="kind">Kind</Label>
           <select id="kind" name="kind" defaultValue="note" className="block min-h-11 rounded-sm border border-input bg-paper px-2 text-body text-ink">
             {/* A video is filed from its link (v: in the capture box), which also creates its YouTube row; a bare item of this kind would have none. */}
-            {ITEM_KINDS.filter((kind) => kind !== "video").map((kind) => (
+            {/* A letter is made from the list of what changed ("Make this letter"), never as a bare item. */}
+            {ITEM_KINDS.filter((kind) => kind !== "video" && kind !== "letter").map((kind) => (
               <option key={kind} value={kind}>
                 {kind.replace("_", " ")}
               </option>

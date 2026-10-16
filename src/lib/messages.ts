@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import { DeskError } from "./errors";
 import { formatDate } from "./format";
 import { ERROR_CODE_BY_TYPED } from "./message-codes";
+import { LETTER_ERROR_TEXT, LETTER_NOTICE_TEXT } from "./messages-letters";
 
 /**
  * Failures reach a desk screen as a fixed code in the redirect URL (`?error=title-required`), never as free
@@ -128,6 +129,8 @@ const ERRORS = {
   "video-captions-too-big": "This file is too big for a caption file (1 MB at most).",
   "video-captions-too-long": "This caption file is too long (5,000 cues at most).",
   "video-fetch-busy": "A fetch is already running. Wait for it to finish, then reload this page.",
+  // Letters (Phase 5c Task 12; messages-letters.ts). Pending Shlok's approval.
+  ...LETTER_ERROR_TEXT,
 } as const;
 
 export type ErrorCode = keyof typeof ERRORS;
@@ -201,6 +204,8 @@ const NOTICES = {
   "video-deferred": "YouTube's daily limit is used up. The desk tries again tomorrow.",
   // Pending Shlok's approval (5b fix wave, Q48).
   "video-fetch-recent": "YouTube was asked less than a minute ago. The data below is its answer.",
+  // Letters (Phase 5c Task 12; messages-letters.ts). Pending Shlok's approval.
+  ...LETTER_NOTICE_TEXT,
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-saved-readings-missing":

@@ -10,6 +10,14 @@ import { splitSentences } from "./sentences";
 /** The machine's keys in a video's `structured` record: identifiers and hashes, not prose. His chapter titles are the rest. */
 const VIDEO_MACHINE_KEYS: ReadonlySet<string> = new Set(["schema", "youtubeId", "transcriptId", "transcriptSha"]);
 
+/**
+ * The machine's keys in a letter's `structured` record (rule 13): the schema, and in each entry the revision id, the page address, the
+ * kind, the revision number, the "what changed" line and the position (a fixed word). The rest of an entry is the words it copied (title,
+ * objective, change reason, company name) and is linted again, as is any key this list does not know.
+ */
+const LETTER_MACHINE_KEYS: ReadonlySet<string> = new Set(["schema"]);
+const LETTER_ENTRY_MACHINE_KEYS: ReadonlySet<string> = new Set(["revisionId", "kind", "path", "revNo", "detail", "holdsPosition"]);
+
 type TextUnit = { field: LintField; text: string; citedQuote: boolean };
 
 function walk(value: unknown, units: TextUnit[], citedQuote: boolean): void {
@@ -27,6 +35,20 @@ function walkLedger(ledger: unknown, units: TextUnit[]): void {
   const events = isRecord(ledger) && Array.isArray(ledger.events) ? ledger.events : [];
   for (const event of events) {
     if (isRecord(event) && typeof event.words === "string") units.push({ field: "structured", text: event.words, citedQuote: false });
+  }
+}
+
+function walkLetter(record: Record<string, unknown>, units: TextUnit[]): void {
+  for (const [key, value] of Object.entries(record)) {
+    if (LETTER_MACHINE_KEYS.has(key)) continue;
+    if (key !== "entries" || !Array.isArray(value)) {
+      walk(value, units, false);
+      continue;
+    }
+    for (const entry of value as unknown[]) {
+      if (isRecord(entry)) walk(Object.fromEntries(Object.entries(entry).filter(([k]) => !LETTER_ENTRY_MACHINE_KEYS.has(k))), units, false);
+      else walk(entry, units, false);
+    }
   }
 }
 
@@ -62,6 +84,8 @@ function collectUnits(input: LintInput): TextUnit[] {
   // A video's record keeps the machine's identifiers beside his chapter titles: the ids and hashes are not prose, the titles are.
   if (input.kind === "video") {
     walk(Object.fromEntries(Object.entries(rest).filter(([key]) => !VIDEO_MACHINE_KEYS.has(key))), units, false);
+  } else if (input.kind === "letter") {
+    walkLetter(rest, units);
   } else {
     walk(rest, units, false);
   }

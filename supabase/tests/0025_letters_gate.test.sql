@@ -5,7 +5,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(78);
+select plan(84);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -243,6 +243,18 @@ select is((public.finish_letter_send((select id from public.letter_sends where i
              'failed', null, null, E'Resend said\nno ' || repeat('x', 300))).problem, 'Resend said no ' || repeat('x', 145),
   'a failure keeps Resend''s words, one line, at most 160 characters');
 
+-- 6b. Cancel: an approval is withdrawn before it is claimed, and only then.
+select is((pg_temp.approve(2)).status, 'approved', 'fixture: letter 2 is approved again after its failed send');
+select throws_ok($$ select public.cancel_letter_send('bbbbbbbb-0000-4000-8000-000000000002', (select id from public.letter_sends where item_id = pg_temp.lt(2) and status = 'approved')) $$,
+  '42501', null, 'a non-admin actor cannot cancel a send');
+select is((public.cancel_letter_send('aaaaaaaa-0000-4000-8000-000000000001', (select id from public.letter_sends where item_id = pg_temp.lt(2) and status = 'approved'))).status,
+  'cancelled', 'the admin cancels a send that is still waiting');
+select throws_ok($$ select public.cancel_letter_send('aaaaaaaa-0000-4000-8000-000000000001', (select id from public.letter_sends where item_id = pg_temp.lt(2) and status = 'cancelled')) $$,
+  '55000', 'Only a send that is still waiting can be cancelled.', 'a cancelled send cannot be cancelled again (nor a sent or a sending one)');
+select throws_ok($$ select public.cancel_letter_send('aaaaaaaa-0000-4000-8000-000000000001', 'ffffffff-0000-4000-8000-000000000009') $$,
+  'P0002', 'This send could not be found.', 'an unknown send is not found');
+select is(pg_temp.claim(), 'none', 'a cancelled send is never claimed');
+
 -- 7. Frozen: a letter sent to subscribers takes no new revision and no other revision can be published (13.4).
 select throws_ok($$ insert into public.item_revisions (item_id, body_md) values (pg_temp.lt(1), 'A fix after sending') $$, '23514', null,
   'a sent letter takes no new revision');
@@ -259,7 +271,7 @@ select ok(pg_get_functiondef('private.distribution_gate_failures(uuid, text, uui
   'the helper keeps the video branch and calls the letter branch');
 select is_empty($$
   select p.oid::regprocedure::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where p.proname in ('approve_letter_send', 'claim_letter_send', 'finish_letter_send', 'letter_gate_failures', 'letter_send_check',
+   where p.proname in ('approve_letter_send', 'claim_letter_send', 'finish_letter_send', 'cancel_letter_send', 'letter_gate_failures', 'letter_send_check',
                        'gate_policy', 'expire_letter_sends')
      and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
           or (n.nspname = 'private' and has_function_privilege('service_role', p.oid, 'execute')))

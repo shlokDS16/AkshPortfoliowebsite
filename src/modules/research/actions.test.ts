@@ -99,6 +99,13 @@ describe("createItemAction", () => {
     expect(repo.items.size).toBe(0);
   });
 
+  it("refuses kind=letter from a crafted post: a letter is made only from the list of what changed (Make this letter)", async () => {
+    const to = await target(() => createItemAction(form({ kind: "letter", title: "A letter" })));
+    expect(to).toMatch(/^\/desk\/items\?error=/);
+    expect(errorOf(to)).toBe("invalid-input");
+    expect(repo.items.size).toBe(0);
+  });
+
   it("sends a validation message back to the list", async () => {
     const to = await target(() => createItemAction(form({ kind: "note", title: "  " })));
     expect(to).toMatch(/^\/desk\/items\?error=/);

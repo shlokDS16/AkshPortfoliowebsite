@@ -23,6 +23,9 @@ const NO_SECRET_CLIENT = {
 // ADR-003: the publish gate's functions are service_role only; this one server-only file calls them after
 // requireAdmin(). gate.graph.test.ts proves only compliance/gate-service.ts imports it.
 const GATE_RPC_FILE = "src/modules/compliance/gate-rpc.ts";
+// Phase 5c: the letters' service_role doors (approve, cancel, issue a confirmation link) are called after requireAdmin() through this one server-only file;
+// distribution.graph.test.ts proves only distribution/actions.ts imports it.
+const SEND_RPC_FILE = "src/modules/distribution/send-rpc.ts";
 const restrict = (...patterns) => ({ "no-restricted-imports": ["error", { patterns }] });
 
 const eslintConfig = defineConfig([
@@ -32,10 +35,10 @@ const eslintConfig = defineConfig([
   { files: ["src/components/**/*.{ts,tsx}"], rules: restrict(NO_APP, MODULE_ENTRY_POINTS, NO_SECRET_CLIENT) },
   {
     files: ["src/modules/**/*.{ts,tsx}"],
-    ignores: ["src/modules/ops/**", GATE_RPC_FILE],
+    ignores: ["src/modules/ops/**", GATE_RPC_FILE, SEND_RPC_FILE],
     rules: restrict(NO_APP, MODULE_ENTRY_POINTS, NO_SECRET_CLIENT),
   },
-  { files: [GATE_RPC_FILE], rules: restrict(NO_APP, MODULE_ENTRY_POINTS) },
+  { files: [GATE_RPC_FILE, SEND_RPC_FILE], rules: restrict(NO_APP, MODULE_ENTRY_POINTS) },
   { files: ["src/modules/ops/**/*.{ts,tsx}"], rules: restrict(NO_APP, MODULE_ENTRY_POINTS) },
   {
     files: ["src/lib/**/*.{ts,tsx}"],

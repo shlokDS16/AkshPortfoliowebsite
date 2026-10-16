@@ -48,3 +48,27 @@ export function watchUrl(youtubeId: string, startSeconds?: number): string | nul
   const base = `https://www.youtube.com/watch?v=${youtubeId}`;
   return startSeconds !== undefined && Number.isInteger(startSeconds) && startSeconds >= 0 ? `${base}&t=${startSeconds}s` : base;
 }
+
+// ---- Letters (Phase 5c, spec s15): the words a reader sees on /letters, /letters/confirm and /letters/leave. Pure strings, so the public
+// ---- pages can import them from here. Every string is pending Shlok's approval. The actions that use them are in public-actions.ts.
+
+/** Must equal private.letters_notice_version() (migration 0024); letters/notice.test.ts reads the migration and compares. */
+export const LETTERS_NOTICE_VERSION = "letters-2026-10-v1";
+export const LETTERS_NOTICE =
+  "Get an email when Aksh publishes a letter about what changed on this site. We keep only your email address, and only to send these letters. It is sent through Resend, an email service in the United States. You can stop at any time with the link in every letter or on this page; we then delete your address. You must be 18 or older.";
+export const LETTERS_COPY = {
+  emailLabel: "Email",
+  adultLabel: "I am 18 or older",
+  ask: "Ask to subscribe",
+  /** The answer to every request, whether or not it was kept (no address enumeration). */
+  asked: "Thanks. Aksh sends confirmation emails by hand, usually within a day. Open the link in it to start receiving letters.",
+  confirmTitle: "Confirm your subscription",
+  confirmButton: "Yes, send me the letters",
+  confirmed: "You will get the next letter.",
+  expired: "This link has expired. Ask again on the letters page.",
+  leaveTitle: "Stop my letters",
+  leaveButton: "Stop",
+  left: "Done. If a letter was already on its way, it may still arrive.",
+  empty: "No letters yet.",
+  sentLine: (date: string) => `Sent to subscribers on ${date}.`,
+} as const;

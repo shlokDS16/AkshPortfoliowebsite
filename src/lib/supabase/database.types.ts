@@ -2626,6 +2626,31 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cancel_letter_send: {
+        Args: { p_actor: string; p_id: string }
+        Returns: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "letter_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       capture_days: {
         Args: { p_days?: number }
         Returns: {

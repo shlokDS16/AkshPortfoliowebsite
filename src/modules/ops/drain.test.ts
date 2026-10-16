@@ -7,18 +7,23 @@ vi.mock("@/lib/env.server", () => ({ serverEnv: () => env.value }));
 
 describe("the server step lists (extend Phase 1, do not replace it)", () => {
   it("puts the clock registration first, keeps each clock's heartbeat next, adds one ingestion step, and ends with the alert email", () => {
-    expect(SERVER_PUMP_STEPS.map((s) => s.job)).toEqual(["clock:register", ...PUMP_STEPS.map((s) => s.job), "ingestion:drain", "videos:fetch", "alerts:email"]);
+    expect(SERVER_PUMP_STEPS.map((s) => s.job)).toEqual(["clock:register", ...PUMP_STEPS.map((s) => s.job), "ingestion:drain", "videos:fetch", "letters:send", "alerts:email"]);
   });
 
-  it("puts each video step just before the alert email, so a slow ingestion run never starves it and the alert still goes last (Phase 5b)", () => {
-    for (const [steps, video] of [[SERVER_PUMP_STEPS, "videos:fetch"], [SERVER_DAILY_STEPS, "videos:check"]] as const) {
+  it("puts each video step just before the letters steps and the alert email, so a slow ingestion run never starves them and the alert still goes last (Phases 5b, 5c)", () => {
+    for (const [steps, video, after] of [[SERVER_PUMP_STEPS, "videos:fetch", 2], [SERVER_DAILY_STEPS, "videos:check", 3]] as const) {
       const jobs = steps.map((s) => s.job);
-      expect(jobs.indexOf(video)).toBe(jobs.length - 2);
+      expect(jobs.indexOf(video)).toBe(jobs.length - 1 - after);
     }
   });
 
+  it("puts the letters steps after the videos and before the alert email: send in the pump; reconcile and purge in the daily (Phase 5c)", () => {
+    expect(SERVER_PUMP_STEPS.map((s) => s.job).slice(-3)).toEqual(["videos:fetch", "letters:send", "alerts:email"]);
+    expect(SERVER_DAILY_STEPS.map((s) => s.job).slice(-4)).toEqual(["videos:check", "letters:reconcile", "letters:purge", "alerts:email"]);
+  });
+
   it("runs the ledger steps after the daily heartbeat and BEFORE the ingestion sweep (Hobby: one cron, 45 s then 200 s)", () => {
-    expect(SERVER_DAILY_STEPS.map((s) => s.job)).toEqual(["clock:register", ...DAILY_STEPS.map((s) => s.job), "ledger:prices", "ledger:score", "ledger:anchor", "ingestion:sweep", "videos:check", "alerts:email"]);
+    expect(SERVER_DAILY_STEPS.map((s) => s.job)).toEqual(["clock:register", ...DAILY_STEPS.map((s) => s.job), "ledger:prices", "ledger:score", "ledger:anchor", "ingestion:sweep", "videos:check", "letters:reconcile", "letters:purge", "alerts:email"]);
   });
 });
 

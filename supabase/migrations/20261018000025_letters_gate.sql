@@ -372,13 +372,40 @@ begin
 end;
 $$;
 
--- Privileges: the three doors are service_role only; no API role executes the helpers.
+-- "Cancel" (Task 12): Aksh withdraws an approval before the step has claimed it. The forward-only trigger already allows
+-- approved -> cancelled; no API role can update the table, so this is the only way. Under the sends lock, so it waits for a claim in
+-- progress and then finds the row `sending`, which it refuses.
+create function public.cancel_letter_send(p_actor uuid, p_id uuid)
+returns public.letter_sends
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_row public.letter_sends;
+begin
+  if not private.is_admin_user(p_actor) then
+    raise exception 'cancel_letter_send: admin only' using errcode = '42501';
+  end if;
+  perform pg_advisory_xact_lock(hashtext('letters:sends'));
+  select s.* into v_row from public.letter_sends s where s.id = p_id for update;
+  if v_row.id is null then
+    raise exception 'This send could not be found.' using errcode = 'P0002';
+  end if;
+  if v_row.status is distinct from 'approved' then
+    raise exception 'Only a send that is still waiting can be cancelled.' using errcode = '55000';
+  end if;
+  update public.letter_sends set status = 'cancelled' where id = p_id returning * into v_row;
+  return v_row;
+end;
+$$;
+
+-- Privileges: the four doors are service_role only; no API role executes the helpers.
 revoke execute on function private.expire_letter_sends(), private.letter_send_check(uuid, uuid)
   from public, anon, authenticated, service_role;
 revoke execute on function public.approve_letter_send(uuid, uuid, uuid, text), public.claim_letter_send(),
-  public.finish_letter_send(uuid, text, text, integer, text) from public, anon, authenticated, service_role;
+  public.finish_letter_send(uuid, text, text, integer, text), public.cancel_letter_send(uuid, uuid)
+  from public, anon, authenticated, service_role;
 grant execute on function public.approve_letter_send(uuid, uuid, uuid, text), public.claim_letter_send(),
-  public.finish_letter_send(uuid, text, text, integer, text) to service_role;
+  public.finish_letter_send(uuid, text, text, integer, text), public.cancel_letter_send(uuid, uuid) to service_role;
 
 -- The adapter's last question before an email leaves (Task 11; spec s9.2): is there a recorded, live approval for exactly this
 -- send? Read-only, never raises, false for anything unknown. src/lib/providers/letters-guard.ts asks it before every send call.
