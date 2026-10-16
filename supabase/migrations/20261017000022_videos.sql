@@ -77,7 +77,8 @@ begin
 end;
 $$;
 
--- The only writer of the machine columns. A video YouTube no longer returns is marked gone; the last data seen is kept.
+-- The only writer of the machine columns. A video YouTube no longer returns is marked gone and every other YouTube column is cleared
+-- (YouTube API Developer Policies III.E.4: data is consistent with YouTube's, so nothing of a deleted video is kept; Q51).
 create function public.record_video_fetch(
   p_source_id    uuid,
   p_found        boolean,
@@ -109,7 +110,8 @@ begin
     returning * into v_row;
   else
     update public.video_sources
-       set privacy = 'gone', fetched_at = now(), fetch_problem = p_problem
+       set privacy = 'gone', fetched_at = now(), fetch_problem = p_problem,
+           channel_id = null, own_channel = null, yt_title = null, yt_description = null, duration_seconds = null, yt_published_at = null
      where id = p_source_id
     returning * into v_row;
   end if;
@@ -118,6 +120,28 @@ begin
     raise exception 'record_video_fetch: source % not found', p_source_id using errcode = 'P0002';
   end if;
   return v_row;
+end;
+$$;
+
+-- YouTube API data is kept no longer than 30 days (YouTube API Developer Policies III.E.4; Q51). Clears every YouTube column of a
+-- source not refreshed in 30 days; fetched_at goes back to null, so videos:fetch reads it again once a key is set. Service role only.
+-- Same owner as record_video_fetch, so guard_video_source's owner test passes; nothing else can set the flag and pass it.
+create function public.purge_stale_video_data()
+returns integer
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_n integer;
+begin
+  perform set_config('app.video_fetch', 'on', true);
+  update public.video_sources
+     set channel_id = null, own_channel = null, yt_title = null, yt_description = null, duration_seconds = null,
+         privacy = null, yt_published_at = null, fetched_at = null,
+         fetch_problem = 'YouTube data older than 30 days was deleted. It is read again when YouTube answers.'
+   where fetched_at < now() - interval '30 days';
+  get diagnostics v_n = row_count;
+  perform set_config('app.video_fetch', 'off', true);
+  return v_n;
 end;
 $$;
 
@@ -245,11 +269,13 @@ where i.kind = 'video'
 revoke all on public.public_videos, public.public_video_transcripts from public, anon, authenticated, service_role;
 grant select on public.public_videos, public.public_video_transcripts to anon, authenticated;
 
--- Function privileges: record_video_fetch is service_role only; no API role executes the trigger functions.
+-- Function privileges: record_video_fetch and purge_stale_video_data are service_role only; no API role executes the trigger functions.
 revoke execute on function public.record_video_fetch(uuid, boolean, text, boolean, text, text, integer, text, timestamptz, text)
   from public, anon, authenticated, service_role;
 grant execute on function public.record_video_fetch(uuid, boolean, text, boolean, text, text, integer, text, timestamptz, text)
   to service_role;
+revoke execute on function public.purge_stale_video_data() from public, anon, authenticated, service_role;
+grant execute on function public.purge_stale_video_data() to service_role;
 revoke execute on function private.guard_video_source() from public, anon, authenticated, service_role;
 revoke execute on function private.guard_video_source_delete() from public, anon, authenticated, service_role;
 revoke execute on function private.seal_video_transcript() from public, anon, authenticated, service_role;

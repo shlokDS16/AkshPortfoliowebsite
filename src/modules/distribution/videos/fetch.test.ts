@@ -10,12 +10,13 @@ const meta = (extra: Partial<VideoMeta> = {}): VideoMeta => ({
   channelId: OWN, title: "A title", description: "A description.", durationSeconds: 90, privacy: "unlisted", publishedAt: "2026-09-01T10:00:00.000Z", ...extra,
 });
 
-function fakeStore(sources: SourceRef[], failRecordFor: string[] = []) {
+function fakeStore(sources: SourceRef[], failRecordFor: string[] = [], purged = 0) {
   const recorded: RecordFetch[] = [];
   const store: FetchStore = {
     pending: vi.fn(async (limit: number) => sources.slice(0, limit)),
     all: vi.fn(async () => sources),
     byItem: vi.fn(async (itemId: string) => sources.find((s) => s.itemId === itemId) ?? null),
+    purgeStale: vi.fn(async () => purged),
     record: vi.fn(async (args: RecordFetch) => {
       if (failRecordFor.includes(args.sourceId)) throw new Error(`database said: secret row ${KEY}`);
       recorded.push(args);
@@ -40,7 +41,40 @@ describe("videos are off while the YouTube settings are unset", () => {
     expect(await fetchVideoNow(deps(null, store), "item-1")).toBe("videos off");
     expect(store.pending).not.toHaveBeenCalled();
     expect(store.all).not.toHaveBeenCalled();
+    expect(store.byItem).not.toHaveBeenCalled();
+    expect(store.record).not.toHaveBeenCalled();
     expect(VIDEOS_OFF_TEXT).toBe("Video listing is not set up yet (Shlok adds a YouTube key).");
+  });
+});
+
+describe("the 30-day purge (Q51): YouTube data is not kept longer than 30 days, even with the key gone", () => {
+  it("videos:check runs it FIRST, before the port is looked at, and says how many it cleared", async () => {
+    const { store } = fakeStore([ref(1)], [], 2);
+    expect(await checkVideos(deps(null, store))).toBe("videos off, purged 2");
+    expect(store.purgeStale).toHaveBeenCalledTimes(1);
+    expect(store.pending).not.toHaveBeenCalled();
+    expect(store.all).not.toHaveBeenCalled();
+    expect(store.record).not.toHaveBeenCalled();
+  });
+
+  it("says plain 'videos off' when nothing was old enough", async () => {
+    const { store } = fakeStore([ref(1)], [], 0);
+    expect(await checkVideos(deps(null, store))).toBe("videos off");
+  });
+
+  it("with a port, appends 'purged n' to the report only when n is above 0", async () => {
+    const withPurge = fakeStore([ref(1)], [], 3);
+    const { port } = fakePort(answerAll(() => meta()));
+    expect(await checkVideos(deps(port, withPurge.store))).toBe("checked 1, purged 3");
+    const none = fakeStore([ref(1)], [], 0);
+    expect(await checkVideos(deps(port, none.store))).toBe("checked 1");
+  });
+
+  it("fetchPendingVideos and fetchVideoNow never purge", async () => {
+    const { store } = fakeStore([ref(1)], [], 5);
+    await fetchPendingVideos(deps(null, store));
+    await fetchVideoNow(deps(null, store), "item-1");
+    expect(store.purgeStale).not.toHaveBeenCalled();
   });
 });
 

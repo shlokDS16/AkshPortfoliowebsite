@@ -2538,6 +2538,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      purge_stale_video_data: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       queue_age: { Args: Record<PropertyKey, never>; Returns: number }
       record_video_fetch: {
         Args: {

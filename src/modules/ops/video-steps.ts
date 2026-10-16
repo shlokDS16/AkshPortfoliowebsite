@@ -55,6 +55,11 @@ export function createVideoFetchStore(db: Db): FetchStore {
       if (error) throw jobDbError("videos.byItem", error);
       return data ? refOf(data, false) : null;
     },
+    async purgeStale() {
+      const { data, error } = await db.rpc("purge_stale_video_data");
+      if (error) throw jobDbError("videos.purge", error);
+      return typeof data === "number" ? data : 0;
+    },
     async record(a) {
       // The function's null-able arguments are typed as plain strings in the generated types; PostgREST sends null as null.
       const args = {

@@ -47,7 +47,8 @@ begin
     v_out := v_out || jsonb_build_array(jsonb_build_object('rule', '12', 'code', '12.1',
       'message', 'YouTube data has not been fetched yet.'));
   else
-    if v_src.own_channel is not true then
+    -- A gone video has its channel cleared (0022, Q51): it is reported as gone below, not as someone else's.
+    if v_src.own_channel is not true and v_src.privacy is distinct from 'gone' then
       v_out := v_out || jsonb_build_array(jsonb_build_object('rule', '12', 'code', '12.1',
         'message', 'This video is not from your channel.'));
     end if;

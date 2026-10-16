@@ -45,6 +45,8 @@ export interface FetchStore {
   all(): Promise<SourceRef[]>;
   byItem(itemId: string): Promise<SourceRef | null>;
   record(args: RecordFetch): Promise<void>;
+  /** Clears the YouTube data of every source not refreshed in 30 days (Q51); the number cleared. */
+  purgeStale(): Promise<number>;
 }
 
 export type FetchDeps = { port: VideoMetaPort | null; store: FetchStore; clock: () => number };
@@ -137,14 +139,17 @@ export async function fetchPendingVideos(deps: FetchDeps): Promise<string> {
   return report("fetched", sources.length, out, false);
 }
 
-/** `videos:check` (daily): every source, in calls of 50; a source YouTube no longer returns is marked gone (never unpublished by the machine). */
+/** `videos:check` (daily): purges data older than 30 days, then every source, in calls of 50; a source YouTube no longer returns is marked gone (never unpublished by the machine). */
 export async function checkVideos(deps: FetchDeps): Promise<string> {
-  if (!deps.port) return VIDEOS_OFF;
+  // First, and whether or not videos are on: YouTube data is kept at most 30 days (Developer Policies III.E.4), also when the key is gone.
+  const purged = await deps.store.purgeStale();
+  const note = (text: string) => (purged > 0 ? `${text}, purged ${purged}` : text);
+  if (!deps.port) return note(VIDEOS_OFF);
   const sources = await deps.store.all();
-  if (sources.length === 0) return "nothing to check";
+  if (sources.length === 0) return note("nothing to check");
   const out = await refresh(deps.port, deps.store, deps.clock, sources);
-  if (out.stop?.kind === "quota" && out.checked === 0) return QUOTA_DEFERRED;
-  return report("checked", sources.length, out, true);
+  if (out.stop?.kind === "quota" && out.checked === 0) return note(QUOTA_DEFERRED);
+  return note(report("checked", sources.length, out, true));
 }
 
 /** "Fetch again" for one item's source: fetched even if it was fetched before. */

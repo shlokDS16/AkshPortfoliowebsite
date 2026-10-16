@@ -7,6 +7,7 @@ import { createVideoFetchStore, runVideoFetchNow, VIDEO_CHECK_STEP, VIDEO_FETCH_
 
 const env = vi.hoisted(() => ({ value: {} as Record<string, string | undefined> }));
 const touched = vi.hoisted(() => ({ from: 0, rpc: 0 }));
+const purge = vi.hoisted(() => ({ mode: "throw" as "throw" | "answer", n: 0 }));
 vi.mock("@/lib/env.server", () => ({ serverEnv: () => env.value }));
 vi.mock("@/lib/supabase/service", () => ({
   createSupabaseServiceClient: () => ({
@@ -14,8 +15,9 @@ vi.mock("@/lib/supabase/service", () => ({
       touched.from += 1;
       throw new Error("the database must not be touched while videos are off");
     },
-    rpc: () => {
+    rpc: async (name: string) => {
       touched.rpc += 1;
+      if (purge.mode === "answer" && name === "purge_stale_video_data") return { data: purge.n, error: null };
       throw new Error("the database must not be touched while videos are off");
     },
   }),
@@ -50,8 +52,20 @@ describe("the video steps are in the right clocks, off until the YouTube setting
     touched.from = 0;
     touched.rpc = 0;
     expect(await VIDEO_FETCH_STEP.run()).toBe("videos off");
-    expect(await VIDEO_CHECK_STEP.run()).toBe("videos off");
     expect(touched).toEqual({ from: 0, rpc: 0 });
+  });
+
+  it("videos:check, while off, makes one call: the 30-day purge (Q51), and reads no table", async () => {
+    env.value = {};
+    touched.from = 0;
+    touched.rpc = 0;
+    purge.mode = "answer";
+    purge.n = 0;
+    expect(await VIDEO_CHECK_STEP.run()).toBe("videos off");
+    purge.n = 4;
+    expect(await VIDEO_CHECK_STEP.run()).toBe("videos off, purged 4");
+    expect(touched).toEqual({ from: 0, rpc: 2 });
+    purge.mode = "throw";
   });
 
   it("report 'videos off' when only one of the two settings is set", async () => {
@@ -103,6 +117,15 @@ describe("the store (the secret-key client, reading video_sources and writing on
     expect(String((error as Error).message)).toBe("videos.record (23514)");
   });
 
+  it("purges through purge_stale_video_data and returns the count; a failure is its operation and code only", async () => {
+    const rpc = vi.fn(async () => ({ data: 3, error: null }));
+    expect(await createVideoFetchStore({ rpc } as unknown as Db).purgeStale()).toBe(3);
+    expect(rpc).toHaveBeenCalledWith("purge_stale_video_data");
+    const bad = { rpc: async () => ({ data: null, error: { message: "secret row", code: "42501" } }) } as unknown as Db;
+    const error = await createVideoFetchStore(bad).purgeStale().catch((e: unknown) => e);
+    expect(String((error as Error).message)).toBe("videos.purge (42501)");
+  });
+
   it("reads one source by item", async () => {
     const db = selectDb({ video_sources: { data: [{ id: "s1", item_id: "i1", youtube_id: "aaaaaaaaaaa", privacy: null }], error: null } });
     expect((await createVideoFetchStore(db).byItem("i1"))?.id).toBe("s1");
@@ -126,7 +149,7 @@ describe("runVideoFetchNow (Fetch again): admin-only by its caller, one run at a
   const source = { id: "s1", itemId: "i1", youtubeId: "aaaaaaaaaaa", privacy: null, published: false };
   const depsWith = (port: VideoMetaPort | null): (() => FetchDeps) => () => ({
     port,
-    store: { pending: async () => [], all: async () => [], byItem: async () => source, record: async () => undefined },
+    store: { pending: async () => [], all: async () => [], byItem: async () => source, record: async () => undefined, purgeStale: async () => 0 },
     clock: () => 0,
   });
 

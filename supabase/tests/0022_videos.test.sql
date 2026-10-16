@@ -5,7 +5,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(65);
+select plan(70);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -67,8 +67,23 @@ select ok((select own_channel and privacy = 'unlisted' and yt_title = 'A title' 
              from public.video_sources where item_id = pg_temp.it(1)), 'and sets every machine column, fetched_at = now()');
 select lives_ok($$ select public.record_video_fetch(pg_temp.src(1), false, null, null, null, null, null, null, null, 'not returned') $$,
   'a missing video is recorded');
-select ok((select privacy = 'gone' and yt_title = 'A title' and own_channel and fetch_problem = 'not returned'
-             from public.video_sources where item_id = pg_temp.it(1)), 'as gone, keeping the last data seen');
+select ok((select privacy = 'gone' and yt_title is null and yt_description is null and channel_id is null and own_channel is null
+                  and duration_seconds is null and yt_published_at is null and fetch_problem = 'not returned' and fetched_at = now()
+             from public.video_sources where item_id = pg_temp.it(1)), 'as gone, with every other YouTube column cleared (Q51: nothing of a deleted video is kept)');
+
+-- 3b. purge_stale_video_data (Q51): YouTube data is kept no longer than 30 days. Source 1 is backdated to 31 days, source 2 to 1 day.
+select public.record_video_fetch(pg_temp.src(2), true, 'UCaaaaaaaaaaaaaaaaaaaaaa', true, 'Two', 'Two d', 90, 'public', '2026-09-02 10:00+05:30', null);
+select set_config('app.video_fetch', 'on', true);
+update public.video_sources set fetched_at = now() - interval '31 days' where id = pg_temp.src(1);
+update public.video_sources set fetched_at = now() - interval '1 day' where id = pg_temp.src(2);
+select set_config('app.video_fetch', 'off', true);
+select is(public.purge_stale_video_data(), 1, 'the purge clears the one source not refreshed in 30 days');
+select ok((select channel_id is null and own_channel is null and yt_title is null and yt_description is null and duration_seconds is null
+                  and privacy is null and yt_published_at is null and fetched_at is null
+                  and fetch_problem = 'YouTube data older than 30 days was deleted. It is read again when YouTube answers.'
+             from public.video_sources where item_id = pg_temp.it(1)), 'every YouTube column of it is null, fetched_at too, with the fixed problem');
+select ok((select yt_title = 'Two' and yt_description = 'Two d' and duration_seconds = 90 and privacy = 'public' and fetch_problem is null
+             from public.video_sources where item_id = pg_temp.it(2)), 'the source fetched yesterday is unchanged');
 select throws_ok($$ select public.record_video_fetch('00000000-0000-4000-8000-000000000000', true, null, true, 't', 'd', 1, 'public',
                      now(), null) $$, 'P0002', null, 'an unknown source is refused');
 select throws_ok($$ select public.record_video_fetch(pg_temp.src(1), null, null, true, 't', 'd', 1, 'public', now(), null) $$,
@@ -133,6 +148,7 @@ select throws_ok($$ insert into public.video_sources (item_id, youtube_id, priva
   '42501', null, 'nor insert one');
 select throws_ok($$ select public.record_video_fetch(pg_temp.src(4), true, null, true, 't', 'd', 1, 'public', now(), null) $$,
   '42501', null, 'nor call record_video_fetch');
+select throws_ok($$ select public.purge_stale_video_data() $$, '42501', null, 'nor purge_stale_video_data');
 select lives_ok($$ insert into public.video_transcripts (video_source_id, segments, text_sha256)
                    values (pg_temp.src(4), '[{"s":0,"t":"Hi"}]', 'f00d') $$, 'the admin adds a transcript (any sent hash is replaced)');
 select is((select count(*) from public.video_transcripts where video_source_id = pg_temp.src(4)), 1::bigint, 'and reads it');
@@ -145,6 +161,7 @@ reset role;
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select is((select count(*) from public.video_sources), 0::bigint, 'anon reads no source of a private item');
+select throws_ok($$ select public.purge_stale_video_data() $$, '42501', null, 'anon cannot call purge_stale_video_data');
 select throws_ok($$ select yt_description from public.video_sources $$, '42501', null, 'and never the description column');
 reset role;
 set local role service_role;
