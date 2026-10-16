@@ -35,6 +35,8 @@ test.afterAll(async ({ browser }) => {
 });
 
 async function clean(page: Page) {
+  // A dynamic page streams its <title> after the first paint; scan only once it is in the document (it is missing for a moment under load).
+  await expect(page).toHaveTitle(/\S/);
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
   await expect(page.locator("h1")).toHaveCount(1);
