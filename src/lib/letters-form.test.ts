@@ -1,5 +1,6 @@
+import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { formTicketOk, MAX_FORM_AGE_MS, MIN_FILL_MS, signFormTicket } from "./letters-form";
+import { formKey, formTicketOk, MAX_FORM_AGE_MS, MIN_FILL_MS, signFormTicket } from "./letters-form";
 
 const SECRET = "s".repeat(40);
 const NOW = Date.parse("2026-10-16T05:00:00Z");
@@ -32,6 +33,16 @@ describe("the sign-up form's render-time ticket (spec s8.5: at least 3 s after r
     for (const bad of [undefined, null, 5, {}, "", "abc", ".", "1.2.3", `${NOW}.`, `.${"a".repeat(64)}`, "NaN.abc", `${NOW}.zz`, "x".repeat(5000)]) {
       expect(formTicketOk(SECRET, bad, NOW + 10_000), String(bad)).toBe(false);
     }
+  });
+
+  it("is signed with a key derived from CRON_SECRET for this purpose, never with CRON_SECRET itself (review finding 6)", () => {
+    const old = `${NOW}.${createHmac("sha256", SECRET).update(`letters-form-v1|${NOW}`).digest("hex")}`;
+    expect(formTicketOk(SECRET, old, NOW + 10_000)).toBe(false); // the old scheme: the raw secret as the key
+    expect(formTicketOk(SECRET, signFormTicket(SECRET, NOW), NOW + 10_000)).toBe(true);
+    expect(formKey(SECRET).equals(Buffer.from(SECRET))).toBe(false);
+    expect(formKey(SECRET)).toHaveLength(32);
+    expect(formKey(SECRET).equals(formKey(SECRET))).toBe(true);
+    expect(formKey(SECRET).equals(formKey("o".repeat(40)))).toBe(false);
   });
 
   it("does not use the secret as the signature: the same time under two keys differs", () => {
