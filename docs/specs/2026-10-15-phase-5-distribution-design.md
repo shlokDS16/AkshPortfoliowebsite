@@ -662,3 +662,28 @@ Written with the video screens. Where this section and s7 disagree, this section
   YouTube row).
 - **(r) The public rail shows "Videos" only once a video is listed** (`SiteCounts.videos` is absent before), so the deploy state links to
   nothing that is a 404. There is no phone tab.
+
+### Amendments from the Phase 5b review fix wave (2026-10-16)
+- **(s) Reading of 12.2: a sentence allowance for rule 1 only.** The allowance in 12.2 is given under the existing allowance rules (Phase 1b
+  ruling R9, as for v1.1 rule 10.8): only a sentence flagged under rule 1 can be allowed. A spoken performance claim (rule 2) keeps the video off
+  the site. Reasons: (a) 12.2 says a spoken sentence is cleared "only by" an allowance for rule 1 or 2; "only" bounds what may clear a sentence
+  and does not oblige the desk to offer a rule 2 allowance, so a stricter gate complies; (b) rule 10.8 uses the same words and 3b built and
+  reviewed it as rule 1 only under R9; (c) rule 2 (performance claims) is the claim the SEBI circular cares most about, and a transcript cannot be
+  edited, so the narrow reading is the conservative one. If Shlok later wants rule 2 for transcripts only: a migration restating
+  `add_lint_allowance` to accept rule '2' when the finding's `field` is `transcript`, and in `lint.ts` one more condition on the allowance test.
+- **(t) Anon holds column grants on two base tables** that the plan's global constraint ("Nothing else") did not list: `video_sources (id,
+  item_id, youtube_id, duration_seconds, yt_published_at)` and `video_transcripts (id, video_source_id, segments)`, with row policies that repeat
+  the views' predicate (a public video item; only the transcript the current revision names). A `security_invoker` view needs them, as
+  `concept_ids` did in 0020. Beyond the views they reveal three ids and no row; pinned by `0022_videos.test.sql` and `0023_distribution_gate.test.sql`.
+- **(u) D79 amended: no thumbnail, and no request to Google or YouTube before the press.** Section 7.7 showed YouTube's still
+  (`https://i.ytimg.com/vi/<id>/hqdefault.jpg`) on page load. Shlok's ruling (controller, 2026-10-16): privacy first. Until the press the page holds a
+  local placeholder (the title, the length and the plain Play control) and makes no request to `*.ytimg.com`, `*.youtube.com`,
+  `*.youtube-nocookie.com` or `*.google*.com`; the press mounts the youtube-nocookie frame. The JSON-LD `thumbnailUrl` stays: it is text in the
+  page's markup, not a request a visitor makes. The e2e (`support/outbound.ts`) records every request to a host outside the machine and fails any
+  public or video spec that reached one other than the frame after a press. Section 15's pending string list gains none; the placeholder
+  shows the page's own title and length beside the already approved "Play video (loads YouTube)".
+- **(v) Data kept from YouTube, and Fetch again (Q48, Q50, Q51).** YouTube data is kept at most 30 days (Developer Policies III.E.4):
+  migration 0022 gains `purge_stale_video_data()` (service_role only), which `videos:check` runs first, also while videos are off; a video YouTube
+  no longer returns has every YouTube column cleared, not only marked gone (and gate 12.1 reports it as gone, not as another channel's). "Fetch
+  again" is refused for a source fetched less than a minute ago (read from `fetched_at`, so every instance sees it). The response cap is 1 MB,
+  not 512 KB, so a full batch of escaped descriptions fits.

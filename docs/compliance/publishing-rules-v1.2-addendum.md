@@ -47,3 +47,7 @@ counts. Nothing is summarised or re-worded.
 13.5 Every letter carries the disclosure lines, the position for each company it names, how the reader subscribed and a working
 unsubscribe link, and goes only to addresses that confirmed by email (double opt-in) and affirmed they are 18 or older.
 13.6 No figure about a ledger case, no performance claim and no actionable language, as for any public page.
+
+## Reading of 12.2 (2026-10-16, Phase 5b review)
+The allowance in 12.2 is given under the existing allowance rules (Phase 1b ruling R9, as for rule 10.8): only a sentence flagged under rule 1
+can be allowed. A spoken performance claim (rule 2) keeps the video off the site.
