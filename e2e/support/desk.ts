@@ -60,7 +60,7 @@ export async function expectNoViolations(page: Page): Promise<void> {
  * mid-fade reads the wrong colours, and a silent cap would hide an animation that never ends). An element that is not rendered (inside a
  * closed <details>, say) is skipped: its animation can stay "running" for ever, and axe does not look at it either.
  */
-async function settleVisibleAnimations(page: Page): Promise<void> {
+export async function settleVisibleAnimations(page: Page): Promise<void> {
   const stuck = await page.evaluate(async () => {
     const going = () =>
       document.getAnimations().flatMap((a) => {

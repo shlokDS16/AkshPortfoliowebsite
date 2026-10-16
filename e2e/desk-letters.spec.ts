@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import type { Db } from "@/lib/supabase/types";
 import { requireStack } from "./support/auth";
-import { adminDb, hydrated } from "./support/desk";
+import { adminDb, hydrated, settleVisibleAnimations } from "./support/desk";
 import { installOutboundGuard } from "./support/outbound";
 import { ADMIN_STATE, E2E_SITE_URL } from "./support/stack";
 
@@ -52,11 +52,13 @@ const EMAIL_FRAME = "iframe[title='The email, as it will arrive']";
 
 async function clean(page: Page) {
   for (const colorScheme of ["light", "dark"] as const) {
-    await page.emulateMedia({ colorScheme });
+    // Motion is reduced and running transitions are waited out, so axe never reads a colour mid-fade (a button changing theme).
+    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    await settleVisibleAnimations(page);
     const { violations } = await new AxeBuilder({ page }).withTags(TAGS).exclude(EMAIL_FRAME).analyze();
     expect(violations.map((v) => `${colorScheme} ${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
   }
-  await page.emulateMedia({ colorScheme: "light" });
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
 }
 
 async function runGate(page: Page) {
