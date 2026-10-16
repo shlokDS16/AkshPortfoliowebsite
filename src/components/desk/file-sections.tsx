@@ -9,6 +9,7 @@ import { RevisionDiff } from "./revision-diff";
 import { RevisionLog } from "./revision-log";
 import { ScenarioTable } from "./scenario-table";
 import { SourceList } from "./source-list";
+import { StudiedBlock } from "./studied-block";
 import { ViewBlock } from "./view-block";
 
 const WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
@@ -50,6 +51,7 @@ export function FileSections({ file }: { file: FileView }) {
         <BlockHeader label="SOURCES" id="sources" title="Sources" />
         <SourceList sources={file.sources} />
       </section>
+      <StudiedBlock cards={file.studied} />
       <section aria-labelledby="history">
         <BlockHeader label="HISTORY" id="history" title="Revisions" sub="Reason first, then what was removed and what was added." />
         <div className="space-y-(--block-gap)">

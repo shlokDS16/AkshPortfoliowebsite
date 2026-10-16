@@ -5,8 +5,8 @@ import type { Db } from "@/lib/supabase/types";
 import { isIsoDate } from "@/modules/casefile";
 import { HOLDS_POSITIONS, ITEM_KINDS } from "@/modules/research";
 import type {
-  ItemKind, PublicCompanyRow, PublicConceptLink, PublicConceptRow, PublicFactCheck, PublicItemRow, PublicRevisionRow, PublicSnapshot, PublicVideoRow, ShowcaseRepo,
-  VideoSegment,
+  ItemKind, PublicCompanyRow, PublicConceptLink, PublicConceptRow, PublicFactCheck, PublicItemRow, PublicRevisionRow, PublicSnapshot, PublicStudiedRow,
+  PublicVideoRow, ShowcaseRepo, VideoSegment,
 } from "./types";
 
 // Explicit column lists (rule 9): anon holds column-level grants, and select=* returns 42501 (SDD ledger, Task 3).
@@ -20,6 +20,11 @@ export const CONCEPT_LINK_COLUMNS = "item_id, revision_id, concept_id, position"
 /** Plan 5b: the only video columns anon can read (migration 0022). A channel, YouTube's description, its privacy state and a fetch problem are not among them. */
 export const VIDEO_COLUMNS = "item_id, youtube_id, duration_seconds, yt_published_at";
 export const VIDEO_TRANSCRIPT_COLUMNS = "item_id, segments";
+/**
+ * Phase 5d: the only studied columns anon can read (migration 0026). The link's id, its private note, the video id, a fetch problem, the hash and every
+ * date of reading are not among them; the title, name, channel and picture come back null unless the entry showed them.
+ */
+export const STUDIED_COLUMNS = "item_id, position, kind, url, saved_on, note, title, site_name, channel_url, thumb_path, thumb_sha256";
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
 
 type Nullable<T> = { [K in keyof T]: T[K] | null };
@@ -144,6 +149,24 @@ export function createSupabaseShowcaseRepo(db: Db): ShowcaseRepo {
           : [],
       );
     },
+    async listStudied() {
+      // Optional (D60): a view that is not there yet or a timeout means no outside sources, never a failed public page. Only the code is logged.
+      const { data, error } = await readAllPages((from, to) =>
+        db.from("public_studied").select(STUDIED_COLUMNS).order("item_id").order("position").range(from, to),
+      );
+      if (error) {
+        console.error("showcase: studied sources unavailable", error.code ?? "no code");
+        return [];
+      }
+      return (data ?? []).flatMap((r): PublicStudiedRow[] =>
+        r.item_id && Number.isInteger(r.position) && (r.position as number) >= 1 && (r.kind === "youtube" || r.kind === "web") && r.url?.startsWith("https://") && isIsoDate(r.saved_on)
+          ? [{
+              itemId: r.item_id, position: r.position as number, kind: r.kind, url: r.url, savedOn: r.saved_on, note: r.note ?? "", title: r.title, siteName: r.site_name,
+              channelUrl: r.channel_url, thumbPath: r.thumb_path, thumbSha256: r.thumb_sha256,
+            }]
+          : [],
+      );
+    },
     async videoTranscript(itemId) {
       // The view returns the transcript the CURRENT public revision names, and none for a private, failed, pending or lagged item.
       const { data, error } = await db.from("public_video_transcripts").select(VIDEO_TRANSCRIPT_COLUMNS).eq("item_id", itemId).maybeSingle();
@@ -160,9 +183,10 @@ export function createSupabaseShowcaseRepo(db: Db): ShowcaseRepo {
 }
 
 export async function loadSnapshot(repo: ShowcaseRepo, today: string): Promise<PublicSnapshot> {
-  const [all, allRevisions, companies, captureDays, factChecks, concepts, conceptLinks, videos] = await Promise.all([
+  const [all, allRevisions, companies, captureDays, factChecks, concepts, conceptLinks, videos, studied] = await Promise.all([
     repo.listItems(), repo.listRevisions(), repo.listCompanies(), repo.captureDays(30), repo.factChecks(), repo.listConcepts(), repo.listConceptLinks(), repo.listVideos(),
+    repo.listStudied(),
   ]);
   const { items, revisions } = listedItemsOnly(all, allRevisions, videos);
-  return { items, revisions, companies, captureDays, factChecks, concepts, conceptLinks, videos, today };
+  return { items, revisions, companies, captureDays, factChecks, concepts, conceptLinks, videos, studied, today };
 }

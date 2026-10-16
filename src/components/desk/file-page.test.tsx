@@ -2,7 +2,7 @@
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { buildFileView, type PublicSnapshot } from "@/modules/showcase";
-import { buildFiguresAfterDataAsOfSnapshot, buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
+import { buildFiguresAfterDataAsOfSnapshot, buildSeedSnapshot, withStudied } from "@/test/fakes/showcase-snapshot";
 import { expectTokenOnly, mockIntersectionObserver, mockMatchMedia, renderWithMotion } from "@/test/ui";
 import { FileHeader } from "./file-header";
 import { FileSections, testsSub } from "./file-sections";
@@ -57,5 +57,20 @@ describe("the B+ file page", () => {
   it("words small test counts at the start of the sentence (design-dna 13.1)", () => {
     expect(testsSub(1)).toBe('One test Aksh set himself. "Met" means his view is wrong.');
     expect(testsSub(12)).toBe('12 tests Aksh set himself. "Met" means his view is wrong.');
+  });
+});
+
+describe("outside sources on the file page (Phase 5d)", () => {
+  it("the block sits after Sources and before Revisions", () => {
+    const { container } = renderFile(withStudied(buildSeedSnapshot()));
+    const ids = [...container.querySelectorAll("h2[id]")].map((h) => h.id);
+    expect(ids.indexOf("studied")).toBeGreaterThan(ids.indexOf("sources"));
+    expect(ids.indexOf("studied")).toBeLessThan(ids.indexOf("history"));
+    expect(screen.getByRole("region", { name: "Other people's work I studied" })).toBeInTheDocument();
+  });
+
+  it("is absent when the file lists none", () => {
+    const { container } = renderFile();
+    expect(container.querySelector("#studied")).toBeNull();
   });
 });

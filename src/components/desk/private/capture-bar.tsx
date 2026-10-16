@@ -39,7 +39,7 @@ export function CaptureBar({ known, videoKey = false }: { known: KnownTokenLists
         onChange={setValue}
         onSubmit={submit}
         known={sets}
-        placeholder={`What did you just notice?   $company  #concept  t:  l:  p:  r:${videoKey ? "  v:" : ""}`}
+        placeholder={`What did you just notice?   $company  #concept  t:  l:  p:  r:${videoKey ? "  v:" : "  s:"}`}
       />
       <CaptureReceipt model={receipt} />
       <CaptureStatus dirty={value !== ""} />

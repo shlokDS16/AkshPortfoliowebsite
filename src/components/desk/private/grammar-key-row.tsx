@@ -3,16 +3,16 @@
 import type { TokenKey } from "@/modules/capture/client";
 
 const KEYS: TokenKey[] = ["$", "#", "t:", "l:", "p:", "r:"];
-/** Phase 5d (spec s8): v: (an own-channel video) is offered only while own videos are on. */
-const VIDEO_KEY: TokenKey = "v:";
+/** Phase 5d (spec s8): the seventh key is v: (an own-channel video) only while own videos are on; otherwise it is s: (somebody else's link, a source). */
+const SEVENTH = (videoKey: boolean): TokenKey => (videoKey ? "v:" : "s:");
 /** The keys whose letter alone does not say what they do. */
-const KEY_LABEL: Partial<Record<TokenKey, string>> = { "r:": "r: read", "v:": "v: video" };
+const KEY_LABEL: Partial<Record<TokenKey, string>> = { "r:": "r: read", "v:": "v: video", "s:": "s: source" };
 
 /** Docked at thumb height above the keyboard; mousedown is cancelled so the field keeps focus. */
 export function GrammarKeyRow({ onInsert, videoKey = false }: { onInsert(token: TokenKey): void; videoKey?: boolean }) {
-  const keys = videoKey ? [...KEYS, VIDEO_KEY] : KEYS;
+  const keys = [...KEYS, SEVENTH(videoKey)];
   return (
-    <div role="group" aria-label="Insert a grammar key" className={videoKey ? "grid grid-cols-7 gap-1.5" : "grid grid-cols-6 gap-1.5"}>
+    <div role="group" aria-label="Insert a grammar key" className="grid grid-cols-7 gap-1.5">
       {keys.map((key) => (
         <button
           key={key}

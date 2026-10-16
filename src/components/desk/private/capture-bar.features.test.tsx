@@ -16,6 +16,12 @@ describe("the capture box and the v: key (Phase 5d: own videos are off)", () => 
     expect(screen.getByRole("textbox")).toHaveAttribute("placeholder", expect.not.stringContaining("v:"));
   });
 
+  it("offers an s: key for a source, and names it in its hint, while own videos are off", () => {
+    render(<CaptureBar known={known} />);
+    expect(screen.getByRole("button", { name: "s: source" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toHaveAttribute("placeholder", expect.stringContaining("s:"));
+  });
+
   it("offers it, and names it, when the page says own videos are on", () => {
     render(<CaptureBar known={known} videoKey />);
     expect(screen.getByRole("button", { name: "v: video" })).toBeInTheDocument();

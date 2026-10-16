@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type BlockLabel = "VIEW" | "TESTS" | "FACTS" | "HISTORY" | "SOURCES" | "SCENARIO" | "LINKS";
+export type BlockLabel = "VIEW" | "TESTS" | "FACTS" | "HISTORY" | "SOURCES" | "SCENARIO" | "LINKS" | "STUDIED";
 
 // design-dna s17 item 6: the label is the facts-vs-view separation (VIEW = the hand = Aksh's words).
 const LABEL_STYLE: Record<BlockLabel, string> = {
@@ -11,6 +11,7 @@ const LABEL_STYLE: Record<BlockLabel, string> = {
   SOURCES: "border border-rule-strong text-ink-muted",
   SCENARIO: "border border-rule-strong text-ink-muted",
   LINKS: "border border-rule-strong text-ink-muted",
+  STUDIED: "border border-rule-strong text-ink-muted",
 };
 
 type Props = { label: BlockLabel; title: string; sub?: string; count?: number | string; id: string };

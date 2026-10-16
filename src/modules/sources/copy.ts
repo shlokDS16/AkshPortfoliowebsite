@@ -1,4 +1,4 @@
-import type { ProblemCode } from "./types";
+import type { ProblemCode } from "./problem-codes";
 
 // The desk's words about a source (spec s6.1, s6.2, s6.4). Browser-safe. Every sentence is pending Shlok's approval.
 

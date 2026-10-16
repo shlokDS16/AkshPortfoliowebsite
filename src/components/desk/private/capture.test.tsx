@@ -80,11 +80,16 @@ describe("CaptureReceipt and GrammarKeyRow", () => {
     expect(keys[6]).toHaveAccessibleName("v: video");
   });
 
-  // Phase 5d (spec s8): the own-channel videos are off, so the key row does not offer v:.
-  it("offers six keys and no v: while own videos are off (the default)", () => {
-    render(<GrammarKeyRow onInsert={vi.fn()} />);
-    expect(screen.getAllByRole("button").map((k) => k.textContent)).toEqual(["$", "#", "t:", "l:", "p:", "r:"]);
-    expect(screen.getByRole("group", { name: "Insert a grammar key" })).toHaveClass("grid-cols-6");
+  // Phase 5d (spec s8): the own-channel videos are off, so the key row shows s: (a source) where v: was.
+  it("offers s: in place of v: while own videos are off (the default)", async () => {
+    const onInsert = vi.fn();
+    render(<GrammarKeyRow onInsert={onInsert} />);
+    const keys = screen.getAllByRole("button");
+    expect(keys.map((k) => k.textContent)).toEqual(["$", "#", "t:", "l:", "p:", "r:", "s:"]);
+    expect(keys[6]).toHaveAccessibleName("s: source");
+    expect(screen.getByRole("group", { name: "Insert a grammar key" })).toHaveClass("grid-cols-7");
+    await userEvent.click(keys[6]);
+    expect(onInsert).toHaveBeenCalledWith("s:");
   });
 });
 

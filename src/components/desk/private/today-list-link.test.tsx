@@ -56,3 +56,25 @@ describe("the kind line of a Today entry", () => {
     expect(screen.getByText("reading log")).toBeInTheDocument();
   });
 });
+
+describe("a source capture in the Today list (Phase 5d)", () => {
+  it("is called a source, offers no 'Read this link' (the inbox would read the page into facts) and leads to Sources instead", () => {
+    render(<TodayList groups={groups("s: https://youtu.be/abcdefghijk $KAVPUMP why the bull case is thin")} known={known} />);
+    expect(screen.getByText("source")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Read this link/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "See it in Sources" })).toHaveAttribute("href", "/desk/sources");
+  });
+
+  it("a v: capture is a source while own videos are off, and is treated the same way", () => {
+    const filed: TodayGroup[] = [{ key: "none", label: "No company", entries: [entry({ rawText: "v: https://youtu.be/abcdefghijk", isSource: true })] }];
+    render(<TodayList groups={filed} known={known} />);
+    expect(screen.getByText("source")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Read this link/ })).toBeNull();
+  });
+
+  it("a note with a link keeps the button", () => {
+    render(<TodayList groups={groups("n: see https://www.bseindia.com/a.pdf")} known={known} />);
+    expect(screen.getByRole("button", { name: /Read this link/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "See it in Sources" })).toBeNull();
+  });
+});

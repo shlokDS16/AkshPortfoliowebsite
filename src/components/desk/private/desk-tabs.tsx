@@ -16,7 +16,7 @@ const TABS = [
     href: "/desk/items",
     label: "Items",
     match: (p: string, on: { ownVideos: boolean; letters: boolean }) =>
-      p.startsWith("/desk/items") || p.startsWith("/desk/concepts") || p.startsWith("/desk/learned") || (on.ownVideos && p.startsWith("/desk/videos")) || (on.letters && p.startsWith("/desk/letters")),
+      p.startsWith("/desk/items") || p.startsWith("/desk/concepts") || p.startsWith("/desk/learned") || p.startsWith("/desk/sources") || (on.ownVideos && p.startsWith("/desk/videos")) || (on.letters && p.startsWith("/desk/letters")),
   },
   { href: "/desk/ledger", label: "Ledger", match: (p: string) => p.startsWith("/desk/ledger") },
   { href: "/desk/names", label: "Names", match: (p: string) => p.startsWith("/desk/names") },

@@ -1,5 +1,5 @@
 import { parseFactsSheet } from "@/modules/casefile/client";
-import type { PublicConceptLink, PublicConceptRow, PublicItemRow, PublicRevisionRow, PublicSnapshot, PublicVideoRow } from "@/modules/showcase";
+import type { PublicConceptLink, PublicConceptRow, PublicItemRow, PublicRevisionRow, PublicSnapshot, PublicStudiedRow, PublicVideoRow } from "@/modules/showcase";
 import { caseRecordFixture, FIXTURE_CHART } from "@/test/fixtures/case-record";
 import { KAVERI, NOTES, PROCESS_NOTE, SAHYADRI } from "@/test/fixtures/casefile";
 
@@ -150,4 +150,15 @@ export function withLetter(snapshot: PublicSnapshot, patch: Partial<PublicItemRo
   };
   const revision: PublicRevisionRow = { id: revisionId, itemId: id, revNo: item.revNo, bodyMd: item.bodyMd, structured, changeReason, createdAt: item.revisedAt };
   return { ...snapshot, items: [...snapshot.items, item], revisions: [...snapshot.revisions, revision] };
+}
+
+/** Phase 5d: a snapshot whose Kaveri file (item i1) lists outside sources, as the anon view would return them. Titles and notes hold no figure and no id. */
+export const STUDIED_HASH = "b".repeat(64);
+export function withStudied(snapshot: PublicSnapshot, rows: Partial<PublicStudiedRow>[] = [{}]): PublicSnapshot {
+  const defaults: PublicStudiedRow = {
+    itemId: "i1", position: 1, kind: "youtube", url: "https://www.youtube.com/watch?v=abcdefghijk", savedOn: "2026-10-03", note: "Worth watching for how the dealer book is described.",
+    title: "How a pump maker finances its dealers", siteName: "Dealer Finance Channel", channelUrl: "https://www.youtube.com/@dealerfinance",
+    thumbPath: `yt/${STUDIED_HASH}.jpg`, thumbSha256: STUDIED_HASH,
+  };
+  return { ...snapshot, studied: rows.map((r, i) => ({ ...defaults, position: i + 1, ...r })) };
 }

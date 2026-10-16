@@ -18,7 +18,7 @@ import { transcriptMatches } from "./video-transcript";
 // Rule 10 (Plan 1A ruling R6): the cookie-less public client only, never the service client.
 const cachedSnapshot = unstable_cache(
   async () => loadSnapshot(createSupabaseShowcaseRepo(createSupabasePublicClient()), istDate(new Date())),
-  ["showcase-snapshot-v4"],
+  ["showcase-snapshot-v5"],
   { tags: [CACHE_TAGS.publicItems], revalidate: 3600 },
 );
 

@@ -9,6 +9,7 @@ import { itemConcepts } from "./concepts";
 import { readingMinutes } from "./notes";
 import { withFactChecks } from "./provenance";
 import { ordinal, revisionsOf, servedFiles } from "./site";
+import { buildStudiedBlock } from "./studied";
 import type { FileView, PublicSnapshot, ShareCardModel } from "./types";
 
 function fileFor(s: PublicSnapshot, companySlug: string) {
@@ -27,6 +28,7 @@ export function buildFileView(s: PublicSnapshot, companySlug: string): FileView 
   const revisedOn = istDate(item.revisedAt);
   // Rule 1: the public audience, so a withheld reading is reported as no_data.
   const tests = buildKillTests(conditions, cf, s.today, revisedOn, "public");
+  const studied = buildStudiedBlock(s, item.id);
   const current = revs[revNo - 1];
   const previous = revNo > 1 ? revs[revNo - 2] : undefined;
   const diff: RevisionDiffData | null =
@@ -53,6 +55,7 @@ export function buildFileView(s: PublicSnapshot, companySlug: string): FileView 
     factGroups: buildFactGroups(cf, s.today),
     factCount: cf.facts.length,
     sources: buildSourceList(cf),
+    studied,
     exhibits: buildExhibits(fileNo, company.name, cf, s.today),
     // Rule 4: files() only yields a file whose dataAsOf is 30 days old (IST), so its scenario table is public like every other figure.
     scenario: buildScenario(cf, revNo, item.dataAsOf),
@@ -65,6 +68,7 @@ export function buildFileView(s: PublicSnapshot, companySlug: string): FileView 
       { id: "view", label: "View" },
       { id: "tests", label: "Tests", count: tests.length },
       { id: "facts", label: "Facts", count: cf.facts.length },
+      ...(studied.length > 0 ? [{ id: "studied", label: "Studied", count: studied.length }] : []),
       { id: "history", label: "History", count: `R${revNo}` },
     ],
     concepts: itemConcepts(s, item.id),

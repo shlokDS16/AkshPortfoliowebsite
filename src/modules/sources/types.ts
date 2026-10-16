@@ -1,7 +1,7 @@
 // Browser-safe shapes of the sources module (no server-only import).
 
-export const PROBLEM_CODES = ["not_found", "not_embeddable", "not_page", "too_big_image", "refused", "timeout", "unavailable", "purged"] as const;
-export type ProblemCode = (typeof PROBLEM_CODES)[number];
+export { PROBLEM_CODES, type ProblemCode } from "./problem-codes";
+import type { ProblemCode } from "./problem-codes";
 export type SourceKind = "youtube" | "web";
 
 /** The most a source can be attached to (migration 0026: the same numbers, enforced there under the link's lock). */

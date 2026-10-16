@@ -53,6 +53,11 @@ describe("print.css", () => {
     expect(media.match(/attr\(href\)/g)).toHaveLength(1);
   });
 
+  it("prints the address of an outside source in full beside its title (the same rule as a source's), and never its picture (Phase 5d, spec s7)", () => {
+    expect(media).toMatch(/\[aria-labelledby="studied"\] a\[href\^="http"\]::after,\s*\[aria-labelledby="sources"\] a\[href\^="http"\]::after\s*\{/);
+    expect(media).toMatch(/\[data-studied-picture\][^{]*\{[^}]*display:\s*none\s*!important;/);
+  });
+
   it("prints colours and fills as they are (a label's light text needs its fill), and only the open part of a closed disclosure", () => {
     expect(media).toMatch(/\*\s*\{[^}]*print-color-adjust:\s*exact/);
     expect(media).toMatch(/details:not\(\[open\]\) > :not\(summary\)\s*\{[^}]*display:\s*none/);
