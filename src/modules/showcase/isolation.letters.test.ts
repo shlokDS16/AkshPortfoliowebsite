@@ -90,11 +90,20 @@ describe("Phase 5c: public letters code stays inside the public boundary", () =>
     expect(names.filter((n) => /^modules\/(?:ops|identity|ledger|cases|valuation|knowledge|ingestion|documents|compliance\/gate)/.test(n) || /^components\/desk\/private\//.test(n))).toEqual([]);
   });
 
-  it("reads the server env in two places only: robots.ts (VERCEL_ENV) and the form ticket's key (CRON_SECRET)", () => {
+  it("reads the server env in three places only: robots.ts (VERCEL_ENV), the form ticket's key (CRON_SECRET) and two plain answers about the letters settings", () => {
     const readers = [...reach.entries()].filter(([, text]) => /env\.server["']/.test(text)).map(([f]) => relative(f)).sort();
-    expect(readers).toEqual(["app/robots.ts", "lib/letters-form.ts"]);
+    expect(readers).toEqual(["app/robots.ts", "lib/letters-config.ts", "lib/letters-form.ts"]);
     const form = reach.get(join(ROOT, "lib/letters-form.ts"))!;
     expect([...form.matchAll(/serverEnv\(\)\.(\w+)/g)].map((m) => m[1])).toEqual(["CRON_SECRET", "CRON_SECRET"]);
+    // letters-config.ts hands out a boolean and a contact address: it reads the whole env only to pass it to the pure mode function, and imports no adapter.
+    const config = reach.get(join(ROOT, "lib/letters-config.ts"))!;
+    expect([...config.matchAll(/from\s*["']([^"']+)["']/g)].map((m) => m[1]).sort()).toEqual(["./env.server", "./providers/letters-mode"]);
+    expect(names).toContain("lib/providers/letters-mode.ts");
+  });
+
+  it("the public side reaches no letters adapter, only the pure mode file (review finding 8)", () => {
+    for (const adapter of ["index", "letters", "letters-guard", "resend-letters", "fixture-letters"]) expect(names, adapter).not.toContain(`lib/providers/${adapter}.ts`);
+    expect(names).toContain("lib/providers/letters-mode.ts");
   });
 
   it("names no private letters table, function or setting; the only doors are the four anon functions", () => {
@@ -102,7 +111,7 @@ describe("Phase 5c: public letters code stays inside the public boundary", () =>
       /from\(\s*["'](?:subscribers|subscriber_events|letter_sends)|subscriber_events|letter_sends|confirmed_subscribers|letters_issue_confirmations|letters_confirmation_failed|letters_bin|letters_erase|letters_purge|letters_mark_left|approve_letter_send|cancel_letter_send|claim_letter_send|finish_letter_send|set_letters_signup|letters_send_live|letters_pepper|RESEND_LETTERS_KEY|LETTERS_SEGMENT_ID|LETTERS_FROM|api\.resend\.com/;
     for (const bad of ["from(\"subscribers\")", "letter_sends", "approve_letter_send", "letters_pepper", "RESEND_LETTERS_KEY", "api.resend.com"]) expect(bad).toMatch(PRIVATE_LETTERS);
     for (const ok of ["letters_open", "letters_request", "letters_confirm", "letters_leave", "public_items"]) expect(ok).not.toMatch(PRIVATE_LETTERS);
-    for (const [file, text] of reach) if (!GENERATED.test(file) && !/^(?:lib\/env\.server|modules\/distribution\/letters\/copy)\.ts$/.test(relative(file))) expect(text.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, ""), relative(file)).not.toMatch(PRIVATE_LETTERS);
+    for (const [file, text] of reach) if (!GENERATED.test(file) && !/^(?:lib\/env\.server|lib\/providers\/letters-mode|modules\/distribution\/letters\/copy)\.ts$/.test(relative(file))) expect(text.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, ""), relative(file)).not.toMatch(PRIVATE_LETTERS);
     const doors = new Set<string>();
     for (const [file, text] of reach) {
       if (!OWN_PUBLIC.test(relative(file)) && relative(file) !== "modules/distribution/public-actions.ts") continue;

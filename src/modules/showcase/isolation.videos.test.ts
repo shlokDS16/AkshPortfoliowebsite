@@ -65,7 +65,8 @@ describe("Phase 5b: public video code stays inside the public boundary", () => {
     // never calls them (no public file imports the repository by name).
     const naming = [...reach.entries()].filter(([f, text]) => !GENERATED.test(f) && PRIVATE_VIDEO.test(text)).map(([f]) => relative(f)).sort();
     // Plan 5c: and the server env schema, which declares every secret by name; the sign-up form's ticket key (lib/letters-form.ts) is the one public file that reaches it.
-    expect(naming).toEqual(["lib/env.server.ts", "modules/capture/service.ts", "modules/compliance/repo.ts"]);
+    // Review fix wave (5c): and the pure letters-mode file, which names the three letters settings so the sign-up page can ask "is email set up?" without an adapter.
+    expect(naming).toEqual(["lib/env.server.ts", "lib/providers/letters-mode.ts", "modules/capture/service.ts", "modules/compliance/repo.ts"]);
     for (const [file, text] of reach) {
       if (!/modules\/showcase\/|app\/\(public\)\/|components\/desk\/[^/]+$/.test(relative(file))) continue;
       expect([...text.matchAll(FROM)].map((m) => m[1] ?? m[2] ?? m[3]).filter((spec) => /modules\/compliance\/repo/.test(spec)), relative(file)).toEqual([]);

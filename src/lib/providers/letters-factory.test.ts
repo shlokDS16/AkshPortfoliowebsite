@@ -12,6 +12,10 @@ const SET = {
   LETTERS_SEGMENT_ID: "78261eea-8f8b-4381-83c6-79fa7120f1cf",
 };
 const BASE: LettersEnv = { ADMIN_EMAIL: "admin@example.com" };
+const LOCAL = "http://127.0.0.1:54321";
+const FIXTURE: LettersEnv = { ...BASE, DISTRIBUTION_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: LOCAL };
+/** The fixture keeps its store in memory in a unit test (never in the directory the e2e reads). */
+const memory = { fixtureDirectory: null } as const;
 const PROD: LettersEnv = { ...BASE, ...SET, VERCEL_ENV: "production" };
 const live: ApprovalCheck = { sendIsLive: async () => true, confirmationIsLive: async () => true };
 const never: ApprovalCheck = { sendIsLive: async () => false, confirmationIsLive: async () => false };
@@ -78,27 +82,40 @@ describe("createLetterPorts: the real adapter", () => {
 
 describe("createLetterPorts: the fixture", () => {
   it("is the fixture when DISTRIBUTION_ADAPTER=fixture off Vercel, with or without the settings", () => {
-    expect(createLetterPorts({ ...BASE, DISTRIBUTION_ADAPTER: "fixture" }, { approvals: live })?.name).toBe("fixture");
-    expect(createLetterPorts({ ...BASE, ...SET, DISTRIBUTION_ADAPTER: "fixture", VERCEL_ENV: "development" }, { approvals: live })?.name).toBe("fixture");
-    expect(createLetterPorts({ ...BASE, DISTRIBUTION_ADAPTER: "fixture", CI: "1" }, { approvals: live })?.name).toBe("fixture");
+    expect(createLetterPorts(FIXTURE, { approvals: live, ...memory })?.name).toBe("fixture");
+    expect(createLetterPorts({ ...FIXTURE, ...SET, VERCEL_ENV: "development" }, { approvals: live, ...memory })?.name).toBe("fixture");
+    expect(createLetterPorts({ ...FIXTURE, CI: "1" }, { approvals: live, ...memory })?.name).toBe("fixture");
+  });
+
+  it("is refused unless the database is on this machine (review finding 9): a dev server pointed at the hosted project gets nothing", () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const url of ["https://abc.supabase.co", "https://127.0.0.1.evil.test", "http://localhost.evil.test:54321", "", undefined]) {
+      const env: LettersEnv = { ...BASE, DISTRIBUTION_ADAPTER: "fixture", ...(url === undefined ? {} : { NEXT_PUBLIC_SUPABASE_URL: url }) };
+      expect(lettersMode(env), String(url)).toEqual({ mode: "off", reason: "fixture_refused" });
+      expect(createLetterPorts(env, { approvals: live, ...memory }), String(url)).toBeNull();
+    }
+    for (const url of ["http://127.0.0.1:54321", "http://localhost:54321", "http://[::1]:54321"]) {
+      expect(lettersMode({ ...BASE, DISTRIBUTION_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: url }), url).toEqual({ mode: "fixture" });
+    }
+    expect(log).toHaveBeenCalled();
   });
 
   it("is refused on Vercel preview and production, and the real adapter is not used instead", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     for (const VERCEL_ENV of ["preview", "production"]) {
-      expect(createLetterPorts({ ...BASE, DISTRIBUTION_ADAPTER: "fixture", VERCEL_ENV }, { approvals: live })).toBeNull();
-      expect(createLetterPorts({ ...PROD, DISTRIBUTION_ADAPTER: "fixture", VERCEL_ENV }, { approvals: live })).toBeNull();
-      expect(lettersMode({ ...BASE, DISTRIBUTION_ADAPTER: "fixture", VERCEL_ENV })).toEqual({ mode: "off", reason: "fixture_refused" });
+      expect(createLetterPorts({ ...FIXTURE, VERCEL_ENV }, { approvals: live, ...memory })).toBeNull();
+      expect(createLetterPorts({ ...PROD, DISTRIBUTION_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: LOCAL, VERCEL_ENV }, { approvals: live, ...memory })).toBeNull();
+      expect(lettersMode({ ...FIXTURE, VERCEL_ENV })).toEqual({ mode: "off", reason: "fixture_refused" });
     }
     expect(log).toHaveBeenCalled();
     expect(JSON.stringify(log.mock.calls)).not.toContain(SET.RESEND_LETTERS_KEY);
   });
 
   it("is wrapped in the approval guard like the real adapter: no live approval, nothing recorded", async () => {
-    const off = createLetterPorts({ ...BASE, DISTRIBUTION_ADAPTER: "fixture" }, { approvals: never });
+    const off = createLetterPorts(FIXTURE, { approvals: never, ...memory });
     expect(await off?.sender.sendSelfTest({ sendId: SEND }, { subject: "s", html: "h", text: "t" })).toMatchObject({ kind: "not_approved" });
     expect(peekFixtureLetters().emails).toEqual([]);
-    const on = createLetterPorts({ ...BASE, DISTRIBUTION_ADAPTER: "fixture" }, { approvals: live });
+    const on = createLetterPorts(FIXTURE, { approvals: live, ...memory });
     expect(await on?.sender.sendSelfTest({ sendId: SEND }, { subject: "s", html: "h", text: "t" })).toEqual({ ok: true, value: null });
     expect(peekFixtureLetters().emails.map((e) => e.to)).toEqual(["admin@example.com"]);
   });

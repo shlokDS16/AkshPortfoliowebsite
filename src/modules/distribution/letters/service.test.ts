@@ -41,7 +41,7 @@ beforeEach(() => {
   const snapshot = snapshotWithUuids();
   for (const item of snapshot.items) reads.passes.set(item.revisionId, "2026-10-01T05:00:00Z");
   reads.last = "2026-09-30T05:00:00Z";
-  deps = { research, reads, rpc, on: true, snapshot: async () => snapshot, today: () => TODAY };
+  deps = { research, reads, rpc, on: true, contact: "help@desk.example", snapshot: async () => snapshot, today: () => TODAY };
 });
 
 describe("makeLetter: the ticked changes become a private letter, copied verbatim", () => {
@@ -203,6 +203,14 @@ describe("the other desk writes", () => {
     expect(await setSignup({ ...deps, on: false }, ADMIN, false)).toBe(false);
     expect(await setSignup(deps, ADMIN, true)).toBe(true);
     expect(rpc.signup).toBe(true);
+  });
+
+  it("refuses to open sign-ups while the contact for questions and complaints is unset, and closes them regardless (review finding 5)", async () => {
+    expect(await refusal(() => setSignup({ ...deps, contact: null }, ADMIN, true))).toBe("letter-signup-contact");
+    expect(await refusal(() => setSignup({ ...deps, contact: undefined }, ADMIN, true))).toBe("letter-signup-contact");
+    expect(rpc.signup).toBe(false);
+    rpc.signup = true;
+    expect(await setSignup({ ...deps, contact: null }, ADMIN, false)).toBe(false);
   });
 
   it("bins only waiting requests and erases a reader by address, the same answer if there is none", async () => {

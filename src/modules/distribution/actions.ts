@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { istDate } from "@/lib/dates";
 import { InvalidInputError } from "@/lib/errors";
+import { grievanceContact } from "@/lib/letters-config";
 import type { ItemNoticeCode } from "@/lib/messages";
 import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
@@ -118,6 +119,7 @@ async function lettersDeps(): Promise<LetterDeps> {
     reads: createSupabaseLettersReads(db),
     rpc: createSendRpc(),
     on: lettersOn(),
+    contact: grievanceContact(),
     snapshot: () => loadSnapshot(createSupabaseShowcaseRepo(createSupabasePublicClient()), istDate(new Date())),
     today: () => istDate(new Date()),
   };

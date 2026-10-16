@@ -1,4 +1,5 @@
 import type { BroadcastStatus, Contact, LetterFailure, LetterResult, LetterTransport } from "./letters";
+import { type LetterSettings, letterSettingsProblem } from "./letters-mode";
 import { createResendClient, replyMessage, type ResendReply, type ResendRequest } from "./resend-http";
 
 // The Resend letters transport (Phase 5c, spec s8.8). The ONLY file that names Resend's broadcasts and contacts endpoints (s9.3).
@@ -28,6 +29,7 @@ import { createResendClient, replyMessage, type ResendReply, type ResendRequest 
 // A contact Resend does not have yet answers 404 to add-to-segment (not stated on that page; the conservative reading): it is then
 // created in the segment, without the `unsubscribed` field.
 
+export { letterSettingsProblem, type LetterSettings };
 export const RESEND_LETTERS_BASE = "https://api.resend.com";
 const DEFAULT_TIMEOUT_MS = 10_000;
 /** About 8 calls a second at most from this adapter, under the team's 10 (the alert email shares it). */
@@ -37,28 +39,12 @@ const PAGE = 100;
 const MAX_PAGES = 20;
 const BODY_LIMIT = 100_000;
 
-const KEY_SHAPE = /^re_[A-Za-z0-9_-]{6,200}$/;
-/** A bare address, or `Name <address>`; group 1 or 2 is the domain. */
-const SENDER = /^(?:[^<>]{0,100}<[^\s@<>,;"]+@([^\s@<>,;"]+\.[^\s@<>,;"]+)>|[^\s@<>,;"]+@([^\s@<>,;"]+\.[^\s@<>,;"]+))$/;
 const ID = /^[A-Za-z0-9-]{1,100}$/;
-const SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ADDRESS = /^[^\s@<>,;"/?#]+@[^\s@<>,;"/?#]+\.[^\s@<>,;"/?#]+$/;
 const CONTROL = /[\u0000-\u001f\u007f]/;
 const IDEMPOTENCY_KEY = /^[!-~]{1,256}$/;
 const EMAILISH = /[^\s@<>"'(),;:]+@[^\s@<>"'(),;:]+/g;
 const STATUSES = new Set<BroadcastStatus>(["draft", "scheduled", "queued", "sent", "canceled"]);
-
-export type LetterSettings = { apiKey: string; from: string; segmentId: string };
-
-/** The first thing wrong with the three settings, naming the setting and never its value; null when they are usable. */
-export function letterSettingsProblem(s: LetterSettings): string | null {
-  if (!KEY_SHAPE.test(s.apiKey)) return "RESEND_LETTERS_KEY does not have the shape of a Resend key (re_...)";
-  const sender = s.from.length <= 200 && !CONTROL.test(s.from) ? SENDER.exec(s.from.trim()) : null;
-  if (!sender) return "LETTERS_FROM must be an address, or Name <address>, on one line";
-  if (/(^|\.)resend\.dev$/i.test(sender[1] ?? sender[2] ?? "")) return "LETTERS_FROM must be on your own verified domain, not resend.dev";
-  if (!SEGMENT.test(s.segmentId)) return "LETTERS_SEGMENT_ID must be a Resend segment id";
-  return null;
-}
 
 export type ResendLettersOptions = LetterSettings & {
   fetch?: typeof fetch;

@@ -11,6 +11,7 @@ import type { ConfirmationBatch } from "./letters/readers";
 const state = vi.hoisted(() => ({
   admin: true,
   on: true,
+  contact: "help@desk.example" as string | null,
   research: null as unknown,
   reads: null as unknown,
   rpc: null as unknown,
@@ -34,6 +35,7 @@ vi.mock("@/modules/identity", () => ({
     return { userId: "00000000-0000-4000-8000-0000000000aa", email: "aksh@example.com" };
   },
 }));
+vi.mock("@/lib/letters-config", () => ({ grievanceContact: () => state.contact }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => ({}) }));
 vi.mock("@/lib/supabase/public", () => ({ createSupabasePublicClient: () => ({}) }));
 vi.mock("@/modules/research", async (original) => ({ ...(await original<typeof import("@/modules/research")>()), createSupabaseResearchRepo: () => state.research }));
@@ -90,7 +92,7 @@ beforeEach(() => {
   research = createMemoryResearchRepo();
   rpc = createFakeRpc();
   reads = fakeReads(rpc);
-  Object.assign(state, { admin: true, on: true, research, reads, rpc, kicks: 0, confirmCall: null, afterTasks: [], batch: { requested: 1, issued: 1, sent: 1, failed: 0, capped: false } });
+  Object.assign(state, { admin: true, on: true, contact: "help@desk.example", research, reads, rpc, kicks: 0, confirmCall: null, afterTasks: [], batch: { requested: 1, issued: 1, sent: 1, failed: 0, capped: false } });
   const snapshot = buildRichSnapshot();
   const real = (id: string) => (id === "rn0" ? NOTE_REV : id);
   state.snapshot = {
@@ -252,6 +254,15 @@ describe("readers", () => {
   it("opens and closes sign-ups with the admin as the actor", async () => {
     expect(param(await target(() => setSignupAction(true)), "notice")).toBe("signup-opened");
     expect(rpc.signup).toBe(true);
+    expect(param(await target(() => setSignupAction(false)), "notice")).toBe("signup-closed");
+    expect(rpc.signup).toBe(false);
+  });
+
+  it("will not open sign-ups while the contact for complaints is unset, and says so in plain words (review finding 5); closing is still allowed", async () => {
+    state.contact = null;
+    expect(param(await target(() => setSignupAction(true)), "error")).toBe("letter-signup-contact");
+    expect(rpc.signup).toBe(false);
+    rpc.signup = true;
     expect(param(await target(() => setSignupAction(false)), "notice")).toBe("signup-closed");
     expect(rpc.signup).toBe(false);
   });

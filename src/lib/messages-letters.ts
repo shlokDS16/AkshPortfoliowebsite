@@ -23,6 +23,7 @@ export const LETTER_ERROR_TEXT = {
   "letter-another-sending": "Another letter is being sent. Wait until it has gone.",
   "letter-test-limit": "5 test copies sent today. The next can go tomorrow.",
   "letter-refused": "The database would not approve this send. Publish the letter again, then try once more.",
+  "letter-signup-contact": "Sign-ups cannot open yet: the contact address for questions and complaints is not set. Set LETTERS_GRIEVANCE_EMAIL first.",
   "letter-cannot-cancel": "Only a send that is still waiting can be cancelled.",
   "letter-send-not-found": "This send could not be found.",
 } as const;

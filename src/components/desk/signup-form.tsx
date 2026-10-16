@@ -2,24 +2,26 @@ import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { LETTERS_COPY, LETTERS_NOTICE } from "@/modules/distribution/public";
+import { LETTERS_COPY } from "@/modules/distribution/public";
 
 type Props = {
   /** The page's server action (a plain form post; the page adds no script). */
   action: (formData: FormData) => Promise<void>;
   /** The render-time ticket (lib/letters-form): the action accepts a submit only if it is genuine and at least 3 seconds old. */
   ticket: string;
+  /** The notice, with the contact for questions and complaints in it (public.ts lettersNotice). */
+  notice: string;
 };
 
 /**
  * The sign-up (spec s8.5): the notice first, then one email field, the required "18 or older" tick, a trap field no person sees, and the button.
  * No address is put in a URL; the answer to every post is the same sentence (the page shows it after the redirect). Its words are public.ts's.
  */
-export function SignupForm({ action, ticket }: Props) {
+export function SignupForm({ action, ticket, notice }: Props) {
   return (
     <form action={action} className="relative mt-3 max-w-(--measure) space-y-4">
       <p id="signup-notice" data-lint-exclude className="text-small text-ink-muted">
-        {LETTERS_NOTICE}
+        {notice}
       </p>
       <input type="hidden" name="ticket" value={ticket} />
       <div className="space-y-1">

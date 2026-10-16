@@ -55,7 +55,11 @@ export function watchUrl(youtubeId: string, startSeconds?: number): string | nul
 /** Must equal private.letters_notice_version() (migration 0024); letters/notice.test.ts reads the migration and compares. */
 export const LETTERS_NOTICE_VERSION = "letters-2026-10-v1";
 export const LETTERS_NOTICE =
-  "Get an email when Aksh publishes a letter about what changed on this site. We keep only your email address, and only to send these letters. It is sent through Resend, an email service in the United States. You can stop at any time with the link in every letter or on this page; we then delete your address. You must be 18 or older.";
+  "Get an email when Aksh publishes a letter about what changed on this site. We keep your email address and the dates you asked and confirmed, only to send these letters. It is sent through Resend, an email service in the United States. You can stop at any time with the link in every letter or on this page. When you stop, we delete your address within a day; we keep a one-way code of it as the record that you had agreed. You must be 18 or older.";
+/** The complaint route the notice must give (review finding 5). Pending Shlok's approval. */
+export const LETTERS_BOARD_SENTENCE = "You can also complain to the Data Protection Board of India.";
+/** The notice as the form shows it: the text, then who to write to, then the Board. The contact comes from the owner's setting (LETTERS_GRIEVANCE_EMAIL); there is no notice without one. */
+export const lettersNotice = (contact: string): string => `${LETTERS_NOTICE} Questions or complaints: ${contact}. ${LETTERS_BOARD_SENTENCE}`;
 export const LETTERS_COPY = {
   emailLabel: "Email",
   adultLabel: "I am 18 or older",
@@ -81,7 +85,7 @@ export const LETTERS_COPY = {
   stopLink: "Stop my letters",
   whatChanged: "What changed",
   confirmIntro: "Press the button to start receiving letters.",
-  leaveIntro: "Enter the address the letters come to. We delete it at once.",
+  leaveIntro: "Enter the address the letters come to. We delete it from our list at once, and from the email service within a day.",
   published: (date: string) => `Published ${date}`,
 } as const;
 

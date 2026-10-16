@@ -17,6 +17,8 @@ export type LetterDeps = {
   rpc: LettersRpc;
   /** Letters are set up (all three settings, production or the local fixture). */
   on: boolean;
+  /** The reader-facing contact for questions and complaints (LETTERS_GRIEVANCE_EMAIL); sign-ups cannot open without one. Unset means no. */
+  contact?: string | null;
   /** The public site as it is now (a fresh read, not the hour's cache). */
   snapshot: () => Promise<PublicSnapshot>;
   today: () => string;
@@ -97,9 +99,12 @@ export async function cancelSend(deps: LetterDeps, actor: string, sendId: string
   return deps.rpc.cancel(actor, sendId);
 }
 
-/** Turning sign-ups on needs letters set up; turning them off is always allowed. */
+/** Turning sign-ups on needs letters set up and the contact for complaints set (the notice names it); turning them off is always allowed. */
 export async function setSignup(deps: LetterDeps, actor: string, on: boolean): Promise<boolean> {
-  if (on) requireOn(deps);
+  if (on) {
+    requireOn(deps);
+    if (!deps.contact) throw new LetterError("letter-signup-contact");
+  }
   return deps.rpc.setSignup(actor, on);
 }
 

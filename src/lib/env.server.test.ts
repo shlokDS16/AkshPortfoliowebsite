@@ -261,6 +261,9 @@ describe("parseServerEnv: letters (Phase 5c; off while the three settings are un
     const env = parseServerEnv({ ...valid, RESEND_LETTERS_KEY: ` ${SET.RESEND_LETTERS_KEY} `, LETTERS_FROM: ` ${SET.LETTERS_FROM} `, LETTERS_SEGMENT_ID: ` ${SET.LETTERS_SEGMENT_ID} ` });
     expect([env.RESEND_LETTERS_KEY, env.LETTERS_FROM, env.LETTERS_SEGMENT_ID]).toEqual([SET.RESEND_LETTERS_KEY, SET.LETTERS_FROM, SET.LETTERS_SEGMENT_ID]);
     expect(parseServerEnv({ ...valid, RESEND_LETTERS_KEY: "not a key" }).RESEND_LETTERS_KEY).toBe("not a key");
+    expect(parseServerEnv({ ...valid, LETTERS_GRIEVANCE_EMAIL: "" }).LETTERS_GRIEVANCE_EMAIL).toBeUndefined();
+    expect(parseServerEnv(valid).LETTERS_GRIEVANCE_EMAIL).toBeUndefined();
+    expect(parseServerEnv({ ...valid, LETTERS_GRIEVANCE_EMAIL: " not an address " }).LETTERS_GRIEVANCE_EMAIL).toBe("not an address");
   });
 
   it("reads CI, NODE_ENV and VITEST, so letters can refuse a test or CI run", () => {

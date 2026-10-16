@@ -13,12 +13,13 @@ import { createFixtureVideoMeta } from "./fixture-video-meta";
 import { createGroqWhisper } from "./groq-whisper";
 import type { ApprovalCheck, LetterPorts } from "./letters";
 import { guardLetterTransport } from "./letters-guard";
+import { isLoopbackUrl, letterSettingsProblem, type LettersEnv, lettersMode } from "./letters-mode";
 import type { LlmPort } from "./llm";
 import type { MarketDataPort } from "./market-data";
 import { createNseMarketData } from "./nse-bhavcopy";
 import { DEFAULT_NSE_BHAVCOPY_TEMPLATE, DEFAULT_NSE_INDEX_TEMPLATE } from "./nse-template";
 import type { OcrPort } from "./ocr";
-import { createResendLetters, letterSettingsProblem } from "./resend-letters";
+import { createResendLetters } from "./resend-letters";
 import { createResendMailer, DEFAULT_ALERT_FROM } from "./resend-mailer";
 import { createOcrSpace } from "./ocrspace";
 import type { TranscriberPort } from "./transcriber";
@@ -42,6 +43,7 @@ export type {
   SendApproval,
 } from "./letters";
 export { LETTERS_OFF_LINE } from "./letters";
+export { isLoopbackUrl, letterSettingsProblem, type LetterSettings, type LettersEnv, type LettersMode, type LettersOffReason, lettersMode } from "./letters-mode";
 export type { LlmPort, LlmRequest, LlmResult, LlmUsage, RateHeaders } from "./llm";
 export type { Close, EquityDay, IndexDay, MarketDataPort, Miss } from "./market-data";
 export type { OcrFiletype, OcrPort, OcrResult } from "./ocr";
@@ -116,16 +118,6 @@ export type MarketDataEnv = {
   /** The database address: the fixture closes may be stored only in a database on this machine. */
   NEXT_PUBLIC_SUPABASE_URL?: string;
 };
-
-/** True only for 127.0.0.1, localhost and [::1], matched on the parsed host (never a prefix: `localhost.evil.test` is not local). */
-export function isLoopbackUrl(value: string | undefined): boolean {
-  if (!value) return false;
-  try {
-    return ["127.0.0.1", "localhost", "[::1]"].includes(new URL(value).hostname);
-  } catch {
-    return false;
-  }
-}
 
 /**
  * The fixture when LLM_ADAPTER=fixture; otherwise the NSE adapter, which needs no key. Never null.
@@ -213,53 +205,15 @@ export function createVideoMetaPort(env: VideoMetaEnv): VideoMetaPort | null {
   return createYoutubeVideoMeta({ apiKey: env.YOUTUBE_API_KEY, channelId: env.YOUTUBE_CHANNEL_ID });
 }
 
-/** The slice of the server env that picks the letters adapter (passed in; this file never reads process.env). */
-export type LettersEnv = {
-  RESEND_LETTERS_KEY?: string;
-  LETTERS_FROM?: string;
-  LETTERS_SEGMENT_ID?: string;
-  /** The one recipient a self test can have. */
-  ADMIN_EMAIL: string;
-  DISTRIBUTION_ADAPTER?: "fixture";
-  VERCEL_ENV?: string;
-  /** Set by CI providers (and by Vercel at build time only). */
-  CI?: string;
-  NODE_ENV?: string;
-  /** Set by vitest. */
-  VITEST?: string;
-  /** The database address: the fixture keeps its store in a directory only for a database on this machine. */
-  NEXT_PUBLIC_SUPABASE_URL?: string;
-};
-
-export type LettersOffReason = "not_set_up" | "not_production" | "test_or_ci" | "fixture_refused" | "bad_setting";
-export type LettersMode = { mode: "resend" | "fixture" } | { mode: "off"; reason: LettersOffReason };
-
-const isTestOrCi = (env: LettersEnv) =>
-  (env.CI !== undefined && env.CI !== "" && env.CI !== "0" && env.CI.toLowerCase() !== "false") || Boolean(env.VITEST) || env.NODE_ENV === "test";
-
-/**
- * Which letters adapter this environment may use (spec s8.8, s9.1). Pure: no logging, no network.
- * The fixture when DISTRIBUTION_ADAPTER=fixture, refused on a Vercel preview or production deployment (then off, never the real
- * adapter). Otherwise Resend only when RESEND_LETTERS_KEY, LETTERS_FROM and LETTERS_SEGMENT_ID are all set, VERCEL_ENV is exactly
- * `production`, this is not a test or CI run, and the three settings have the right shape (the sender not on resend.dev).
- */
-export function lettersMode(env: LettersEnv): LettersMode {
-  const off = (reason: LettersOffReason): LettersMode => ({ mode: "off", reason });
-  if (env.DISTRIBUTION_ADAPTER === "fixture") return env.VERCEL_ENV && DEPLOYED.has(env.VERCEL_ENV) ? off("fixture_refused") : { mode: "fixture" };
-  const { RESEND_LETTERS_KEY: apiKey, LETTERS_FROM: from, LETTERS_SEGMENT_ID: segmentId } = env;
-  if (!apiKey || !from || !segmentId) return off("not_set_up");
-  if (env.VERCEL_ENV !== "production") return off("not_production");
-  if (isTestOrCi(env)) return off("test_or_ci");
-  if (letterSettingsProblem({ apiKey, from, segmentId })) return off("bad_setting");
-  return { mode: "resend" };
-}
-
 /**
  * Null while letters are off (the desk shows LETTERS_OFF_LINE; the sign-up form is not rendered). Otherwise the ports, always
  * behind the approval guard: no email leaves without `approvals` answering yes for exactly that send (Task 12 wires it to
  * letters_send_live and letters_confirmation_live). Never throws: a setting of the wrong shape is off, logged by its name only.
  */
-export function createLetterPorts(env: LettersEnv, deps: { approvals: ApprovalCheck; fetch?: typeof fetch }): LetterPorts | null {
+export function createLetterPorts(
+  env: LettersEnv,
+  deps: { approvals: ApprovalCheck; fetch?: typeof fetch; /** The fixture's store: a directory (default, for a database on this machine) or null for memory (unit tests). */ fixtureDirectory?: string | null },
+): LetterPorts | null {
   const mode = lettersMode(env);
   if (mode.mode === "off") {
     if (mode.reason === "fixture_refused") {
@@ -273,7 +227,8 @@ export function createLetterPorts(env: LettersEnv, deps: { approvals: ApprovalCh
   }
   const guard = { approvals: deps.approvals, adminEmail: env.ADMIN_EMAIL };
   if (mode.mode === "fixture") {
-    const directory = isLoopbackUrl(env.NEXT_PUBLIC_SUPABASE_URL) ? fixtureLettersDirectory(env.NEXT_PUBLIC_SUPABASE_URL as string) : undefined;
+    // lettersMode allows the fixture only against a database on this machine, so the address is a loopback one here.
+    const directory = deps.fixtureDirectory === undefined ? fixtureLettersDirectory(env.NEXT_PUBLIC_SUPABASE_URL as string) : (deps.fixtureDirectory ?? undefined);
     return guardLetterTransport(createFixtureLetters({ ...(env.LETTERS_SEGMENT_ID ? { segmentId: env.LETTERS_SEGMENT_ID } : {}), ...(directory ? { directory } : {}) }), guard);
   }
   const transport = createResendLetters({

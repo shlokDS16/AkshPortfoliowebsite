@@ -1,13 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HOME_CARD } from "@/components/desk/share-card";
-import { LETTERS_COPY, LETTERS_NOTICE } from "@/modules/distribution/public";
+import { LETTERS_BOARD_SENTENCE, LETTERS_COPY, LETTERS_NOTICE, lettersNotice } from "@/modules/distribution/public";
 import { letterCard } from "@/modules/showcase";
 import { buildSeedSnapshot, withLetter } from "@/test/fakes/showcase-snapshot";
 
 // Plan 5c Task 14 (spec s8.9): /letters and /letters/[slug] are a 404 until sign-ups are open or a letter is public (the deploy state), list only
 // gate-passed letters, and show no reader, address or send. Confirm and leave are plain forms; a GET confirms nothing.
-const state = vi.hoisted(() => ({ snapshot: null as unknown, unavailable: false, open: false, notFound: 0, redirected: [] as string[], calls: [] as string[] }));
+const state = vi.hoisted(() => ({ snapshot: null as unknown, unavailable: false, open: false, ready: true, contact: "help@desk.example" as string | null, notFound: 0, redirected: [] as string[], calls: [] as string[] }));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     state.notFound += 1;
@@ -21,6 +21,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("next/og", () => ({ ImageResponse: class { constructor(readonly element: { props: { c: unknown } }, readonly options: unknown) {} } }));
 vi.mock("@/lib/og-fonts", () => ({ loadOgFonts: async () => [] }));
 vi.mock("@/lib/letters-form", () => ({ issueFormTicket: () => "1700000000000.ticket" }));
+vi.mock("@/lib/letters-config", () => ({ grievanceContact: () => state.contact, lettersEmailReady: () => state.ready }));
 vi.mock("@/lib/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/env")>()), publicEnv: () => ({ NEXT_PUBLIC_SITE_URL: "https://desk.example" }) }));
 vi.mock("@/modules/showcase", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/showcase")>()),
@@ -51,6 +52,8 @@ beforeEach(() => {
   state.notFound = 0;
   state.unavailable = false;
   state.open = false;
+  state.ready = true;
+  state.contact = "help@desk.example";
   state.redirected = [];
   state.calls = [];
 });
@@ -72,7 +75,9 @@ describe("/letters", () => {
     const out = await html(lettersPage());
     expect(out.match(/<h1/g)).toHaveLength(1);
     expect(out).toContain(LETTERS_COPY.signupTitle);
-    expect(out).toContain(LETTERS_NOTICE);
+    expect(out).toContain(lettersNotice("help@desk.example"));
+    expect(out).toContain("Questions or complaints: help@desk.example.");
+    expect(out).toContain(LETTERS_BOARD_SENTENCE);
     expect(out).toContain('name="ticket" value="1700000000000.ticket"');
     expect(out).toContain('name="email"');
     expect(out).toMatch(/<input[^>]*id="signup-adult"[^>]*>/);
@@ -85,6 +90,29 @@ describe("/letters", () => {
     expect(out).toContain(LETTERS_COPY.empty);
     expect(out).toContain('href="/letters/leave"');
     expect(out).toContain("application/ld+json");
+  });
+
+  it("shows no form while email is not set up in this environment, and is a 404 if no letter is public (review finding 8)", async () => {
+    state.snapshot = seed();
+    state.open = true;
+    state.ready = false;
+    await expect(lettersPage()).rejects.toThrow("NEXT_NOT_FOUND");
+    state.snapshot = world();
+    const out = await html(lettersPage());
+    expect(out).not.toContain("<form");
+    expect(out).not.toContain(LETTERS_COPY.signupTitle);
+    expect(out).toContain('href="/letters/l1-what-changed-this-fortnight"');
+  });
+
+  it("shows no form while the contact for complaints is unset (review finding 5): a notice with no route is not offered", async () => {
+    state.snapshot = seed();
+    state.open = true;
+    state.contact = null;
+    await expect(lettersPage()).rejects.toThrow("NEXT_NOT_FOUND");
+    state.snapshot = world();
+    const out = await html(lettersPage());
+    expect(out).not.toContain("<form");
+    expect(out).not.toContain(LETTERS_NOTICE);
   });
 
   it("the trap is off the page, out of the tab order and hidden from assistive technology; a person has no reason to meet it", async () => {

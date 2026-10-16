@@ -90,6 +90,12 @@ const serverSchema = publicSchema.extend({
   LETTERS_FROM: optional(z.string().trim()),
   /** The Resend segment the letters go to (Audiences are now Segments). */
   LETTERS_SEGMENT_ID: optional(z.string().trim()),
+  /**
+   * The address a reader writes to with a question or a complaint about their data (named in the sign-up notice; DPDP grievance route).
+   * Owner-set. Unset, sign-ups cannot be opened and the form is not shown. Its SHAPE is checked in lib/letters-config.ts, so a typo
+   * turns sign-ups off, not the app.
+   */
+  LETTERS_GRIEVANCE_EMAIL: optional(z.string().trim()),
   /** Set by Vercel (development | preview | production); unset locally and in CI. Letters send only when it is `production`. */
   VERCEL_ENV: optional(z.string().trim()),
   /** Set by CI providers (and by Vercel at build time only). Letters never send while it is set. */

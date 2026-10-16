@@ -9,7 +9,8 @@ import { SignupForm } from "@/components/desk/signup-form";
 import { Unavailable } from "@/components/desk/unavailable";
 import { publicEnv } from "@/lib/env";
 import { issueFormTicket } from "@/lib/letters-form";
-import { LETTERS_COPY } from "@/modules/distribution/public";
+import { grievanceContact, lettersEmailReady } from "@/lib/letters-config";
+import { LETTERS_COPY, lettersNotice } from "@/modules/distribution/public";
 import { buildSiteChrome, getLettersOpen, getSnapshot, jsonLdFor, listLetterSummaries, pageMetadata } from "@/modules/showcase";
 import { askForm } from "./form-actions";
 
@@ -32,7 +33,11 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
     );
   }
   const letters = listLetterSummaries(snapshot.data);
-  const open = await getLettersOpen();
+  // The form shows only while the switch is on AND email is set up AND the notice has someone to write to: otherwise addresses would be
+  // collected that can never be sent a confirmation, or under a notice with no grievance route (review findings 5 and 8).
+  const contact = grievanceContact();
+  const notice = contact !== null && lettersEmailReady() && (await getLettersOpen()) ? lettersNotice(contact) : null;
+  const open = notice !== null;
   if (!open && letters.length === 0) notFound();
   const asked = (await searchParams).asked === "1";
   return (
@@ -49,7 +54,7 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
               {LETTERS_COPY.asked}
             </p>
           ) : (
-            <SignupForm action={askForm} ticket={issueFormTicket()} />
+            <SignupForm action={askForm} ticket={issueFormTicket()} notice={notice} />
           )}
         </section>
       ) : null}
