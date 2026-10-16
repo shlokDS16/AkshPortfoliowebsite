@@ -87,8 +87,8 @@ async function save(page: Page, fields: { subject?: string; objective?: string }
 async function runGate(page: Page): Promise<void> {
   await gate(page).getByRole("button", { name: /^Run the publishing gate on revision #\d+$/ }).click();
   const decision = gate(page).getByTestId("gate-decision");
-  await expect(decision).toBeVisible();
-  expect(await decision.getAttribute("data-verdict"), await gate(page).innerText()).toBe("pass");
+  // An earlier refusal of the same revision stays on the page until the new press replaces it, so wait for the pass (retrying) rather than read the first verdict.
+  await expect(decision).toHaveAttribute("data-verdict", "pass");
   await expect(page.getByTestId("visibility")).toHaveText("Public");
 }
 
