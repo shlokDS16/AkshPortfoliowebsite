@@ -147,7 +147,10 @@ export function ConceptPicker({ options, initial, save, blocked }: Props) {
         </p>
         <p className="text-caption text-ink-muted">Up to 8. Saving makes a new version.</p>
         {blocked ? <p className="rounded-sm border border-warn bg-warn-wash px-3 py-2 text-small text-ink">{BLOCKED_TEXT}</p> : null}
-        <PendingButton disabled={blocked}>Save concepts</PendingButton>
+        {/* Scrolled to either edge, the button must land clear of the top bar and of the tab bar with the sticky publish bar above it. */}
+        <PendingButton disabled={blocked} className="scroll-mt-20 scroll-mb-[calc(var(--tab-bar-h)+10rem)]">
+          Save concepts
+        </PendingButton>
       </form>
     </section>
   );

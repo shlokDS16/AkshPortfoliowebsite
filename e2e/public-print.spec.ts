@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { extractText } from "unpdf";
 import { derivedProblems } from "../src/modules/showcase/derived-scan";
 import { discover, SITE, state, type Pages } from "./support/derived";
+import { containsSquashed, DATE_SQUASHED, literal, squash, squashedSource } from "./support/squash";
 
 // Plan 5a Task 3 and 4 (spec s5, publishing rule 11.4): a public page prints as a dated document that carries its disclosure, and print
 // shows nothing the screen hides. Same states as public-distribution.spec.ts (told by the project's name). The PDF is Chromium's own
@@ -9,14 +10,16 @@ import { discover, SITE, state, type Pages } from "./support/derived";
 const HEAD =
   "Educational content only. Aksh Agrawal is not a SEBI-registered Research Analyst or Investment Adviser. Nothing here is a recommendation, offer or solicitation to buy or sell any security. Figures are shown with a minimum 30-day lag. Position in the security discussed: ";
 const TAIL = " Investments in securities are subject to market risk; consult a SEBI-registered adviser before acting. Last reviewed ";
-const DATE = "\\d{1,2} [A-Z][a-z]{2} \\d{4}";
+const DATE = DATE_SQUASHED;
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i;
 const PRINT_ONLY = "[data-print-masthead], [data-print-disclosure], [data-print-banner]";
 // Next's own live region for screen readers: injected after a client navigation, whenever hydration finishes, and never on the page.
 const FRAMEWORK = "next-route-announcer";
 const VISIBLE = { contentVisibilityAuto: true, visibilityProperty: true };
 
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// The PDF text layer is not stable about spaces (on Linux fonts it splits words: "LEAR NING NO"), so the text checks below compare with
+// all whitespace removed on both sides; see support/squash.ts. The disclosure is HEAD, a position, TAIL and a date, written squashed.
+const disclosure = (position: string) => new RegExp(`${literal(HEAD)}${squashedSource(position)}\\.${literal(TAIL)}${DATE}\\.`);
 
 let pages: Pages;
 test.beforeAll(async ({ request }) => {
@@ -31,10 +34,10 @@ const printable = () => [
   ...(state().videosPublic ? [{ name: "video", path: pages.videos[0], position: "(?:stated on each file|Not disclosed)" }] : []),
 ];
 
-async function pdfText(page: Page): Promise<{ pages: number; text: string }> {
+async function pdfText(page: Page): Promise<{ pages: number; text: string; squashed: string }> {
   const pdf = await page.pdf({ format: "A4", preferCSSPageSize: true });
   const { totalPages, text } = await extractText(new Uint8Array(pdf), { mergePages: true });
-  return { pages: totalPages, text: text.replace(/\s+/g, " ") };
+  return { pages: totalPages, text: text.replace(/\s+/g, " "), squashed: squash(text) };
 }
 
 test("Save as PDF is on each printable page, opens the browser's print, and is not on the paper; the masthead is on the paper and not on the screen", async ({ page }) => {
@@ -90,20 +93,23 @@ test("a PDF of each public page is dated, addressed and carries the standard dis
   test.skip(browserName !== "chromium" || !/-1280/.test(test.info().project.name), "page.pdf is Chromium's; one desktop project per state is enough");
   for (const { name, path, position } of printable()) {
     await page.goto(path);
-    const { pages: count, text } = await pdfText(page);
+    const { pages: count, text, squashed } = await pdfText(page);
     expect(count, name).toBeGreaterThanOrEqual(1);
-    expect(text, `${name}: the standard disclosure`).toMatch(new RegExp(`${escape(HEAD)}${position}\\.${escape(TAIL)}${DATE}\\.`));
+    expect(squashed, `${name}: the standard disclosure`).toMatch(disclosure(position));
     // A long address wraps inside a word on paper, so the text layer holds a space where the line broke.
-    expect(text.replace(/\s+/g, ""), `${name}: the masthead`).toContain(`${SITE}${path}`);
-    expect(text).toMatch(new RegExp(`This copy shows revision R\\d+ of ${DATE}\\. (?:Figures to ${DATE}\\. )?The current version is at the address above\\.`));
-    expect(text).toMatch(/Aksh Agrawal · Case files/i);
+    expect(squashed, `${name}: the masthead`).toContain(`${SITE}${path}`);
+    expect(squashed, `${name}: the revision line`).toMatch(
+      new RegExp(`${squashedSource("This copy shows revision R\\d+ of")}${DATE}\\.(?:${literal("Figures to")}${DATE}\\.)?${literal("The current version is at the address above.")}`),
+    );
+    expect(squashed, `${name}: the byline`).toMatch(new RegExp(literal("Aksh Agrawal · Case files"), "i"));
     expect(text, name).not.toMatch(UUID);
-    // The screen's controls and chrome are not on paper.
-    for (const gone of ["Save as PDF", "Skip to content", "Find a file", "On this page"]) expect(text, `${name}: ${gone}`).not.toContain(gone);
-    expect(text, `${name}: tab labels`).not.toMatch(/Desk\s+Files(?:\s+\d+)?\s+Notes/);
-    expect(text, `${name}: phone index`).not.toMatch(/View\s+Tests(?:\s+\d+)?\s+Facts/);
+    expect(squashed, name).not.toMatch(UUID);
+    // The screen's controls and chrome are not on paper, whichever way the text layer split the words.
+    for (const phrase of ["Save as PDF", "Skip to content", "Find a file", "On this page"]) expect(containsSquashed(text, phrase), `${name}: ${phrase}`).toBe(false);
+    expect(squashed, `${name}: tab labels`).not.toMatch(/DeskFiles\d*Notes/);
+    expect(squashed, `${name}: phone index`).not.toMatch(/ViewTests\d*Facts/);
     if (name === "file") {
-      expect(text).toContain("Figures to");
+      expect(containsSquashed(text, "Figures to")).toBe(true);
       expect(text).toMatch(/\bR1\b/); // the revision list prints, with its first version
       expect(text).toMatch(/\bR2\b/);
     }
@@ -128,8 +134,8 @@ test("the register and a concept page print the standard disclosure in full", as
   if (state().conceptsPublic) expect(indexes, "a concept page is public in this state").toHaveLength(2);
   for (const path of indexes) {
     await page.goto(path);
-    const { text } = await pdfText(page);
-    expect(text, path).toMatch(new RegExp(`${escape(HEAD)}stated on each file\\.${escape(TAIL)}${DATE}\\.`));
+    const { squashed } = await pdfText(page);
+    expect(squashed, path).toMatch(disclosure("stated on each file"));
   }
 });
 
