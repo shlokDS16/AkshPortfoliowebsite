@@ -101,6 +101,13 @@ export type Database = {
             foreignKeyName: "captures_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "captures_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "public_video_transcripts"
             referencedColumns: ["item_id"]
           },
@@ -661,6 +668,13 @@ export type Database = {
             foreignKeyName: "gate_decisions_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "gate_decisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "public_video_transcripts"
             referencedColumns: ["item_id"]
           },
@@ -963,6 +977,13 @@ export type Database = {
             foreignKeyName: "ideas_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "ideas_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "public_video_transcripts"
             referencedColumns: ["item_id"]
           },
@@ -1037,6 +1058,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "item_revisions_item_id_fkey"
@@ -1423,6 +1451,13 @@ export type Database = {
             foreignKeyName: "letter_sends_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "letter_sends_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "public_video_transcripts"
             referencedColumns: ["item_id"]
           },
@@ -1520,6 +1555,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lint_allowances_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "lint_allowances_item_id_fkey"
@@ -1714,6 +1756,13 @@ export type Database = {
             foreignKeyName: "proposals_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "public_video_transcripts"
             referencedColumns: ["item_id"]
           },
@@ -1884,6 +1933,13 @@ export type Database = {
             foreignKeyName: "reading_proposals_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "public_video_transcripts"
             referencedColumns: ["item_id"]
           },
@@ -1900,6 +1956,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_hint_fkey"
+            columns: ["item_id_hint"]
+            isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "reading_proposals_item_id_hint_fkey"
@@ -1944,6 +2007,149 @@ export type Database = {
             referencedColumns: ["revision_id"]
           },
         ]
+      }
+      source_link_companies: {
+        Row: {
+          company_id: string
+          link_id: string
+        }
+        Insert: {
+          company_id: string
+          link_id: string
+        }
+        Update: {
+          company_id?: string
+          link_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_link_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_link_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "public_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_link_companies_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "source_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      source_link_concepts: {
+        Row: {
+          link_id: string
+          theme_id: string
+        }
+        Insert: {
+          link_id: string
+          theme_id: string
+        }
+        Update: {
+          link_id?: string
+          theme_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_link_concepts_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "source_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_link_concepts_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "public_themes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_link_concepts_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      source_links: {
+        Row: {
+          archived_at: string | null
+          channel_url: string | null
+          checked_at: string | null
+          created_at: string
+          fetch_attempts: number
+          fetch_problem: string | null
+          fetched_at: string | null
+          gone: boolean
+          id: string
+          kind: string
+          meta_sha: string | null
+          meta_since: string | null
+          note: string
+          site_name: string | null
+          thumb_path: string | null
+          thumb_sha256: string | null
+          title: string | null
+          url: string
+          url_key: string
+          youtube_id: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          channel_url?: string | null
+          checked_at?: string | null
+          created_at?: string
+          fetch_attempts?: number
+          fetch_problem?: string | null
+          fetched_at?: string | null
+          gone?: boolean
+          id?: string
+          kind: string
+          meta_sha?: string | null
+          meta_since?: string | null
+          note?: string
+          site_name?: string | null
+          thumb_path?: string | null
+          thumb_sha256?: string | null
+          title?: string | null
+          url: string
+          url_key: string
+          youtube_id?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          channel_url?: string | null
+          checked_at?: string | null
+          created_at?: string
+          fetch_attempts?: number
+          fetch_problem?: string | null
+          fetched_at?: string | null
+          gone?: boolean
+          id?: string
+          kind?: string
+          meta_sha?: string | null
+          meta_since?: string | null
+          note?: string
+          site_name?: string | null
+          thumb_path?: string | null
+          thumb_sha256?: string | null
+          title?: string | null
+          url?: string
+          url_key?: string
+          youtube_id?: string | null
+        }
+        Relationships: []
       }
       subscriber_events: {
         Row: {
@@ -2285,6 +2491,13 @@ export type Database = {
             foreignKeyName: "video_sources_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: true
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "video_sources_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
             referencedRelation: "public_video_transcripts"
             referencedColumns: ["item_id"]
           },
@@ -2359,6 +2572,13 @@ export type Database = {
             foreignKeyName: "item_revisions_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "public_video_transcripts"
             referencedColumns: ["item_id"]
           },
@@ -2420,6 +2640,13 @@ export type Database = {
             foreignKeyName: "item_revisions_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "public_video_transcripts"
             referencedColumns: ["item_id"]
           },
@@ -2449,6 +2676,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "item_revisions_item_id_fkey"
@@ -2510,6 +2744,22 @@ export type Database = {
           },
         ]
       }
+      public_studied: {
+        Row: {
+          channel_url: string | null
+          item_id: string | null
+          kind: string | null
+          note: string | null
+          position: number | null
+          saved_on: string | null
+          site_name: string | null
+          thumb_path: string | null
+          thumb_sha256: string | null
+          title: string | null
+          url: string | null
+        }
+        Relationships: []
+      }
       public_themes: {
         Row: {
           id: string | null
@@ -2556,6 +2806,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_sources_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "public_studied"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "video_sources_item_id_fkey"
@@ -2888,11 +3145,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      purge_stale_source_data: {
+        Args: Record<PropertyKey, never>
+        Returns: string[]
+      }
       purge_stale_video_data: {
         Args: Record<PropertyKey, never>
         Returns: number
       }
       queue_age: { Args: Record<PropertyKey, never>; Returns: number }
+      record_source_fetch: {
+        Args: {
+          p_channel_url: string
+          p_found: boolean
+          p_gone: boolean
+          p_link_id: string
+          p_problem: string
+          p_site_name: string
+          p_thumb_path: string
+          p_thumb_sha256: string
+          p_title: string
+        }
+        Returns: string
+      }
       record_video_fetch: {
         Args: {
           p_channel_id: string

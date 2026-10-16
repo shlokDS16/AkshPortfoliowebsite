@@ -84,8 +84,8 @@ begin
     ('d6000000-0000-4000-8000-000000000006', 'e6000000-0000-4000-8000-000000000001'),
     ('d7000000-0000-4000-8000-000000000007', 'e7000000-0000-4000-8000-000000000001')) as t (i, r)
   loop
-    perform public.test_publish(v.i, v.r, 'sebi-unreg-2026-07-v1.2',
-      jsonb_build_object('passed', true, 'revisionId', v.r::text, 'policyVersion', 'sebi-unreg-2026-07-v1.2'));
+    perform public.test_publish(v.i, v.r, 'sebi-unreg-2026-07-v1.3',
+      jsonb_build_object('passed', true, 'revisionId', v.r::text, 'policyVersion', 'sebi-unreg-2026-07-v1.3'));
   end loop;
   perform public.test_unpublish('d6000000-0000-4000-8000-000000000006');
 end $$;
@@ -195,8 +195,8 @@ select set_config('request.jwt.claims',
 insert into public.item_revisions (id, item_id, body_md, change_reason) values
   ('e1000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001', 'public v2', 'second cut');
 select is((select verdict from public.test_publish('d1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000002', 'sebi-unreg-2026-07-v1.2',
-    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"sebi-unreg-2026-07-v1.2"}'::jsonb)),
+    'e1000000-0000-4000-8000-000000000002', 'sebi-unreg-2026-07-v1.3',
+    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000002","policyVersion":"sebi-unreg-2026-07-v1.3"}'::jsonb)),
   'pass', 'precondition: revision 2 passes the gate');
 insert into public.item_revisions (id, item_id, body_md, change_reason) values
   ('e1000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000001', 'public v3', 'unreviewed draft note');

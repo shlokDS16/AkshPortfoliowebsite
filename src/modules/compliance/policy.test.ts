@@ -25,3 +25,10 @@ describe("rule labels for the knowledge checks", () => {
     expect(RULE_TITLES.theme).toBe("Linked concept");
   });
 });
+
+describe("rule 14 (v1.3 addendum, migration 0027)", () => {
+  it("is v1.3 and names the outside-sources rule", () => {
+    expect(POLICY_VERSION).toBe("sebi-unreg-2026-07-v1.3");
+    expect(RULE_TITLES["14"]).toBe("Rule 14: outside sources");
+  });
+});

@@ -35,17 +35,18 @@ select is_empty($$
    where n.nspname = 'public' and c.relkind = 'r'
      and c.relname not in ('heartbeats', 'documents', 'document_pages', 'jobs', 'job_steps',
                            'extractions', 'proposals', 'provider_usage', 'document_digests', 'reading_proposals', 'market_days', 'ledger_anchors',
-                           'valuation_versions', 'video_sources')
+                           'valuation_versions', 'video_sources', 'source_links')
      and has_table_privilege('service_role', c.oid, 'select,insert,update,delete')
-$$, 'service_role has no privilege on any other public table (job tables: 0006, extraction tables: 0007, digests and readings: 0008, market_days read-only: 0011, ledger_anchors read-only: 0013, valuation_versions read-only: 0017, video_sources read-only: 0022)');
+$$, 'service_role has no privilege on any other public table (job tables: 0006, extraction tables: 0007, digests and readings: 0008, market_days read-only: 0011, ledger_anchors read-only: 0013, valuation_versions read-only: 0017, video_sources read-only: 0022, source_links read-only: 0026)');
 select is_empty($$
   select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r'
      and c.relname not in ('heartbeats', 'documents', 'document_pages', 'jobs', 'job_steps',
                            'extractions', 'proposals', 'provider_usage', 'document_digests', 'reading_proposals',
-                           'items', 'item_revisions', 'market_days', 'ledger_anchors', 'valuation_versions', 'video_sources')
+                           'items', 'item_revisions', 'market_days', 'ledger_anchors', 'valuation_versions', 'video_sources',
+                           'source_links')
      and has_any_column_privilege('service_role', c.oid, 'select,insert,update,references')
-$$, 'service_role holds no column privilege elsewhere (items and item_revisions: column SELECT only, exact set in 0007; ledger_anchors: SELECT plus UPDATE on published_at and anchor_version only, 0013; valuation_versions: SELECT plus UPDATE on the nine machine columns, 0017; video_sources: SELECT only, it writes through record_video_fetch, 0022)');
+$$, 'service_role holds no column privilege elsewhere (items and item_revisions: column SELECT only, exact set in 0007; ledger_anchors: SELECT plus UPDATE on published_at and anchor_version only, 0013; valuation_versions: SELECT plus UPDATE on the nine machine columns, 0017; video_sources: SELECT only, it writes through record_video_fetch, 0022; source_links: SELECT only, it writes through record_source_fetch, 0026)');
 select ok(not has_any_column_privilege('service_role', 'public.items', 'insert,update,references')
       and not has_any_column_privilege('service_role', 'public.item_revisions', 'insert,update,references')
       and not has_column_privilege('service_role', 'public.item_revisions', 'body_md', 'select')
@@ -94,8 +95,8 @@ select ok(has_table_privilege('anon', 'public.public_concept_links', 'select')
 -- Exact inventories (Phase 4 T1 review): the views anon can read, and the theme columns behind the widened themes_public_read.
 select is((select string_agg(c.relname, ',' order by c.relname) from pg_class c join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'public' and c.relkind in ('v', 'm') and has_table_privilege('anon', c.oid, 'select')),
-  'public_companies,public_concept_links,public_item_revisions,public_items,public_themes,public_video_transcripts,public_videos',
-  'anon can select exactly these views (public_concept_links is the Phase 4 addition; public_videos and public_video_transcripts the Phase 5b ones)');
+  'public_companies,public_concept_links,public_item_revisions,public_items,public_studied,public_themes,public_video_transcripts,public_videos',
+  'anon can select exactly these views (public_concept_links is the Phase 4 addition; public_videos and public_video_transcripts the Phase 5b ones; public_studied the Phase 5d one)');
 select is((select string_agg(a.attname, ',' order by a.attname) from pg_attribute a
             where a.attrelid = 'public.themes'::regclass and a.attnum > 0 and not a.attisdropped
               and has_column_privilege('anon', a.attrelid, a.attnum, 'select')),
@@ -114,10 +115,10 @@ select ok(has_function_privilege('anon', 'private.revision_passed(uuid)', 'execu
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'private'
-     and p.proname not in ('is_admin', 'revision_passed', 'is_lagged', 'is_public_item')
+     and p.proname not in ('is_admin', 'revision_passed', 'is_lagged', 'is_public_item', 'studied_shown')
      and (has_function_privilege('anon', p.oid, 'execute')
           or has_function_privilege('authenticated', p.oid, 'execute'))
-$$, 'no other function in private is executable by anon or authenticated (public: 0002_function_privileges)');
+$$, 'no other function in private is executable by anon or authenticated (studied_shown: the masking helper public_studied calls, 0026; public: 0002_function_privileges)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'private' and p.prosecdef
