@@ -199,6 +199,8 @@ const NOTICES = {
   "video-fetched": "YouTube was asked again. The data below is what it answered.",
   "video-unchanged": "Nothing changed: this video already has that.",
   "video-deferred": "YouTube's daily limit is used up. The desk tries again tomorrow.",
+  // Pending Shlok's approval (5b fix wave, Q48).
+  "video-fetch-recent": "YouTube was asked less than a minute ago. The data below is its answer.",
   "revision-saved-provenance-missing":
     "Saved. The record of where some figures came from could not be written; they stay staged and are skipped as duplicates next time.",
   "revision-saved-readings-missing":

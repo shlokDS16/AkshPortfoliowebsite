@@ -8,6 +8,9 @@ import type { VideoPrivacy } from "./types";
 export const VIDEOS_OFF = "videos off";
 /** The desk's words for "off" (spec s15); the step's own heartbeat says "videos off". Pending Shlok's approval. */
 export const VIDEOS_OFF_TEXT = "Video listing is not set up yet (Shlok adds a YouTube key).";
+/** "Fetch again" waits this long after the last fetch of the same source; the time is the database's, so every instance sees it (Q48). */
+const COOLDOWN_MS = 60_000;
+export const FETCHED_RECENTLY = "fetched less than a minute ago";
 export const QUOTA_DEFERRED = "deferred: YouTube's daily limit is used up";
 const GONE_PROBLEM = "YouTube did not return this video.";
 const BATCH = 50;
@@ -21,6 +24,8 @@ export type SourceRef = {
   itemId: string;
   youtubeId: string;
   privacy: VideoPrivacy | null;
+  /** When YouTube was last asked about it (ISO), or null if never or purged. */
+  fetchedAt: string | null;
   /** Its item is published on the site (status published), so a Public video on YouTube is not a surprise. */
   published: boolean;
 };
@@ -157,6 +162,7 @@ export async function fetchVideoNow(deps: FetchDeps, itemId: string): Promise<st
   if (!deps.port) return VIDEOS_OFF;
   const source = await deps.store.byItem(itemId);
   if (!source) return "no such video";
+  if (source.fetchedAt && deps.clock() - Date.parse(source.fetchedAt) < COOLDOWN_MS) return FETCHED_RECENTLY;
   const out = await refresh(deps.port, deps.store, deps.clock, [source]);
   if (out.stop?.kind === "quota" && out.checked === 0) return QUOTA_DEFERRED;
   return report("fetched", 1, out, false);

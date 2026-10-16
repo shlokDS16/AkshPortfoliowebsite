@@ -191,6 +191,11 @@ describe("fetchAgainAction (Fetch again)", () => {
     expect(await target(() => fetchAgainAction(itemId))).toBe(done("video-deferred"));
   });
 
+  it("says YouTube was asked less than a minute ago, as a notice, not an error", async () => {
+    state.fetchNow = async () => result("fetched less than a minute ago");
+    expect(await target(() => fetchAgainAction(itemId))).toBe(done("video-fetch-recent"));
+  });
+
   it("says a fetch is already running when a second press arrives during one", async () => {
     state.fetchNow = async () => null;
     expect(param(await target(() => fetchAgainAction(itemId)), "error")).toBe("video-fetch-busy");

@@ -9,7 +9,7 @@ import { requireAdmin } from "@/modules/identity";
 import { runVideoFetchNow } from "@/modules/ops/jobs";
 import { createSupabaseResearchRepo, isItemId } from "@/modules/research";
 import { VideoError } from "./videos/errors";
-import { QUOTA_DEFERRED, VIDEOS_OFF } from "./videos/fetch";
+import { FETCHED_RECENTLY, QUOTA_DEFERRED, VIDEOS_OFF } from "./videos/fetch";
 import { createSupabaseVideosRepo } from "./videos/repo";
 import { addTranscript, applyChapters, applyTitle, applyTranscript, type VideoChange, type VideoDeps } from "./videos/service";
 import { MAX_CAPTION_BYTES } from "./videos/types";
@@ -84,6 +84,7 @@ export async function fetchAgainAction(itemId: string): Promise<void> {
     const [only] = results;
     if (only?.detail === VIDEOS_OFF) throw new VideoError("video-off");
     if (only?.detail === "no such video") throw new VideoError("video-not-found");
+    if (only?.detail === FETCHED_RECENTLY) notice = "video-fetch-recent";
     if (!only?.ok) throw new Error("video fetch failed");
     if (only.detail === QUOTA_DEFERRED) notice = "video-deferred";
   } catch (error) {

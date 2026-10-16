@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { VideoMeta, VideoMetaPort, VideoMetaResult } from "@/lib/providers/video-meta";
-import { checkVideos, fetchPendingVideos, fetchVideoNow, VIDEOS_OFF_TEXT, type FetchStore, type RecordFetch, type SourceRef } from "./fetch";
+import { checkVideos, FETCHED_RECENTLY, fetchPendingVideos, fetchVideoNow, VIDEOS_OFF_TEXT, type FetchStore, type RecordFetch, type SourceRef } from "./fetch";
 
 const OWN = "UC0123456789abcdefghijkl";
 const KEY = "AIzaSyFAKEFAKEFAKEFAKEFAKEFAKEFAKE12345";
 const ytId = (n: number) => `vid${String(n).padStart(8, "0")}`;
-const ref = (n: number, extra: Partial<SourceRef> = {}): SourceRef => ({ id: `src-${n}`, itemId: `item-${n}`, youtubeId: ytId(n), privacy: null, published: false, ...extra });
+const ref = (n: number, extra: Partial<SourceRef> = {}): SourceRef => ({ id: `src-${n}`, itemId: `item-${n}`, youtubeId: ytId(n), privacy: null, published: false, fetchedAt: null, ...extra });
 const meta = (extra: Partial<VideoMeta> = {}): VideoMeta => ({
   channelId: OWN, title: "A title", description: "A description.", durationSeconds: 90, privacy: "unlisted", publishedAt: "2026-09-01T10:00:00.000Z", ...extra,
 });
@@ -75,6 +75,29 @@ describe("the 30-day purge (Q51): YouTube data is not kept longer than 30 days, 
     await fetchPendingVideos(deps(null, store));
     await fetchVideoNow(deps(null, store), "item-1");
     expect(store.purgeStale).not.toHaveBeenCalled();
+  });
+});
+
+describe("Fetch again has a cooldown of a minute, kept in the database so every instance sees it (Q48)", () => {
+  const NOW = Date.parse("2026-10-16T10:00:00.000Z");
+  const ago = (ms: number) => new Date(NOW - ms).toISOString();
+
+  it("answers 'fetched less than a minute ago' and asks YouTube nothing when the source was fetched 10 s ago", async () => {
+    const { store } = fakeStore([ref(1, { fetchedAt: ago(10_000) })]);
+    const { port, fetchMock } = fakePort(answerAll(() => meta()));
+    expect(await fetchVideoNow(deps(port, store, () => NOW), "item-1")).toBe(FETCHED_RECENTLY);
+    expect(FETCHED_RECENTLY).toBe("fetched less than a minute ago");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(store.record).not.toHaveBeenCalled();
+  });
+
+  it("makes the one call when it was fetched 120 s ago, or never", async () => {
+    for (const fetchedAt of [ago(120_000), null]) {
+      const { store } = fakeStore([ref(1, { fetchedAt })]);
+      const { port, fetchMock } = fakePort(answerAll(() => meta()));
+      expect(await fetchVideoNow(deps(port, store, () => NOW), "item-1")).toBe("fetched 1");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    }
   });
 });
 

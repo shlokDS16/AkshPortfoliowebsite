@@ -15,13 +15,14 @@ import { runSteps, type Step, type StepResult } from "./steps";
 // raise the alert email (spec s7.8). Both say "videos off" while the YouTube settings are unset.
 
 const PRIVACIES: readonly string[] = ["public", "unlisted", "private", "gone"];
-const COLUMNS = "id, item_id, youtube_id, privacy";
-type Row = { id: string; item_id: string; youtube_id: string; privacy: string | null };
+const COLUMNS = "id, item_id, youtube_id, privacy, fetched_at";
+type Row = { id: string; item_id: string; youtube_id: string; privacy: string | null; fetched_at: string | null };
 const refOf = (r: Row, published: boolean): SourceRef => ({
   id: r.id,
   itemId: r.item_id,
   youtubeId: r.youtube_id,
   privacy: r.privacy !== null && PRIVACIES.includes(r.privacy) ? (r.privacy as SourceRef["privacy"]) : null,
+  fetchedAt: r.fetched_at,
   published,
 });
 
@@ -106,8 +107,8 @@ let running: Promise<StepResult[]> | null = null;
  * "Fetch again" for one video (the desk's button): one fetch for that item's source, even if it was fetched before, with its own
  * `videos:fetch` heartbeat like the cron's. The jobs table is built around documents (`document_id` is required), so a video fetch
  * is not queued there; it runs now, in the press, on the same code as the cron. One run at a time in this process: a second press
- * while one runs gets `null` ("already running"). Another server instance would not see this guard; a fetch is safe to repeat (it
- * only refreshes the machine columns), so the worst case is one more harmless API call of the day's 10,000 units.
+ * while one runs gets `null` ("already running"). Another server instance would not see this guard, so a source fetched in the last minute is not fetched again
+ * (`fetchVideoNow` reads that from the database), and a repeat is harmless.
  */
 export async function runVideoFetchNow(itemId: string, repo: HeartbeatRepo = createJobHeartbeatRepo(), make: () => FetchDeps = buildVideoFetchDeps): Promise<StepResult[] | null> {
   if (running) return null;

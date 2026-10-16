@@ -82,9 +82,9 @@ describe("the video steps are in the right clocks, off until the YouTube setting
 describe("the store (the secret-key client, reading video_sources and writing only through record_video_fetch)", () => {
   it("lists sources never fetched, oldest first, with the limit", async () => {
     const log: string[] = [];
-    const db = selectDb({ video_sources: { data: [{ id: "s1", item_id: "i1", youtube_id: "aaaaaaaaaaa", privacy: null }], error: null } }, log);
+    const db = selectDb({ video_sources: { data: [{ id: "s1", item_id: "i1", youtube_id: "aaaaaaaaaaa", privacy: null, fetched_at: null }], error: null } }, log);
     const rows = await createVideoFetchStore(db).pending(50);
-    expect(rows).toEqual([{ id: "s1", itemId: "i1", youtubeId: "aaaaaaaaaaa", privacy: null, published: false }]);
+    expect(rows).toEqual([{ id: "s1", itemId: "i1", youtubeId: "aaaaaaaaaaa", privacy: null, published: false, fetchedAt: null }]);
     expect(log).toEqual(expect.arrayContaining(["video_sources.is(fetched_at,null)", "video_sources.order(created_at,obj)", "video_sources.limit(50)"]));
   });
 
@@ -126,9 +126,11 @@ describe("the store (the secret-key client, reading video_sources and writing on
     expect(String((error as Error).message)).toBe("videos.purge (42501)");
   });
 
-  it("reads one source by item", async () => {
-    const db = selectDb({ video_sources: { data: [{ id: "s1", item_id: "i1", youtube_id: "aaaaaaaaaaa", privacy: null }], error: null } });
-    expect((await createVideoFetchStore(db).byItem("i1"))?.id).toBe("s1");
+  it("reads one source by item, with when it was last fetched", async () => {
+    const db = selectDb({ video_sources: { data: [{ id: "s1", item_id: "i1", youtube_id: "aaaaaaaaaaa", privacy: null, fetched_at: "2026-10-16T10:00:00+00:00" }], error: null } });
+    const one = await createVideoFetchStore(db).byItem("i1");
+    expect(one?.id).toBe("s1");
+    expect(one?.fetchedAt).toBe("2026-10-16T10:00:00+00:00");
   });
 });
 
@@ -146,7 +148,7 @@ describe("runVideoFetchNow (Fetch again): admin-only by its caller, one run at a
       return { kind: "ok", videos: new Map(ids.map((id) => [id, "missing" as const])) };
     },
   });
-  const source = { id: "s1", itemId: "i1", youtubeId: "aaaaaaaaaaa", privacy: null, published: false };
+  const source = { id: "s1", itemId: "i1", youtubeId: "aaaaaaaaaaa", privacy: null, published: false, fetchedAt: null };
   const depsWith = (port: VideoMetaPort | null): (() => FetchDeps) => () => ({
     port,
     store: { pending: async () => [], all: async () => [], byItem: async () => source, record: async () => undefined, purgeStale: async () => 0 },
