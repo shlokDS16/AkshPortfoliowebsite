@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ITEM_KINDS = ["note", "thesis", "learning", "case_study", "process", "reading_note"] as const;
+export const ITEM_KINDS = ["note", "thesis", "learning", "case_study", "process", "reading_note", "video", "letter"] as const;
 export const VISIBILITIES = ["private", "clients", "public"] as const;
 export const ITEM_STATUSES = ["draft", "published", "archived"] as const;
 export const HOLDS_POSITIONS = ["yes", "no", "not_disclosed"] as const;

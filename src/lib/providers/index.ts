@@ -2,28 +2,53 @@ import "server-only";
 import type { AlertMailer } from "./alert-mailer";
 import { type AnchorPort, createOffAnchor } from "./anchor";
 import { createFixtureAnchor, fixtureAnchorDirectory } from "./fixture-anchor";
+import { createFixtureLetters, fixtureLettersDirectory } from "./fixture-letters";
 import { createFixtureLlm } from "./fixture-llm";
 import { createFixtureMarketData } from "./fixture-market-data";
 import { createGithubGistAnchor } from "./github-gist";
 import { createGroqLlm } from "./groq";
 import { createFixtureOcr } from "./fixture-ocr";
 import { createFixtureTranscriber } from "./fixture-transcriber";
+import { createFixtureVideoMeta } from "./fixture-video-meta";
 import { createGroqWhisper } from "./groq-whisper";
+import type { ApprovalCheck, LetterPorts } from "./letters";
+import { guardLetterTransport } from "./letters-guard";
+import { isLoopbackUrl, letterSettingsProblem, type LettersEnv, lettersMode } from "./letters-mode";
 import type { LlmPort } from "./llm";
 import type { MarketDataPort } from "./market-data";
 import { createNseMarketData } from "./nse-bhavcopy";
 import { DEFAULT_NSE_BHAVCOPY_TEMPLATE, DEFAULT_NSE_INDEX_TEMPLATE } from "./nse-template";
 import type { OcrPort } from "./ocr";
+import { createResendLetters } from "./resend-letters";
 import { createResendMailer, DEFAULT_ALERT_FROM } from "./resend-mailer";
 import { createOcrSpace } from "./ocrspace";
 import type { TranscriberPort } from "./transcriber";
+import type { VideoMetaPort } from "./video-meta";
+import { createYoutubeVideoMeta } from "./youtube";
 
 export type { AlertMailer, AlertMessage, AlertSend } from "./alert-mailer";
 export type { AnchorMiss, AnchorPort, AnchorRead, AnchorReadAll, AnchorWrite } from "./anchor";
+export type {
+  ApprovalCheck,
+  BroadcastView,
+  ConfirmationApproval,
+  Contact,
+  ContactMirror,
+  LetterContent,
+  LetterFailure,
+  LetterFailureKind,
+  LetterPorts,
+  LetterResult,
+  LetterSender,
+  SendApproval,
+} from "./letters";
+export { LETTERS_OFF_LINE } from "./letters";
+export { isLoopbackUrl, letterSettingsProblem, type LetterSettings, type LettersEnv, type LettersMode, type LettersOffReason, lettersMode } from "./letters-mode";
 export type { LlmPort, LlmRequest, LlmResult, LlmUsage, RateHeaders } from "./llm";
 export type { Close, EquityDay, IndexDay, MarketDataPort, Miss } from "./market-data";
 export type { OcrFiletype, OcrPort, OcrResult } from "./ocr";
 export type { TranscriberPort, TranscriberResult } from "./transcriber";
+export type { VideoMeta, VideoMetaPort, VideoMetaResult } from "./video-meta";
 
 /** The slice of the server env that picks an adapter (passed in; this file never reads process.env). */
 export type LlmEnv = { GROQ_API_KEY?: string; LLM_ADAPTER?: "groq" | "fixture"; VERCEL_ENV?: string };
@@ -94,16 +119,6 @@ export type MarketDataEnv = {
   NEXT_PUBLIC_SUPABASE_URL?: string;
 };
 
-/** True only for 127.0.0.1, localhost and [::1], matched on the parsed host (never a prefix: `localhost.evil.test` is not local). */
-export function isLoopbackUrl(value: string | undefined): boolean {
-  if (!value) return false;
-  try {
-    return ["127.0.0.1", "localhost", "[::1]"].includes(new URL(value).hostname);
-  } catch {
-    return false;
-  }
-}
-
 /**
  * The fixture when LLM_ADAPTER=fixture; otherwise the NSE adapter, which needs no key. Never null.
  * The fixture's made-up closes are stored as official `nse_fetch` closes, the rank nothing can replace, so unlike the LLM
@@ -167,3 +182,60 @@ export function createAlertMailer(env: AlertMailerEnv): AlertMailer | null {
   return createResendMailer({ apiKey: env.RESEND_API_KEY, from: env.RESEND_FROM ?? DEFAULT_ALERT_FROM, to: env.ALERT_EMAIL });
 }
 
+
+/** The slice of the server env that picks the video-metadata adapter (passed in; this file never reads process.env). */
+export type VideoMetaEnv = { YOUTUBE_API_KEY?: string; YOUTUBE_CHANNEL_ID?: string; DISTRIBUTION_ADAPTER?: "fixture"; VERCEL_ENV?: string };
+
+/**
+ * Null while video listing is off: it needs BOTH `YOUTUBE_API_KEY` and `YOUTUBE_CHANNEL_ID` (spec s7.4, s9.1); one without the other
+ * is off too, so a half-set pair cannot read another channel's videos as his. The fixture when `DISTRIBUTION_ADAPTER=fixture`
+ * (local e2e and CI), refused on a Vercel preview or production deployment (it would make up a video's owner and privacy); then
+ * the port is null, never the real adapter, so a stray variable cannot silently change what is read. A setting of the wrong shape
+ * throws here, naming the setting and never the value; the steps build the port inside themselves, so that is one failed heartbeat.
+ */
+export function createVideoMetaPort(env: VideoMetaEnv): VideoMetaPort | null {
+  if (env.DISTRIBUTION_ADAPTER === "fixture") {
+    if (env.VERCEL_ENV && DEPLOYED.has(env.VERCEL_ENV)) {
+      console.error("videos: DISTRIBUTION_ADAPTER=fixture is refused on a Vercel deployment; video listing is off until it is removed");
+      return null;
+    }
+    return createFixtureVideoMeta(env.YOUTUBE_CHANNEL_ID ? { channelId: env.YOUTUBE_CHANNEL_ID } : {});
+  }
+  if (!env.YOUTUBE_API_KEY || !env.YOUTUBE_CHANNEL_ID) return null;
+  return createYoutubeVideoMeta({ apiKey: env.YOUTUBE_API_KEY, channelId: env.YOUTUBE_CHANNEL_ID });
+}
+
+/**
+ * Null while letters are off (the desk shows LETTERS_OFF_LINE; the sign-up form is not rendered). Otherwise the ports, always
+ * behind the approval guard: no email leaves without `approvals` answering yes for exactly that send (Task 12 wires it to
+ * letters_send_live and letters_confirmation_live). Never throws: a setting of the wrong shape is off, logged by its name only.
+ */
+export function createLetterPorts(
+  env: LettersEnv,
+  deps: { approvals: ApprovalCheck; fetch?: typeof fetch; /** The fixture's store: a directory (default, for a database on this machine) or null for memory (unit tests). */ fixtureDirectory?: string | null },
+): LetterPorts | null {
+  const mode = lettersMode(env);
+  if (mode.mode === "off") {
+    if (mode.reason === "fixture_refused") {
+      console.error("letters: DISTRIBUTION_ADAPTER=fixture is refused on a Vercel deployment; letters are off until it is removed");
+    }
+    if (mode.reason === "bad_setting") {
+      const problem = letterSettingsProblem({ apiKey: env.RESEND_LETTERS_KEY ?? "", from: env.LETTERS_FROM ?? "", segmentId: env.LETTERS_SEGMENT_ID ?? "" });
+      console.error(`letters: off, ${problem ?? "a setting is not usable"}`);
+    }
+    return null;
+  }
+  const guard = { approvals: deps.approvals, adminEmail: env.ADMIN_EMAIL };
+  if (mode.mode === "fixture") {
+    // lettersMode allows the fixture only against a database on this machine, so the address is a loopback one here.
+    const directory = deps.fixtureDirectory === undefined ? fixtureLettersDirectory(env.NEXT_PUBLIC_SUPABASE_URL as string) : (deps.fixtureDirectory ?? undefined);
+    return guardLetterTransport(createFixtureLetters({ ...(env.LETTERS_SEGMENT_ID ? { segmentId: env.LETTERS_SEGMENT_ID } : {}), ...(directory ? { directory } : {}) }), guard);
+  }
+  const transport = createResendLetters({
+    apiKey: env.RESEND_LETTERS_KEY as string,
+    from: env.LETTERS_FROM as string,
+    segmentId: env.LETTERS_SEGMENT_ID as string,
+    ...(deps.fetch ? { fetch: deps.fetch } : {}),
+  });
+  return guardLetterTransport(transport, guard);
+}

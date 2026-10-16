@@ -1,6 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { derivedProblems } from "../src/modules/showcase/derived-scan";
 import { discover, expectedSitemapPaths, isFeedDate, SITE, state, type Pages } from "./support/derived";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 // Plan 5a Task 4 (spec s12, publishing rule 11): the surfaces built from the public snapshot, checked from outside, as a feed reader, a
 // crawler and a social network would see them. They run in the public-* projects (the deploy state: two files and three notes, no case,
@@ -16,14 +19,15 @@ test.beforeAll(async ({ request }) => {
   pages = await discover(request);
 });
 
-test("the deploy state lists two files and the notes, and no case or concept; a loop that published one shows it", async () => {
+test("the deploy state lists two files and the notes, and no case, concept or video; a loop that published one shows it", async () => {
   const s = state();
   expect(pages.files).toEqual(expect.arrayContaining(["/companies/kavpump", "/companies/sahcold"]));
   expect(pages.notes.length).toBeGreaterThanOrEqual(2);
   expect(pages.process.length).toBeGreaterThanOrEqual(1);
-  if (s.deploy) expect([pages.cases, pages.concepts]).toEqual([[], []]);
+  if (s.deploy) expect([pages.cases, pages.concepts, pages.videos]).toEqual([[], [], []]);
   if (s.casePublic) expect(pages.cases.length).toBeGreaterThanOrEqual(1);
   if (s.conceptsPublic) expect(pages.concepts.length).toBeGreaterThanOrEqual(1);
+  if (s.videosPublic) expect(pages.videos.length).toBeGreaterThanOrEqual(1);
 });
 
 test("/feed.xml parses as RSS in the browser, lists the seeded file, is dated by its newest item and carries no figure or id of the machine's", async ({ page }) => {
@@ -59,7 +63,7 @@ test("/feed.xml parses as RSS in the browser, lists the seeded file, is dated by
   expect(feed.self).toEqual({ href: `${SITE}/feed.xml`, rel: "self" });
   expect(feed.items.length).toBeGreaterThanOrEqual(5);
   expect(feed.items.length).toBeLessThanOrEqual(50);
-  expect(feed.items.find((i) => i.link === `${SITE}/companies/kavpump`)?.title).toMatch(/^Kaveri Pumps \(fictional\) · File 01 · R\d+$/);
+  expect(feed.items.find((i) => i.link === `${SITE}/companies/kavpump`)?.title).toMatch(/^Kaveri Pumps \(fictional\) · File \d{2,} · R\d+$/); // the file number depends on how many files this database has published
   for (const item of feed.items) {
     expect(item.link.startsWith(`${SITE}/`)).toBe(true);
     expect(item.guid).toMatch(/^\/[a-z0-9/-]+#r\d+$/);
@@ -73,13 +77,20 @@ test("/feed.xml parses as RSS in the browser, lists the seeded file, is dated by
 
   const s = state();
   const paths = [...new Set(feed.items.map((i) => i.link.slice(SITE.length)))];
-  for (const p of paths) expect(/^\/(companies|notes|process|cases)\/./.test(p), p).toBe(true);
-  if (s.deploy) for (const p of paths) expect(p.startsWith("/cases/"), p).toBe(false);
+  for (const p of paths) expect(/^\/(companies|notes|process|cases|videos)\/./.test(p), p).toBe(true);
+  if (s.deploy) for (const p of paths) expect(/^\/(cases|videos)\//.test(p), p).toBe(false);
   if (s.casePublic) {
     for (const href of pages.cases) {
       const item = feed.items.find((i) => i.link === `${SITE}${href}`);
       expect(item, `a feed item for ${href}`).toBeDefined();
       expect(item!.description).toMatch(/Closed case · written \d{1,2} [A-Z][a-z]{2} \d{4}/);
+    }
+  }
+  if (s.videosPublic) {
+    for (const href of pages.videos) {
+      const item = feed.items.find((i) => i.link === `${SITE}${href}`);
+      expect(item, `a feed item for ${href}`).toBeDefined();
+      expect(item!.description).toContain("Video · R");
     }
   }
 });
@@ -106,7 +117,7 @@ test("/sitemap.xml lists exactly the public pages of this state, each dated by d
     if (u.lastmod !== null) expect(u.lastmod).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(u.loc).not.toMatch(UUID);
   }
-  if (state().deploy) for (const p of listed) expect(/^\/(cases|mistakes|concepts)(\/|$)/.test(p), p).toBe(false);
+  if (state().deploy) for (const p of listed) expect(/^\/(cases|mistakes|concepts|videos)(\/|$)/.test(p), p).toBe(false);
 });
 
 test("/robots.txt keeps every crawler out of a build that is not production, and names no sitemap", async ({ request }) => {
@@ -156,7 +167,7 @@ test("every public page carries its title, canonical address, feed link, card an
     expect(h.description?.length, `${path} description`).toBeGreaterThan(0);
     expect(same(h.canonical), `${path} canonical ${h.canonical}`).toBe(true);
     expect(same(h.ogUrl), `${path} og:url ${h.ogUrl}`).toBe(true);
-    expect(h.ogType, `${path} og:type`).toBe(/^\/(companies|notes|process|cases)\/./.test(path) ? "article" : "website");
+    expect(h.ogType, `${path} og:type`).toBe(/^\/(companies|notes|process|cases|videos)\/./.test(path) ? "article" : "website");
     expect(h.twitter).toBe("summary_large_image");
     expect(h.rss).toBe(`${SITE}/feed.xml`);
     expect(h.ld, `${path} structured data`).toHaveLength(1);
@@ -166,7 +177,7 @@ test("every public page carries its title, canonical address, feed link, card an
     expect(h.ld[0]).not.toMatch(FORBIDDEN_TYPES);
     expect(`${h.ld[0]}\n${h.head}`, `${path} head`).not.toMatch(UUID);
     expect(derivedProblems(`${h.title}\n${h.description}\n${h.ld[0]}`), path).toEqual([]);
-    if (s.deploy) expect(`${h.head}\n${h.ld[0]}`, `${path} mentions what is not public`).not.toMatch(/\/(cases|concepts|mistakes)\b/);
+    if (s.deploy) expect(`${h.head}\n${h.ld[0]}`, `${path} mentions what is not public`).not.toMatch(/\/(cases|concepts|mistakes|videos)\b/);
     expect(h.ogImage, `${path} og:image`).not.toBeNull();
     cards.add(h.ogImage!);
   }
@@ -182,9 +193,9 @@ test("every public page carries its title, canonical address, feed link, card an
   expect(cards.size).toBeGreaterThanOrEqual(1 + pages.files.length + pages.notes.length + pages.process.length);
 });
 
-test("a share card for a slug that does not exist is a 404, for a file, a note, a process note and (once public) a case and a concept", async ({ page, request }) => {
+test("a share card for a slug that does not exist is a 404, for a file, a note, a process note and (once public) a case, a concept and a video", async ({ page, request }) => {
   const s = state();
-  const sample = [pages.files[0], pages.notes[0], pages.process[0], ...(s.casePublic ? [pages.cases[0]] : []), ...(s.conceptsPublic ? [pages.concepts[0]] : [])];
+  const sample = [pages.files[0], pages.notes[0], pages.process[0], ...(s.casePublic ? [pages.cases[0]] : []), ...(s.conceptsPublic ? [pages.concepts[0]] : []), ...(s.videosPublic ? [pages.videos[0]] : [])];
   for (const path of sample) {
     await page.goto(path);
     const card = (await headOf(page)).ogImage!;

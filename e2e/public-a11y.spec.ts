@@ -1,5 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 // The seed's note slug carries a suffix written by publish_revision() ("<title words>-<6 id chars>"), so the note is
 // reached through its link on /notes rather than a fixed path.
@@ -16,6 +19,9 @@ const PAGES: { name: string; open: (page: Page) => Promise<void> }[] = [
     },
   },
   ...["/process", "/mistakes", "/about"].map(at),
+  // Plan 5c: the two letters pages that exist whatever the sign-up switch says (/letters itself is a 404 until it is open or a letter is public, and is
+  // checked in public-letters.spec.ts and desk-letters.spec.ts). A token that was never issued is enough: a GET shows a button and asks nothing.
+  ...["/letters/leave", "/letters/confirm?t=e2e-token"].map(at),
 ];
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 

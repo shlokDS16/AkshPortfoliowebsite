@@ -1,5 +1,8 @@
-/** docs/compliance/publishing-rules.md v1 plus publishing-rules-v1.1-addendum.md (rule 10). Bump only with a new rules document. */
-export const POLICY_VERSION = "sebi-unreg-2026-07-v1.1";
+/**
+ * docs/compliance/publishing-rules.md v1 plus publishing-rules-v1.1-addendum.md (rule 10) and publishing-rules-v1.2-addendum.md
+ * (rules 11-13; migration 0023 puts rule 12 in force). Bump only with a new rules document.
+ */
+export const POLICY_VERSION = "sebi-unreg-2026-07-v1.2";
 
 export const RULE_TITLES: Record<string, string> = {
   "1": "Rule 1: no actionable language",
@@ -9,6 +12,8 @@ export const RULE_TITLES: Record<string, string> = {
   "5": "Rule 5: position disclosure",
   "6": "Rule 6: educational framing",
   "10": "Rule 10: case studies from the ledger",
+  "12": "Rule 12: videos",
+  "13": "Rule 13: letters",
   structure: "Thesis structure",
   slug: "Slug",
   revision: "Newer revision exists",

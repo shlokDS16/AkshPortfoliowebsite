@@ -1,5 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 // Plan 3b Task 3. Two states of the same pages, told apart by the Playwright project, never by what the database holds (a skip decided
 // by the data cannot fail in the case it exists for):

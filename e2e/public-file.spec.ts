@@ -1,5 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 const KAVERI = "Kaveri Pumps (fictional)";
 

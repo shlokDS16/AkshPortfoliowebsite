@@ -57,5 +57,9 @@ export function appEnv(stack: LocalStack): Record<string, string> {
     LLM_ADAPTER: "fixture",
     // Voice notes are OFF everywhere except this throw-away test server (ADR-004 s8: Aksh has not agreed yet). Never in an env file or on Vercel.
     VOICE_NOTES: "on",
+    // YouTube is faked at the port (src/lib/providers/fixture-video-meta.ts): no key is set and no request leaves this machine. Refused on Vercel.
+    DISTRIBUTION_ADAPTER: "fixture",
+    // The sign-up notice names this address and the desk will not open sign-ups without it (review finding 5). A test address, never real.
+    LETTERS_GRIEVANCE_EMAIL: "grievance@example.test",
   };
 }

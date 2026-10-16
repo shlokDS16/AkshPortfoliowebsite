@@ -22,12 +22,21 @@ export type PublicConceptRow = { id: string; slug: string; name: string };
 /** Plan 4: public_concept_links. `position` is the place in the revision's array and has gaps: the primary concept is the lowest present. */
 export type PublicConceptLink = { itemId: string; revisionId: string; conceptId: string; position: number };
 /**
+ * Plan 5b: public_videos (item_id, youtube_id, duration_seconds, yt_published_at). The channel, YouTube's description, its privacy state
+ * and a fetch problem are not columns anon can read, and this type has no field for them.
+ */
+export type PublicVideoRow = { itemId: string; youtubeId: string; durationSeconds: number | null; publishedAt: string | null };
+/** One transcript segment as public_video_transcripts returns it: whole seconds and the text exactly as stored. */
+export type VideoSegment = { s: number; t: string };
+/**
  * `concepts` and `conceptLinks` are optional loads (D60): a failed read, or a snapshot cached by an earlier deployment, has none, and every
- * reader treats a missing field as empty.
+ * reader treats a missing field as empty. `videos` is the same (Plan 5b): a video item with no row in it is not listed anywhere.
+ * Transcripts are NOT in the snapshot: the cache holds an entry up to 2 MB, a transcript is up to 60 KB for an hour of speech, and only
+ * the video's own page needs one (see `getVideoTranscript`).
  */
 export type PublicSnapshot = {
   items: PublicItemRow[]; revisions: PublicRevisionRow[]; companies: PublicCompanyRow[]; captureDays: ISODate[]; factChecks: PublicFactCheck[];
-  concepts: PublicConceptRow[]; conceptLinks: PublicConceptLink[]; today: ISODate;
+  concepts: PublicConceptRow[]; conceptLinks: PublicConceptLink[]; videos?: PublicVideoRow[]; today: ISODate;
 };
 
 export interface ShowcaseRepo {
@@ -38,6 +47,9 @@ export interface ShowcaseRepo {
   factChecks(): Promise<PublicFactCheck[]>;
   listConcepts(): Promise<PublicConceptRow[]>;
   listConceptLinks(): Promise<PublicConceptLink[]>;
+  listVideos(): Promise<PublicVideoRow[]>;
+  /** The transcript of the CURRENT public revision of one video item, or null when there is none. A failed read throws. */
+  videoTranscript(itemId: string): Promise<VideoSegment[] | null>;
 }
 
 export type FileView = {
@@ -89,3 +101,23 @@ export type CaseStudyView = {
 };
 export type CaseSummary = { slug: string; href: string; company: string; title: string; standfirst: string; closedMonth: string };
 export type MistakeEntry = { slug: string; href: string; company: string; title: string; closedMonth: string; call: string; mistakes: string; entry: CaseEntryView };
+
+// ---- Videos (Plan 5b, spec s7.7). His words: title, objective, body (his description), chapter titles. The machine's: the transcript, ----
+// ---- the YouTube id, the duration, the dates and the fixed labels. ----
+export type VideoChapter = { s: number; clock: string; title: string };
+export type VideoSummary = { slug: string; title: string; learningObjective: string; revisedOn: ISODate; durationLabel: string | null; href: string };
+export type VideoView = {
+  slug: string; title: string; learningObjective: string; youtubeId: string; durationLabel: string | null; uploadedOn: ISODate | null;
+  revisedOn: ISODate; firstWrittenOn: ISODate; revNo: number; revCount: number; body: ViewBlockData[]; chapters: VideoChapter[];
+  holdsPosition: HoldsPosition | null; dataAsOf: ISODate | null;
+};
+export type TranscriptLine = { s: number; clock: string; text: string };
+
+// ---- Letters (Plan 5c, spec s8.9). His words: the subject, the sentence, the note, and each entry's title and change reason (copied by the ----
+// ---- candidate builder). The machine's: the kind label, the page link, its own line, the position word and the dates. No reader, send or address. ----
+export type LetterEntryView = { kindLabel: string; title: string; changeReason: string | null; detail: string; href: string; position: string | null };
+export type LetterSummary = { slug: string; href: string; subject: string; objective: string; publishedOn: ISODate };
+export type LetterPageView = {
+  slug: string; subject: string; objective: string; note: string[]; entries: LetterEntryView[];
+  publishedOn: ISODate; revisedOn: ISODate; revNo: number; revCount: number;
+};

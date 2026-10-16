@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { CaptureBar } from "@/components/desk/private/capture-bar";
+import { LetterPrompt } from "@/components/desk/private/letters/letter-prompt";
 import { NeedsYouCard } from "@/components/desk/private/needs-you-card";
 import { QueuedCard } from "@/components/desk/private/queued-card";
 import { TodayList } from "@/components/desk/private/today-list";
@@ -21,6 +22,7 @@ import {
 } from "@/modules/capture";
 import { refileCaptureAction } from "@/modules/capture/actions";
 import { listBlockedItems, type BlockedItem } from "@/modules/compliance";
+import { mondayLetterLine } from "@/modules/distribution";
 import { requireAdmin } from "@/modules/identity";
 import { createSupabaseKnowledgeDeps, monthCounts } from "@/modules/knowledge";
 import { monthOf } from "@/modules/knowledge/client";
@@ -47,13 +49,15 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
   const db = await createSupabaseServerClient();
   const now = new Date();
   const today = istDate(now);
-  const [entries, blocked, names, known, documents, month] = await Promise.all([
+  const [entries, blocked, names, known, documents, month, letterLine] = await Promise.all([
     read<CaptureListEntry[] | null>("captures", () => listCapturesSince(db, istDayStartUtc(addDays(today, -29))), null),
     read<BlockedItem[]>("blocked items", () => listBlockedItems(db), []),
     namesToReview(),
     knownTokens(),
     needsYouDocs(),
     read<{ learnings: number; reads: number } | null>("this month", () => monthCounts(createSupabaseKnowledgeDeps(db), monthOf(now.toISOString())), null),
+    // Mondays in India only; any other day reads nothing. A failed read shows no line.
+    read<string | null>("letter changes", () => mondayLetterLine(db, now), null),
   ]);
   const unfiled = (entries ?? []).filter((e) => needsRefile(e, now) || e.parseError === "thesis-full");
   const groups = entries === null ? [] : groupTodayByCompany(entries, today);
@@ -71,6 +75,7 @@ export default async function DeskHome({ searchParams }: { searchParams: Promise
       {noticeMessage ? <p className="rounded-sm border border-rule px-3 py-2 text-small text-ink">{noticeMessage}</p> : null}
       <CaptureBar known={known} />
       <QueuedCard />
+      <LetterPrompt line={letterLine} />
       {entries === null ? (
         <p role="alert" className="text-small text-ink-muted">
           Could not load today&apos;s captures. New captures are still saved; reload to try again.

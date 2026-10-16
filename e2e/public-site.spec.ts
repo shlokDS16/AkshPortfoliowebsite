@@ -1,6 +1,20 @@
 import { expect, test } from "@playwright/test";
+import { guardOutbound, hostsOf, installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 const KAVERI = "Kaveri Pumps (fictional)";
+
+// The proof that the guard bites: a request from a page to Google's image host is recorded and aborted. The list is emptied afterwards, since the
+// afterEach guard would (rightly) fail any test that left an outside address in it.
+test("the outbound guard records and aborts a request to a host outside this machine", async ({ page }) => {
+  const outside = await guardOutbound(page.context());
+  await page.goto("/");
+  const result = await page.evaluate(() => fetch("https://i.ytimg.com/vi/aaaaaaaaaaa/hqdefault.jpg", { mode: "no-cors" }).then(() => "reached", () => "blocked"));
+  expect(result).toBe("blocked");
+  expect(hostsOf(outside)).toEqual(["i.ytimg.com"]);
+  outside.length = 0;
+});
 
 test("home: Case files, stat tiles of counts only, what changed reason first, the register", async ({ page }) => {
   await page.goto("/");

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "/desk", label: "Capture", match: (p: string) => p === "/desk" },
   { href: "/desk/inbox", label: "Inbox", match: (p: string) => p.startsWith("/desk/inbox") },
-  { href: "/desk/items", label: "Items", match: (p: string) => p.startsWith("/desk/items") || p.startsWith("/desk/concepts") || p.startsWith("/desk/learned") },
+  { href: "/desk/items", label: "Items", match: (p: string) => p.startsWith("/desk/items") || p.startsWith("/desk/concepts") || p.startsWith("/desk/learned") || p.startsWith("/desk/videos") || p.startsWith("/desk/letters") },
   { href: "/desk/ledger", label: "Ledger", match: (p: string) => p.startsWith("/desk/ledger") },
   { href: "/desk/names", label: "Names", match: (p: string) => p.startsWith("/desk/names") },
 ] as const;

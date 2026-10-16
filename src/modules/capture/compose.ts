@@ -1,9 +1,11 @@
 import type { KnownTokens } from "./highlight";
+import { parseYoutubeUrl } from "@/modules/distribution/client";
+import { filingErrorText } from "./messages";
 import { MAX_LINKED_CONCEPTS, parseCapture } from "./parse";
 
 export type ReceiptChip = { kind: "kind" | "company" | "company-new" | "theme" | "theme-new"; label: string };
 export type CaptureReceiptModel = { empty: boolean; chips: ReceiptChip[]; warning: string | null };
-export type TokenKey = "$" | "#" | "t:" | "l:" | "p:" | "r:";
+export type TokenKey = "$" | "#" | "t:" | "l:" | "p:" | "r:" | "v:";
 
 const KIND_LABEL = {
   note: "Today, as a private note",
@@ -11,6 +13,7 @@ const KIND_LABEL = {
   learning: "Learning note, private",
   process: "Process note, private",
   reading_note: "Reading log, private",
+  video: "Video, private",
 } as const;
 const CONCEPTS_DROPPED = `Only the first ${MAX_LINKED_CONCEPTS} concepts were linked.`;
 
@@ -29,6 +32,8 @@ export function captureReceipt(raw: string, known: KnownTokens): CaptureReceiptM
   const notes = [
     parsed.kind === "thesis" && !symbol ? "A thesis belongs to one company. Add $SYMBOL, or this saves as a private draft without one." : null,
     themes.length > MAX_LINKED_CONCEPTS ? CONCEPTS_DROPPED : null,
+    // Phase 5b: a v: capture needs a YouTube video address; saying so now saves a trip to the "not filed" card.
+    parsed.kind === "video" && !parsed.urls.some((url) => parseYoutubeUrl(url) !== null) ? filingErrorText("not-youtube-link") : null,
   ].filter((note) => note !== null);
   return { empty: false, chips, warning: notes.length > 0 ? notes.join(" ") : null };
 }
@@ -40,8 +45,8 @@ export function receiptLabel(model: CaptureReceiptModel): string {
 }
 
 export function insertToken(value: string, caret: number, token: TokenKey): { value: string; caret: number } {
-  if (token === "t:" || token === "l:" || token === "p:" || token === "r:") {
-    const body = value.replace(/^\s*[tlpr]:\s*/i, "");
+  if (token === "t:" || token === "l:" || token === "p:" || token === "r:" || token === "v:") {
+    const body = value.replace(/^\s*[tlprv]:\s*/i, "");
     const next = `${token} ${body}`;
     return { value: next, caret: Math.max(token.length + 1, caret + (next.length - value.length)) };
   }

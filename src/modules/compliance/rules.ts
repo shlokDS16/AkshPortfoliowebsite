@@ -17,6 +17,8 @@ export const LINT_FIELDS = [
   "themeName",
   "conceptName",
   "conceptSlug",
+  /** A video's transcript: the machine's record of what was said, linted word for word (rule 12.2). */
+  "transcript",
 ] as const;
 export type LintField = (typeof LINT_FIELDS)[number];
 export type LintRule = "1" | "2" | "3" | "5" | "6" | "10" | "structure";
@@ -42,6 +44,11 @@ export type LintInput = {
   /** Names and slugs of the live concepts the revision links (its concept_ids), in order. Public with the revision, like themeName. */
   conceptNames: string[];
   conceptSlugs: string[];
+  /**
+   * A video's transcript: the stored segment texts joined by "\n", exactly the text its sha256 is taken over (migration 0022); null for
+   * every other kind and for a video revision whose transcript could not be loaded. Never edited: it is linted as it was said.
+   */
+  transcript: string | null;
   companyId: string | null;
   holdsPosition: HoldsPosition | null;
   dataAsOf: string | null;
@@ -72,4 +79,6 @@ export type LintResult = {
   policyVersion: string;
   findings: LintFinding[];
   allowedBy: LintAllowed[];
+  /** Present only when the input carried a transcript: sha256 hex of exactly that text. The database gate (12.2) compares it with the stored one. */
+  transcriptSha?: string;
 };

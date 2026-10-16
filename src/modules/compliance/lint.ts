@@ -3,9 +3,20 @@ import { isRecord } from "@/lib/records";
 import { isIsoDate, isLedgerCase, latestFigureDate } from "@/modules/casefile/client";
 import { LEDGER_FIGURE_MESSAGE, LEDGER_PRICE_PATTERNS, LEXICON, PRICE_NUMBER } from "./lexicon";
 import { matchViews } from "./normalise";
-import { sentenceHash } from "./hash";
+import { sentenceHash, textSha256 } from "./hash";
 import { POLICY_VERSION, type LintAllowed, type LintField, type LintFinding, type LintInput, type LintResult, type LintRule } from "./rules";
 import { splitSentences } from "./sentences";
+
+/** The machine's keys in a video's `structured` record: identifiers and hashes, not prose. His chapter titles are the rest. */
+const VIDEO_MACHINE_KEYS: ReadonlySet<string> = new Set(["schema", "youtubeId", "transcriptId", "transcriptSha"]);
+
+/**
+ * The machine's keys in a letter's `structured` record (rule 13): the schema, and in each entry the revision id, the page address, the
+ * kind, the revision number, the "what changed" line and the position (a fixed word). The rest of an entry is the words it copied (title,
+ * objective, change reason, company name) and is linted again, as is any key this list does not know.
+ */
+const LETTER_MACHINE_KEYS: ReadonlySet<string> = new Set(["schema"]);
+const LETTER_ENTRY_MACHINE_KEYS: ReadonlySet<string> = new Set(["revisionId", "kind", "path", "revNo", "detail", "holdsPosition"]);
 
 type TextUnit = { field: LintField; text: string; citedQuote: boolean };
 
@@ -27,6 +38,20 @@ function walkLedger(ledger: unknown, units: TextUnit[]): void {
   }
 }
 
+function walkLetter(record: Record<string, unknown>, units: TextUnit[]): void {
+  for (const [key, value] of Object.entries(record)) {
+    if (LETTER_MACHINE_KEYS.has(key)) continue;
+    if (key !== "entries" || !Array.isArray(value)) {
+      walk(value, units, false);
+      continue;
+    }
+    for (const entry of value as unknown[]) {
+      if (isRecord(entry)) walk(Object.fromEntries(Object.entries(entry).filter(([k]) => !LETTER_ENTRY_MACHINE_KEYS.has(k))), units, false);
+      else walk(entry, units, false);
+    }
+  }
+}
+
 /** The whole public surface (ADR-001 s8.3). OG text is derived from title and learning objective. */
 function collectUnits(input: LintInput): TextUnit[] {
   const plain = (field: LintField, text: string | null): TextUnit => ({ field, text: text ?? "", citedQuote: false });
@@ -42,6 +67,8 @@ function collectUnits(input: LintInput): TextUnit[] {
     ...input.conceptNames.map((name) => plain("conceptName", name)),
     // A slug reads as words: hyphens are spaces, as for the item slug above.
     ...input.conceptSlugs.map((slug) => plain("conceptSlug", slug.replace(/-/g, " "))),
+    // A video's transcript, every word (rule 12.2). The text is not edited anywhere, so only an allowance can clear a sentence.
+    ...(input.transcript == null ? [] : [plain("transcript", input.transcript)]),
   ];
   const { sources, ledger, ...rest } = input.structured;
   walkLedger(ledger, units);
@@ -54,7 +81,14 @@ function collectUnits(input: LintInput): TextUnit[] {
     const cited = typeof source.url === "string" && source.url.trim() !== "";
     for (const [key, value] of Object.entries(source)) walk(value, units, cited && key === "quote");
   }
-  walk(rest, units, false);
+  // A video's record keeps the machine's identifiers beside his chapter titles: the ids and hashes are not prose, the titles are.
+  if (input.kind === "video") {
+    walk(Object.fromEntries(Object.entries(rest).filter(([key]) => !VIDEO_MACHINE_KEYS.has(key))), units, false);
+  } else if (input.kind === "letter") {
+    walkLetter(rest, units);
+  } else {
+    walk(rest, units, false);
+  }
   return units;
 }
 
@@ -148,5 +182,12 @@ export function lintText(input: LintInput): LintResult {
     );
   }
 
-  return { revisionId: input.revisionId, passed: findings.length === 0, policyVersion: POLICY_VERSION, findings, allowedBy };
+  return {
+    revisionId: input.revisionId,
+    passed: findings.length === 0,
+    policyVersion: POLICY_VERSION,
+    findings,
+    allowedBy,
+    ...(input.transcript == null ? {} : { transcriptSha: textSha256(input.transcript) }),
+  };
 }

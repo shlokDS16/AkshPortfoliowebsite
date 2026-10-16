@@ -1,5 +1,5 @@
 import type { AlertMailer, AlertMessage, AlertSend } from "./alert-mailer";
-import { readCapped } from "./read-capped";
+import { createResendClient, replyMessage } from "./resend-http";
 
 // The Resend adapter for the alert email (docs/specs/2026-10-14-alert-email-design.md s3). Plain fetch, no SDK.
 //
@@ -18,7 +18,6 @@ export const RESEND_URL = "https://api.resend.com/emails";
 export const DEFAULT_ALERT_FROM = "Aksh Research Desk <onboarding@resend.dev>";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MESSAGE_LIMIT = 160;
-const BODY_CAP_BYTES = 8 * 1024;
 const MAX_RECIPIENTS = 50;
 
 const KEY_SHAPE = /^re_\S{6,200}$/;
@@ -46,54 +45,21 @@ export function createResendMailer(opts: ResendOptions): AlertMailer {
   if (opts.to.length < 1 || opts.to.length > MAX_RECIPIENTS || !opts.to.every((address) => ADDRESS.test(address))) {
     throw new Error(`ALERT_EMAIL must be 1 to ${MAX_RECIPIENTS} email addresses`);
   }
-  const doFetch = opts.fetch ?? fetch;
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const { apiKey, from, to } = opts;
-
-  /** One line of plain text: control characters become spaces, the key is removed, runs of space collapse. */
-  const clean = (text: string): string => text.replaceAll(apiKey, "[removed]").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
-
-  /** Resend's `message` for a refused request, or null (not JSON, no message, too big). */
-  async function providerMessage(response: Response): Promise<string | null> {
-    try {
-      const bytes = await readCapped(response, BODY_CAP_BYTES);
-      if (bytes === "too_big") return null;
-      const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
-      const message = typeof parsed === "object" && parsed !== null ? (parsed as { message?: unknown }).message : undefined;
-      return typeof message === "string" && clean(message) ? clean(message) : null;
-    } catch {
-      return null;
-    }
-  }
+  const { from, to } = opts;
+  // The HTTP call is shared with the letters adapter (resend-http.ts); the messages are the ones this adapter always gave.
+  const client = createResendClient({ apiKey: opts.apiKey, fetch: opts.fetch ?? fetch, timeoutMs: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS });
 
   return {
     name: "resend",
     async send(message: AlertMessage): Promise<AlertSend> {
       if (!IDEMPOTENCY_KEY.test(message.idempotencyKey)) return { ok: false, message: "the idempotency key is not valid" };
-      let response: Response;
-      try {
-        response = await doFetch(RESEND_URL, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${apiKey}`,
-            "content-type": "application/json",
-            "idempotency-key": message.idempotencyKey,
-          },
-          body: JSON.stringify({ from, to, subject: message.subject, text: message.text }),
-          redirect: "error",
-          cache: "no-store",
-          signal: AbortSignal.timeout(timeoutMs),
-        });
-      } catch (error) {
-        // The error's kind only: its text can echo the address or a header.
-        return { ok: false, message: error instanceof Error && error.name === "TimeoutError" ? "Resend did not answer in time" : "could not reach Resend" };
-      }
-      if (response.ok) {
-        await response.body?.cancel().catch(() => undefined);
-        return { ok: true };
-      }
-      const said = await providerMessage(response);
-      return { ok: false, message: `Resend answered ${response.status}${said ? `: ${said}` : ""}`.slice(0, MESSAGE_LIMIT) };
+      const reply = await client.call({
+        method: "POST",
+        url: RESEND_URL,
+        body: { from, to, subject: message.subject, text: message.text },
+        idempotencyKey: message.idempotencyKey,
+      });
+      return reply.ok ? { ok: true } : { ok: false, message: replyMessage(reply, MESSAGE_LIMIT) };
     },
   };
 }

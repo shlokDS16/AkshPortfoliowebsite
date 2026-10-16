@@ -633,3 +633,97 @@ this section describes the build and the reason is given. Append only.
   and keep no cache of their own. The isolation test now walks the public pages and the print components as well as the derived routes.
 - **(l) XML text (s4.2):** `escapeXml` also drops U+FFFE and U+FFFF, which XML 1.0 forbids, so one stray character cannot make the
   whole feed unreadable.
+
+## Amendment 2026-10-16 (5b Task 8 as built)
+Written with the video screens. Where this section and s7 disagree, this section describes the build and gives the reason. Append only.
+
+- **(m) s4.3, "never any numeric property", gains a second exception:** `Clip.startOffset`, the whole second at which one of his chapters
+  starts, on the `hasPart` of a `VideoObject` (s7.7 asks for a `Clip` per chapter and schema.org requires the number). It is his chapter
+  list, not a figure. `derived.video.test.ts` walks the `VideoObject` and fails on any other number than a breadcrumb position and a `Clip`'s
+  `startOffset`.
+- **(n) The transcript is not in the snapshot.** s2 and the plan say the snapshot gains `videoTranscripts` as `concepts` did. Next's data
+  cache holds an entry of at most 2 MB (`unstable_cache` refuses a larger one, silently), one snapshot holds every public page, and an hour of
+  speech is about 60 KB, so a library of videos would push the snapshot over. The snapshot gains `videos` (four small columns of
+  `public_videos`); the video page reads its own transcript from `public_video_transcripts` through a second cached read with the same
+  tag (`getVideoTranscript`), and shows it only if the sha-256 of its texts equals the `transcriptSha` the current revision names (the value
+  gate rule 12.2 compared). A transcript that does not match throws at runtime, so the last good page stays, and counts as none at build time.
+  Because the feed, the sitemap, the card and What changed need no transcript, they are built from the snapshot alone, as rule 11 asks. Only
+  `VideoObject.transcript` takes it, as a second argument of `jsonLdFor`.
+- **(o) A video item is public only with a `public_videos` row.** `ITEM_KINDS` already includes `video` (Task 7), so `repo.ts` would admit a
+  video item by its kind alone. `loadSnapshot` now drops every video item, and every revision of it, that has no row in `public_videos` (or
+  when that view cannot be read), and `listedVideos` re-checks the row, the id, the record schema and that the record names the row's YouTube
+  id. A video that fails any of these appears in no page, feed entry, sitemap line or card.
+- **(p) `modules/distribution/public.ts` restates the `Segment` type** instead of importing it from `videos/types.ts`, so that the only file of
+  the module the public side reaches is `public.ts` itself (`isolation.test.ts` pins this). It also gains `watchUrl`, the ordinary YouTube link
+  a chapter is before the page's script runs.
+- **(q) `/desk/items/[id]` redirects a video to `/desk/videos/[id]`.** Both are one `ItemView`; the second adds the video panels and the rule 12
+  rows. `saveCaseFileRevisionAction` and the other actions that return to the item page keep working through the redirect, which carries the
+  message in the query. The "Create item" kind list no longer offers `video` (a video is filed from its link with `v:`, which also creates its
+  YouTube row).
+- **(r) The public rail shows "Videos" only once a video is listed** (`SiteCounts.videos` is absent before), so the deploy state links to
+  nothing that is a 404. There is no phone tab.
+
+### Amendments from the Phase 5b review fix wave (2026-10-16)
+- **(s) Reading of 12.2: a sentence allowance for rule 1 only.** The allowance in 12.2 is given under the existing allowance rules (Phase 1b
+  ruling R9, as for v1.1 rule 10.8): only a sentence flagged under rule 1 can be allowed. A spoken performance claim (rule 2) keeps the video off
+  the site. Reasons: (a) 12.2 says a spoken sentence is cleared "only by" an allowance for rule 1 or 2; "only" bounds what may clear a sentence
+  and does not oblige the desk to offer a rule 2 allowance, so a stricter gate complies; (b) rule 10.8 uses the same words and 3b built and
+  reviewed it as rule 1 only under R9; (c) rule 2 (performance claims) is the claim the SEBI circular cares most about, and a transcript cannot be
+  edited, so the narrow reading is the conservative one. If Shlok later wants rule 2 for transcripts only: a migration restating
+  `add_lint_allowance` to accept rule '2' when the finding's `field` is `transcript`, and in `lint.ts` one more condition on the allowance test.
+- **(t) Anon holds column grants on two base tables** that the plan's global constraint ("Nothing else") did not list: `video_sources (id,
+  item_id, youtube_id, duration_seconds, yt_published_at)` and `video_transcripts (id, video_source_id, segments)`, with row policies that repeat
+  the views' predicate (a public video item; only the transcript the current revision names). A `security_invoker` view needs them, as
+  `concept_ids` did in 0020. Beyond the views they reveal three ids and no row; pinned by `0022_videos.test.sql` and `0023_distribution_gate.test.sql`.
+- **(u) D79 amended: no thumbnail, and no request to Google or YouTube before the press.** Section 7.7 showed YouTube's still
+  (`https://i.ytimg.com/vi/<id>/hqdefault.jpg`) on page load. Shlok's ruling (controller, 2026-10-16): privacy first. Until the press the page holds a
+  local placeholder (the title, the length and the plain Play control) and makes no request to `*.ytimg.com`, `*.youtube.com`,
+  `*.youtube-nocookie.com` or `*.google*.com`; the press mounts the youtube-nocookie frame. The JSON-LD `thumbnailUrl` stays: it is text in the
+  page's markup, not a request a visitor makes. The e2e (`support/outbound.ts`) records every request to a host outside the machine and fails any
+  public or video spec that reached one other than the frame after a press. Section 15's pending string list gains none; the placeholder
+  shows the page's own title and length beside the already approved "Play video (loads YouTube)".
+- **(v) Data kept from YouTube, and Fetch again (Q48, Q50, Q51).** YouTube data is kept at most 30 days (Developer Policies III.E.4):
+  migration 0022 gains `purge_stale_video_data()` (service_role only), which `videos:check` runs first, also while videos are off; a video YouTube
+  no longer returns has every YouTube column cleared, not only marked gone (and gate 12.1 reports it as gone, not as another channel's). "Fetch
+  again" is refused for a source fetched less than a minute ago (read from `fetched_at`, so every instance sees it). The response cap is 1 MB,
+  not 512 KB, so a full batch of escaped descriptions fits.
+
+## Amendment 2026-10-16 (5c Task 14 as built)
+Written with the public letters pages. Where this section and s8.5 or s8.9 disagree, this section describes the build and gives the reason. Append only.
+
+- **(w) The archive page shows no "Sent to subscribers on {date}."** s8.9 and s15 ask for it on a sent letter. The Task 14 brief binds the public pages to never show
+  "a reader count, address or send data", and anon can read no `letter_sends` row (0024 grants it admin select only; the anon inventory grows by the four
+  functions and nothing else). The line stays in `LETTERS_COPY.sentLine` unused; showing it would need a new anon door and a new ruling.
+- **(x) The three public forms are plain forms with no script, and the answer is a redirect.** `app/(public)/letters/form-actions.ts` wraps the reader actions of
+  `public-actions.ts` and ends each post on an ordinary GET: `/letters?asked=1#subscribe`, `/letters/confirm?r=confirmed|expired`, `/letters/leave?r=left`. The
+  address a reader types and the token are never put in a URL; the confirm link carries only `?t=<token>`. The `useActionState` shape of the actions is kept (the
+  wrappers pass `{ status: "idle" }`), so a later client form needs no change to them.
+- **(y) An entry is shown only while its page is still public.** The letter keeps the words it copied when it passed the gate. The archive page, though, is a
+  derived surface (rule 11.5): an entry whose revision has left the snapshot (unpublished since), whose video is no longer listed, or whose dated page is not past
+  the 30-day lag is left out, and a letter with no entry left is not listed (no page, feed line, sitemap line or card). The email already sent is not recalled
+  (s10).
+- **(z) `/letters` is rendered per request.** The sign-up form carries `issueFormTicket()` (made at render, refused if under 3 s old), so the page is
+  `force-dynamic`; the snapshot and the switch it reads stay cached. `letters_open()` is read through `getLettersOpen` (the snapshot's tag, 300 s) and
+  `setSignupAction` now calls `updateTag` and revalidates `/letters`, so a closed door is closed at once.
+- **(aa) The public side now reaches `lib/env.server.ts` through one file.** `lib/letters-form.ts` reads `CRON_SECRET` to sign and check the ticket. The isolation
+  tests allow exactly that one reader (besides `robots.ts`), allow exactly four files of the distribution module (`public.ts`, `public-actions.ts`,
+  `letters/signup.ts`, `letters/copy.ts`), forbid `distribution/actions.ts`, `send-rpc.ts` and the module index, and pin the four anon functions as the only letters
+  doors public code names (`showcase/isolation.letters.test.ts`).
+- **(ab) Navigation.** The rail gains "Letters" only once a letter is public (`counts.letters` absent before, as for videos); there is no phone tab. A sign-up page
+  with no letter yet is reached by its address. "What changed" on the home page does not list letters (it lists pages); the feed does.
+- **(ac) Words.** `public.ts` gains the page words (`archiveTitle`, `archiveIntro`, `signupTitle`, `honeypotLabel`, `allLetters`, `stopLink`, `whatChanged`,
+  `confirmIntro`, `leaveIntro`, `published`) and the entry labels (`LETTER_KIND_LABEL`, `LETTER_POSITION_*`), which the email's `copy.ts` now re-exports, so the
+  email and the archive cannot drift. All pending Shlok's approval.
+
+## Amendment 2026-10-16 (5c fix wave after the review)
+Written with the fix wave of `.superpowers/sdd/2026-10-16-phase-5c-ledger/review.md`. Where this section and s8.4 to s8.9 disagree, this section describes the build. Append only.
+
+- **(ad) A send is never failed while its broadcast may have gone out (s8.6).** `deliverLetter` reads the broadcast first when the row has a broadcast id: `scheduled`, `queued` or `sent` is recorded `sent` (with the readers counted at approval) before the letter is even loaded; a read that fails, or a status it does not know, leaves the row `sending`. A failure after the id is known (a 4xx, the letter unpublished, a day of Resend outage) re-reads the broadcast and fails the row only when it is `draft` or `canceled`. In SQL (migration 0025, not yet on hosted, edited in place): `approve_letter_send` refuses a new subscribers approval once any earlier send of that letter has a broadcast id (55000, "A broadcast was already made for this letter. Check it in Resend; to send again, make a new letter."), and rule 13.4 and the 0024 freeze trigger count a `failed` send with a broadcast id as possibly sent.
+- **(ae) Rule 13.1 refuses the desk's label.** A subject that matches `^\s*Untitled letter(?:, .*)?\s*$` fails the gate with "Replace the label with your own subject." (the same pattern as `subject.ts`; a test keeps them equal). The desk still explains it earlier and keeps Send off.
+- **(af) `letter_sends.gate_decision_id` is checked by a BEFORE INSERT trigger** (`private.check_letter_send_decision`): it must be a pass decision of the same item and revision (23503). Still no foreign key, so the TRUNCATE guard of `gate_decisions` answers with its own error.
+- **(ag) The typed leave is logged apart.** `letters_leave` records the event `left_form`; the reconcile's `letters_mark_left` keeps `left`. The readers page shows "Stopped on this page today: {n}" (typed leaves since midnight India time) when n is above 0. The leave stays one typed step without the ticket (a fast autofilled withdrawal must not be dropped). The form's ticket and honeypot are a speed bump for scripts, not a control: the SQL caps are.
+- **(ah) The ticket key is derived.** The sign-up ticket is signed with an HKDF-SHA256 key derived from `CRON_SECRET` with the label `aksh-desk/letters-form-v1`, never with `CRON_SECRET` itself; no new setting. Rotating `CRON_SECRET` voids open forms.
+- **(ai) The public sign-up form needs three things at render time:** the switch on, email set up in this environment (`lettersMode` is now the pure `lib/providers/letters-mode.ts`, so the public page reaches no adapter), and `LETTERS_GRIEVANCE_EMAIL` set. The notice (`lettersNotice(contact)`) now says what is kept (the address and the dates asked and confirmed), that the address is deleted within a day of stopping with a one-way code kept as the record of consent, who to write to, and the Data Protection Board of India. The desk refuses to open sign-ups while `LETTERS_GRIEVANCE_EMAIL` is unset (`letter-signup-contact`). Notice version `letters-2026-10-v1` is edited in place because 0024 has not reached hosted. `lib/letters-config.ts` is the third public reader of the server env (isolation test updated).
+- **(aj) The letters fixture needs a database on this machine** (`lettersMode`: `DISTRIBUTION_ADAPTER=fixture` with any other `NEXT_PUBLIC_SUPABASE_URL` is off, reason `fixture_refused`).
+- **(ak) The unit outbound guard is a loopback allowlist** (`src/test/outbound-hosts.ts`, `installNoOutbound`); every test of it uses a spy as the real fetch.
+- **(al) The readers page** also says when 300 requests are waiting (new requests are dropped until some are sent or binned; `WAITING_CAP` is tied to the SQL by a test), and when sign-ups are open but email or the contact is not set.

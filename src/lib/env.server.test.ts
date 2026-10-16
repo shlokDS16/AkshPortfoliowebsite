@@ -206,3 +206,69 @@ describe("parseServerEnv: the alert email settings (2.9; all optional, off unles
     expect(env.ALERT_EMAIL).toEqual(["not-an-address"]);
   });
 });
+
+describe("parseServerEnv: video listing (Phase 5b; off while the YouTube settings are unset)", () => {
+  const KEY = "AIzaSyFAKEFAKEFAKEFAKEFAKEFAKEFAKE12345";
+  const CHANNEL = "UC0123456789abcdefghijkl";
+
+  it("leaves video listing off when the settings are unset or empty", () => {
+    const env = parseServerEnv({ ...valid, YOUTUBE_API_KEY: "", YOUTUBE_CHANNEL_ID: "", DISTRIBUTION_ADAPTER: "" });
+    expect(env.YOUTUBE_API_KEY).toBeUndefined();
+    expect(env.YOUTUBE_CHANNEL_ID).toBeUndefined();
+    expect(env.DISTRIBUTION_ADAPTER).toBeUndefined();
+    expect(parseServerEnv(valid).YOUTUBE_API_KEY).toBeUndefined();
+  });
+
+  it("accepts a key and a channel id of the right shape (trimmed) and the fixture adapter", () => {
+    const env = parseServerEnv({ ...valid, YOUTUBE_API_KEY: ` ${KEY} `, YOUTUBE_CHANNEL_ID: ` ${CHANNEL} `, DISTRIBUTION_ADAPTER: "fixture" });
+    expect(env.YOUTUBE_API_KEY).toBe(KEY);
+    expect(env.YOUTUBE_CHANNEL_ID).toBe(CHANNEL);
+    expect(env.DISTRIBUTION_ADAPTER).toBe("fixture");
+  });
+
+  it("refuses a malformed key, channel id or adapter, naming the variable and never the value", () => {
+    const cases: Array<[string, string]> = [
+      ["YOUTUBE_API_KEY", "short"],
+      ["YOUTUBE_API_KEY", `${KEY}\r\nX-Evil: 1`],
+      ["YOUTUBE_API_KEY", "key with spaces in it xxxxxxxxxx"],
+      ["YOUTUBE_CHANNEL_ID", "UCshort"],
+      ["YOUTUBE_CHANNEL_ID", "XX0123456789abcdefghijkl"],
+      ["YOUTUBE_CHANNEL_ID", `${CHANNEL}/../x`],
+      ["DISTRIBUTION_ADAPTER", "real"],
+    ];
+    for (const [name, value] of cases) {
+      let message = "";
+      try {
+        parseServerEnv({ ...valid, [name]: value });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message, `${name}=${value}`).toMatch(new RegExp(name));
+      expect(message).not.toContain(value);
+    }
+  });
+});
+
+describe("parseServerEnv: letters (Phase 5c; off while the three settings are unset)", () => {
+  const SET = { RESEND_LETTERS_KEY: "re_lettersKEY_1234567890secretsecret", LETTERS_FROM: "Aksh Agrawal <letters@akshagrawal.example>", LETTERS_SEGMENT_ID: "78261eea-8f8b-4381-83c6-79fa7120f1cf" };
+
+  it("leaves letters off when the settings are unset or empty", () => {
+    const env = parseServerEnv({ ...valid, RESEND_LETTERS_KEY: "", LETTERS_FROM: "", LETTERS_SEGMENT_ID: "" });
+    expect([env.RESEND_LETTERS_KEY, env.LETTERS_FROM, env.LETTERS_SEGMENT_ID]).toEqual([undefined, undefined, undefined]);
+  });
+
+  it("reads the three settings trimmed; their shape is checked where letters are built, so a typo turns letters off, not the app", () => {
+    const env = parseServerEnv({ ...valid, RESEND_LETTERS_KEY: ` ${SET.RESEND_LETTERS_KEY} `, LETTERS_FROM: ` ${SET.LETTERS_FROM} `, LETTERS_SEGMENT_ID: ` ${SET.LETTERS_SEGMENT_ID} ` });
+    expect([env.RESEND_LETTERS_KEY, env.LETTERS_FROM, env.LETTERS_SEGMENT_ID]).toEqual([SET.RESEND_LETTERS_KEY, SET.LETTERS_FROM, SET.LETTERS_SEGMENT_ID]);
+    expect(parseServerEnv({ ...valid, RESEND_LETTERS_KEY: "not a key" }).RESEND_LETTERS_KEY).toBe("not a key");
+    expect(parseServerEnv({ ...valid, LETTERS_GRIEVANCE_EMAIL: "" }).LETTERS_GRIEVANCE_EMAIL).toBeUndefined();
+    expect(parseServerEnv(valid).LETTERS_GRIEVANCE_EMAIL).toBeUndefined();
+    expect(parseServerEnv({ ...valid, LETTERS_GRIEVANCE_EMAIL: " not an address " }).LETTERS_GRIEVANCE_EMAIL).toBe("not an address");
+  });
+
+  it("reads CI, NODE_ENV and VITEST, so letters can refuse a test or CI run", () => {
+    const env = parseServerEnv({ ...valid, CI: "1", NODE_ENV: "test", VITEST: "true" });
+    expect([env.CI, env.NODE_ENV, env.VITEST]).toEqual(["1", "test", "true"]);
+    expect(parseServerEnv({ ...valid, CI: "" }).CI).toBeUndefined();
+  });
+});

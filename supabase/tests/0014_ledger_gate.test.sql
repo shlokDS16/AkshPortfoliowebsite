@@ -118,7 +118,7 @@ $$, 'the four new functions are SECURITY DEFINER with an empty search_path');
 select ok((select p.prosrc like '%A newer revision exists; publish the latest.%'
               and p.prosrc like '%A file needs a figures-to date (data_as_of).%'
               and p.prosrc like '%file_no_seq%'
-              and p.prosrc like '%sebi-unreg-2026-07-v1.1%'
+              and p.prosrc like '%sebi-unreg-2026-07-v1.2%'
               and p.prosrc like '%The linked company is not public.%'
               and p.prosrc like '%is already used by another item%'
               and p.prosrc like '%holds_position is required when a company is named.%'
@@ -354,8 +354,8 @@ insert into public.item_revisions (id, item_id, body_md) values
   ('b1000000-0000-4000-8000-0000000000d4', 'a1000000-0000-4000-8000-0000000000d4', 'Delta first revision'),
   ('b1000000-0000-4000-8000-0000000000d5', 'a1000000-0000-4000-8000-0000000000d5', 'Delta no revision');
 create function pg_temp.pub(p_item uuid, p_rev uuid) returns public.gate_decisions language sql as $$
-  select * from public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', p_item, p_rev, 'sebi-unreg-2026-07-v1.1',
-    jsonb_build_object('passed', true, 'revisionId', p_rev::text, 'policyVersion', 'sebi-unreg-2026-07-v1.1')) $$;
+  select * from public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', p_item, p_rev, 'sebi-unreg-2026-07-v1.2',
+    jsonb_build_object('passed', true, 'revisionId', p_rev::text, 'policyVersion', 'sebi-unreg-2026-07-v1.2')) $$;
 create temp table decs (n serial primary key, item_id uuid, decision_id uuid);
 create function pg_temp.verdict(p_item uuid, p_rev uuid) returns text language plpgsql as $$
 declare d public.gate_decisions;

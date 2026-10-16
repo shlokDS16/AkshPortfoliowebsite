@@ -9,7 +9,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],
-    setupFiles: ["./src/test/setup-dom.ts"],
+    setupFiles: ["./src/test/setup-dom.ts", "./src/test/no-outbound.ts"],
     restoreMocks: true,
     unstubEnvs: true,
     unstubGlobals: true,

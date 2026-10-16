@@ -1,4 +1,5 @@
-import { asRecord } from "@/lib/records";
+import { isUuid } from "@/lib/ids";
+import { asRecord, isRecord } from "@/lib/records";
 import type { Json } from "@/lib/supabase/database.types";
 import { dbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
@@ -26,6 +27,8 @@ export type PublishContext = {
   /** The live (unarchived) concepts the gated revision links, in its own order; empty when it has none (a null link list reads as the theme above). */
   conceptNames: string[];
   conceptSlugs: string[];
+  /** A video revision's transcript: the stored segment texts joined by "\n"; null for any other kind, or when the revision names none of this video's. */
+  transcript: string | null;
   /** sentence_hash values allowed for this item (rule 1 only; see lint.ts). */
   allowances: string[];
 };
@@ -67,6 +70,26 @@ async function loadConcepts(db: Db, ids: string[]): Promise<{ name: string; slug
   return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
+/**
+ * The transcript a video revision names, only if it belongs to this item's own video source: its segment texts joined by "\n", the text
+ * migration 0022's hash is taken over. Read here, with two plain queries, and not through the distribution module: the public pages reach
+ * this file through the compliance index, and they may reach nothing of distribution but its public entry (isolation.test.ts). A stored
+ * transcript the database accepted is always an array of {s, t}; anything else reads as no transcript, which the gate refuses (12.2).
+ */
+async function loadTranscript(db: Db, itemId: string, structured: Record<string, unknown>): Promise<string | null> {
+  const id = structured.transcriptId;
+  if (typeof id !== "string" || !isUuid(id)) return null;
+  const source = await db.from("video_sources").select("id").eq("item_id", itemId).maybeSingle();
+  if (source.error) throw dbError("compliance.loadVideoSource", source.error);
+  if (!source.data) return null;
+  const row = await db.from("video_transcripts").select("segments").eq("id", id).eq("video_source_id", source.data.id).maybeSingle();
+  if (row.error) throw dbError("compliance.loadTranscript", row.error);
+  const segments = row.data?.segments;
+  if (!Array.isArray(segments) || segments.length === 0) return null;
+  const texts = segments.map((seg) => (isRecord(seg) && typeof seg.t === "string" ? seg.t : null));
+  return texts.every((t) => t !== null) ? texts.join("\n") : null;
+}
+
 export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
   return {
     async loadPublishContext(itemId, revisionId) {
@@ -85,6 +108,8 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
       if (allowances.error) throw dbError("compliance.loadAllowances", allowances.error);
       if (!item.data || !revision.data) return null;
       const concepts = await loadConcepts(db, revision.data.concept_ids ?? []);
+      const structured = asRecord(revision.data.structured) ?? {};
+      const transcript = item.data.kind === "video" ? await loadTranscript(db, itemId, structured) : null;
       return {
         item: {
           id: item.data.id,
@@ -100,7 +125,7 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         revision: {
           id: revision.data.id,
           bodyMd: revision.data.body_md,
-          structured: asRecord(revision.data.structured) ?? {},
+          structured,
           changeReason: revision.data.change_reason,
         },
         companyName: item.data.company?.name ?? null,
@@ -108,6 +133,7 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         themeName: item.data.theme?.name ?? null,
         conceptNames: concepts.map((c) => c.name),
         conceptSlugs: concepts.map((c) => c.slug),
+        transcript,
         allowances: allowances.data.map((a) => a.sentence_hash),
       };
     },

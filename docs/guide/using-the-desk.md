@@ -2,7 +2,7 @@
 
 A guide for Aksh (daily use) and for Shlok (the short section near the end on running the site).
 
-Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026, and section 4.11 (PDFs, links and the feed) on 16 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
+Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026, section 4.11 (PDFs, links and the feed) and section 4.12 (videos) and section 4.13 (letters) on 16 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
 
 ## Contents
 
@@ -21,6 +21,8 @@ Written 14 October 2026, from the code and the design documents as they stand on
    - [4.9 Case studies](#49-case-studies)
    - [4.10 Concepts, reads and your month](#410-concepts-reads-and-your-month)
    - [4.11 Sharing your work: PDFs, links and the feed](#411-sharing-your-work-pdfs-links-and-the-feed)
+   - [4.12 Videos](#412-videos)
+   - [4.13 Letters](#413-letters)
 5. [The publishing rules in plain words](#5-the-publishing-rules-in-plain-words)
 6. [When something looks wrong](#6-when-something-looks-wrong)
 7. [For Shlok: running the site](#7-for-shlok-running-the-site)
@@ -125,6 +127,7 @@ At the very top, a **red strip** appears only when something is late or broken. 
 | `l:` at the very start | A learning note. The receipt says "Learning note, private". |
 | `p:` at the very start | A process note (how you work). The receipt says "Process note, private". |
 | `r:` at the very start | Something you read, for the reading log. The receipt says "Reading log, private". A read always stays private. |
+| `v:` at the very start, then a YouTube link | A video (section 4.12). The receipt says "Video, private". Nothing is read from YouTube until Shlok has set a key. |
 | A web address (https://...) anywhere | Kept with the capture. The desk does not open it by itself. See "Read this link" below. |
 | None of the above | A private note, listed under Today. |
 
@@ -132,7 +135,7 @@ A few details:
 
 - A thesis belongs to one company. If you start with `t:` and give no `$SYMBOL`, the box warns "A thesis belongs to one company. Add $SYMBOL, or this saves as a private draft without one."
 - `$` followed only by an amount (such as `$5M` or `$500cr`) is read as money, not a company.
-- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:`, `p:` and `r:` for you.
+- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:`, `p:`, `r:` and `v:` for you.
 - A capture can be up to 20,000 characters.
 
 **After you save**
@@ -584,6 +587,7 @@ Anyone can open these pages without signing in. The bar along the top (or bottom
 - **Notes** and **Process.** Your learning notes and process notes that you published, each listing the files that use it. Until you publish any, they say "No learning notes yet ..." and "No process notes yet ...".
 - **Mistakes.** Closed cases in which you judged your own process flawed, or named a kind of mistake, with your review words and a link to the case (section 4.9). Until one is public the page shows its placeholder: "Nothing here yet. Closed cases in which Aksh judged his own process flawed, or named a kind of mistake, are listed here with his own words and a link to the case."
 - **Closed cases** (`/cases`, no tab; linked from Process and Mistakes) and the **How this record is kept** section on Process. Both appear only while a case study from the ledger is public (section 4.9).
+- **Videos** (`/videos`, no tab; linked from What changed on the home page, the feed and shared links). Each public video has its own page with a click-to-play box (no picture), your chapters and the transcript (section 4.12). The page does not exist until a video is listed.
 - **About and disclosures.** Who you are, how a page gets published (the rules in section 5), and the standard disclosure.
 - **On every page,** a disclosure line: "For learning · Aksh is not SEBI-registered · Figures 30+ days old."
 - **On a file, a note, a process note and a closed case,** a **Save as PDF** button under the dates (section 4.11).
@@ -721,6 +725,97 @@ The result differs a little between browsers. A PDF is a copy. If you change or 
 
 **How soon it changes.** The feed, the page list and the cards follow what you publish or unpublish within an hour. A page you unpublish leaves them in that time. A copy a reader, a social site or a printer already took stays with them.
 
+### 4.12 Videos
+
+**What it is for.** A video of yours on YouTube can have a page on the site: the video itself (it loads only when a visitor presses play), your chapters, and a transcript of what you say, so a reader can search and skim. The desk only reads YouTube. It never uploads, edits or deletes anything there.
+
+**Switched off until Shlok sets a key.** Until Shlok adds a YouTube key (section 7), the desk says "Video listing is not set up yet (Shlok adds a YouTube key)." and nothing is read from YouTube. A `v:` capture still saves; it waits.
+
+**The steps**
+
+1. **Upload to YouTube as Unlisted.** Not Public yet (see the last step).
+2. **Capture the link.** In the Capture box type `v:` and paste the link, for example `v: https://youtu.be/AbCdEfGhIjK`. Links of the shape youtu.be/..., youtube.com/watch?v=..., /shorts/... and /live/... work; anything else says "That is not a YouTube link." The receipt says "Video, private". Open **Items**, then **Videos**, and open the video. Its first title is "Video" and the link's code.
+3. **Let the desk read YouTube.** Within about 15 minutes it reads the title, length, channel and description. Or press **Fetch again** on the video page. The box "From YouTube" shows what YouTube answered, in the machine's type. It is not your words.
+4. **Download the caption file in YouTube Studio.** Open YouTube Studio, choose **Content**, open the video, choose **Subtitles**, open the menu on the language row (the three dots) and choose **Download**, then **.vtt** or **.srt**. YouTube changes its menus now and then; the desk's own message says the same: "In YouTube Studio choose Subtitles, then Download, then .vtt or .srt." If the automatic captions have a wrong word, fix it in Studio first and download again.
+5. **Drop the file.** On the video page, under **Transcript**, choose the file and press **Store transcript**. The first 20 lines show, the rest behind **Show all**. Then press **Use this transcript**; it goes into a new revision. The transcript is the machine's record of what was said. There is no box to edit it, here or anywhere, on purpose.
+6. **Your own words.** Press **Use this title** if you want YouTube's title as the title (you can also type your own in **Details**). Press **Use chapters from the description** to take the chapter lines you wrote in the YouTube description (at least 3 lines that start with a time, the first at 0:00). Those titles are copied exactly as you typed them. Write the **Learning objective** and press **Save details**.
+7. **Run the publishing gate** as for any file (section 4.4). Read the checklist first; it says which row fails and why.
+8. **Make it Public on YouTube only after the desk lists it.** Until then leave it Unlisted. The desk accepts a video that is Unlisted or Public, so nothing is lost by waiting, and the spoken words are checked before anyone is sent to them. If a video is Public on YouTube and not listed on the site, the status line says so.
+
+**What the gate checks for a video (rule 12)**
+
+- The video is on **your channel** and is Unlisted or Public on YouTube, not private or gone.
+- The YouTube facts were read **in the last 7 days** (while the key is on, the desk re-reads them every day).
+- The revision names **the same video** the link points to.
+- A **transcript** is in the revision, and it is exactly the stored one. The gate checks every sentence of it, word by word, with the same rule 1 as for a note.
+- If the video **names a company**, the **Figures to** date is at least 30 days old.
+- The **chapters** (if any) are 3 to 100, start at 0:00, rise in time, and each title is 1 to 100 characters.
+
+**What it refuses, and why.** The transcript is what a visitor reads, so a spoken "you should buy this" is refused exactly as a written one would be: "Rule 1: no actionable language", pointing at the sentence in the transcript. You cannot edit the transcript to hide it, because it must match the stored one. You have three ways out. Say it differently in a new video. Or, if the sentence is you explaining your process (for example, a lesson on what not to say), allow that one sentence with a reason, as in section 4.4 (the reason is kept with the gate decision). Or leave the video unlisted on the site. A spoken performance claim (rule 2) has no allowance; that video cannot be listed.
+
+**What a visitor sees.** A page with the title, what it teaches, a plain box with the title and the length and a **Play video (loads YouTube)** button, your chapters, the transcript with the line "Typed by machine from the video's captions and not edited. If it differs from the video, the video is the record.", and the usual disclosure. Nothing from YouTube or Google loads, not even a picture, until the visitor presses play. A chapter starts the video at that time. The page is also in the feed, the page list and the shared-link card, and it prints (without the player).
+
+**Taking it down.** Press **Unpublish** on the video page. The page, the card, the feed entry and the page-list line leave within the hour (section 4.11). The video on YouTube is not touched.
+
+**Messages you may see**
+
+| What you see | What it means |
+|---|---|
+| "Video listing is not set up yet (Shlok adds a YouTube key)." | The key is not set. Nothing is read from YouTube. |
+| "Waiting for YouTube" | The desk has not read the video yet. Press **Fetch again**. |
+| "This is not a caption file. In YouTube Studio choose Subtitles, then Download, then .vtt or .srt." | The file is not a caption file. |
+| "This file is too big for a caption file (1 MB at most)." or "This caption file is too long (5,000 cues at most)." | Download the captions for one language only. |
+| "There is no transcript yet. Drop the caption file from YouTube Studio first." | Do step 5 first. |
+| "The YouTube description has no chapter list that YouTube would accept: at least 3 lines that start with a time, the first at 0:00." | Fix the chapter lines in the YouTube description, then press **Fetch again**. |
+| "A video needs its transcript before it is listed." | Do step 5, then run the gate. |
+| "YouTube data is more than 7 days old. Fetch it again." | Press **Fetch again**, then run the gate. |
+| "This video is not from your channel." or "This video is private or gone on YouTube." | The gate lists only your own Unlisted or Public videos. |
+| "YouTube's daily limit is used up. The desk tries again tomorrow." | Wait. Nothing is lost. |
+
+### 4.13 Letters
+
+**What it is for.** A letter is an email that lists what changed on the site since your last one: the files, closed cases, notes and videos that went public. Readers ask for it on a public page, and each letter also sits on a public archive. The letter is your words (the subject, one sentence, an optional short note). The list of changes is copied from the site by the desk, with your own titles and reasons exactly as they are there. Nothing is written for you, and nothing is sent until you press.
+
+**Switched off until Shlok sets up the email service.** Until then the desk says "Email is not set up yet. Letters still publish to the archive." You can make and publish letters, but the sign-up form stays shut and no email goes out. Real sending needs three things from Shlok (section 7; open questions Q9, Q36 and Q42): a domain that Resend has checked as his, a sender address on it, and a separate Resend key for letters. Until the domain is checked, Resend delivers only to its owner's own address, so a letter could not reach a reader anyway. Nothing is sent from a test or from a preview copy of the site.
+
+**What a reader sees.** On the letters page (`/letters`): the plain notice (what is kept, that it goes through Resend in the United States, that they must be 18 or older, how to stop), an email field, an "I am 18 or older" tick and **Ask to subscribe**. Whatever happens the page answers: "Thanks. Aksh sends confirmation emails by hand, usually within a day. Open the link in it to start receiving letters." Below it are the letters already published. Every letter carries the standard disclosure and a stop link, and `/letters/leave` stops letters in one step (one field; the address is deleted at once). The stop page works even when sign-ups are shut.
+
+**The two presses.** Nothing leaves the site without one of these, and each is yours.
+
+1. **Send confirmation emails.** Open **Items**, then **Letters**, then **Readers**. **Waiting** counts people who asked. Press **Send confirmation emails (n)** (at most 50 a day; the page shows how many are left). Each person gets one plain email with a link. Opening the link shows a button; they press it to confirm. Only then are they a reader. Nobody is emailed because they signed up, so a reader may wait up to a day. **Bin** deletes a request and emails nobody; use it for any request you do not want.
+2. **Send the letter.** On the letter page, after it has passed the gate, press **Send to n subscribers**. A box shows the subject and the exact number ("This emails n people. An email cannot be called back."), and asks you to tick "I have read the preview". Press **Send**. The press records your approval (who, when, which version, how many) and cannot be undone. The desk sends it within 15 minutes, usually at once. A second press, from another tab or later, sends nothing more: the page says "Sent to n on {date}".
+
+**Making a letter**
+
+1. Open **Letters**, then **What changed**. On a Monday in India the desk home also says how many changes there are. The list shows every public change since your last sent letter (the last 14 days for the first one), each ticked. Untick anything you do not want and press **Make this letter**. A letter holds at most 20 entries.
+2. The letter opens with the subject "Untitled letter, {date}". That is only a label the desk gave. Replace it with your own subject. **Send stays off while the subject is still a label.**
+3. Write the **one sentence: what a reader learns** (the gate needs it), and a short note if you want. Press **Save**.
+4. Read the **Preview**. It is the email as it will arrive, with the standard disclosure and the stop link.
+5. Run the **publishing gate**, as for any page (section 4.4). A letter goes onto the archive only if it passes, and a letter that has been sent cannot be published again. While it is public its subject and sentence are locked; **Unpublish** to change them.
+6. **Send me a test copy** sends one email to you only (up to 5 a day). It is not a send to readers; use it to read the real email in your inbox.
+
+**Readers: what you see and do not see.** The Readers page shows counts and the people still waiting (address and day asked). It never lists confirmed readers and has no export, on purpose: the fewer addresses the desk shows, the fewer can leak. **Open sign-ups** and **Close sign-ups** switch the form. It closes itself at 950 readers (the free list holds 1,000).
+
+**When a reader leaves.** The stop link in every email (Resend's own) and the stop page both remove them, and the next letter is not sent to them. A letter already on its way may still arrive. The desk makes Resend's list match its own before every send and once a day. An email that has been sent cannot be recalled.
+
+**Answering a reader's data request (the Q41 default).** A reader may write to ask what you hold, or to have their address deleted. The desk keeps only their address, the day they asked and confirmed, and that they ticked 18 or older. It keeps a record that a person asked, in a scrambled form that cannot be turned back into an address. To erase: open **Letters**, **Readers**, **Erase an address**, type the address from their email and press **Erase**. The page says "Erased." whether or not the address was on the list, so it cannot tell you; reply that any address you held has been deleted. To answer "what do you hold": their address and the dates above, nothing else (no name, no tracking, no reading history). The desk shows no list of readers, so it cannot show you one address; if you need that, ask Shlok. The notice names no contact address for complaints until Shlok gives you one to publish (Q41).
+
+**Messages you may see**
+
+| What you see | What it means |
+|---|---|
+| "Email is not set up yet. Letters still publish to the archive." | Shlok has not set up the email service. Nothing is emailed and the form is shut. |
+| "The subject is still a label. Replace it with your own subject, save, and run the gate again." | Type your own subject, press **Save**, run the gate. |
+| "There are no confirmed readers yet, so there is nobody to send this to." | Nobody has confirmed. Press **Send confirmation emails** first. |
+| "Approved. The letter goes out within 15 minutes." | Your press is recorded. The page then shows "Sending" and, when done, "Sent to n on {date}". |
+| "This letter has already been sent to subscribers, or its send is waiting." | You pressed a second time. Nothing more was sent. |
+| "Another letter is being sent. Wait until it has gone." | One letter at a time. |
+| "50 confirmation emails sent today. The rest can go tomorrow." | The daily limit. Nothing is lost. |
+| "Some confirmation emails could not be sent. Those readers are waiting again." | Press again later. |
+| "Not sent: the approval ran out after 24 hours." | An approval lasts a day. Press **Approve again**. |
+
+**Taking it down.** **Unpublish** removes the letter from the archive, its page, its card, the feed and the page list within the hour. It does not call back an email that was already sent.
+
 ---
 
 ## 5. The publishing rules in plain words
@@ -748,6 +843,7 @@ The result differs a little between browsers. A PDF is a copy. If you change or 
 7. **Every revision is checked (rule 7).** A new revision of a public file stays hidden until it passes again.
 8. **Everything public is checked (rule 8).** Title, address, learning objective, body, structured data and share-card text.
 9. **No interactive valuation model is ever public (rule 9).** A valuation model's output is a price target by another name. A static table of scenario outputs, lagged and labelled, may be public if it passes.
+10. **Videos (rule 12).** A video is listed only if it is on your channel, YouTube was read in the last 7 days, its transcript is in the revision and passed rule 1, a company video meets the 30-day lag, and the chapters are well formed. Section 4.12 has the steps. A spoken line cannot be edited away: the transcript is the machine's record.
 
 **What stays private**
 
@@ -881,7 +977,10 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 | `NSE_BHAVCOPY_URL_TEMPLATE`, `NSE_INDEX_URL_TEMPLATE` | Optional. Change only the path of NSE's files; the host is fixed in code. Leave empty. Do not set on Vercel. |
 | `GITHUB_GIST_TOKEN`, `LEDGER_ANCHOR_GIST_ID` | Switch the public copy of the ledger's fingerprints on. Left unset on purpose. |
 | `RESEND_API_KEY`, `ALERT_EMAIL`, `RESEND_FROM` | Switch the alert email on (see "Turning on the alert email"). Left unset, nothing is sent. `RESEND_FROM` is optional. |
-| `GOOGLE_VISION_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_AUDIENCE_ID`, `YOUTUBE_API_KEY` | In the template for later phases. Not used by this version. |
+| `YOUTUBE_API_KEY`, `YOUTUBE_CHANNEL_ID` | Switch video listing on (see "What is switched off on purpose"). Both are needed; one alone keeps it off. Left unset, nothing is read from YouTube. |
+| `RESEND_LETTERS_KEY`, `LETTERS_FROM`, `LETTERS_SEGMENT_ID` | Switch letters on (see "What is switched off on purpose"). All three are needed; with any missing, nothing is emailed. The key is a separate Resend key from the alert one. Production only. |
+| `DISTRIBUTION_ADAPTER` | Local testing only (`fixture`): stands in for YouTube and for the email service. Never set it on Vercel. It is refused there. |
+| `GOOGLE_VISION_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_AUDIENCE_ID` | In the template for later phases. Not used by this version. |
 
 ### The first live day: two things to check
 
@@ -893,6 +992,8 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 - **Voice notes.** `VOICE_NOTES` is unset. The drop bar hides voice notes and nothing is sent to Groq. To switch on you need Aksh's agreement (ADR-004 s8), and the open item about discarded transcript text staying in the database (Q22, debt M-4) needs its migration first. Its planned number, 0010, has since been taken by the ledger, so it will have a later number. Then set `VOICE_NOTES=on`.
 - **The public copy of the ledger's daily fingerprints.** `GITHUB_GIST_TOKEN` and `LEDGER_ANCHOR_GIST_ID` are unset. Days are still sealed in the database and wait. To switch on you need the owner decision (Q26: which GitHub account owns the gist), a public gist created by hand, and a fine-grained token with only the "Gists: write" permission. The file is public and shows the number of entries per day and their fingerprints (no names, words or prices). Do not put either value on Vercel until the owner has agreed. **Once any line is published, switching it off again turns the `ledger:anchor` step red** ("the public copy is switched off, but lines were published before"). The file is dated by GitHub. Its owner can still edit or delete it. The run compares the whole public file with every sealed line each day.
 - **Case studies from the ledger, and their chart.** Two rows in `private.settings`, `ledger_reveal` and `ledger_chart`, both absent (off). You turn them on in the Supabase SQL editor; the runbook `docs/runbooks/case-study-switches.md` has the exact SQL, what turning off does not do (it does not take a page down), and the checks to run before the first switch-on on the hosted project. Until Q27 is answered they stay off. Migrations 0017, 0018 and 0019 and the merge must land together, because every publish is refused in between.
+- **Videos.** `YOUTUBE_API_KEY` and `YOUTUBE_CHANNEL_ID` are unset, so the desk reads nothing from YouTube and no video can be listed (a video publish is refused for want of YouTube facts). To switch on, only if Aksh will list videos: first push migrations 0022 and 0023 and merge the videos pull request back to back (between the two every publish is refused, because the app sends one policy version and the database wants the next). Then create a Google Cloud API key restricted to "YouTube Data API v3", set both variables on Vercel Production, and redeploy. Aksh's channel id is the `UC...` code that YouTube Studio shows under Settings, Channel, Advanced settings. The desk only reads; it never writes to YouTube. YouTube's developer policy lets data fetched with a key be kept for at most 30 days, so the daily check re-reads every video and deletes any YouTube data older than 30 days, also if the key is removed (Q51, built). Open questions Q47 (the gate sentences) and Q49 (answered: no allowance for a spoken performance claim) are the ones that still need Shlok's yes before the key is set.
+- **Letters (email).** `RESEND_LETTERS_KEY`, `LETTERS_FROM` and `LETTERS_SEGMENT_ID` are unset, so the desk says "Email is not set up yet. Letters still publish to the archive.", the sign-up form cannot be opened, and no confirmation email or letter can be sent. Nothing is emailed from a test, a preview copy or a dev machine either (the local test runs use a stand-in that only keeps a file). To switch on, in this order (Q9, Q36, Q42): buy a domain and verify it in Resend (DNS records at the registrar); create a sender such as `letters@<domain>`, with open and click tracking switched OFF for the domain; create a segment and copy its id; create a full-access Resend key for letters (not the alert key); first run a hosted dry run (it must list exactly migrations 0024 and 0025), push them and merge the letters pull request together; then set the three variables on Vercel Production only and redeploy. Then press **Open sign-ups** on the Readers page. Open answers that you decide with Aksh: Q41 (a contact address for complaints in the notice; confirmation emails by hand is the default) and Q45 (no postal address in the footer is the default).
 - **The pump workflow** needs `DESK_URL` and `CRON_SECRET` repository secrets to run. The last progress note says it was enabled on 14 October.
 
 ### Before the first real idea (read this before Aksh records anything)
@@ -914,8 +1015,8 @@ They are in `docs/project-memory/unanswered-questions.md`. Do not copy them here
 - A picture of how your concepts connect, joining two concepts into one, and renaming a concept.
 - A public view of the Ledger, or any figure for how your ideas did. A closed idea can be written up as a case study (section 4.9) once the site owner has switched case studies on; the page prints no result.
 - The spreadsheet valuation page (reading a model from a spreadsheet).
-- A newsletter.
-- Videos and transcripts.
+- A letter written for you, or sent on a schedule. Letters are made and sent only when you press (section 4.13).
+- Reading a video's speech by machine. A video's transcript comes only from the caption file you download in YouTube Studio (section 4.12). Poor automatic captions have to be fixed in Studio first.
 - A PDF made on the site's own server. **Save as PDF** uses the browser's print window, so the result differs a little from one browser to the next (section 4.11).
 - Logins for clients or readers. Only you sign in.
 - Voice notes (switched off).
@@ -941,4 +1042,6 @@ Each of these is something I could not confirm from the code, the specs or the t
 9. **The exact buttons for a few small screens** I read only through their code: the filed-figures tick boxes on the review screen (I describe them as ticks, by the "Tick at least one figure to file." message), the label of the save button on the "Type the value from the page" form, and the phone layout of the file page. I did not run the site.
 10. **The public Mistakes page.** It now fills from published case studies (section 4.9). That is confirmed on the local stack only, with an invented company; nothing is public on the hosted site.
 11. **Whether the production site is open to everyone today.** The last progress note says the production address is reachable without a Vercel bypass, so the public side is already visible. Confirm that is what you want on launch day.
-12. **Legal confirmation.** The publishing rules say they are not legal advice and should be confirmed with a lawyer or NISM-certified analyst. The official SEBI circular PDFs are still to be saved under `docs/compliance/`.
+12. **Videos against the real YouTube.** Everything in section 4.12 was tried on the local copy of the site with a stand-in for YouTube. No real YouTube address has been asked yet (the key is unset). The Studio menu names (Content, Subtitles, Download, .vtt or .srt) come from the desk's own message and from memory of Studio; check them once in Studio. The channel id's place in Studio is also from memory.
+13. **Letters against the real Resend.** Section 4.13 was tried only on the local copy with a stand-in for the email service. No real email has been sent, no real Resend address has been asked, and the exact place of the Resend settings (tracking off, the segment id) is from the specification and memory; check them in the Resend dashboard once before the first real send. The wording of the notice and the confirmation email is pending Shlok's and Aksh's approval.
+14. **Legal confirmation.** The publishing rules say they are not legal advice and should be confirmed with a lawyer or NISM-certified analyst. The official SEBI circular PDFs are still to be saved under `docs/compliance/`.

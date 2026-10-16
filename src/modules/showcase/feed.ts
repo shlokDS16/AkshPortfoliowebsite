@@ -1,6 +1,7 @@
 import { istDate } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
 import { buildCaseStudyView, ledgerCases } from "./case-study";
+import { letterHref, listedLetters } from "./letter-list";
 import { describeRevision, revisionsOf, servedFiles } from "./site";
 import { SITE_DESCRIPTION } from "./seo";
 import type { PublicSnapshot } from "./types";
@@ -15,17 +16,29 @@ export const FEED_FIXED_LINE = "For learning, not advice. Figures on the page ar
 export const FEED_TITLE = "Case files · Aksh Agrawal";
 
 /**
- * Newest first, at most `limit`: one entry per gated revision of a served file, a learning note, a process note or a ledger case study.
+ * Newest first, at most `limit`: one entry per gated revision of a served file, a learning note, a process note, a ledger case study, a listed video
+ * or a public letter (his subject, the machine's "Letter · R{n}", his sentence).
  * A case entry never carries a figure or a verdict (rule 10.7): his reason, "Closed case · written {date}" and his objective.
  */
 export function feedEntries(s: PublicSnapshot, limit = 50): FeedEntry[] {
   const served = servedFiles(s);
   const cases = new Map(ledgerCases(s).map((c) => [c.item.id, c.item.slug]));
+  const letters = new Map(listedLetters(s).map((l) => [l.item.id, l.item]));
   const entries: FeedEntry[] = [];
   // Stop as soon as `limit` entries exist, so no sentence diff is computed for an older revision.
   for (const rev of [...s.revisions].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
     if (entries.length >= limit) break;
     const objective = (id: string) => s.items.find((i) => i.id === id)?.learningObjective ?? "";
+    const letter = letters.get(rev.itemId);
+    if (letter) {
+      const n = revisionsOf(s, rev.itemId).findIndex((r) => r.id === rev.id) + 1;
+      const path = letterHref(letter.slug);
+      entries.push({
+        title: letter.title, path, guid: `${path}#r${n}`, on: istDate(rev.createdAt),
+        description: [rev.changeReason ?? (n === 1 ? "First version." : "Revised."), `Letter · R${n}`, letter.learningObjective ?? "", FEED_FIXED_LINE].join("\n\n"),
+      });
+      continue;
+    }
     const caseSlug = cases.get(rev.itemId);
     if (caseSlug !== undefined) {
       const view = buildCaseStudyView(s, caseSlug);

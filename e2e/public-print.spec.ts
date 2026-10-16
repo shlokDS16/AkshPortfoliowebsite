@@ -3,6 +3,9 @@ import { extractText } from "unpdf";
 import { derivedProblems } from "../src/modules/showcase/derived-scan";
 import { discover, SITE, state, type Pages } from "./support/derived";
 import { containsSquashed, DATE_SQUASHED, literal, squash, squashedSource } from "./support/squash";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 // Plan 5a Task 3 and 4 (spec s5, publishing rule 11.4): a public page prints as a dated document that carries its disclosure, and print
 // shows nothing the screen hides. Same states as public-distribution.spec.ts (told by the project's name). The PDF is Chromium's own
@@ -31,6 +34,7 @@ const printable = () => [
   { name: "learning note", path: pages.notes[0], position: "(?:stated on each file|Not disclosed)" },
   { name: "process note", path: pages.process[0], position: "(?:stated on each file|Not disclosed)" },
   ...(state().casePublic ? [{ name: "case", path: pages.cases[0], position: "(?:Yes|No|Not disclosed)" }] : []),
+  ...(state().videosPublic ? [{ name: "video", path: pages.videos[0], position: "(?:stated on each file|Not disclosed)" }] : []),
 ];
 
 async function pdfText(page: Page): Promise<{ pages: number; text: string; squashed: string }> {
@@ -111,6 +115,13 @@ test("a PDF of each public page is dated, addressed and carries the standard dis
       expect(containsSquashed(text, "Figures to")).toBe(true);
       expect(text).toMatch(/\bR1\b/); // the revision list prints, with its first version
       expect(text).toMatch(/\bR2\b/);
+    }
+    if (name === "video") {
+      // The transcript and the chapters print whole, with the machine's label; the player and its button do not.
+      expect(containsSquashed(text, "Transcript"), "the transcript prints").toBe(true);
+      expect(containsSquashed(text, "Typed by machine from the video's captions and not edited."), "the transcript label prints").toBe(true);
+      expect(containsSquashed(text, "Chapters"), "the chapters print").toBe(true);
+      for (const gone of ["Play video", "loads YouTube"]) expect(containsSquashed(text, gone), `${name}: ${gone}`).toBe(false);
     }
     if (name === "case") {
       // Rule 10.7: no result figure, no id, no verdict on a printed case study.

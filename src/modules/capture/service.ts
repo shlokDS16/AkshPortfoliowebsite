@@ -17,7 +17,18 @@ export const saveCaptureInput = z.object({
   clientId: z.guid(),
 });
 export type SaveCaptureInput = z.input<typeof saveCaptureInput>;
-export type SaveCaptureDeps = { captures: CaptureRepo; catalog: CatalogRepo; research: ResearchRepo };
+/**
+ * What a `v:` capture needs from the distribution module, passed in by the action (this file is reachable from the public pages, which may
+ * import nothing of distribution but its public entry; distribution's `createVideoFiling` builds one). Without it a `v:` capture is not
+ * filed at all, never an item with no source.
+ */
+export interface VideoFiling {
+  parseLink(url: string): string | null;
+  initialStructured(youtubeId: string): Record<string, unknown>;
+  findByYoutubeId(youtubeId: string): Promise<{ itemId: string } | null>;
+  insertSource(itemId: string, youtubeId: string): Promise<unknown>;
+}
+export type SaveCaptureDeps = { captures: CaptureRepo; catalog: CatalogRepo; research: ResearchRepo; videos?: VideoFiling };
 export type SaveCaptureResult = {
   captureId: string;
   itemId: string | null;
@@ -68,7 +79,51 @@ export async function resolveConcepts(catalog: CatalogRepo, tokens: string[]): P
   return [...found.values()];
 }
 
+/** A `v:` capture with no YouTube video address in it (spec s7.1). Recorded as the filing error `not-youtube-link`; nothing is filed. */
+export class NotYoutubeLinkError extends Error {
+  constructor() {
+    super("not a YouTube link");
+    this.name = "NotYoutubeLinkError";
+  }
+}
+
+/** The first address in the capture that is one of the four YouTube video shapes, with its id. */
+function firstYoutubeLink(videos: VideoFiling, urls: readonly string[]): { url: string; id: string } | null {
+  for (const url of urls) {
+    const id = videos.parseLink(url);
+    if (id) return { url, id };
+  }
+  return null;
+}
+
+/**
+ * Files a `v:` capture as a private `video` item titled "Video {id}" and its `video_sources` row (the fetch fills YouTube's data later).
+ * The body is his own text with only the YouTube address taken out. A video already filed is opened, not filed twice.
+ */
+async function fileVideo(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<Filed> {
+  if (!deps.videos) throw new Error("filing a video needs the videos repo");
+  const link = firstYoutubeLink(deps.videos, parsed.urls);
+  if (!link) throw new NotYoutubeLinkError();
+  const existing = await deps.videos.findByYoutubeId(link.id);
+  if (existing) return { itemId: existing.itemId, company: null, theme: null, themes: [] };
+  // Company and concepts are resolved only now, so a refused or repeated link leaves no stub names behind.
+  const company = await firstResolved(parsed.symbols, (s) => ensureCompany(deps.catalog, s));
+  const themes = await resolveConcepts(deps.catalog, parsed.themes);
+  const { item } = await createItem(deps.research, {
+    kind: "video",
+    title: `Video ${link.id}`,
+    bodyMd: parsed.body.replace(link.url, "").trim(),
+    companyId: company?.id ?? null,
+    themeId: themes[0]?.id ?? null,
+    conceptIds: themes.length > 0 ? themes.map((t) => t.id) : null,
+    structured: deps.videos.initialStructured(link.id),
+  });
+  await deps.videos.insertSource(item.id, link.id);
+  return { itemId: item.id, company, theme: themes[0] ?? null, themes };
+}
+
 export async function fileCapture(deps: SaveCaptureDeps, parsed: ParsedCapture): Promise<Filed> {
+  if (parsed.kind === "video") return fileVideo(deps, parsed);
   const company = await firstResolved(parsed.symbols, (s) => ensureCompany(deps.catalog, s));
   const themes = await resolveConcepts(deps.catalog, parsed.themes);
   const theme = themes[0] ?? null;
@@ -117,8 +172,8 @@ export async function saveCapture(deps: SaveCaptureDeps, input: SaveCaptureInput
   try {
     filed = await fileCapture(deps, parsed);
   } catch (error) {
-    console.error("capture filing failed", errorShapeText(error));
-    const code: FilingErrorCode = bodyTooLong(error) ? "thesis-full" : "filing-failed";
+    if (!(error instanceof NotYoutubeLinkError)) console.error("capture filing failed", errorShapeText(error));
+    const code: FilingErrorCode = error instanceof NotYoutubeLinkError ? "not-youtube-link" : bodyTooLong(error) ? "thesis-full" : "filing-failed";
     try {
       await deps.captures.attach(capture.id, { parsed: { ...parsed, error: code, errorDetail: errorShapeText(error) } });
     } catch {

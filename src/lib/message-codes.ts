@@ -1,4 +1,5 @@
 import type { ErrorCode } from "./messages";
+import { LETTER_ERROR_TEXT, type LetterErrorCode } from "./messages-letters";
 
 // Which message code a typed desk error (its `code`) shows as. Split from messages.ts to keep that file under 300 lines (the equality
 // tests in each module still compare the codes to the texts there). A DeskError whose code is missing here shows as save-failed.
@@ -97,4 +98,16 @@ export const ERROR_CODE_BY_TYPED: Record<string, ErrorCode> = {
   "case-exit-pending": "case-exit-pending",
   "case-record-unreadable": "case-record-unreadable",
   "case-not-ledger": "case-not-ledger",
+  // VideoError likewise.
+  "video-not-found": "video-not-found",
+  "video-off": "video-off",
+  "video-no-transcript": "video-no-transcript",
+  "video-no-yt-data": "video-no-yt-data",
+  "video-no-chapters": "video-no-chapters",
+  "video-captions-invalid": "video-captions-invalid",
+  "video-captions-too-big": "video-captions-too-big",
+  "video-captions-too-long": "video-captions-too-long",
+  "video-fetch-busy": "video-fetch-busy",
+  // LetterError likewise: its code is the message code itself.
+  ...(Object.fromEntries(Object.keys(LETTER_ERROR_TEXT).map((code) => [code, code])) as Record<LetterErrorCode, LetterErrorCode>),
 };

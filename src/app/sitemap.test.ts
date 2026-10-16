@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buildRichSnapshot, buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
+import { buildRichSnapshot, buildSeedSnapshot, withLetter } from "@/test/fakes/showcase-snapshot";
 
 const state = vi.hoisted(() => ({ snapshot: null as unknown }));
 vi.mock("@/lib/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/env")>()), publicEnv: () => ({ NEXT_PUBLIC_SITE_URL: "https://desk.example" }) }));
@@ -39,6 +39,15 @@ describe("sitemap.xml", () => {
     state.snapshot = { status: "ok", data: buildRichSnapshot() };
     const urls = (await sitemap()).map((e) => e.url);
     expect(urls).toEqual(expect.arrayContaining(["https://desk.example/cases", "https://desk.example/cases/lc1-a-closed-idea", "https://desk.example/concepts/receivable-days"]));
+  });
+
+  it("lists the letters archive and each public letter, and drops them with the letter (Plan 5c)", async () => {
+    state.snapshot = { status: "ok", data: withLetter(buildRichSnapshot()) };
+    const urls = (await sitemap()).map((e) => e.url);
+    expect(urls).toEqual(expect.arrayContaining(["https://desk.example/letters", "https://desk.example/letters/l1-what-changed-this-fortnight"]));
+    expect(urls.filter((u) => /\/letters\/(?:confirm|leave)/.test(u))).toEqual([]);
+    state.snapshot = { status: "ok", data: buildRichSnapshot() };
+    expect((await sitemap()).map((e) => e.url).filter((u) => u.includes("/letters"))).toEqual([]);
   });
 
   it("with the snapshot unavailable (a build without a database): the static routes only", async () => {

@@ -98,6 +98,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "captures_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
+          {
             foreignKeyName: "captures_theme_id_fkey"
             columns: ["theme_id"]
             isOneToOne: false
@@ -651,6 +658,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "gate_decisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
+          {
             foreignKeyName: "gate_decisions_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
@@ -945,6 +959,13 @@ export type Database = {
             referencedRelation: "public_items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ideas_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
         ]
       }
       ignored_tokens: {
@@ -1016,6 +1037,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
           },
         ]
       }
@@ -1327,6 +1355,135 @@ export type Database = {
         }
         Relationships: []
       }
+      letter_sends: {
+        Row: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          approved_at?: string
+          approved_by: string
+          broadcast_id?: string | null
+          claimed_at?: string | null
+          gate_decision_id: string
+          id?: string
+          item_id: string
+          kind: string
+          problem?: string | null
+          recipients_at_approval: number
+          recipients_sent?: number | null
+          revision_id: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string
+          broadcast_id?: string | null
+          claimed_at?: string | null
+          gate_decision_id?: string
+          id?: string
+          item_id?: string
+          kind?: string
+          problem?: string | null
+          recipients_at_approval?: number
+          recipients_sent?: number | null
+          revision_id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "letter_sends_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "letter_sends_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "letter_sends_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["revision_id"]
+          },
+        ]
+      }
+      letters_signup_events: {
+        Row: {
+          actor: string
+          at: string
+          id: string
+          signup_on: boolean
+        }
+        Insert: {
+          actor: string
+          at?: string
+          id?: string
+          signup_on: boolean
+        }
+        Update: {
+          actor?: string
+          at?: string
+          id?: string
+          signup_on?: boolean
+        }
+        Relationships: []
+      }
       lint_allowances: {
         Row: {
           created_at: string
@@ -1363,6 +1520,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lint_allowances_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
           },
         ]
       }
@@ -1547,6 +1711,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
+          {
             foreignKeyName: "proposals_revision_id_fkey"
             columns: ["revision_id"]
             isOneToOne: false
@@ -1710,6 +1881,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reading_proposals_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
+          {
             foreignKeyName: "reading_proposals_item_id_hint_fkey"
             columns: ["item_id_hint"]
             isOneToOne: false
@@ -1722,6 +1900,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_proposals_item_id_hint_fkey"
+            columns: ["item_id_hint"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "reading_proposals_revision_id_fkey"
@@ -1759,6 +1944,72 @@ export type Database = {
             referencedColumns: ["revision_id"]
           },
         ]
+      }
+      subscriber_events: {
+        Row: {
+          at: string
+          email_hmac: string
+          event: string
+          id: string
+          notice_version: string
+        }
+        Insert: {
+          at?: string
+          email_hmac: string
+          event: string
+          id?: string
+          notice_version: string
+        }
+        Update: {
+          at?: string
+          email_hmac?: string
+          event?: string
+          id?: string
+          notice_version?: string
+        }
+        Relationships: []
+      }
+      subscribers: {
+        Row: {
+          adult: boolean
+          confirm_expires_at: string | null
+          confirm_sent_at: string | null
+          confirm_token_hash: string | null
+          confirmed_at: string | null
+          email: string
+          id: string
+          notice_version: string
+          requested_at: string
+          sends_used: number
+          status: string
+        }
+        Insert: {
+          adult: boolean
+          confirm_expires_at?: string | null
+          confirm_sent_at?: string | null
+          confirm_token_hash?: string | null
+          confirmed_at?: string | null
+          email: string
+          id?: string
+          notice_version: string
+          requested_at?: string
+          sends_used?: number
+          status?: string
+        }
+        Update: {
+          adult?: boolean
+          confirm_expires_at?: string | null
+          confirm_sent_at?: string | null
+          confirm_token_hash?: string | null
+          confirmed_at?: string | null
+          email?: string
+          id?: string
+          notice_version?: string
+          requested_at?: string
+          sends_used?: number
+          status?: string
+        }
+        Relationships: []
       }
       themes: {
         Row: {
@@ -1969,6 +2220,117 @@ export type Database = {
           },
         ]
       }
+      video_sources: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          duration_seconds: number | null
+          fetch_problem: string | null
+          fetched_at: string | null
+          id: string
+          item_id: string
+          own_channel: boolean | null
+          privacy: string | null
+          youtube_id: string
+          yt_description: string | null
+          yt_published_at: string | null
+          yt_title: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          fetch_problem?: string | null
+          fetched_at?: string | null
+          id?: string
+          item_id: string
+          own_channel?: boolean | null
+          privacy?: string | null
+          youtube_id: string
+          yt_description?: string | null
+          yt_published_at?: string | null
+          yt_title?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          fetch_problem?: string | null
+          fetched_at?: string | null
+          id?: string
+          item_id?: string
+          own_channel?: boolean | null
+          privacy?: string | null
+          youtube_id?: string
+          yt_description?: string | null
+          yt_published_at?: string | null
+          yt_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_sources_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_sources_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_sources_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
+        ]
+      }
+      video_transcripts: {
+        Row: {
+          created_at: string
+          file_sha256: string | null
+          id: string
+          segments: NonNullable<Json>
+          source: string
+          text_sha256: string
+          video_source_id: string
+          words: number
+        }
+        Insert: {
+          created_at?: string
+          file_sha256?: string | null
+          id?: string
+          segments: NonNullable<Json>
+          source?: string
+          text_sha256: string
+          video_source_id: string
+          words: number
+        }
+        Update: {
+          created_at?: string
+          file_sha256?: string | null
+          id?: string
+          segments?: NonNullable<Json>
+          source?: string
+          text_sha256?: string
+          video_source_id?: string
+          words?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_transcripts_video_source_id_fkey"
+            columns: ["video_source_id"]
+            isOneToOne: false
+            referencedRelation: "video_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       concept_links: {
@@ -1992,6 +2354,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
           },
         ]
       }
@@ -2047,6 +2416,13 @@ export type Database = {
             referencedRelation: "public_items"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
         ]
       }
       public_item_revisions: {
@@ -2073,6 +2449,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "item_revisions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
           },
         ]
       }
@@ -2145,6 +2528,44 @@ export type Database = {
         }
         Relationships: []
       }
+      public_video_transcripts: {
+        Row: {
+          item_id: string | null
+          segments: Json | null
+        }
+        Relationships: []
+      }
+      public_videos: {
+        Row: {
+          duration_seconds: number | null
+          item_id: string | null
+          youtube_id: string | null
+          yt_published_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_sources_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_sources_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_sources_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
+        ]
+      }
     }
     Functions: {
       add_idea_event: {
@@ -2174,6 +2595,61 @@ export type Database = {
           kind: string
           opened_at: string
         }[]
+      }
+      approve_letter_send: {
+        Args: {
+          p_actor: string
+          p_item_id: string
+          p_kind: string
+          p_revision_id: string
+        }
+        Returns: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "letter_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cancel_letter_send: {
+        Args: { p_actor: string; p_id: string }
+        Returns: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "letter_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       capture_days: {
         Args: { p_days?: number }
@@ -2236,13 +2712,75 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_letter_send: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "letter_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       confirm_valuation_version: {
         Args: { p_cells: Json; p_version_id: string }
         Returns: undefined
       }
+      confirmed_subscribers: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          email: string
+        }[]
+      }
       enter_closes: {
         Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
         Returns: Record<string, unknown>
+      }
+      finish_letter_send: {
+        Args: {
+          p_broadcast_id: string
+          p_id: string
+          p_problem: string
+          p_recipients: number
+          p_status: string
+        }
+        Returns: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "letter_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       heartbeat_ages: {
         Args: Record<PropertyKey, never>
@@ -2259,6 +2797,44 @@ export type Database = {
           holds_position: boolean
           ledger_ok: boolean
         }[]
+      }
+      letters_bin: {
+        Args: { p_actor: string; p_ids: string[] }
+        Returns: number
+      }
+      letters_confirm: { Args: { p_token: string }; Returns: boolean }
+      letters_confirmation_failed: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      letters_confirmation_live: {
+        Args: { p_email: string; p_id: string; p_sent_at: string }
+        Returns: boolean
+      }
+      letters_erase: {
+        Args: { p_actor: string; p_id: string }
+        Returns: number
+      }
+      letters_issue_confirmations: {
+        Args: { p_actor: string; p_ids: string[] }
+        Returns: {
+          email: string
+          id: string
+          sent_at: string
+          token: string
+        }[]
+      }
+      letters_leave: { Args: { p_email: string }; Returns: undefined }
+      letters_mark_left: { Args: { p_emails: string[] }; Returns: number }
+      letters_open: { Args: Record<PropertyKey, never>; Returns: boolean }
+      letters_purge: { Args: Record<PropertyKey, never>; Returns: number }
+      letters_request: {
+        Args: { p_adult: boolean; p_email: string; p_notice_version: string }
+        Returns: undefined
+      }
+      letters_send_live: {
+        Args: { p_broadcast_id: string; p_id: string; p_kind: string }
+        Returns: boolean
       }
       mark_market_day_shut: {
         Args: { p_trade_date: string }
@@ -2312,7 +2888,46 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      purge_stale_video_data: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       queue_age: { Args: Record<PropertyKey, never>; Returns: number }
+      record_video_fetch: {
+        Args: {
+          p_channel_id: string
+          p_description: string
+          p_duration: number
+          p_found: boolean
+          p_own_channel: boolean
+          p_privacy: string
+          p_problem: string
+          p_published_at: string
+          p_source_id: string
+          p_title: string
+        }
+        Returns: {
+          channel_id: string | null
+          created_at: string
+          duration_seconds: number | null
+          fetch_problem: string | null
+          fetched_at: string | null
+          id: string
+          item_id: string
+          own_channel: boolean | null
+          privacy: string | null
+          youtube_id: string
+          yt_description: string | null
+          yt_published_at: string | null
+          yt_title: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "video_sources"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       redeem_pump_ticket: { Args: { p_token: string }; Returns: boolean }
       register_clock_target: { Args: { p_url: string }; Returns: boolean }
       remove_lint_allowance: {
@@ -2364,6 +2979,10 @@ export type Database = {
       }
       score_ideas: { Args: Record<PropertyKey, never>; Returns: number }
       seal_ledger_days: { Args: Record<PropertyKey, never>; Returns: number }
+      set_letters_signup: {
+        Args: { p_actor: string; p_on: boolean }
+        Returns: boolean
+      }
       start_valuation_version: {
         Args: { p_document_id: string }
         Returns: string

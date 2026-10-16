@@ -36,12 +36,12 @@ insert into public.item_revisions (id, item_id, body_md) values
   ('e2000000-0000-4000-8000-000000000001', 'd2000000-0000-4000-8000-000000000002', 'v1');
 set local role service_role;
 select is((select verdict from public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001',
-    'd1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
-    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07-v1.1"}'::jsonb)),
+    'd1000000-0000-4000-8000-000000000001', 'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2',
+    '{"passed":true,"revisionId":"e1000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07-v1.2"}'::jsonb)),
   'pass', 'the long-titled item publishes');
 select is((select verdict from public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001',
-    'd2000000-0000-4000-8000-000000000002', 'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.1',
-    '{"passed":true,"revisionId":"e2000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07-v1.1"}'::jsonb)),
+    'd2000000-0000-4000-8000-000000000002', 'e2000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2',
+    '{"passed":true,"revisionId":"e2000000-0000-4000-8000-000000000001","policyVersion":"sebi-unreg-2026-07-v1.2"}'::jsonb)),
   'pass', 'the symbol-only item publishes');
 reset role;
 select results_eq($$ select slug, length(slug) <= 67 from public.items order by id $$,

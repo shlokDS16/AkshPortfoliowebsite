@@ -6,6 +6,8 @@ import type { HomeStats, RegisterFile, SiteChrome, StreakData, WhatChangedEntry 
 import { captureStreak, toStreakData } from "@/modules/capture";
 import { buildKillTests, isIsoDate, isLagged, isLedgerCase, readCaseFile, sentenceDiff, splitThesisBody } from "@/modules/casefile";
 import type { PublicCompanyRow, PublicItemRow, PublicSnapshot } from "./types";
+import { listedLetters } from "./letter-list";
+import { listedVideos, videoHref } from "./video-list";
 
 export type FileRow = { item: PublicItemRow & { fileNo: number; dataAsOf: string }; company: PublicCompanyRow };
 
@@ -59,7 +61,10 @@ export function buildStreak(s: PublicSnapshot): StreakData {
 
 export function buildSiteChrome(s: PublicSnapshot): SiteChrome {
   const count = (kind: string) => s.items.filter((i) => i.kind === kind).length;
-  return { counts: { files: servedFiles(s).length, notes: count("learning"), process: count("process") }, streak: buildStreak(s) };
+  const videos = listedVideos(s).length;
+  const letters = listedLetters(s).length;
+  // `videos` is present only when there is one, so the rail's Videos entry (and its link) appear only once a video is listed.
+  return { counts: { files: servedFiles(s).length, notes: count("learning"), process: count("process"), ...(videos > 0 ? { videos } : {}), ...(letters > 0 ? { letters } : {}) }, streak: buildStreak(s) };
 }
 
 export function buildRegister(s: PublicSnapshot): RegisterFile[] {
@@ -90,6 +95,12 @@ export function describeRevision(s: PublicSnapshot, all: FileRow[], rev: PublicS
     }
     const changed = sentenceDiff(revs[n - 2].bodyMd, rev.bodyMd).reduce((sum, g) => sum + Math.max(g.removed.length, g.added.length), 0);
     return { n, path, item, entry: { on, kind: "revision", fileNo: formatFileNo(file.item.fileNo), subject, text: rev.changeReason ?? "Revised.", detail: `Revision R${n} · ${changed} sentences changed · ${figures}` } };
+  }
+  if (item.kind === "video") {
+    // Plan 5b: only a listed video (a public_videos row and a matching record) is described; any other is as if it were not there.
+    if (!listedVideos(s).some((v) => v.item.id === item.id)) return null;
+    const path = videoHref(item.slug);
+    return { n, path, item, entry: { on, kind: "video", fileNo: null, subject: { label: item.title, href: path }, text: rev.changeReason ?? (n === 1 ? "First version." : "Revised."), detail: `Video · R${n}` } };
   }
   if (item.kind !== "learning" && item.kind !== "process") return null;
   const base = item.kind === "learning" ? "/notes" : "/process";

@@ -9,8 +9,8 @@ select plan(38);
 -- as the service client does, and pass the signed-in session's user as the verified actor.
 create function public.test_publish(p_item uuid, p_rev uuid) returns text
 language sql security definer set search_path = ''
-as $$ select verdict from public.publish_revision((select auth.uid()), p_item, p_rev, 'sebi-unreg-2026-07-v1.1',
-  jsonb_build_object('passed', true, 'revisionId', p_rev::text, 'policyVersion', 'sebi-unreg-2026-07-v1.1')) $$;
+as $$ select verdict from public.publish_revision((select auth.uid()), p_item, p_rev, 'sebi-unreg-2026-07-v1.2',
+  jsonb_build_object('passed', true, 'revisionId', p_rev::text, 'policyVersion', 'sebi-unreg-2026-07-v1.2')) $$;
 create function public.test_unpublish(p_item uuid) returns text
 language sql security definer set search_path = ''
 as $$ select public.unpublish_item((select auth.uid()), p_item) $$;

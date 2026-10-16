@@ -21,9 +21,9 @@ const importers = (pattern: RegExp) =>
     .sort();
 
 describe("gate-rpc confinement", () => {
-  it("outside job code, only compliance/gate-rpc.ts imports the secret-key client", () => {
+  it("outside job code, only compliance/gate-rpc.ts and distribution/send-rpc.ts (the letters' doors, Phase 5c) import the secret-key client", () => {
     const users = importers(/from\s+"@\/lib\/supabase\/service"/).filter((file) => !file.startsWith("modules/ops/"));
-    expect(users).toEqual(["modules/compliance/gate-rpc.ts"]);
+    expect(users).toEqual(["modules/compliance/gate-rpc.ts", "modules/distribution/send-rpc.ts"]);
   });
 
   it("only compliance/gate-service.ts imports gate-rpc, and only compliance/actions.ts imports gate-service", () => {

@@ -15,7 +15,7 @@ describe("a concept that is also the item's theme (Phase 4 T2 note 3)", () => {
       decisionId: "d1",
       revisionId: "r1",
       verdict: "fail",
-      policyVersion: "sebi-unreg-2026-07-v1.1",
+      policyVersion: "sebi-unreg-2026-07-v1.2",
       decidedAt: "2026-10-15T05:00:00Z",
       failures: [finding("themeName"), finding("conceptName")],
       allowedBy: [],

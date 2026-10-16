@@ -68,15 +68,16 @@ describe("CaptureReceipt and GrammarKeyRow", () => {
     expect(receipt.textContent).not.toMatch(/publish/i);
   });
 
-  it("offers the six grammar keys at thumb height without stealing focus", async () => {
+  it("offers the seven grammar keys at thumb height without stealing focus", async () => {
     const onInsert = vi.fn();
     render(<GrammarKeyRow onInsert={onInsert} />);
     const keys = screen.getAllByRole("button");
-    expect(keys.map((k) => k.textContent)).toEqual(["$", "#", "t:", "l:", "p:", "r:"]);
+    expect(keys.map((k) => k.textContent)).toEqual(["$", "#", "t:", "l:", "p:", "r:", "v:"]);
     await userEvent.click(keys[2]);
     expect(onInsert).toHaveBeenCalledWith("t:");
     expect(keys[0]).toHaveClass("min-h-11");
     expect(keys[5]).toHaveAccessibleName("r: read");
+    expect(keys[6]).toHaveAccessibleName("v: video");
   });
 });
 

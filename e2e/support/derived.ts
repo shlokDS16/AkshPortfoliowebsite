@@ -2,21 +2,23 @@ import { test, type APIRequestContext } from "@playwright/test";
 import { E2E_SITE_URL } from "./stack";
 
 // Plan 5a Task 4. What the derived public surfaces (sitemap, feed, robots, metadata, structured data, share cards, print) must show in each
-// of the three states the e2e run passes through. The state is told by the Playwright project, never by what the database holds (a check
+// of the four states the e2e run passes through. The state is told by the Playwright project, never by what the database holds (a check
 // decided by the data cannot fail in the case it exists for):
 //  - deploy: the public-* projects, before any loop: two files and three notes are public; no case, no concept.
 //  - a case is public: the cases-public-* projects, after the cases loop (the concepts loop may or may not have run yet).
 //  - concepts are public: the concepts-public-* projects, after the concepts loop (which runs after the cases loop).
+//  - a video is listed: the videos-public-* projects, after the videos loop (which runs after the concepts loop and leaves one video public).
 export const SITE = E2E_SITE_URL;
 export const STATIC_PATHS = ["/", "/companies", "/notes", "/process", "/about"] as const;
 
 export function state() {
   const name = test.info().project.name;
-  const conceptsPublic = name.startsWith("concepts-public");
-  return { deploy: name.startsWith("public-"), casePublic: conceptsPublic || name.startsWith("cases-public"), conceptsPublic };
+  const videosPublic = name.startsWith("videos-public");
+  const conceptsPublic = videosPublic || name.startsWith("concepts-public");
+  return { deploy: name.startsWith("public-"), casePublic: conceptsPublic || name.startsWith("cases-public"), conceptsPublic, videosPublic };
 }
 
-export type Pages = { files: string[]; notes: string[]; process: string[]; cases: string[]; concepts: string[] };
+export type Pages = { files: string[]; notes: string[]; process: string[]; cases: string[]; concepts: string[]; videos: string[] };
 
 /** Every public detail page, read from the live index pages the way a visitor finds them. An index that answers 404 has none. */
 export async function discover(request: APIRequestContext): Promise<Pages> {
@@ -32,6 +34,7 @@ export async function discover(request: APIRequestContext): Promise<Pages> {
     process: await links("/process", "/process"),
     cases: await links("/cases", "/cases"),
     concepts: await links("/concepts", "/concepts"),
+    videos: await links("/videos", "/videos"),
   };
 }
 
@@ -45,7 +48,8 @@ export function expectedSitemapPaths(pages: Pages): string[] {
     ...STATIC_PATHS,
     ...(pages.cases.length > 0 ? ["/cases", "/mistakes"] : []),
     ...(pages.concepts.length > 0 ? ["/concepts"] : []),
-    ...pages.files, ...pages.notes, ...pages.process, ...pages.cases, ...pages.concepts,
+    ...(pages.videos.length > 0 ? ["/videos"] : []),
+    ...pages.files, ...pages.notes, ...pages.process, ...pages.cases, ...pages.concepts, ...pages.videos,
   ].sort();
 }
 
