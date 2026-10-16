@@ -17,7 +17,7 @@ const inOverlay = (el: EventTarget | null) => el instanceof Element && el.closes
  * Mounted once in the desk shell: the Capture button, the sheet, the `c` and `/` keys (design-dna 14), and the
  * offline queue lifecycle (flush on load and when the phone comes back online).
  */
-export function CaptureDock({ known }: { known: KnownTokenLists }) {
+export function CaptureDock({ known, videoKey = false }: { known: KnownTokenLists; videoKey?: boolean }) {
   const sets = useKnown(known);
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -49,7 +49,7 @@ export function CaptureDock({ known }: { known: KnownTokenLists }) {
   return (
     <>
       <CaptureButton ref={button} onClick={openCapture} />
-      <CaptureSheet open={open} onOpenChange={setOpen} known={sets} />
+      <CaptureSheet open={open} onOpenChange={setOpen} known={sets} videoKey={videoKey} />
     </>
   );
 }

@@ -14,6 +14,7 @@ import { PublishChecklist } from "@/components/desk/private/publish-checklist";
 import { RevisionEditor } from "@/components/desk/private/revision-editor";
 import { WordingGuide } from "@/components/desk/private/wording-guide";
 import { istDate } from "@/lib/dates";
+import { featureOn } from "@/lib/features";
 import { errorText, noticeText } from "@/lib/messages";
 import { saveCaseFileRevisionAction, setFiguresToAction } from "@/modules/casefile/actions";
 import { refreshCaseStudyAction } from "@/modules/cases/actions";
@@ -43,6 +44,8 @@ const search = (query: ItemQuery) => {
 export async function ItemView({ id, query, video }: { id: string; query: ItemQuery; video?: (data: EditorData) => Promise<VideoExtras> }) {
   const data = await loadEditor(id);
   if (!data) notFound();
+  // Phase 5d (spec s8): a video or a letter has no desk page while its feature is off, so the item page is a 404 itself, not a redirect to one.
+  if ((data.item.kind === "video" && !featureOn("ownVideos")) || (data.item.kind === "letter" && !featureOn("letters"))) notFound();
   if (data.item.kind === "video" && !video) redirect(`/desk/videos/${id}${search(query)}`);
   if (video && data.item.kind !== "video") notFound();
   // A letter has its own page (Phase 5c): its fields, the email preview, the gate and the send block.

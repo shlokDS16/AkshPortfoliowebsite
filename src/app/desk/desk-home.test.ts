@@ -20,8 +20,15 @@ vi.mock("@/modules/capture", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/modules/capture")>()),
   listCapturesSince: (...args: unknown[]) => listCapturesSince(...args),
 }));
-// The real box needs the app router; the page only has to place it.
-vi.mock("@/components/desk/private/capture-bar", () => ({ CaptureBar: () => createElement("div", { "data-testid": "capture-box" }, "BOX") }));
+// The real box needs the app router; the page only has to place it (and say whether the v: key is offered).
+vi.mock("@/components/desk/private/capture-bar", () => ({
+  CaptureBar: (props: { videoKey?: boolean }) => createElement("div", { "data-testid": "capture-box", "data-video-key": String(props.videoKey) }, "BOX"),
+}));
+const mondayLetterLine = vi.fn<(...args: unknown[]) => Promise<string | null>>(async () => null);
+vi.mock("@/modules/distribution", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/distribution")>()),
+  mondayLetterLine: (...args: unknown[]) => mondayLetterLine(...args),
+}));
 
 import DeskHome from "./page";
 
@@ -93,5 +100,29 @@ describe("DeskHome", () => {
     expect(html).toContain("BOX");
     expect(html).not.toContain("This month:");
     expect(JSON.stringify(error.mock.calls)).not.toContain("hunter2");
+  });
+
+  // Phase 5d (spec s8): the letters and the own-channel videos are off, so the home page has no Monday letter prompt, reads nothing for one, and the
+  // capture box is not told to offer the v: key.
+  describe("while the letters and own-channel videos are off", () => {
+    it("shows no letter prompt and does not read the letter changes", async () => {
+      vi.stubEnv("FEATURES_ON", "");
+      mondayLetterLine.mockResolvedValue("What changed since the last letter");
+      listCapturesSince.mockResolvedValueOnce([]);
+      const html = await render();
+      expect(mondayLetterLine).not.toHaveBeenCalled();
+      expect(html).not.toContain("What changed since the last letter");
+      expect(html).not.toContain("/desk/letters");
+      expect(html).toContain('data-video-key="false"');
+    });
+
+    it("is the control: with the override the prompt and the key come back", async () => {
+      vi.stubEnv("FEATURES_ON", "ownVideos,letters");
+      mondayLetterLine.mockResolvedValue("What changed since the last letter");
+      listCapturesSince.mockResolvedValueOnce([]);
+      const html = await render();
+      expect(html).toContain("What changed since the last letter");
+      expect(html).toContain('data-video-key="true"');
+    });
   });
 });

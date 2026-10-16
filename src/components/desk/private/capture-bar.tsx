@@ -12,7 +12,7 @@ import { NeedsAttention } from "./needs-attention";
 import { useCaptureSave } from "./use-capture-save";
 
 /** The inline capture on /desk, autofocused at every width (spec s5, D30). The queue lifecycle lives in CaptureDock. */
-export function CaptureBar({ known }: { known: KnownTokenLists }) {
+export function CaptureBar({ known, videoKey = false }: { known: KnownTokenLists; videoKey?: boolean }) {
   const sets = useKnown(known);
   const field = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState("");
@@ -39,12 +39,12 @@ export function CaptureBar({ known }: { known: KnownTokenLists }) {
         onChange={setValue}
         onSubmit={submit}
         known={sets}
-        placeholder="What did you just notice?   $company  #concept  t:  l:  p:  r:  v:"
+        placeholder={`What did you just notice?   $company  #concept  t:  l:  p:  r:${videoKey ? "  v:" : ""}`}
       />
       <CaptureReceipt model={receipt} />
       <CaptureStatus dirty={value !== ""} />
       <div className="desk:hidden">
-        <GrammarKeyRow onInsert={insert} />
+        <GrammarKeyRow onInsert={insert} videoKey={videoKey} />
       </div>
       <NeedsAttention />
       <Toast message={toast} />

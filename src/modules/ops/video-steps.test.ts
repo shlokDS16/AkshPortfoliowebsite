@@ -192,3 +192,49 @@ describe("runVideoFetchNow (Fetch again): admin-only by its caller, one run at a
     expect(videoSteps().map((s) => s.job)).toEqual(["videos:fetch", "videos:check"]);
   });
 });
+
+// Phase 5d (spec s8): the own-channel videos are off in production. Even with both YouTube settings set, the steps say "videos off" and ask YouTube
+// and the database for nothing (the 30-day purge of already stored data still runs on the daily check, as it does when the settings are unset).
+describe("the video steps while the feature is off (Phase 5d)", () => {
+  const KEY = "AIzaSyA-1234567890abcdefghijklmnopqrstu";
+  const CHANNEL = "UC0123456789abcdefghijkl";
+
+  it("videos:fetch says 'videos off' and touches no database, though the YouTube settings are set", async () => {
+    vi.stubEnv("FEATURES_ON", "");
+    env.value = { YOUTUBE_API_KEY: KEY, YOUTUBE_CHANNEL_ID: CHANNEL };
+    touched.from = 0;
+    touched.rpc = 0;
+    expect(await VIDEO_FETCH_STEP.run()).toBe("videos off");
+    expect(touched).toEqual({ from: 0, rpc: 0 });
+  });
+
+  it("videos:check reads no table and makes no outside call: at most the purge", async () => {
+    vi.stubEnv("FEATURES_ON", "");
+    env.value = { YOUTUBE_API_KEY: KEY, YOUTUBE_CHANNEL_ID: CHANNEL };
+    touched.from = 0;
+    touched.rpc = 0;
+    purge.mode = "answer";
+    purge.n = 0;
+    expect(await VIDEO_CHECK_STEP.run()).toBe("videos off");
+    expect(touched).toEqual({ from: 0, rpc: 1 });
+    purge.mode = "throw";
+  });
+
+  it("'Fetch again' is refused the same way, under its own heartbeat", async () => {
+    vi.stubEnv("FEATURES_ON", "");
+    env.value = { YOUTUBE_API_KEY: KEY, YOUTUBE_CHANNEL_ID: CHANNEL };
+    touched.from = 0;
+    const beats: unknown[] = [];
+    const repo = { record: async (b: unknown) => void beats.push(b) } as unknown as HeartbeatRepo;
+    const out = await runVideoFetchNow("item-1", repo);
+    expect(out?.map((r) => r.detail)).toEqual(["videos off"]);
+    expect(touched.from).toBe(0);
+  });
+
+  it("a production deployment never takes the override", async () => {
+    vi.stubEnv("FEATURES_ON", "ownVideos");
+    vi.stubEnv("VERCEL_ENV", "production");
+    env.value = { YOUTUBE_API_KEY: KEY, YOUTUBE_CHANNEL_ID: CHANNEL };
+    expect(await VIDEO_FETCH_STEP.run()).toBe("videos off");
+  });
+});

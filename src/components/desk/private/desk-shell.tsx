@@ -7,10 +7,20 @@ import { LivenessStrip } from "./liveness-strip";
 import { OfflineStrip } from "./offline-strip";
 import { PrintBanner } from "./print-banner";
 
-type Props = { names: number; inbox: number; liveness: LivenessState; signOut: () => Promise<void>; capture?: ReactNode; children: ReactNode };
+type Props = {
+  names: number;
+  inbox: number;
+  liveness: LivenessState;
+  signOut: () => Promise<void>;
+  capture?: ReactNode;
+  /** Phase 5d (spec s8): which hidden features are on, so the Items tab claims their pages only then. Both off by default. */
+  ownVideos?: boolean;
+  letters?: boolean;
+  children: ReactNode;
+};
 
 /** Private chrome (design-dna 8.4): "Desk" + mono "private", tabs, strips. Never indexed. */
-export function DeskShell({ names, inbox, liveness, signOut, capture, children }: Props) {
+export function DeskShell({ names, inbox, liveness, signOut, capture, ownVideos, letters, children }: Props) {
   return (
     <div data-desk-print>
       <PrintBanner />
@@ -20,7 +30,7 @@ export function DeskShell({ names, inbox, liveness, signOut, capture, children }
             Desk
           </Link>
           <span className="rounded-sm border border-rule-strong px-1 font-mono text-mono-label uppercase text-ink-muted">private</span>
-          <DeskTabs names={names} inbox={inbox} variant="top" />
+          <DeskTabs names={names} inbox={inbox} variant="top" ownVideos={ownVideos} letters={letters} />
           <div className="flex-1" />
           {capture}
           <form action={signOut}>
@@ -38,7 +48,7 @@ export function DeskShell({ names, inbox, liveness, signOut, capture, children }
         {children}
       </main>
       <div className="print:hidden">
-        <DeskTabs names={names} inbox={inbox} variant="bottom" />
+        <DeskTabs names={names} inbox={inbox} variant="bottom" ownVideos={ownVideos} letters={letters} />
       </div>
     </div>
   );

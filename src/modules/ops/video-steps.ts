@@ -1,5 +1,6 @@
 import "server-only";
 import { serverEnv } from "@/lib/env.server";
+import { featureOn } from "@/lib/features";
 import { createVideoMetaPort } from "@/lib/providers";
 import { jobDbError } from "@/lib/supabase/errors";
 import type { Db } from "@/lib/supabase/types";
@@ -78,7 +79,9 @@ export function createVideoFetchStore(db: Db): FetchStore {
  * port is null while the YouTube settings are unset, and the step answers "videos off" before it reads the database.
  */
 export function buildVideoFetchDeps(): FetchDeps {
-  return { port: createVideoMetaPort(serverEnv()), store: createVideoFetchStore(createSupabaseServiceClient()), clock: Date.now };
+  // Phase 5d (spec s8): the own-channel videos are off, so there is no port whatever the settings say: every step answers "videos off" and calls YouTube
+  // for nothing. The 30-day purge of data already stored still runs on the daily check, as it does when the settings are unset.
+  return { port: featureOn("ownVideos") ? createVideoMetaPort(serverEnv()) : null, store: createVideoFetchStore(createSupabaseServiceClient()), clock: Date.now };
 }
 
 /** `videos:fetch` (the pump): sources never fetched, one API call. `videos:check` (daily): every source, in calls of 50. */
@@ -94,6 +97,7 @@ export const VIDEO_CHECK_STEP: Step = CHECK;
 
 /** Whether video listing is on (both YouTube settings, or the fixture outside a deployment): the desk says "not set up yet" when it is not. A setting that cannot be read counts as off. */
 export function videoListingOn(): boolean {
+  if (!featureOn("ownVideos")) return false;
   try {
     return createVideoMetaPort(serverEnv()) !== null;
   } catch {

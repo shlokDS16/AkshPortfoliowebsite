@@ -2,11 +2,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { featureOn } from "@/lib/features";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
 import { errorText } from "@/lib/messages";
 import { createSupabaseResearchRepo, ITEM_KINDS, listRecentItems } from "@/modules/research";
 import { createItemAction } from "@/modules/research/actions";
+import { ItemsSubnav } from "./items-subnav";
+import { visibleItems } from "./visible-items";
 
 // A read is what he logs with r: (spec s6); the desk says "read", the database says reading_note.
 const kindWord = (kind: string) => (kind === "reading_note" ? "read" : kind.replace("_", " "));
@@ -16,26 +19,15 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
   const { error, kind } = await searchParams;
   const reads = kind === "reading_note";
   const errorMessage = errorText(error);
-  const recent = await listRecentItems(createSupabaseResearchRepo(await createSupabaseServerClient()));
+  const ownVideos = featureOn("ownVideos");
+  const letters = featureOn("letters");
+  const recent = visibleItems(await listRecentItems(createSupabaseResearchRepo(await createSupabaseServerClient())), { ownVideos, letters });
   const items = reads ? recent.filter((i) => i.kind === "reading_note") : recent;
   const link = "inline-flex min-h-11 items-center underline decoration-1 underline-offset-3";
   return (
     <div className="space-y-6">
       <h1 className="text-title text-ink desk:text-title-desk">Items</h1>
-      <nav aria-label="Concepts, the month, videos and letters" className="flex flex-wrap gap-x-5 text-small">
-        <Link href="/desk/concepts" className={link}>
-          Concepts
-        </Link>
-        <Link href="/desk/learned" className={link}>
-          This month
-        </Link>
-        <Link href="/desk/videos" className={link}>
-          Videos
-        </Link>
-        <Link href="/desk/letters" className={link}>
-          Letters
-        </Link>
-      </nav>
+      <ItemsSubnav ownVideos={ownVideos} letters={letters} />
       <form action={createItemAction} className="flex flex-wrap items-end gap-2 rounded-sm border border-rule p-3">
         <div className="space-y-1">
           <Label htmlFor="kind">Kind</Label>

@@ -68,9 +68,9 @@ describe("CaptureReceipt and GrammarKeyRow", () => {
     expect(receipt.textContent).not.toMatch(/publish/i);
   });
 
-  it("offers the seven grammar keys at thumb height without stealing focus", async () => {
+  it("offers the grammar keys at thumb height without stealing focus (the v: key only while own videos are on)", async () => {
     const onInsert = vi.fn();
-    render(<GrammarKeyRow onInsert={onInsert} />);
+    render(<GrammarKeyRow onInsert={onInsert} videoKey />);
     const keys = screen.getAllByRole("button");
     expect(keys.map((k) => k.textContent)).toEqual(["$", "#", "t:", "l:", "p:", "r:", "v:"]);
     await userEvent.click(keys[2]);
@@ -78,6 +78,13 @@ describe("CaptureReceipt and GrammarKeyRow", () => {
     expect(keys[0]).toHaveClass("min-h-11");
     expect(keys[5]).toHaveAccessibleName("r: read");
     expect(keys[6]).toHaveAccessibleName("v: video");
+  });
+
+  // Phase 5d (spec s8): the own-channel videos are off, so the key row does not offer v:.
+  it("offers six keys and no v: while own videos are off (the default)", () => {
+    render(<GrammarKeyRow onInsert={vi.fn()} />);
+    expect(screen.getAllByRole("button").map((k) => k.textContent)).toEqual(["$", "#", "t:", "l:", "p:", "r:"]);
+    expect(screen.getByRole("group", { name: "Insert a grammar key" })).toHaveClass("grid-cols-6");
   });
 });
 
