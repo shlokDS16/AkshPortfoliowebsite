@@ -1,6 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { derivedProblems } from "../src/modules/showcase/derived-scan";
 import { discover, expectedSitemapPaths, isFeedDate, SITE, state, type Pages } from "./support/derived";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 // Plan 5a Task 4 (spec s12, publishing rule 11): the surfaces built from the public snapshot, checked from outside, as a feed reader, a
 // crawler and a social network would see them. They run in the public-* projects (the deploy state: two files and three notes, no case,

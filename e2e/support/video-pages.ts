@@ -2,10 +2,12 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import { derivedProblems } from "../../src/modules/showcase/derived-scan";
 import { SITE } from "./derived";
+import { FRAME_HOST, guardOutbound, hostsOf } from "./outbound";
 
 // What a signed-out visitor, a feed reader, a crawler and a social network see of a listed video (Plan 5b Task 9), and what they see once it is
-// unpublished. Every check reads the live site as an anonymous browser context: no cookies, no session. Nothing here reaches Google: the
-// thumbnail host is aborted and the privacy-enhanced frame is answered with an empty page, so the only thing counted is whether the page asked.
+// unpublished. Every check reads the live site as an anonymous browser context: no cookies, no session. Nothing here reaches Google: every
+// request to a host outside this machine is recorded and answered locally (support/outbound.ts); the page may ask for nothing until the
+// press, and the press then asks for the privacy-enhanced frame, once.
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 export const SIZES = { 375: { width: 375, height: 812 }, 1280: { width: 1280, height: 800 } } as const;
@@ -35,23 +37,16 @@ async function expectClean(page: Page): Promise<void> {
 export async function expectPublicVideo(browser: Browser, size: keyof typeof SIZES, shown: VideoShown): Promise<void> {
   const context = await browser.newContext({ viewport: SIZES[size], isMobile: size === 375, hasTouch: size === 375 });
   try {
-    const asked: string[] = [];
-    // The still comes from i.ytimg.com: never let the test reach it. The frame is answered here, so nothing leaves the machine.
-    await context.route(/\/\/i\.ytimg\.com\//, (route) => route.abort());
-    await context.route(new RegExp(`//(?:www\\.)?${NOCOOKIE.replace(/\./g, "\\.")}/`), (route) =>
-      route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>frame</title><p>frame</p>" }),
-    );
+    // Every address outside this machine, in order. The frame is answered locally, anything else is aborted: nothing leaves the machine.
+    const asked = await guardOutbound(context);
     const page = await context.newPage();
-    page.on("request", (request) => {
-      if (new URL(request.url()).hostname.endsWith(NOCOOKIE)) asked.push(request.url());
-    });
 
     const index = await page.goto("/videos");
     expect(index?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: "Videos" })).toBeVisible();
     await expect(page.locator(`main a[href="/videos/${shown.slug}"]`).first()).toContainText(shown.title);
     await expectClean(page);
-    expect(asked, "the index loads nothing from YouTube").toEqual([]);
+    expect(hostsOf(asked), "the index asks nothing of Google or YouTube").toEqual([]);
 
     const response = await page.goto(`/videos/${shown.slug}`);
     expect(response?.status()).toBe(200);
@@ -64,13 +59,14 @@ export async function expectPublicVideo(browser: Browser, size: keyof typeof SIZ
     await expect(page.getByText("Typed by machine from the video's captions and not edited.", { exact: false })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Play video \(loads YouTube\)/ })).toBeVisible();
     await expectClean(page);
-    expect(asked, "nothing is asked of youtube-nocookie.com before the press").toEqual([]);
+    expect(hostsOf(asked), "nothing is asked of Google or YouTube (ytimg.com, youtube.com, youtube-nocookie.com, google*.com) before the press: no frame, no picture").toEqual([]);
 
     await page.getByRole("button", { name: /^Play video \(loads YouTube\)/ }).click();
     const frame = page.locator("iframe");
     await expect(frame).toHaveCount(1);
     await expect(frame).toHaveAttribute("src", new RegExp(`^https://www\\.${NOCOOKIE.replace(/\./g, "\\.")}/embed/${shown.youtubeId}`));
     await expect.poll(() => asked.length, { message: "one request after the press" }).toBe(1);
+    expect(new URL(asked[0] as string).hostname, "and it is the privacy-enhanced frame").toMatch(FRAME_HOST);
   } finally {
     await context.close();
   }

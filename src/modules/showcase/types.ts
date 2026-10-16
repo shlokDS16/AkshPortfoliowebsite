@@ -107,7 +107,7 @@ export type MistakeEntry = { slug: string; href: string; company: string; title:
 export type VideoChapter = { s: number; clock: string; title: string };
 export type VideoSummary = { slug: string; title: string; learningObjective: string; revisedOn: ISODate; durationLabel: string | null; href: string };
 export type VideoView = {
-  slug: string; title: string; learningObjective: string; youtubeId: string; thumbnail: string; durationLabel: string | null; uploadedOn: ISODate | null;
+  slug: string; title: string; learningObjective: string; youtubeId: string; durationLabel: string | null; uploadedOn: ISODate | null;
   revisedOn: ISODate; firstWrittenOn: ISODate; revNo: number; revCount: number; body: ViewBlockData[]; chapters: VideoChapter[];
   holdsPosition: HoldsPosition | null; dataAsOf: ISODate | null;
 };

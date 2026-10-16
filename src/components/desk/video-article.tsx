@@ -29,7 +29,7 @@ export function VideoArticle({ video, lines }: { video: VideoView; lines: Transc
       <div className="mt-3 print:hidden">
         <PrintButton />
       </div>
-      <VideoPlayer youtubeId={video.youtubeId} title={video.title} thumbnail={video.thumbnail} durationLabel={video.durationLabel} chapters={video.chapters} />
+      <VideoPlayer youtubeId={video.youtubeId} title={video.title} durationLabel={video.durationLabel} chapters={video.chapters} />
       {video.body.length > 0 ? (
         <div className="mt-(--block-gap)">
           <ViewBlock blocks={video.body} />

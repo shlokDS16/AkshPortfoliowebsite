@@ -1,5 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { guardOutbound, hostsOf, installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 // Plan 5b Task 9. Two states of the same pages, told apart by the Playwright project, never by what the database holds (a skip decided by the
 // data cannot fail in the case it exists for):
@@ -7,7 +10,7 @@ import { expect, test, type Page } from "@playwright/test";
 //    chrome does not link to them. Nothing a visitor can see has changed. The public-* projects run on this state.
 //  - one video listed (videos.spec.ts publishes one through the real gate on the local stack and leaves it public): the videos-public-*
 //    projects check the index and the video page for WCAG 2.2 A/AA, one h1, no sideways scroll, 44 px targets on the phone, and that the
-//    page asks YouTube for nothing until the press. The facts of that video (chapters, transcript, card, feed) are videos.spec.ts.
+//    page asks Google and YouTube for nothing until the press (not the frame, not the thumbnail: every outside request is recorded). The facts of that video (chapters, transcript, card, feed) are videos.spec.ts.
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const listed = () => test.info().project.name.startsWith("videos-public");
 
@@ -31,12 +34,7 @@ test("with no video listed: /videos and every video page are a 404, and no page 
 
 test("with a video listed: the index and the video page pass axe, keep one h1, do not scroll sideways, and ask YouTube for nothing before the press", async ({ page, isMobile }) => {
   test.skip(!listed(), "the deploy state lists no video");
-  const asked: string[] = [];
-  await page.route(/\/\/i\.ytimg\.com\//, (route) => route.abort());
-  await page.route(/\/\/(?:www\.)?youtube-nocookie\.com\//, (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>frame</title>" }));
-  page.on("request", (request) => {
-    if (new URL(request.url()).hostname.endsWith("youtube-nocookie.com")) asked.push(request.url());
-  });
+  const asked = await guardOutbound(page.context()); // the same list the afterEach guard reads; every host outside this machine
 
   expect((await page.goto("/videos"))?.status()).toBe(200);
   await expect(page.getByRole("heading", { level: 1, name: "Videos" })).toBeVisible();
@@ -54,5 +52,5 @@ test("with a video listed: the index and the video page pass axe, keep one h1, d
     expect((await play.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
     for (const h of await page.locator("section[aria-labelledby=chapters-heading] a").evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(44);
   }
-  expect(asked, "nothing is asked of youtube-nocookie.com before the press").toEqual([]);
+  expect(hostsOf(asked), "nothing is asked of Google or YouTube (ytimg.com, youtube.com, youtube-nocookie.com, google*.com) before the press").toEqual([]);
 });

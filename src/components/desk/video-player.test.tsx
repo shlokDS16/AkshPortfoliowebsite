@@ -10,27 +10,22 @@ const CHAPTERS = [
   { s: 95, clock: "1:35", title: "Reading the ageing table" },
   { s: 3725, clock: "1:02:05", title: "What to ask next" },
 ];
-const props = { youtubeId: ID, title: "Reading the ageing table", thumbnail: `https://i.ytimg.com/vi/${ID}/hqdefault.jpg`, durationLabel: "1:02:05", chapters: CHAPTERS };
+const props = { youtubeId: ID, title: "Reading the ageing table", durationLabel: "1:02:05", chapters: CHAPTERS };
 
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
 
 describe("the click-to-load player (D79)", () => {
-  it("before the press loads nothing from YouTube but the thumbnail: no iframe, no script, a plain img with its size", () => {
+  it("before the press loads nothing from Google or YouTube, not even a picture: a local placeholder with the title and the length, no iframe, img, script or source", () => {
     const { container } = render(<VideoPlayer {...props} />);
-    expect(container.querySelector("iframe")).toBeNull();
-    expect(container.querySelector("script")).toBeNull();
-    const img = container.querySelector("img")!;
-    expect(img).toHaveAttribute("src", props.thumbnail);
-    expect(img).toHaveAttribute("width", "480");
-    expect(img).toHaveAttribute("height", "360");
-    expect(img).toHaveAttribute("alt", "");
-    expect(img).toHaveAttribute("referrerpolicy", "no-referrer");
-    // The only address in the markup that is not this site's own: the image host and the plain watch links (a link loads nothing).
+    expect(container.querySelector("iframe, img, script, source, link, video, picture, object, embed")).toBeNull();
+    expect(container.innerHTML).not.toMatch(/ytimg|youtube-nocookie|googlevideo|gstatic/);
+    // The only address in the markup is the plain watch links of the chapters (a link loads nothing until it is followed).
     const hosts = [...container.querySelectorAll("[src],[href]")].map((el) => new URL(el.getAttribute("src") ?? el.getAttribute("href")!).host);
-    expect(new Set(hosts)).toEqual(new Set(["i.ytimg.com", "www.youtube.com"]));
-    expect(container.innerHTML).not.toContain("youtube-nocookie.com");
+    expect(new Set(hosts)).toEqual(new Set(["www.youtube.com"]));
+    expect(container.querySelector("[data-player-box]")).toHaveTextContent("Reading the ageing table");
+    expect(container.querySelector("[data-player-box]")).toHaveTextContent("1:02:05");
   });
 
   it("names the button with the approved words and shows the length beside it", () => {

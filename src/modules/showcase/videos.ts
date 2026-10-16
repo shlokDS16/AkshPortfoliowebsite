@@ -27,11 +27,11 @@ export function buildVideoView(s: PublicSnapshot, slug: string): VideoView | nul
   const found = listedVideos(s).find((v) => v.item.slug === slug);
   if (!found) return null;
   const { item, row, chapters } = found;
-  const thumbnail = thumbnailUrl(row.youtubeId);
-  if (thumbnail === null || embedUrl(row.youtubeId) === null) return null;
+  // The id must be one the address builders accept; the page itself loads no picture (spec amendment s).
+  if (thumbnailUrl(row.youtubeId) === null || embedUrl(row.youtubeId) === null) return null;
   const { revNo, revCount } = ordinal(s, item);
   return {
-    slug, title: item.title, learningObjective: item.learningObjective ?? "", youtubeId: row.youtubeId, thumbnail, durationLabel: durationLabel(row.durationSeconds),
+    slug, title: item.title, learningObjective: item.learningObjective ?? "", youtubeId: row.youtubeId, durationLabel: durationLabel(row.durationSeconds),
     uploadedOn: row.publishedAt ? istDate(row.publishedAt) : null, revisedOn: istDate(item.revisedAt),
     firstWrittenOn: istDate(revisionsOf(s, item.id)[0]?.createdAt ?? item.publishedAt), revNo, revCount,
     body: buildViewBlocks(item.bodyMd, readCaseFile(item.structured), s.today),

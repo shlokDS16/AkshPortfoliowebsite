@@ -1,5 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 // The seed's note slug carries a suffix written by publish_revision() ("<title words>-<6 id chars>"), so the note is
 // reached through its link on /notes rather than a fixed path.

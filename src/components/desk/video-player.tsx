@@ -6,15 +6,15 @@ import { useEffect, useRef, useState } from "react";
 import { embedUrl, watchUrl } from "@/modules/distribution/public";
 import type { VideoChapter } from "@/modules/showcase";
 
-type Props = { youtubeId: string; title: string; thumbnail: string; durationLabel: string | null; chapters: VideoChapter[] };
+type Props = { youtubeId: string; title: string; durationLabel: string | null; chapters: VideoChapter[] };
 
 /**
- * Spec s7.7, D79: a click-to-load player. Until the press the page holds a still image (a plain img with its size) and a button, and loads
- * nothing else from YouTube: no iframe, no script. The press mounts one privacy-enhanced (youtube-nocookie) frame in the same 16:9 box, so
- * nothing moves. A chapter is a link to its place on YouTube that, once this script has run, starts the frame at that second instead
+ * Spec s7.7, D79 as amended (s): a click-to-load player. Until the press the page holds a local placeholder (the title, the length and a
+ * plain Play control) and asks Google and YouTube for nothing: no iframe, no script, no picture. The press mounts one privacy-enhanced
+ * (youtube-nocookie) frame in the same 16:9 box, so nothing moves. A chapter is a link to its place on YouTube that, once this script has run, starts the frame at that second instead
  * (the frame is reloaded with `start=`; no postMessage). The chapter list is also here because it drives the frame; it prints, the player does not.
  */
-export function VideoPlayer({ youtubeId, title, thumbnail, durationLabel, chapters }: Props) {
+export function VideoPlayer({ youtubeId, title, durationLabel, chapters }: Props) {
   const [start, setStart] = useState<number | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -53,9 +53,10 @@ export function VideoPlayer({ youtubeId, title, thumbnail, durationLabel, chapte
             />
           ) : (
             <>
-              {/* A third-party still that must stay a plain img (spec s7.7): next/image would route it through this server. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={thumbnail} alt="" width={480} height={360} referrerPolicy="no-referrer" decoding="async" className="absolute inset-0 size-full object-cover" />
+              {/* The box is a local placeholder: the title is already the page's h1, so it is not read out a second time. */}
+              <p aria-hidden className="absolute inset-x-0 top-0 line-clamp-3 px-4 pt-4 text-title text-ink desk:text-title-desk">
+                {title}
+              </p>
               <button
                 type="button"
                 onClick={() => play(0)}

@@ -3,6 +3,9 @@ import { extractText } from "unpdf";
 import { derivedProblems } from "../src/modules/showcase/derived-scan";
 import { discover, SITE, state, type Pages } from "./support/derived";
 import { containsSquashed, DATE_SQUASHED, literal, squash, squashedSource } from "./support/squash";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 // Plan 5a Task 3 and 4 (spec s5, publishing rule 11.4): a public page prints as a dated document that carries its disclosure, and print
 // shows nothing the screen hides. Same states as public-distribution.spec.ts (told by the project's name). The PDF is Chromium's own

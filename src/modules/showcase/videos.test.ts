@@ -55,7 +55,7 @@ describe("the summaries and the view", () => {
     const v = buildVideoView(world, "v1-reading-the-ageing-table")!;
     expect(v).toMatchObject({
       slug: "v1-reading-the-ageing-table", title: "Reading the ageing table", learningObjective: "How to read who pays late.", youtubeId: VIDEO_ID,
-      thumbnail: `https://i.ytimg.com/vi/${VIDEO_ID}/hqdefault.jpg`, durationLabel: "1:02:05", uploadedOn: "2026-09-24", revisedOn: "2026-09-25", firstWrittenOn: "2026-09-25",
+      durationLabel: "1:02:05", uploadedOn: "2026-09-24", revisedOn: "2026-09-25", firstWrittenOn: "2026-09-25",
       revNo: 1, revCount: 1, holdsPosition: null, dataAsOf: null,
     });
     expect(v.chapters).toEqual([

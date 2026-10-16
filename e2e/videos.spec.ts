@@ -4,6 +4,9 @@ import { FIXTURE_DESCRIPTION } from "../src/lib/providers/fixture-video-meta";
 import { requireStack } from "./support/auth";
 import { adminDb, hydrated, itemIdOf } from "./support/desk";
 import { expectPublicVideo, expectVideoGone, expectVideoSurfaces, type VideoShown } from "./support/video-pages";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 // Plan 5b Task 9: the whole video loop on the LOCAL stack, through the screens Aksh uses. YouTube is faked at the port (the web server runs with
 // DISTRIBUTION_ADAPTER=fixture, support/stack.ts), so no request leaves this machine and no key is set. A `v:` capture, "Fetch again", the

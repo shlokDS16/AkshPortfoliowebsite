@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { installOutboundGuard } from "./support/outbound";
+
+installOutboundGuard(); // nothing leaves the machine; only the YouTube frame, after a press, may be asked for
 
 type Entry = PerformanceEntry & { element?: Element | null; hadRecentInput?: boolean; value?: number };
 
