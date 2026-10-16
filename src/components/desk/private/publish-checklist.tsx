@@ -75,12 +75,12 @@ export function PublishChecklist({ items, rule4Needed, companyName, companyActio
             <Fragment key={i.id}>
               <li className={cn("flex gap-2 py-2", i.state === "fail" && "bg-bad-wash px-2")}>
                 <Glyph aria-hidden strokeWidth={1.5} className={cn("mt-0.5 size-4 shrink-0", i.state === "fail" ? "text-bad" : i.state === "manual" && !done ? "text-warn" : "text-ink")} />
-                <div className="text-small">
+                <div className="min-w-0 text-small">
                   <p className="font-semibold text-ink">{i.name}</p>
                   <p className="text-ink-muted">{i.detail}</p>
                   {i.id === "company" && i.state === "fail" && companyAction ? (
                     <form action={companyAction} className="mt-1">
-                      <Button type="submit" variant="outline" size="sm">
+                      <Button type="submit" variant="outline" size="sm" className="h-auto min-h-8 py-1.5 whitespace-normal text-left pointer-coarse:h-auto pointer-coarse:min-h-11">
                         Make {companyName} public
                       </Button>
                     </form>
