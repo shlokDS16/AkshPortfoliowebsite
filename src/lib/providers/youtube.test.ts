@@ -171,8 +171,16 @@ describe("the YouTube adapter: failures, each a typed result and none carrying t
   });
 
   it("stops reading an answer past the byte cap", async () => {
-    const huge = JSON.stringify({ items: [item("aaaaaaaaaaa", { pad: "x".repeat(700 * 1024) })] });
+    const huge = JSON.stringify({ items: [item("aaaaaaaaaaa", { pad: "x".repeat(1100 * 1024) })] });
     expect(await port(answering(() => new Response(huge, { status: 200 }))).fetch(["aaaaaaaaaaa"])).toEqual({ kind: "unavailable" });
+  });
+
+  it("reads a 600 KB answer of 50 videos (an escaped description is about twice its bytes), and refuses 1.1 MB above", async () => {
+    const ids = Array.from({ length: 50 }, (_, n) => id(n));
+    const items = ids.map((a) => item(a, { snippet: { channelId: CHANNEL, title: "t", description: "d".repeat(12_000), publishedAt: "2026-09-01T10:00:00Z" } }));
+    const body = JSON.stringify({ items });
+    expect(body.length).toBeGreaterThan(590 * 1024);
+    expect((await port(answering(() => new Response(body, { status: 200 }))).fetch(ids)).kind).toBe("ok");
   });
 
   it("holds a 50-video answer of long descriptions inside the cap", async () => {

@@ -32,11 +32,11 @@ const BATCH = 50;
 const DEFAULT_CALL_MS = 10_000;
 const MAX_MS = 60_000;
 /**
- * The most one answer may hold. The spec says 64 KB, which fits a handful of videos; a batch of 50 with descriptions up to
- * 5,000 characters is about 250 KB, so the cap is 512 KB for a full batch (reported as a deviation from s7.4). A body past it is
- * `unavailable`, never a partial read.
+ * The most one answer may hold. The spec says 64 KB, which fits a handful of videos; a batch of 50 at the 5,000-byte description
+ * limit, escaped as \uXXXX, is about 540 KB, so the cap is 1 MB whichever way Google writes the body (a deviation from s7.4; Q50).
+ * A body past it is `unavailable`, never a partial read.
  */
-const RESPONSE_CAP_BYTES = 512 * 1024;
+const RESPONSE_CAP_BYTES = 1024 * 1024;
 
 export type YoutubeOptions = {
   apiKey: string;
