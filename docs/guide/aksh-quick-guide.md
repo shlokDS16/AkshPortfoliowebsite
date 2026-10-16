@@ -108,6 +108,15 @@ Videos are switched off until Shlok sets a YouTube key. The desk then shows "Vid
 
 What the desk refuses, and why: the transcript is what a visitor reads, so the same words are refused as in a note. A spoken "you should buy this" is blocked under "Rule 1: no actionable language" and you cannot edit the transcript to hide it. If the sentence is you explaining your process, allow that one sentence with a reason; otherwise say it differently in a new video. It also refuses a video that is not on your channel, is private, was last read from YouTube more than 7 days ago, or names a company with figures less than 30 days old. A spoken claim about your returns has no allowance.
 
+### Send a letter
+
+Letters are email, and nothing is emailed until Shlok has set up the email service; until then the desk says "Email is not set up yet. Letters still publish to the archive." Readers ask for letters on the site's letters page (they tick that they are 18 or older). It never emails anyone by itself. You make two presses.
+
+1. **Items**, **Letters**, **Readers**: press **Send confirmation emails (n)**. Each person gets one email with a link, and they press a button to confirm. A reader may wait up to a day. **Bin** deletes a request you do not want.
+2. **Items**, **Letters**, **What changed**: untick what you do not want, press **Make this letter**, replace the "Untitled letter" subject with your own (**Send** stays off until you do), write the one sentence, **Save**, read the preview, run the publishing gate. Then press **Send to n subscribers**, read the box (it shows the exact number), tick "I have read the preview" and press **Send**. An email cannot be called back, and a second press sends nothing more.
+
+If a reader asks you to delete their address, use **Erase an address** on the Readers page and reply that it is deleted. Readers can stop any time with the link in every email.
+
 ### Save a public page as a PDF
 
 Open the public file, note or closed case and press **Save as PDF** under its dates. In the print window, choose "Save as PDF" as the printer. The PDF says which revision it shows and carries the full disclosure. A copy already saved cannot be called back if you change or unpublish the page later. The feed and the shared-link cards follow what you publish within an hour.
@@ -156,4 +165,4 @@ For anything else, copy the exact words on screen and send them to Shlok.
 
 ## 7. Not in this version
 
-A public view of the Ledger or any figure for how your ideas did (a closed idea can be written up as a case study, once Shlok switches that on); the spreadsheet valuation page; a newsletter; a PDF made on the site's server (Save as PDF uses your browser's print window); logins for readers; voice notes; editing or removing a split or bonus (correct it with a new entry).
+A public view of the Ledger or any figure for how your ideas did (a closed idea can be written up as a case study, once Shlok switches that on); the spreadsheet valuation page; a letter written for you or sent on a schedule (letters go out only when you press); a PDF made on the site's server (Save as PDF uses your browser's print window); logins for readers; voice notes; editing or removing a split or bonus (correct it with a new entry).

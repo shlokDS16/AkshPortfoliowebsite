@@ -2,7 +2,7 @@
 
 A guide for Aksh (daily use) and for Shlok (the short section near the end on running the site).
 
-Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026, section 4.11 (PDFs, links and the feed) and section 4.12 (videos) on 16 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
+Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026, section 4.11 (PDFs, links and the feed) and section 4.12 (videos) and section 4.13 (letters) on 16 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
 
 ## Contents
 
@@ -22,6 +22,7 @@ Written 14 October 2026, from the code and the design documents as they stand on
    - [4.10 Concepts, reads and your month](#410-concepts-reads-and-your-month)
    - [4.11 Sharing your work: PDFs, links and the feed](#411-sharing-your-work-pdfs-links-and-the-feed)
    - [4.12 Videos](#412-videos)
+   - [4.13 Letters](#413-letters)
 5. [The publishing rules in plain words](#5-the-publishing-rules-in-plain-words)
 6. [When something looks wrong](#6-when-something-looks-wrong)
 7. [For Shlok: running the site](#7-for-shlok-running-the-site)
@@ -771,6 +772,50 @@ The result differs a little between browsers. A PDF is a copy. If you change or 
 | "This video is not from your channel." or "This video is private or gone on YouTube." | The gate lists only your own Unlisted or Public videos. |
 | "YouTube's daily limit is used up. The desk tries again tomorrow." | Wait. Nothing is lost. |
 
+### 4.13 Letters
+
+**What it is for.** A letter is an email that lists what changed on the site since your last one: the files, closed cases, notes and videos that went public. Readers ask for it on a public page, and each letter also sits on a public archive. The letter is your words (the subject, one sentence, an optional short note). The list of changes is copied from the site by the desk, with your own titles and reasons exactly as they are there. Nothing is written for you, and nothing is sent until you press.
+
+**Switched off until Shlok sets up the email service.** Until then the desk says "Email is not set up yet. Letters still publish to the archive." You can make and publish letters, but the sign-up form stays shut and no email goes out. Real sending needs three things from Shlok (section 7; open questions Q9, Q36 and Q42): a domain that Resend has checked as his, a sender address on it, and a separate Resend key for letters. Until the domain is checked, Resend delivers only to its owner's own address, so a letter could not reach a reader anyway. Nothing is sent from a test or from a preview copy of the site.
+
+**What a reader sees.** On the letters page (`/letters`): the plain notice (what is kept, that it goes through Resend in the United States, that they must be 18 or older, how to stop), an email field, an "I am 18 or older" tick and **Ask to subscribe**. Whatever happens the page answers: "Thanks. Aksh sends confirmation emails by hand, usually within a day. Open the link in it to start receiving letters." Below it are the letters already published. Every letter carries the standard disclosure and a stop link, and `/letters/leave` stops letters in one step (one field; the address is deleted at once). The stop page works even when sign-ups are shut.
+
+**The two presses.** Nothing leaves the site without one of these, and each is yours.
+
+1. **Send confirmation emails.** Open **Items**, then **Letters**, then **Readers**. **Waiting** counts people who asked. Press **Send confirmation emails (n)** (at most 50 a day; the page shows how many are left). Each person gets one plain email with a link. Opening the link shows a button; they press it to confirm. Only then are they a reader. Nobody is emailed because they signed up, so a reader may wait up to a day. **Bin** deletes a request and emails nobody; use it for any request you do not want.
+2. **Send the letter.** On the letter page, after it has passed the gate, press **Send to n subscribers**. A box shows the subject and the exact number ("This emails n people. An email cannot be called back."), and asks you to tick "I have read the preview". Press **Send**. The press records your approval (who, when, which version, how many) and cannot be undone. The desk sends it within 15 minutes, usually at once. A second press, from another tab or later, sends nothing more: the page says "Sent to n on {date}".
+
+**Making a letter**
+
+1. Open **Letters**, then **What changed**. On a Monday in India the desk home also says how many changes there are. The list shows every public change since your last sent letter (the last 14 days for the first one), each ticked. Untick anything you do not want and press **Make this letter**. A letter holds at most 20 entries.
+2. The letter opens with the subject "Untitled letter, {date}". That is only a label the desk gave. Replace it with your own subject. **Send stays off while the subject is still a label.**
+3. Write the **one sentence: what a reader learns** (the gate needs it), and a short note if you want. Press **Save**.
+4. Read the **Preview**. It is the email as it will arrive, with the standard disclosure and the stop link.
+5. Run the **publishing gate**, as for any page (section 4.4). A letter goes onto the archive only if it passes, and a letter that has been sent cannot be published again. While it is public its subject and sentence are locked; **Unpublish** to change them.
+6. **Send me a test copy** sends one email to you only (up to 5 a day). It is not a send to readers; use it to read the real email in your inbox.
+
+**Readers: what you see and do not see.** The Readers page shows counts and the people still waiting (address and day asked). It never lists confirmed readers and has no export, on purpose: the fewer addresses the desk shows, the fewer can leak. **Open sign-ups** and **Close sign-ups** switch the form. It closes itself at 950 readers (the free list holds 1,000).
+
+**When a reader leaves.** The stop link in every email (Resend's own) and the stop page both remove them, and the next letter is not sent to them. A letter already on its way may still arrive. The desk makes Resend's list match its own before every send and once a day. An email that has been sent cannot be recalled.
+
+**Answering a reader's data request (the Q41 default).** A reader may write to ask what you hold, or to have their address deleted. The desk keeps only their address, the day they asked and confirmed, and that they ticked 18 or older. It keeps a record that a person asked, in a scrambled form that cannot be turned back into an address. To erase: open **Letters**, **Readers**, **Erase an address**, type the address from their email and press **Erase**. The page says "Erased." whether or not the address was on the list, so it cannot tell you; reply that any address you held has been deleted. To answer "what do you hold": their address and the dates above, nothing else (no name, no tracking, no reading history). The desk shows no list of readers, so it cannot show you one address; if you need that, ask Shlok. The notice names no contact address for complaints until Shlok gives you one to publish (Q41).
+
+**Messages you may see**
+
+| What you see | What it means |
+|---|---|
+| "Email is not set up yet. Letters still publish to the archive." | Shlok has not set up the email service. Nothing is emailed and the form is shut. |
+| "The subject is still a label. Replace it with your own subject, save, and run the gate again." | Type your own subject, press **Save**, run the gate. |
+| "There are no confirmed readers yet, so there is nobody to send this to." | Nobody has confirmed. Press **Send confirmation emails** first. |
+| "Approved. The letter goes out within 15 minutes." | Your press is recorded. The page then shows "Sending" and, when done, "Sent to n on {date}". |
+| "This letter has already been sent to subscribers, or its send is waiting." | You pressed a second time. Nothing more was sent. |
+| "Another letter is being sent. Wait until it has gone." | One letter at a time. |
+| "50 confirmation emails sent today. The rest can go tomorrow." | The daily limit. Nothing is lost. |
+| "Some confirmation emails could not be sent. Those readers are waiting again." | Press again later. |
+| "Not sent: the approval ran out after 24 hours." | An approval lasts a day. Press **Approve again**. |
+
+**Taking it down.** **Unpublish** removes the letter from the archive, its page, its card, the feed and the page list within the hour. It does not call back an email that was already sent.
+
 ---
 
 ## 5. The publishing rules in plain words
@@ -933,7 +978,8 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 | `GITHUB_GIST_TOKEN`, `LEDGER_ANCHOR_GIST_ID` | Switch the public copy of the ledger's fingerprints on. Left unset on purpose. |
 | `RESEND_API_KEY`, `ALERT_EMAIL`, `RESEND_FROM` | Switch the alert email on (see "Turning on the alert email"). Left unset, nothing is sent. `RESEND_FROM` is optional. |
 | `YOUTUBE_API_KEY`, `YOUTUBE_CHANNEL_ID` | Switch video listing on (see "What is switched off on purpose"). Both are needed; one alone keeps it off. Left unset, nothing is read from YouTube. |
-| `DISTRIBUTION_ADAPTER` | Local testing only (`fixture`): stands in for YouTube. Never set it on Vercel. It is refused there. |
+| `RESEND_LETTERS_KEY`, `LETTERS_FROM`, `LETTERS_SEGMENT_ID` | Switch letters on (see "What is switched off on purpose"). All three are needed; with any missing, nothing is emailed. The key is a separate Resend key from the alert one. Production only. |
+| `DISTRIBUTION_ADAPTER` | Local testing only (`fixture`): stands in for YouTube and for the email service. Never set it on Vercel. It is refused there. |
 | `GOOGLE_VISION_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_AUDIENCE_ID` | In the template for later phases. Not used by this version. |
 
 ### The first live day: two things to check
@@ -947,6 +993,7 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 - **The public copy of the ledger's daily fingerprints.** `GITHUB_GIST_TOKEN` and `LEDGER_ANCHOR_GIST_ID` are unset. Days are still sealed in the database and wait. To switch on you need the owner decision (Q26: which GitHub account owns the gist), a public gist created by hand, and a fine-grained token with only the "Gists: write" permission. The file is public and shows the number of entries per day and their fingerprints (no names, words or prices). Do not put either value on Vercel until the owner has agreed. **Once any line is published, switching it off again turns the `ledger:anchor` step red** ("the public copy is switched off, but lines were published before"). The file is dated by GitHub. Its owner can still edit or delete it. The run compares the whole public file with every sealed line each day.
 - **Case studies from the ledger, and their chart.** Two rows in `private.settings`, `ledger_reveal` and `ledger_chart`, both absent (off). You turn them on in the Supabase SQL editor; the runbook `docs/runbooks/case-study-switches.md` has the exact SQL, what turning off does not do (it does not take a page down), and the checks to run before the first switch-on on the hosted project. Until Q27 is answered they stay off. Migrations 0017, 0018 and 0019 and the merge must land together, because every publish is refused in between.
 - **Videos.** `YOUTUBE_API_KEY` and `YOUTUBE_CHANNEL_ID` are unset, so the desk reads nothing from YouTube and no video can be listed (a video publish is refused for want of YouTube facts). To switch on, only if Aksh will list videos: first push migrations 0022 and 0023 and merge the videos pull request back to back (between the two every publish is refused, because the app sends one policy version and the database wants the next). Then create a Google Cloud API key restricted to "YouTube Data API v3", set both variables on Vercel Production, and redeploy. Aksh's channel id is the `UC...` code that YouTube Studio shows under Settings, Channel, Advanced settings. The desk only reads; it never writes to YouTube. YouTube's developer policy lets data fetched with a key be kept for at most 30 days, so the daily check re-reads every video and deletes any YouTube data older than 30 days, also if the key is removed (Q51, built). Open questions Q47 (the gate sentences) and Q49 (answered: no allowance for a spoken performance claim) are the ones that still need Shlok's yes before the key is set.
+- **Letters (email).** `RESEND_LETTERS_KEY`, `LETTERS_FROM` and `LETTERS_SEGMENT_ID` are unset, so the desk says "Email is not set up yet. Letters still publish to the archive.", the sign-up form cannot be opened, and no confirmation email or letter can be sent. Nothing is emailed from a test, a preview copy or a dev machine either (the local test runs use a stand-in that only keeps a file). To switch on, in this order (Q9, Q36, Q42): buy a domain and verify it in Resend (DNS records at the registrar); create a sender such as `letters@<domain>`, with open and click tracking switched OFF for the domain; create a segment and copy its id; create a full-access Resend key for letters (not the alert key); first run a hosted dry run (it must list exactly migrations 0024 and 0025), push them and merge the letters pull request together; then set the three variables on Vercel Production only and redeploy. Then press **Open sign-ups** on the Readers page. Open answers that you decide with Aksh: Q41 (a contact address for complaints in the notice; confirmation emails by hand is the default) and Q45 (no postal address in the footer is the default).
 - **The pump workflow** needs `DESK_URL` and `CRON_SECRET` repository secrets to run. The last progress note says it was enabled on 14 October.
 
 ### Before the first real idea (read this before Aksh records anything)
@@ -968,7 +1015,7 @@ They are in `docs/project-memory/unanswered-questions.md`. Do not copy them here
 - A picture of how your concepts connect, joining two concepts into one, and renaming a concept.
 - A public view of the Ledger, or any figure for how your ideas did. A closed idea can be written up as a case study (section 4.9) once the site owner has switched case studies on; the page prints no result.
 - The spreadsheet valuation page (reading a model from a spreadsheet).
-- A newsletter.
+- A letter written for you, or sent on a schedule. Letters are made and sent only when you press (section 4.13).
 - Reading a video's speech by machine. A video's transcript comes only from the caption file you download in YouTube Studio (section 4.12). Poor automatic captions have to be fixed in Studio first.
 - A PDF made on the site's own server. **Save as PDF** uses the browser's print window, so the result differs a little from one browser to the next (section 4.11).
 - Logins for clients or readers. Only you sign in.
@@ -996,4 +1043,5 @@ Each of these is something I could not confirm from the code, the specs or the t
 10. **The public Mistakes page.** It now fills from published case studies (section 4.9). That is confirmed on the local stack only, with an invented company; nothing is public on the hosted site.
 11. **Whether the production site is open to everyone today.** The last progress note says the production address is reachable without a Vercel bypass, so the public side is already visible. Confirm that is what you want on launch day.
 12. **Videos against the real YouTube.** Everything in section 4.12 was tried on the local copy of the site with a stand-in for YouTube. No real YouTube address has been asked yet (the key is unset). The Studio menu names (Content, Subtitles, Download, .vtt or .srt) come from the desk's own message and from memory of Studio; check them once in Studio. The channel id's place in Studio is also from memory.
-13. **Legal confirmation.** The publishing rules say they are not legal advice and should be confirmed with a lawyer or NISM-certified analyst. The official SEBI circular PDFs are still to be saved under `docs/compliance/`.
+13. **Letters against the real Resend.** Section 4.13 was tried only on the local copy with a stand-in for the email service. No real email has been sent, no real Resend address has been asked, and the exact place of the Resend settings (tracking off, the segment id) is from the specification and memory; check them in the Resend dashboard once before the first real send. The wording of the notice and the confirmation email is pending Shlok's and Aksh's approval.
+14. **Legal confirmation.** The publishing rules say they are not legal advice and should be confirmed with a lawyer or NISM-certified analyst. The official SEBI circular PDFs are still to be saved under `docs/compliance/`.
