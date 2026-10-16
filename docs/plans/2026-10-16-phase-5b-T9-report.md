@@ -39,3 +39,42 @@ Guide headings: "4.12 Videos", "Add a video".
 ## Notes
 - The e2e `$TEMP`-style log from an earlier run can sit in the same temp name; I read the log only after my own run's `done` line.
 - Studio menu names in the guide are still unconfirmed against real Studio (guide open item 12).
+
+## Fix wave (review of Part 5b, 2026-10-16)
+Source: `.superpowers/sdd/2026-10-16-phase-5b-ledger/review.md`. Every FIX-NOW finding applied in severity order, proving test first.
+
+| Finding | Fix | Commit |
+|---|---|---|
+| 1 MEDIUM e2e reached i.ytimg.com | `e2e/support/outbound.ts` (`guardOutbound`, `installOutboundGuard`): every context of the nine `public-*` specs and `videos.spec.ts` records and answers any host outside the machine; `afterEach` fails on anything but the youtube-nocookie frame; `video-pages.ts` and `public-videos.spec.ts` assert an empty list before the press and exactly one frame request after. A test in `public-site.spec.ts` proves the guard bites. | ab321be |
+| 2 MEDIUM quadratic caption regexes | `SRT_START` has no leading `\s*` (caller tests `trimStart().slice(0, 256)`), `TAG` uses `[^<>]*`; 1 MB of spaces refused, 1 MB of `<a` parsed, each under 500 ms | f04c267 |
+| 3 MEDIUM Q51 30-day retention | 0022 edited in place: `purge_stale_video_data()` (service_role only), gone video clears every YouTube column; `FetchStore.purgeStale`, `checkVideos` purges first (also while off), heartbeat "purged n"; gate 12.1 (0023) no longer adds "not from your channel" to a gone video (its channel is now null). pgTAP 0022 (70 tests, +5) and 0002 | ef33768 |
+| 4 LOW Q49 docs | v1.2 addendum "Reading of 12.2", spec amendment (s), Q49 answer appended (rule 1 only) | da1328e |
+| 5 LOW Q48 cooldown | `SourceRef.fetchedAt`, `fetchVideoNow` returns `FETCHED_RECENTLY` inside 60 s, action maps it to notice `video-fetch-recent` | 4f5b255 |
+| 6 LOW Q50 cap | `RESPONSE_CAP_BYTES` 1 MB; 600 KB body of 50 reads, 1.1 MB refused | 7b48d2a |
+| 7 LOW status order | `videoStatus` checks listed/gone before off | 3dd31d9 |
+| 8 LOW surrogate cut | `pieces` steps back one unit before a high surrogate | f04c267 |
+| 9 LOW anon grants doc | spec amendment (t) | da1328e |
+| 11 (was DEBT) thumbnail, Shlok's ruling | no img, no request to Google or YouTube before the press: local placeholder (title, length, Play); the frame loads on the press only; `thumbnail` dropped from `VideoView`; spec amendment (u); guide lines updated | ab321be, final docs commit |
+| 10 DEBT `v:` two writes | line appended to `docs/specs/technical-debt.md`, new "2026-10-16 (Phase 5b fix wave)" section | da1328e |
+
+Also appended: Q48, Q50, Q51 answers and Q49 in `docs/project-memory/unanswered-questions.md`; spec amendment (v) for the purge, cooldown and cap.
+
+### New strings (pending Shlok's approval)
+- `fetch_problem` after a purge: "YouTube data older than 30 days was deleted. It is read again when YouTube answers."
+- Heartbeat word: "purged {n}" (and "videos off, purged {n}").
+- Notice `video-fetch-recent`: "YouTube was asked less than a minute ago. The data below is its answer."
+- Heartbeat detail `fetched less than a minute ago` (shown nowhere; the action turns it into the notice).
+- The video placeholder shows the page's own title and length; no new copy.
+No banned word added.
+
+### Debt
+- `v:` capture two writes (finding 10), in `docs/specs/technical-debt.md`.
+- `public-perf.spec.ts` now runs behind the context route; it passed, but a timing budget there would see the route's small overhead.
+
+### Evidence (after `pnpm supabase db reset`)
+- `pnpm supabase test db`: 32 files, 2435 tests, PASS.
+- `rtk pnpm test`: 432 files, 5911 tests, all passed; no file needed a rerun.
+- `pnpm typecheck`, `rtk pnpm lint`: clean. `pnpm build` (CI placeholder env) and `pnpm check:bundles`: passed, 55 routes.
+- Full `pnpm e2e` after a reset: 515 tests, 463 passed, 52 skipped (the deploy-state and listed-state halves, by project), 0 failed, 17.4 min.
+- `defenso guard_code` was not available as a tool in this run; the changed SQL is definer-hygiene-identical to `record_video_fetch` (empty search_path, revoked from every API role, service_role only, pinned in 0002).
+- Early in the run I ended every `node.exe` on the machine once by mistake while stopping a hung vitest; if another session lost a dev server then, that was me.
