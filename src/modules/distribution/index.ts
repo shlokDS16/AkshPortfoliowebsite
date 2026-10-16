@@ -36,9 +36,15 @@ export { renderConfirmation, renderLetter, type RenderedLetter, type RenderOptio
 export { createLettersRpc } from "./letters/rpc";
 export { approveSend, binRequests, cancelSend, eraseReader, makeLetter, saveLetter, setSignup, type LetterDeps, type LetterInput } from "./letters/service";
 export { entriesOf, letterStructured, PAGE_PATH } from "./letters/structured";
-export { LETTERS_NOTICE_VERSION } from "./letters/copy";
+export { listLetterRows, mondayLetterLine, publicRevisionIds, publicRevisionIdsNow, readCandidates, readCandidatesNow, type CandidateDeps, type CandidateRead, type LetterRow } from "./letters/desk-read";
+export { letterScreen, type LetterScreen, type ScreenInput } from "./letters/screen";
+export { isMondayInIndia, mondayLine } from "./letters/monday";
+export { letterChecks, type LetterCheck, type LetterFacts } from "./letters/checks";
+export { LABEL_LINE, listLine, NOT_PUBLISHED_LINE, sendState, testCopyLine, type LetterListRow, type SendFacts, type SendState } from "./letters/status";
+export { isPlaceholderSubject, placeholderSubject } from "./letters/subject";
+export { CONFIRMATIONS_PER_DAY, KIND_LABEL, LETTERS_NOTICE_VERSION, POSITION_LABEL, POSITION_WORD } from "./letters/copy";
 export {
   LETTER_SCHEMA, MAX_ENTRIES, MAX_NOTE, MAX_OBJECTIVE, MAX_SUBJECT,
   type Candidate, type EntryKind, type IssuedConfirmation, type LetterEntry, type LetterSource, type LettersReads, type LettersRpc, type LetterStructured,
-  type LetterView, type SendKind, type SendRow, type SendStatus, type WaitingReader,
+  type LetterView, type ReaderCounts, type SendKind, type SendRow, type SendStatus, type WaitingReader,
 } from "./letters/types";

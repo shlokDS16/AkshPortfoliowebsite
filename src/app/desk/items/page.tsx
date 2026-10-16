@@ -22,7 +22,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-6">
       <h1 className="text-title text-ink desk:text-title-desk">Items</h1>
-      <nav aria-label="Concepts, the month and videos" className="flex flex-wrap gap-x-5 text-small">
+      <nav aria-label="Concepts, the month, videos and letters" className="flex flex-wrap gap-x-5 text-small">
         <Link href="/desk/concepts" className={link}>
           Concepts
         </Link>
@@ -31,6 +31,9 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
         </Link>
         <Link href="/desk/videos" className={link}>
           Videos
+        </Link>
+        <Link href="/desk/letters" className={link}>
+          Letters
         </Link>
       </nav>
       <form action={createItemAction} className="flex flex-wrap items-end gap-2 rounded-sm border border-rule p-3">

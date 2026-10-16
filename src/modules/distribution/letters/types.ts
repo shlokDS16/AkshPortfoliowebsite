@@ -88,6 +88,8 @@ export interface LetterSource {
 }
 
 export type WaitingReader = { id: string; email: string; requestedAt: string };
+/** Readers by where they are: asked and not yet sent a link, sent a link and not yet confirmed, confirmed. Counts only; no address. */
+export type ReaderCounts = { waiting: number; asked: number; confirmed: number };
 
 /** What the desk reads through Aksh's own session (RLS: only the admin sees these tables). Never the secret-key client. */
 export interface LettersReads {
@@ -97,8 +99,11 @@ export interface LettersReads {
   lastSentAt(): Promise<string | null>;
   confirmedCount(): Promise<number>;
   readerIdByEmail(email: string): Promise<string | null>;
+  readerCounts(): Promise<ReaderCounts>;
   /** The sends of one letter, newest first. */
   sendsOf(itemId: string): Promise<SendRow[]>;
+  /** The sends of several letters at once (the list), newest first. */
+  sendsForItems(itemIds: readonly string[]): Promise<SendRow[]>;
   /** The waiting requests, oldest first (the readers screen shows the address and the date). */
   waiting(): Promise<WaitingReader[]>;
   /** 50 minus the confirmation emails issued since midnight India time. */

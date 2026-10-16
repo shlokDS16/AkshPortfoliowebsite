@@ -54,6 +54,21 @@ export function createSupabaseLettersReads(db: Db, now: () => Date = () => new D
       if (error) throw jobDbError("letters.readerId", error);
       return data?.id ?? null;
     },
+    async readerCounts() {
+      const count = async (status: string): Promise<number> => {
+        const { count: n, error } = await db.from("subscribers").select("id", { count: "exact", head: true }).eq("status", status);
+        if (error) throw jobDbError("letters.readerCounts", error);
+        return n ?? 0;
+      };
+      const [waiting, asked, confirmed] = [await count("waiting"), await count("sent"), await count("confirmed")];
+      return { waiting, asked, confirmed };
+    },
+    async sendsForItems(itemIds) {
+      if (itemIds.length === 0) return [];
+      const { data, error } = await db.from("letter_sends").select(SEND_COLUMNS).in("item_id", [...itemIds]).order("approved_at", { ascending: false });
+      if (error) throw jobDbError("letters.sendsForItems", error);
+      return (data ?? []).map(sendOf);
+    },
     async sendsOf(itemId) {
       const { data, error } = await db.from("letter_sends").select(SEND_COLUMNS).eq("item_id", itemId).order("approved_at", { ascending: false });
       if (error) throw jobDbError("letters.sendsOf", error);

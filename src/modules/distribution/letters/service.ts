@@ -1,10 +1,10 @@
-import { formatDate } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import type { PublicSnapshot } from "@/modules/showcase";
 import { addRevision, createItem, getItemWithHistory, updateItemMeta, type ResearchRepo } from "@/modules/research";
 import { letterCandidates, toEntry } from "./candidates";
 import { LetterError } from "./errors";
 import { entriesOf, letterStructured } from "./structured";
+import { isPlaceholderSubject, placeholderSubject } from "./subject";
 import { MAX_NOTE, MAX_OBJECTIVE, MAX_SUBJECT, type LettersReads, type LettersRpc, type SendKind, type SendRow } from "./types";
 
 // The desk's letter writes (spec s8.1). Each caller has already run requireAdmin(); the actor id is passed on to the database, which
@@ -34,7 +34,7 @@ export async function makeLetter(deps: LetterDeps, revisionIds: readonly string[
   if (chosen.length !== wanted.length) throw new LetterError("letter-entry-stale");
   const { item } = await createItem(deps.research, {
     kind: "letter",
-    title: `Untitled letter, ${formatDate(deps.today())}`,
+    title: placeholderSubject(deps.today()),
     bodyMd: "",
     structured: { ...letterStructured(chosen.map(toEntry)) },
     learningObjective: null,
@@ -85,6 +85,9 @@ export async function approveSend(deps: LetterDeps, actor: string, itemId: strin
   if (kind === "subscribers") {
     if (!readTick) throw new LetterError("letter-read-required");
     if ((await deps.reads.confirmedCount()) === 0) throw new LetterError("letter-no-readers");
+    // The screen keeps Send off while the subject is the label; this keeps a crafted press from emailing it. A missing item is the database's to refuse.
+    const found = await getItemWithHistory(deps.research, itemId);
+    if (found && found.item.kind === "letter" && isPlaceholderSubject(found.item.title)) throw new LetterError("letter-subject-label");
   }
   return deps.rpc.approve(actor, itemId, revisionId, kind);
 }

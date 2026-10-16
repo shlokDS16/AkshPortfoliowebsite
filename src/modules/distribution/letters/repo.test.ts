@@ -81,6 +81,28 @@ describe("the admin session's reads", () => {
     expect(log[0]!.ops).toContainEqual(["order", "approved_at", { ascending: false }]);
   });
 
+  it("readerCounts: waiting, asked to confirm and confirmed, by count only; no address or other column is read", async () => {
+    const { db, log } = fakeDb({ subscribers: [{ count: 3 }, { count: 2 }, { count: 41 }] });
+    expect(await createSupabaseLettersReads(db).readerCounts()).toEqual({ waiting: 3, asked: 2, confirmed: 41 });
+    expect(log).toHaveLength(3);
+    expect(log.map((l) => l.ops.find((o) => o[0] === "eq")?.[2])).toEqual(["waiting", "sent", "confirmed"]);
+    for (const entry of log) expect(entry.ops[0]).toEqual(["select", "id", { count: "exact", head: true }]);
+  });
+
+  it("sendsForItems: the sends of the given letters in one read, newest first, and nothing is asked for no letters", async () => {
+    const row = {
+      id: "s2", item_id: "i2", revision_id: "r", kind: "self_test", status: "approved", approved_at: "2026-10-11T04:00:00+00:00", claimed_at: null,
+      broadcast_id: null, recipients_at_approval: 0, recipients_sent: null, sent_at: null, problem: null,
+    };
+    const { db, log } = fakeDb({ letter_sends: { data: [row] } });
+    const reads = createSupabaseLettersReads(db);
+    expect(await reads.sendsForItems([])).toEqual([]);
+    expect(log).toHaveLength(0);
+    expect(await reads.sendsForItems(["i2", "i3"])).toMatchObject([{ id: "s2", itemId: "i2", kind: "self_test", status: "approved" }]);
+    expect(log[0]!.ops).toContainEqual(["in", "item_id", ["i2", "i3"]]);
+    expect(log[0]!.ops).toContainEqual(["order", "approved_at", { ascending: false }]);
+  });
+
   it("lists the waiting requests oldest first", async () => {
     const { db, log } = fakeDb({ subscribers: { data: [{ id: "w1", email: "a@b.example", requested_at: "2026-10-14T05:00:00+00:00" }] } });
     expect(await createSupabaseLettersReads(db).waiting()).toEqual([{ id: "w1", email: "a@b.example", requestedAt: "2026-10-14T05:00:00+00:00" }]);

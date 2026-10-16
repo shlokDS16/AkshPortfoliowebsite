@@ -38,13 +38,15 @@ const search = (query: ItemQuery) => {
 
 /**
  * The item page (editor, gate, history), shared by /desk/items/[id] and /desk/videos/[id]. A video item is shown only by the second: the first sends
- * it there with its message, so every link and every redirect that names an item by id keeps working. `video` is given by the second only.
+ * it there with its message, so every link and every redirect that names an item by id keeps working. A letter is sent to /desk/letters/[id] the same way. `video` is given by the second only.
  */
 export async function ItemView({ id, query, video }: { id: string; query: ItemQuery; video?: (data: EditorData) => Promise<VideoExtras> }) {
   const data = await loadEditor(id);
   if (!data) notFound();
   if (data.item.kind === "video" && !video) redirect(`/desk/videos/${id}${search(query)}`);
   if (video && data.item.kind !== "video") notFound();
+  // A letter has its own page (Phase 5c): its fields, the email preview, the gate and the send block.
+  if (data.item.kind === "letter") redirect(`/desk/letters/${id}${search(query)}`);
   const extras = video ? await video(data) : null;
   const { item, revisions, current, pending, latest, candidate, isFile, isLedger, ledgerRecord, ledgerStatus, concepts, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure, model } = data;
   const { from, to } = query;

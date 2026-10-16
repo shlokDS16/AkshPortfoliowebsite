@@ -186,8 +186,15 @@ export function fakeReads(rpc: FakeRpc): FakeReads {
     async readerIdByEmail(email) {
       return rpc.readers.find((r) => r.email === email.trim().toLowerCase())?.id ?? null;
     },
+    async readerCounts() {
+      const n = (status: Reader["status"]) => rpc.readers.filter((r) => r.status === status).length;
+      return { waiting: n("waiting"), asked: n("sent"), confirmed: n("confirmed") };
+    },
     async sendsOf(itemId) {
       return rpc.sends.filter((s) => s.itemId === itemId).map((s) => ({ ...s }));
+    },
+    async sendsForItems(ids) {
+      return rpc.sends.filter((s) => ids.includes(s.itemId)).map((s) => ({ ...s }));
     },
     async waiting() {
       return rpc.readers.filter((r) => r.status === "waiting").map((r) => ({ id: r.id, email: r.email, requestedAt: "2026-10-15T05:00:00Z" }));

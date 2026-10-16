@@ -12,6 +12,7 @@ export const LETTER_ERROR_TEXT = {
   "letter-note-length": "The note must be at most 4,000 characters.",
   "letter-read-required": "Tick that you have read the preview first.",
   "letter-no-readers": "There are no confirmed readers yet, so there is nobody to send this to.",
+  "letter-subject-label": "The subject is still a label. Replace it with your own subject, save, and run the gate again.",
   // The database's own refusals of a send (approve_letter_send, migration 0025), one code each.
   "letter-not-a-letter": "This is not a letter.",
   "letter-not-current": "Approve the letter's current public revision.",

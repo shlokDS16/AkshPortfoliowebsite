@@ -166,6 +166,18 @@ describe("approveSend: the press that writes the audit row", () => {
     expect(rpc.calls).toEqual(["approve"]);
   });
 
+  it("a send to readers is refused while the subject is still the label the desk gave, and records nothing", async () => {
+    rpc.addReader("a@example.com");
+    const { itemId } = await makeLetter(deps, [uid("rn0")]);
+    expect(await refusal(() => approveSend(deps, ADMIN, itemId, REV, "subscribers", true))).toBe("letter-subject-label");
+    expect(rpc.calls).toEqual([]);
+    // A test copy is how he reads it before choosing a subject, so it is allowed.
+    expect(await approveSend(deps, ADMIN, itemId, REV, "self_test", false)).toMatchObject({ kind: "self_test" });
+    // Once the subject is his own, the same press goes to the database.
+    await saveLetter(deps, itemId, { subject: "What changed in October", objective: "", note: "" });
+    expect(await approveSend(deps, ADMIN, itemId, REV, "subscribers", true)).toMatchObject({ kind: "subscribers", status: "approved" });
+  });
+
   it("a test copy needs neither the tick nor a reader", async () => {
     expect(await approveSend(deps, ADMIN, ITEM, REV, "self_test", false)).toMatchObject({ kind: "self_test", status: "approved" });
   });
