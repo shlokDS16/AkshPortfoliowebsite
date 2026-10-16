@@ -108,6 +108,8 @@ export interface LettersReads {
   waiting(): Promise<WaitingReader[]>;
   /** 50 minus the confirmation emails issued since midnight India time. */
   confirmationsLeftToday(): Promise<number>;
+  /** Readers who stopped on the public leave page since midnight India time (the typed form, review finding 2: abuse shows here the same day). */
+  leftOnFormToday(): Promise<number>;
   /** Whether sign-ups are switched on (the last event of letters_signup_events). */
   signupOn(): Promise<boolean>;
 }

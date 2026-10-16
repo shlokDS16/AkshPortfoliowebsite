@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { LETTERS_OFF_LINE } from "@/lib/providers";
 import { errorCode, errorText, noticeText } from "@/lib/messages";
 import { LETTER_ERROR_TEXT, LETTER_NOTICE_TEXT } from "@/lib/messages-letters";
-import { LETTERS_COPY, LETTERS_NOTICE, LETTERS_NOTICE_VERSION } from "../public";
+import { LETTERS_BOARD_SENTENCE, LETTERS_COPY, LETTERS_NOTICE, LETTERS_NOTICE_VERSION, lettersNotice } from "../public";
 import { LetterError } from "./errors";
 import * as copy from "./copy";
 
@@ -23,11 +23,30 @@ describe("the notice version is the one the database pins (spec s8.5)", () => {
     expect(LETTERS_NOTICE).toContain("It is sent through Resend, an email service in the United States.");
     expect(LETTERS_NOTICE).toContain("You must be 18 or older.");
   });
+
+  it("says what is kept (the address and the dates asked and confirmed), what happens when a reader stops, and who to complain to (review finding 5)", () => {
+    expect(LETTERS_NOTICE).toContain("We keep your email address and the dates you asked and confirmed, only to send these letters.");
+    expect(LETTERS_NOTICE).toContain("When you stop, we delete your address within a day; we keep a one-way code of it as the record that you had agreed.");
+    expect(LETTERS_NOTICE).not.toContain("only your email address");
+    const full = lettersNotice("help@desk.example");
+    expect(full).toContain("Questions or complaints: help@desk.example.");
+    expect(full).toContain("You can also complain to the Data Protection Board of India.");
+    expect(full.match(/Data Protection Board/g)).toHaveLength(1);
+    expect(LETTERS_BOARD_SENTENCE).toBe("You can also complain to the Data Protection Board of India.");
+  });
+});
+
+describe("the waiting-list cap is the one the database applies (review finding 11)", () => {
+  it("equals the literal in letters_request (migration 0024)", () => {
+    const sql = readFileSync(resolve(SRC, "../supabase/migrations/20261018000024_letters.sql"), "utf8");
+    const found = /b\.status = 'waiting'\) >= (\d+)/.exec(sql)?.[1];
+    expect(Number(found)).toBe(copy.WAITING_CAP);
+  });
 });
 
 describe("the words a reader and Aksh see (spec s15)", () => {
   const collect = (value: unknown): string[] => (typeof value === "string" ? [value] : typeof value === "function" ? [String((value as (...a: string[]) => string)("x.example", "https://x.example/c", "d"))] : value && typeof value === "object" ? Object.values(value).flatMap(collect) : []);
-  const strings = [...collect(LETTERS_COPY), LETTERS_NOTICE, ...collect(copy), ...Object.values(LETTER_ERROR_TEXT), ...Object.values(LETTER_NOTICE_TEXT)];
+  const strings = [...collect(LETTERS_COPY), LETTERS_NOTICE, lettersNotice("help@desk.example"), ...collect(copy), ...Object.values(LETTER_ERROR_TEXT), ...Object.values(LETTER_NOTICE_TEXT)];
 
   it("holds the strings it is supposed to (so the scan below is not reading nothing)", () => {
     expect(strings.length).toBeGreaterThan(40);

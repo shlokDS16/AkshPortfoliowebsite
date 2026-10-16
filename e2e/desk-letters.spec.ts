@@ -10,8 +10,8 @@ installOutboundGuard();
 
 // Plan 5c Task 13: the desk letters screens on the LOCAL stack, in both desk projects (375 and 1280), through the screens Aksh uses. Nothing is
 // sent and nothing is approved: the web server runs with DISTRIBUTION_ADAPTER=fixture, and this spec never presses Send, the test copy or
-// "Send confirmation emails". It makes one letter from what is public, publishes it with its label as a subject (Send must stay off), unpublishes
-// it, replaces the subject and publishes again, then unpublishes, so the public site is left as it was found.
+// "Send confirmation emails". It makes one letter from what is public, runs the gate with its label as a subject (the gate refuses it, rule 13.1, so
+// there is no Send), replaces the subject and publishes, then unpublishes, so the public site is left as it was found.
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const SUBJECT = `What changed, e2e ${Date.now().toString(36)}`;
@@ -146,27 +146,25 @@ test("Make this letter: a new letter's subject is plainly a label, and with noth
   await clean(page);
 });
 
-test("published with the label as its subject: Send is there, switched off, and says why", async ({ page }) => {
+test("the gate refuses the label as a subject (rule 13.1): nothing is published and there is no Send", async ({ page }) => {
   await page.goto(letterPath);
   // The gate wants the one sentence (rule 6) whatever the subject is; the subject is left as the label on purpose.
   await page.getByLabel("One sentence: what a reader learns").fill("Which public pages changed since the last letter.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText(/^Letter saved\./)).toBeVisible();
   await expect(page.getByText(LABEL_NOTE)).toBeVisible();
-  await runGate(page);
-  await expect(gate(page).getByRole("button", { name: /^Send to \d+ subscribers?$/ })).toBeDisabled();
+  await gate(page).getByRole("button", { name: /^Run the publishing gate on revision #\d+$/ }).click();
+  await expect(gate(page).getByTestId("gate-decision")).toHaveAttribute("data-verdict", "fail");
+  await expect(gate(page).getByTestId("gate-failure").filter({ hasText: "Replace the label with your own subject." })).toHaveAttribute("data-rule", "13");
+  await expect(page.getByTestId("visibility")).toHaveText("Private");
   await expect(page.getByText(LABEL_WHY).first()).toBeVisible();
-  await expect(page.getByLabel("Subject")).toHaveAttribute("readonly", "");
-  await expect(page.getByText("This letter is on the archive. Unpublish it to change the subject or the sentence.")).toBeVisible();
-  // A test copy is offered (that is how he reads it first) and is not pressed here.
-  await expect(page.getByRole("button", { name: "Send me a test copy" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /^(Send to|Approve again)/ })).toHaveCount(0);
   await noSideways(page);
   await clean(page);
 });
 
 test("replacing the label: the note goes, the subject is his, and with nobody confirmed Send still says why", async ({ page }) => {
   await page.goto(letterPath);
-  await unpublish(page);
   await page.getByLabel("Subject").fill(SUBJECT);
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText(/^Letter saved\./)).toBeVisible();

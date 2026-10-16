@@ -9,6 +9,10 @@ import { askToSubscribe, confirmSubscription, leaveLetters, type AskState, type 
 // function through the cookie-less anon client; those functions (migration 0024) take or refuse silently, cap the day and never say which,
 // so this file cannot become a way to find out whether an address is on the list. Kept apart from actions.ts, which holds the desk's
 // writes: importing this file reaches neither the admin session nor the job code.
+//
+// The form's ticket and honeypot are a speed bump for scripts that post the HTML form, NOT a control: the publishable key is in every page,
+// so letters_request and letters_leave can be called without the form. The SQL caps (migration 0024) are the control, and the desk shows the
+// typed leaves of the day (readers page). Review findings 2 and 12.
 
 export async function askToSubscribeAction(_previous: AskState, formData: FormData): Promise<AskState> {
   const db = createSupabasePublicClient();

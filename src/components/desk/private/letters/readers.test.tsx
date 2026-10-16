@@ -15,7 +15,7 @@ const actions = () => ({
   closeSignup: vi.fn(async () => {}),
 });
 const waiter = (n: number): WaitingReader => ({ id: `00000000-0000-4000-8000-00000000000${n}`, email: `reader${n}@example.com`, requestedAt: `2026-10-1${n}T05:00:00+00:00` });
-const show = (patch: { on?: boolean; counts?: Partial<ReaderCounts>; left?: number; signupOn?: boolean; waiting?: WaitingReader[] } = {}) => {
+const show = (patch: { on?: boolean; counts?: Partial<ReaderCounts>; left?: number; leftToday?: number; signupOn?: boolean; contactSet?: boolean; waiting?: WaitingReader[] } = {}) => {
   const a = actions();
   const waiting = patch.waiting ?? [waiter(4), waiter(5)];
   const view = render(
@@ -23,7 +23,9 @@ const show = (patch: { on?: boolean; counts?: Partial<ReaderCounts>; left?: numb
       on={patch.on ?? true}
       counts={{ waiting: waiting.length, asked: 1, confirmed: 41, ...patch.counts }}
       left={patch.left ?? 50}
+      leftToday={patch.leftToday ?? 0}
       signupOn={patch.signupOn ?? false}
+      contactSet={patch.contactSet ?? true}
       waiting={waiting}
       actions={a}
     />,
@@ -147,6 +149,37 @@ describe("the sign-up switch", () => {
     show({ signupOn: true, counts: { confirmed: 949 } });
     expect(screen.queryByText(/free limit/)).toBeNull();
     expect(screen.getByText("Sign-ups open")).toBeInTheDocument();
+  });
+});
+
+describe("what the desk must see the same day (review findings 2, 8 and 11)", () => {
+  it("shows how many stopped on the public page today, and nothing when none did", () => {
+    const { unmount } = show({ leftToday: 3 });
+    expect(screen.getByText("Stopped on this page today: 3")).toBeInTheDocument();
+    unmount();
+    show({ leftToday: 0 });
+    expect(screen.queryByText(/Stopped on this page today/)).toBeNull();
+  });
+
+  it("says when the waiting list is full and new requests are dropped: at 300, not at 299", () => {
+    const { unmount } = show({ counts: { waiting: 300 } });
+    expect(screen.getByText("300 requests are waiting. New requests are not kept until you send confirmations or bin some.")).toBeInTheDocument();
+    unmount();
+    show({ counts: { waiting: 299 } });
+    expect(screen.queryByText(/requests are waiting/)).toBeNull();
+  });
+
+  it("says when sign-ups are open but email is not set up", () => {
+    show({ on: false, signupOn: true });
+    expect(screen.getByText("Sign-ups are open, but email is not set up. Close them, or set email up.")).toBeInTheDocument();
+  });
+
+  it("says when sign-ups are open but the contact for complaints is not set", () => {
+    const { unmount } = show({ signupOn: true, contactSet: false });
+    expect(screen.getByText(/contact address for questions and complaints is not set/)).toBeInTheDocument();
+    unmount();
+    show({ signupOn: true, contactSet: true });
+    expect(screen.queryByText(/contact address for questions and complaints is not set/)).toBeNull();
   });
 });
 

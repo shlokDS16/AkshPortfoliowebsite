@@ -30,3 +30,5 @@ export const CONFIRMATION_BODY = (host: string, link: string) =>
 
 /** At most this many confirmation emails go in a day (D93). */
 export const CONFIRMATIONS_PER_DAY = 50;
+/** letters_request keeps no new request while this many are waiting (migration 0024; copy.test.ts reads the SQL and keeps them equal). */
+export const WAITING_CAP = 300;

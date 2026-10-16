@@ -7,6 +7,8 @@ import type { IssuedConfirmation, LetterSource, LetterView, LettersReads, Letter
 // answers), and ports made from the FIXTURE transport behind the real approval guard. Nothing here reaches a network.
 
 export type Reader = { id: string; email: string; status: "waiting" | "sent" | "confirmed"; sentAt: string | null; token: string | null };
+/** A database on this machine: the only kind the fixture letters adapter will run against (review finding 9). */
+export const LOCAL_DB = "http://127.0.0.1:54321";
 export const ADMIN = "00000000-0000-4000-8000-0000000000aa";
 export const LEASE_MS = 10 * 60_000;
 
@@ -150,7 +152,7 @@ export function createFakeRpc(): FakeRpc {
 
 /** The ports of the fixture transport, behind the real approval guard, asking this fake. A test reads what was "sent" with peekFixtureLetters(). */
 export function fixturePorts(rpc: FakeRpc, adminEmail = "admin@desk.test"): LetterPorts {
-  const ports = createLetterPorts({ ADMIN_EMAIL: adminEmail, DISTRIBUTION_ADAPTER: "fixture" }, { approvals: rpc });
+  const ports = createLetterPorts({ ADMIN_EMAIL: adminEmail, DISTRIBUTION_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: LOCAL_DB }, { approvals: rpc, fixtureDirectory: null });
   if (!ports) throw new Error("the fixture ports are off");
   return ports;
 }
@@ -167,13 +169,14 @@ export function fakeSource(view: LetterView | null): LetterSource & { loads: num
   return source;
 }
 
-export type FakeReads = LettersReads & { passes: Map<string, string>; last: string | null; rpc: FakeRpc };
+export type FakeReads = LettersReads & { passes: Map<string, string>; last: string | null; formLeaves: number; rpc: FakeRpc };
 
 /** The admin session's reads, over the fake database: pass times and the last sent time are set by the test; readers and sends come from `rpc`. */
 export function fakeReads(rpc: FakeRpc): FakeReads {
   const reads: FakeReads = {
     passes: new Map(),
     last: null,
+    formLeaves: 0,
     rpc,
     async passTimes(ids) {
       return new Map([...reads.passes].filter(([id]) => ids.includes(id)));
@@ -202,6 +205,9 @@ export function fakeReads(rpc: FakeRpc): FakeReads {
     },
     async confirmationsLeftToday() {
       return 50;
+    },
+    async leftOnFormToday() {
+      return reads.formLeaves;
     },
     async signupOn() {
       return rpc.signup;

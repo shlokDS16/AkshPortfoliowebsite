@@ -1,6 +1,7 @@
 import { Flash } from "@/components/desk/private/letters/flash";
 import { LettersNav } from "@/components/desk/private/letters/letters-nav";
 import { ReadersPanel } from "@/components/desk/private/letters/readers-panel";
+import { grievanceContact } from "@/lib/letters-config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseLettersReads } from "@/modules/distribution";
 import { binRequestsAction, eraseReaderAction, sendConfirmationsAction, setSignupAction } from "@/modules/distribution/actions";
@@ -12,7 +13,13 @@ export default async function ReadersPage({ searchParams }: { searchParams: Prom
   await requireAdmin();
   const { error, notice } = await searchParams;
   const reads = createSupabaseLettersReads(await createSupabaseServerClient());
-  const [counts, left, signupOn, waiting] = await Promise.all([reads.readerCounts(), reads.confirmationsLeftToday(), reads.signupOn(), reads.waiting()]);
+  const [counts, left, leftToday, signupOn, waiting] = await Promise.all([
+    reads.readerCounts(),
+    reads.confirmationsLeftToday(),
+    reads.leftOnFormToday(),
+    reads.signupOn(),
+    reads.waiting(),
+  ]);
   return (
     <div className="space-y-(--block-gap)">
       <h1 className="text-title text-ink desk:text-title-desk">Readers</h1>
@@ -25,7 +32,9 @@ export default async function ReadersPage({ searchParams }: { searchParams: Prom
         on={lettersOn()}
         counts={counts}
         left={left}
+        leftToday={leftToday}
         signupOn={signupOn}
+        contactSet={grievanceContact() !== null}
         waiting={waiting}
         actions={{
           sendConfirmations: sendConfirmationsAction,

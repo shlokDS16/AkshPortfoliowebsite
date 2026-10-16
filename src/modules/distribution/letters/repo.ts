@@ -85,6 +85,12 @@ export function createSupabaseLettersReads(db: Db, now: () => Date = () => new D
       if (error) throw jobDbError("letters.confirmationsToday", error);
       return Math.max(0, CONFIRMATIONS_PER_DAY - (count ?? 0));
     },
+    async leftOnFormToday() {
+      const since = istDayStartUtc(istDate(now()));
+      const { count, error } = await db.from("subscriber_events").select("id", { count: "exact", head: true }).eq("event", "left_form").gte("at", since);
+      if (error) throw jobDbError("letters.leftOnFormToday", error);
+      return count ?? 0;
+    },
     async signupOn() {
       const { data, error } = await db.from("letters_signup_events").select("signup_on").order("at", { ascending: false }).limit(1);
       if (error) throw jobDbError("letters.signupOn", error);

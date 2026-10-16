@@ -42,7 +42,7 @@ export { isMondayInIndia, mondayLine } from "./letters/monday";
 export { letterChecks, type LetterCheck, type LetterFacts } from "./letters/checks";
 export { LABEL_LINE, listLine, NOT_PUBLISHED_LINE, sendState, testCopyLine, type LetterListRow, type SendFacts, type SendState } from "./letters/status";
 export { isPlaceholderSubject, placeholderSubject } from "./letters/subject";
-export { CONFIRMATIONS_PER_DAY, KIND_LABEL, LETTERS_NOTICE_VERSION, POSITION_LABEL, POSITION_WORD } from "./letters/copy";
+export { CONFIRMATIONS_PER_DAY, WAITING_CAP, KIND_LABEL, LETTERS_NOTICE_VERSION, POSITION_LABEL, POSITION_WORD } from "./letters/copy";
 export {
   LETTER_SCHEMA, MAX_ENTRIES, MAX_NOTE, MAX_OBJECTIVE, MAX_SUBJECT,
   type Candidate, type EntryKind, type IssuedConfirmation, type LetterEntry, type LetterSource, type LettersReads, type LettersRpc, type LetterStructured,

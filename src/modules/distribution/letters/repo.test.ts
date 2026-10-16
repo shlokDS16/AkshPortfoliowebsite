@@ -121,6 +121,14 @@ describe("the admin session's reads", () => {
     expect(log[0]!.ops).toContainEqual(["eq", "event", "sent"]);
   });
 
+  it("leftOnFormToday: the typed-form leaves since midnight India time (the left_form event)", async () => {
+    const { db, log } = fakeDb({ subscriber_events: { count: 3 } });
+    expect(await createSupabaseLettersReads(db, () => new Date("2026-10-16T20:00:00Z")).leftOnFormToday()).toBe(3);
+    expect(log[0]!.ops).toContainEqual(["eq", "event", "left_form"]);
+    expect(log[0]!.ops).toContainEqual(["gte", "at", "2026-10-16T18:30:00.000Z"]);
+    expect(await createSupabaseLettersReads(fakeDb({ subscriber_events: { count: 0 } }).db).leftOnFormToday()).toBe(0);
+  });
+
   it("signupOn: the last switch event decides, and none means off", async () => {
     expect(await createSupabaseLettersReads(fakeDb({ letters_signup_events: { data: [{ signup_on: true }] } }).db).signupOn()).toBe(true);
     expect(await createSupabaseLettersReads(fakeDb({ letters_signup_events: { data: [{ signup_on: false }] } }).db).signupOn()).toBe(false);
