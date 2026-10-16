@@ -2,7 +2,7 @@
 
 A guide for Aksh (daily use) and for Shlok (the short section near the end on running the site).
 
-Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026, and section 4.11 (PDFs, links and the feed) on 16 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
+Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026, section 4.11 (PDFs, links and the feed) and section 4.12 (videos) on 16 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
 
 ## Contents
 
@@ -21,6 +21,7 @@ Written 14 October 2026, from the code and the design documents as they stand on
    - [4.9 Case studies](#49-case-studies)
    - [4.10 Concepts, reads and your month](#410-concepts-reads-and-your-month)
    - [4.11 Sharing your work: PDFs, links and the feed](#411-sharing-your-work-pdfs-links-and-the-feed)
+   - [4.12 Videos](#412-videos)
 5. [The publishing rules in plain words](#5-the-publishing-rules-in-plain-words)
 6. [When something looks wrong](#6-when-something-looks-wrong)
 7. [For Shlok: running the site](#7-for-shlok-running-the-site)
@@ -125,6 +126,7 @@ At the very top, a **red strip** appears only when something is late or broken. 
 | `l:` at the very start | A learning note. The receipt says "Learning note, private". |
 | `p:` at the very start | A process note (how you work). The receipt says "Process note, private". |
 | `r:` at the very start | Something you read, for the reading log. The receipt says "Reading log, private". A read always stays private. |
+| `v:` at the very start, then a YouTube link | A video (section 4.12). The receipt says "Video, private". Nothing is read from YouTube until Shlok has set a key. |
 | A web address (https://...) anywhere | Kept with the capture. The desk does not open it by itself. See "Read this link" below. |
 | None of the above | A private note, listed under Today. |
 
@@ -132,7 +134,7 @@ A few details:
 
 - A thesis belongs to one company. If you start with `t:` and give no `$SYMBOL`, the box warns "A thesis belongs to one company. Add $SYMBOL, or this saves as a private draft without one."
 - `$` followed only by an amount (such as `$5M` or `$500cr`) is read as money, not a company.
-- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:`, `p:` and `r:` for you.
+- On a phone, a row of keys above the keyboard types `$`, `#`, `t:`, `l:`, `p:`, `r:` and `v:` for you.
 - A capture can be up to 20,000 characters.
 
 **After you save**
@@ -584,6 +586,7 @@ Anyone can open these pages without signing in. The bar along the top (or bottom
 - **Notes** and **Process.** Your learning notes and process notes that you published, each listing the files that use it. Until you publish any, they say "No learning notes yet ..." and "No process notes yet ...".
 - **Mistakes.** Closed cases in which you judged your own process flawed, or named a kind of mistake, with your review words and a link to the case (section 4.9). Until one is public the page shows its placeholder: "Nothing here yet. Closed cases in which Aksh judged his own process flawed, or named a kind of mistake, are listed here with his own words and a link to the case."
 - **Closed cases** (`/cases`, no tab; linked from Process and Mistakes) and the **How this record is kept** section on Process. Both appear only while a case study from the ledger is public (section 4.9).
+- **Videos** (`/videos`, no tab; linked from What changed on the home page, the feed and shared links). Each public video has its own page with a click-to-play picture, your chapters and the transcript (section 4.12). The page does not exist until a video is listed.
 - **About and disclosures.** Who you are, how a page gets published (the rules in section 5), and the standard disclosure.
 - **On every page,** a disclosure line: "For learning · Aksh is not SEBI-registered · Figures 30+ days old."
 - **On a file, a note, a process note and a closed case,** a **Save as PDF** button under the dates (section 4.11).
@@ -721,6 +724,53 @@ The result differs a little between browsers. A PDF is a copy. If you change or 
 
 **How soon it changes.** The feed, the page list and the cards follow what you publish or unpublish within an hour. A page you unpublish leaves them in that time. A copy a reader, a social site or a printer already took stays with them.
 
+### 4.12 Videos
+
+**What it is for.** A video of yours on YouTube can have a page on the site: the video itself (it loads only when a visitor presses play), your chapters, and a transcript of what you say, so a reader can search and skim. The desk only reads YouTube. It never uploads, edits or deletes anything there.
+
+**Switched off until Shlok sets a key.** Until Shlok adds a YouTube key (section 7), the desk says "Video listing is not set up yet (Shlok adds a YouTube key)." and nothing is read from YouTube. A `v:` capture still saves; it waits.
+
+**The steps**
+
+1. **Upload to YouTube as Unlisted.** Not Public yet (see the last step).
+2. **Capture the link.** In the Capture box type `v:` and paste the link, for example `v: https://youtu.be/AbCdEfGhIjK`. Links of the shape youtu.be/..., youtube.com/watch?v=..., /shorts/... and /live/... work; anything else says "That is not a YouTube link." The receipt says "Video, private". Open **Items**, then **Videos**, and open the video. Its first title is "Video" and the link's code.
+3. **Let the desk read YouTube.** Within about 15 minutes it reads the title, length, channel and description. Or press **Fetch again** on the video page. The box "From YouTube" shows what YouTube answered, in the machine's type. It is not your words.
+4. **Download the caption file in YouTube Studio.** Open YouTube Studio, choose **Content**, open the video, choose **Subtitles**, open the menu on the language row (the three dots) and choose **Download**, then **.vtt** or **.srt**. YouTube changes its menus now and then; the desk's own message says the same: "In YouTube Studio choose Subtitles, then Download, then .vtt or .srt." If the automatic captions have a wrong word, fix it in Studio first and download again.
+5. **Drop the file.** On the video page, under **Transcript**, choose the file and press **Store transcript**. The first 20 lines show, the rest behind **Show all**. Then press **Use this transcript**; it goes into a new revision. The transcript is the machine's record of what was said. There is no box to edit it, here or anywhere, on purpose.
+6. **Your own words.** Press **Use this title** if you want YouTube's title as the title (you can also type your own in **Details**). Press **Use chapters from the description** to take the chapter lines you wrote in the YouTube description (at least 3 lines that start with a time, the first at 0:00). Those titles are copied exactly as you typed them. Write the **Learning objective** and press **Save details**.
+7. **Run the publishing gate** as for any file (section 4.4). Read the checklist first; it says which row fails and why.
+8. **Make it Public on YouTube only after the desk lists it.** Until then leave it Unlisted. The desk accepts a video that is Unlisted or Public, so nothing is lost by waiting, and the spoken words are checked before anyone is sent to them. If a video is Public on YouTube and not listed on the site, the status line says so.
+
+**What the gate checks for a video (rule 12)**
+
+- The video is on **your channel** and is Unlisted or Public on YouTube, not private or gone.
+- The YouTube facts were read **in the last 7 days** (while the key is on, the desk re-reads them every day).
+- The revision names **the same video** the link points to.
+- A **transcript** is in the revision, and it is exactly the stored one. The gate checks every sentence of it, word by word, with the same rule 1 as for a note.
+- If the video **names a company**, the **Figures to** date is at least 30 days old.
+- The **chapters** (if any) are 3 to 100, start at 0:00, rise in time, and each title is 1 to 100 characters.
+
+**What it refuses, and why.** The transcript is what a visitor reads, so a spoken "you should buy this" is refused exactly as a written one would be: "Rule 1: no actionable language", pointing at the sentence in the transcript. You cannot edit the transcript to hide it, because it must match the stored one. You have three ways out. Say it differently in a new video. Or, if the sentence is you explaining your process (for example, a lesson on what not to say), allow that one sentence with a reason, as in section 4.4 (the reason is kept with the gate decision). Or leave the video unlisted on the site. A spoken performance claim (rule 2) has no allowance; that video cannot be listed.
+
+**What a visitor sees.** A page with the title, what it teaches, a still picture and a **Play video (loads YouTube)** button, your chapters, the transcript with the line "Typed by machine from the video's captions and not edited. If it differs from the video, the video is the record.", and the usual disclosure. Nothing from YouTube loads until the visitor presses play. A chapter starts the video at that time. The page is also in the feed, the page list and the shared-link card, and it prints (without the player).
+
+**Taking it down.** Press **Unpublish** on the video page. The page, the card, the feed entry and the page-list line leave within the hour (section 4.11). The video on YouTube is not touched.
+
+**Messages you may see**
+
+| What you see | What it means |
+|---|---|
+| "Video listing is not set up yet (Shlok adds a YouTube key)." | The key is not set. Nothing is read from YouTube. |
+| "Waiting for YouTube" | The desk has not read the video yet. Press **Fetch again**. |
+| "This is not a caption file. In YouTube Studio choose Subtitles, then Download, then .vtt or .srt." | The file is not a caption file. |
+| "This file is too big for a caption file (1 MB at most)." or "This caption file is too long (5,000 cues at most)." | Download the captions for one language only. |
+| "There is no transcript yet. Drop the caption file from YouTube Studio first." | Do step 5 first. |
+| "The YouTube description has no chapter list that YouTube would accept: at least 3 lines that start with a time, the first at 0:00." | Fix the chapter lines in the YouTube description, then press **Fetch again**. |
+| "A video needs its transcript before it is listed." | Do step 5, then run the gate. |
+| "YouTube data is more than 7 days old. Fetch it again." | Press **Fetch again**, then run the gate. |
+| "This video is not from your channel." or "This video is private or gone on YouTube." | The gate lists only your own Unlisted or Public videos. |
+| "YouTube's daily limit is used up. The desk tries again tomorrow." | Wait. Nothing is lost. |
+
 ---
 
 ## 5. The publishing rules in plain words
@@ -748,6 +798,7 @@ The result differs a little between browsers. A PDF is a copy. If you change or 
 7. **Every revision is checked (rule 7).** A new revision of a public file stays hidden until it passes again.
 8. **Everything public is checked (rule 8).** Title, address, learning objective, body, structured data and share-card text.
 9. **No interactive valuation model is ever public (rule 9).** A valuation model's output is a price target by another name. A static table of scenario outputs, lagged and labelled, may be public if it passes.
+10. **Videos (rule 12).** A video is listed only if it is on your channel, YouTube was read in the last 7 days, its transcript is in the revision and passed rule 1, a company video meets the 30-day lag, and the chapters are well formed. Section 4.12 has the steps. A spoken line cannot be edited away: the transcript is the machine's record.
 
 **What stays private**
 
@@ -881,7 +932,9 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 | `NSE_BHAVCOPY_URL_TEMPLATE`, `NSE_INDEX_URL_TEMPLATE` | Optional. Change only the path of NSE's files; the host is fixed in code. Leave empty. Do not set on Vercel. |
 | `GITHUB_GIST_TOKEN`, `LEDGER_ANCHOR_GIST_ID` | Switch the public copy of the ledger's fingerprints on. Left unset on purpose. |
 | `RESEND_API_KEY`, `ALERT_EMAIL`, `RESEND_FROM` | Switch the alert email on (see "Turning on the alert email"). Left unset, nothing is sent. `RESEND_FROM` is optional. |
-| `GOOGLE_VISION_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_AUDIENCE_ID`, `YOUTUBE_API_KEY` | In the template for later phases. Not used by this version. |
+| `YOUTUBE_API_KEY`, `YOUTUBE_CHANNEL_ID` | Switch video listing on (see "What is switched off on purpose"). Both are needed; one alone keeps it off. Left unset, nothing is read from YouTube. |
+| `DISTRIBUTION_ADAPTER` | Local testing only (`fixture`): stands in for YouTube. Never set it on Vercel. It is refused there. |
+| `GOOGLE_VISION_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_AUDIENCE_ID` | In the template for later phases. Not used by this version. |
 
 ### The first live day: two things to check
 
@@ -893,6 +946,7 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 - **Voice notes.** `VOICE_NOTES` is unset. The drop bar hides voice notes and nothing is sent to Groq. To switch on you need Aksh's agreement (ADR-004 s8), and the open item about discarded transcript text staying in the database (Q22, debt M-4) needs its migration first. Its planned number, 0010, has since been taken by the ledger, so it will have a later number. Then set `VOICE_NOTES=on`.
 - **The public copy of the ledger's daily fingerprints.** `GITHUB_GIST_TOKEN` and `LEDGER_ANCHOR_GIST_ID` are unset. Days are still sealed in the database and wait. To switch on you need the owner decision (Q26: which GitHub account owns the gist), a public gist created by hand, and a fine-grained token with only the "Gists: write" permission. The file is public and shows the number of entries per day and their fingerprints (no names, words or prices). Do not put either value on Vercel until the owner has agreed. **Once any line is published, switching it off again turns the `ledger:anchor` step red** ("the public copy is switched off, but lines were published before"). The file is dated by GitHub. Its owner can still edit or delete it. The run compares the whole public file with every sealed line each day.
 - **Case studies from the ledger, and their chart.** Two rows in `private.settings`, `ledger_reveal` and `ledger_chart`, both absent (off). You turn them on in the Supabase SQL editor; the runbook `docs/runbooks/case-study-switches.md` has the exact SQL, what turning off does not do (it does not take a page down), and the checks to run before the first switch-on on the hosted project. Until Q27 is answered they stay off. Migrations 0017, 0018 and 0019 and the merge must land together, because every publish is refused in between.
+- **Videos.** `YOUTUBE_API_KEY` and `YOUTUBE_CHANNEL_ID` are unset, so the desk reads nothing from YouTube and no video can be listed (a video publish is refused for want of YouTube facts). To switch on, only if Aksh will list videos: first push migrations 0022 and 0023 and merge the videos pull request back to back (between the two every publish is refused, because the app sends one policy version and the database wants the next). Then create a Google Cloud API key restricted to "YouTube Data API v3", set both variables on Vercel Production, and redeploy. Aksh's channel id is the `UC...` code that YouTube Studio shows under Settings, Channel, Advanced settings. The desk only reads; it never writes to YouTube. YouTube's developer policy lets data fetched with a key be kept for at most 30 days, so the daily check re-reads every video; if the key is ever removed, the stored YouTube text should be purged by hand (open question Q51). Open questions Q47 (the gate sentences), Q49 (no allowance for a spoken performance claim) and Q51 need answers before the key is set.
 - **The pump workflow** needs `DESK_URL` and `CRON_SECRET` repository secrets to run. The last progress note says it was enabled on 14 October.
 
 ### Before the first real idea (read this before Aksh records anything)
@@ -915,7 +969,7 @@ They are in `docs/project-memory/unanswered-questions.md`. Do not copy them here
 - A public view of the Ledger, or any figure for how your ideas did. A closed idea can be written up as a case study (section 4.9) once the site owner has switched case studies on; the page prints no result.
 - The spreadsheet valuation page (reading a model from a spreadsheet).
 - A newsletter.
-- Videos and transcripts.
+- Reading a video's speech by machine. A video's transcript comes only from the caption file you download in YouTube Studio (section 4.12). Poor automatic captions have to be fixed in Studio first.
 - A PDF made on the site's own server. **Save as PDF** uses the browser's print window, so the result differs a little from one browser to the next (section 4.11).
 - Logins for clients or readers. Only you sign in.
 - Voice notes (switched off).
@@ -941,4 +995,5 @@ Each of these is something I could not confirm from the code, the specs or the t
 9. **The exact buttons for a few small screens** I read only through their code: the filed-figures tick boxes on the review screen (I describe them as ticks, by the "Tick at least one figure to file." message), the label of the save button on the "Type the value from the page" form, and the phone layout of the file page. I did not run the site.
 10. **The public Mistakes page.** It now fills from published case studies (section 4.9). That is confirmed on the local stack only, with an invented company; nothing is public on the hosted site.
 11. **Whether the production site is open to everyone today.** The last progress note says the production address is reachable without a Vercel bypass, so the public side is already visible. Confirm that is what you want on launch day.
-12. **Legal confirmation.** The publishing rules say they are not legal advice and should be confirmed with a lawyer or NISM-certified analyst. The official SEBI circular PDFs are still to be saved under `docs/compliance/`.
+12. **Videos against the real YouTube.** Everything in section 4.12 was tried on the local copy of the site with a stand-in for YouTube. No real YouTube address has been asked yet (the key is unset). The Studio menu names (Content, Subtitles, Download, .vtt or .srt) come from the desk's own message and from memory of Studio; check them once in Studio. The channel id's place in Studio is also from memory.
+13. **Legal confirmation.** The publishing rules say they are not legal advice and should be confirmed with a lawyer or NISM-certified analyst. The official SEBI circular PDFs are still to be saved under `docs/compliance/`.

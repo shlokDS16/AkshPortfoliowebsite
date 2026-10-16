@@ -96,6 +96,18 @@ The entry price is set at the next close; the idea has no score until then.
 1. Close the idea and write the lesson. Open the idea: in the **Case study** block, press **Draft a case study** once the exit price is fixed.
 2. On its page, fill in **Learning objective** and **Holds position**, add your "Looking back" words if you want to (no price and no return in them), and run the publishing gate. It goes public only if Shlok has switched case studies on, and only 30 days after the latest entry it shows. Your entries cannot be edited there; if you write a new lesson, press **Refresh from the ledger**.
 
+### Add a video
+
+Videos are switched off until Shlok sets a YouTube key. The desk then shows "Video listing is not set up yet (Shlok adds a YouTube key)." You can do the steps in order once it is on.
+
+1. Upload to YouTube as **Unlisted**. Keep it Unlisted until the desk lists it.
+2. In the Capture box type `v:` and paste the link, then Enter. Open **Items**, then **Videos**, then the video. Press **Fetch again** if it says "Waiting for YouTube".
+3. Get the caption file: YouTube Studio, **Content**, the video, **Subtitles**, the three dots on the language row, **Download**, **.vtt** or **.srt**. If an automatic caption has a wrong word, fix it in Studio first and download again.
+4. On the video page, drop the file under **Transcript** and press **Store transcript**, then **Use this transcript**. Press **Use chapters from the description** (at least 3 lines that start with a time, the first at 0:00). Write the **Learning objective**.
+5. Run the publishing gate. Then, and only then, make the video Public on YouTube.
+
+What the desk refuses, and why: the transcript is what a visitor reads, so the same words are refused as in a note. A spoken "you should buy this" is blocked under "Rule 1: no actionable language" and you cannot edit the transcript to hide it. If the sentence is you explaining your process, allow that one sentence with a reason; otherwise say it differently in a new video. It also refuses a video that is not on your channel, is private, was last read from YouTube more than 7 days ago, or names a company with figures less than 30 days old. A spoken claim about your returns has no allowance.
+
 ### Save a public page as a PDF
 
 Open the public file, note or closed case and press **Save as PDF** under its dates. In the print window, choose "Save as PDF" as the printer. The PDF says which revision it shows and carries the full disclosure. A copy already saved cannot be called back if you change or unpublish the page later. The feed and the shared-link cards follow what you publish within an hour.
@@ -144,4 +156,4 @@ For anything else, copy the exact words on screen and send them to Shlok.
 
 ## 7. Not in this version
 
-A public view of the Ledger or any figure for how your ideas did (a closed idea can be written up as a case study, once Shlok switches that on); the spreadsheet valuation page; a newsletter; videos and transcripts; a PDF made on the site's server (Save as PDF uses your browser's print window); logins for readers; voice notes; editing or removing a split or bonus (correct it with a new entry).
+A public view of the Ledger or any figure for how your ideas did (a closed idea can be written up as a case study, once Shlok switches that on); the spreadsheet valuation page; a newsletter; a PDF made on the site's server (Save as PDF uses your browser's print window); logins for readers; voice notes; editing or removing a split or bonus (correct it with a new entry).

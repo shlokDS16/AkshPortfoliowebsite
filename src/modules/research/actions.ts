@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
-import { ItemNotFoundError, errorShape } from "@/lib/errors";
+import { InvalidInputError, ItemNotFoundError, errorShape } from "@/lib/errors";
 import { doneTo, failTo } from "@/lib/redirects";
 import { errorCode, errorText, userWasTold } from "@/lib/messages";
 import { createSupabaseResearchRepo } from "./repo";
@@ -27,6 +27,9 @@ export async function createItemAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const parsed = createItemInput.safeParse({ kind: field(formData, "kind"), title: field(formData, "title") ?? "" });
   if (!parsed.success) failTo("/desk/items", parsed.error, "research");
+  // A video exists only through the capture box (v: and a YouTube link): that is what files its YouTube row (Phase 5b). The Create list no
+  // longer offers it, so this is a crafted post; such an item could never pass rule 12.1, and is better never created.
+  if (parsed.data.kind === "video") failTo("/desk/items", new InvalidInputError(), "research");
   let itemId: string;
   try {
     itemId = (await createItem(await repo(), parsed.data)).item.id;

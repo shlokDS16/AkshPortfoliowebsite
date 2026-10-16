@@ -28,6 +28,7 @@ const printable = () => [
   { name: "learning note", path: pages.notes[0], position: "(?:stated on each file|Not disclosed)" },
   { name: "process note", path: pages.process[0], position: "(?:stated on each file|Not disclosed)" },
   ...(state().casePublic ? [{ name: "case", path: pages.cases[0], position: "(?:Yes|No|Not disclosed)" }] : []),
+  ...(state().videosPublic ? [{ name: "video", path: pages.videos[0], position: "(?:stated on each file|Not disclosed)" }] : []),
 ];
 
 async function pdfText(page: Page): Promise<{ pages: number; text: string }> {
@@ -105,6 +106,13 @@ test("a PDF of each public page is dated, addressed and carries the standard dis
       expect(text).toContain("Figures to");
       expect(text).toMatch(/\bR1\b/); // the revision list prints, with its first version
       expect(text).toMatch(/\bR2\b/);
+    }
+    if (name === "video") {
+      // The transcript and the chapters print whole, with the machine's label; the player and its button do not.
+      expect(text, "the transcript prints").toContain("Transcript");
+      expect(text, "the transcript label prints").toContain("Typed by machine from the video's captions and not edited.");
+      expect(text, "the chapters print").toContain("Chapters");
+      for (const gone of ["Play video", "loads YouTube"]) expect(text, `${name}: ${gone}`).not.toContain(gone);
     }
     if (name === "case") {
       // Rule 10.7: no result figure, no id, no verdict on a printed case study.

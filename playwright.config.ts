@@ -108,9 +108,28 @@ export default defineConfig({
       dependencies: ["concepts"],
       use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
     })),
+    // Plan 5b Task 9: the video loop end to end (a `v:` capture, the faked YouTube, a caption file, the gate's refusal of a spoken "buy", an
+    // allowance, a pass, a signed-out visitor, every derived surface, Unpublish and Publish). YouTube is faked at the port
+    // (DISTRIBUTION_ADAPTER=fixture in the web server's env, e2e/support/stack.ts), so nothing leaves the machine. It lists one video, so it
+    // runs after every project that expects the deploy state, the cases-public and concepts-public ones included, and leaves the video public.
+    {
+      name: "videos",
+      testMatch: spec("videos"),
+      dependencies: ["anon", ...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop", "cases", "concepts", "cases-public-375", "cases-public-1280", "concepts-public-375", "concepts-public-1280"],
+      use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
+    },
+    // The public video pages and the derived surfaces once more, now that the loop above has left one video listed: the listed half of
+    // public-videos.spec.ts (axe, one h1, no sideways scroll, 44 px targets on the phone, nothing asked of YouTube before the press) runs here
+    // and skips in the public-* projects. public-distribution and public-print run with a video in the sitemap, the feed, the cards and print.
+    ...(["375", "1280"] as const).map((w) => ({
+      name: `videos-public-${w}`,
+      testMatch: spec("public-videos|public-distribution|public-print"),
+      dependencies: ["videos"],
+      use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
+    })),
     // Signing out revokes every session of the admin (GoTrue's default scope), including the stored
-    // one the desk projects share, so this runs last and only after the desk, case and concept projects have finished.
-    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts"] },
+    // one the desk projects share, so this runs last and only after the desk, case, concept and video projects have finished.
+    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts", "videos"] },
   ],
   webServer: {
     command: stack ? `pnpm build && pnpm start -p ${E2E_PORT}` : `pnpm start -p ${E2E_PORT}`,

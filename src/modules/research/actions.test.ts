@@ -92,6 +92,13 @@ describe("createItemAction", () => {
     expect(item).toMatchObject({ title: "Capex cycles", visibility: "private" });
   });
 
+  it("refuses kind=video from a crafted post: a video is created only by v: in the capture box", async () => {
+    const to = await target(() => createItemAction(form({ kind: "video", title: "A video" })));
+    expect(to).toMatch(/^\/desk\/items\?error=/);
+    expect(errorOf(to)).toBe("invalid-input");
+    expect(repo.items.size).toBe(0);
+  });
+
   it("sends a validation message back to the list", async () => {
     const to = await target(() => createItemAction(form({ kind: "note", title: "  " })));
     expect(to).toMatch(/^\/desk\/items\?error=/);
