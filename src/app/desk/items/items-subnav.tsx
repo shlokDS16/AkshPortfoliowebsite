@@ -10,11 +10,14 @@ const words = (parts: string[]) => (parts.length < 2 ? parts.join("") : `${parts
  * the page asks `featureOn` and hands the answers down.
  */
 export function ItemsSubnav({ ownVideos, letters }: { ownVideos: boolean; letters: boolean }) {
-  const label = words(["Concepts", "the month", ...(ownVideos ? ["videos"] : []), ...(letters ? ["letters"] : [])]);
+  const label = words(["Concepts", "sources", "the month", ...(ownVideos ? ["videos"] : []), ...(letters ? ["letters"] : [])]);
   return (
     <nav aria-label={label} className="flex flex-wrap gap-x-5 text-small">
       <Link href="/desk/concepts" className={link}>
         Concepts
+      </Link>
+      <Link href="/desk/sources" className={link}>
+        Sources
       </Link>
       <Link href="/desk/learned" className={link}>
         This month

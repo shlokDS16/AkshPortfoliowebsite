@@ -18,3 +18,4 @@ export {
   type FetchDeps, type FetchStore, type ReadNowAnswer, type RecordFetch, type SourceRef,
 } from "./fetch";
 export { buildStudiedCards, studiedByItem, type PublicStudiedRow, type StudiedCard } from "./public";
+export { deskThumbnail } from "./thumb";
