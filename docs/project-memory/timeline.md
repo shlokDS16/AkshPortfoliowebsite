@@ -182,3 +182,7 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - The review caught a retry path that could email every reader twice; fixed. A test guard broke during the build and let a few unauthenticated GETs reach Resend and Google API hosts (nothing sent); the guard was rebuilt as a loopback allowlist.
 - Sign-ups stay closed until Shlok chooses the grievance contact (Q41).
 - Evidence at 93bee5c: unit 6458, pgTAP 2659, full e2e 529 passed, 0 failed.
+
+## 2026-10-16 (night) - Phase 5 released; every roadmap phase except client logins is live
+- #11 (5a) merged; #13 folded into #12; migrations 0022-0025 pushed by the controller; #12 merged. Videos stay off until the YouTube key is set; letters and sign-ups stay off until a domain is verified.
+- Shlok approved all pending copy and the decisions taken on his behalf; Q41, Q44 and Q45 decided. Next: a friend of Shlok's checks the whole site and desk; changes become a plan.
