@@ -2,7 +2,7 @@
 
 A guide for Aksh (daily use) and for Shlok (the short section near the end on running the site).
 
-Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
+Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026, and section 4.11 (PDFs, links and the feed) on 16 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
 
 ## Contents
 
@@ -20,6 +20,7 @@ Written 14 October 2026, from the code and the design documents as they stand on
    - [4.8 Your model on the desk](#48-your-model-on-the-desk)
    - [4.9 Case studies](#49-case-studies)
    - [4.10 Concepts, reads and your month](#410-concepts-reads-and-your-month)
+   - [4.11 Sharing your work: PDFs, links and the feed](#411-sharing-your-work-pdfs-links-and-the-feed)
 5. [The publishing rules in plain words](#5-the-publishing-rules-in-plain-words)
 6. [When something looks wrong](#6-when-something-looks-wrong)
 7. [For Shlok: running the site](#7-for-shlok-running-the-site)
@@ -585,6 +586,7 @@ Anyone can open these pages without signing in. The bar along the top (or bottom
 - **Closed cases** (`/cases`, no tab; linked from Process and Mistakes) and the **How this record is kept** section on Process. Both appear only while a case study from the ledger is public (section 4.9).
 - **About and disclosures.** Who you are, how a page gets published (the rules in section 5), and the standard disclosure.
 - **On every page,** a disclosure line: "For learning · Aksh is not SEBI-registered · Figures 30+ days old."
+- **On a file, a note, a process note and a closed case,** a **Save as PDF** button under the dates (section 4.11).
 
 A file appears here only after it passed the checks and its **Figures to** date is 30 days old. A visitor never sees the desk, the inbox, your captures, or the Ledger.
 
@@ -696,6 +698,28 @@ Once the note passes, a visitor can open **/concepts**, which lists each public 
 | "Only the first 8 concepts were linked." | A capture had more than 8 `#names`. The rest stay in the text. |
 | "That is over 2,000 characters. Shorten it." | The box under **In your words** holds up to 2,000 characters. |
 | "A concept cannot be linked to itself." | Choose a different concept in **Link a concept**. |
+
+### 4.11 Sharing your work: PDFs, links and the feed
+
+**Save a page as a PDF.** A public file, learning note, process note and closed case each has a **Save as PDF** button under its dates. Press it and the browser opens its print window. Choose "Save as PDF" as the printer (on an iPhone, use Share, then Save to Files). The PDF is a dated document:
+
+- At the top: "Aksh Agrawal · Case files", the page's address, and "This copy shows revision R2 of 15 Oct 2026. Figures to 31 Aug 2026. The current version is at the address above." A note has no "Figures to" part.
+- At the end: the full disclosure, with your position in the share. A file, a case and a note about a company already show it on the page. A note about no company, the register and the other list pages get it on paper only, and it reads "Position in the security discussed: stated on each file."
+- A link in the source list prints its address after its name, so the PDF still says where the figure came from.
+- Left out: the menus, the tabs, the buttons, the sentence-by-sentence comparison of revisions, and anything that is folded shut on the screen. The list of revisions stays.
+- Always light, on white, even if your phone or laptop is set to dark.
+
+The result differs a little between browsers. A PDF is a copy. If you change or unpublish the page later, a PDF already saved or sent stays as it was; its top says which revision it shows. A copy cannot be called back.
+
+**Printing a desk page.** You can. The desk's menus and buttons stay off the paper, the first page begins with a boxed line, and every later page repeats it at the top: "Private desk copy. Not for sharing: it has not passed the publish gate and may show figures less than 30 days old."
+
+**What a shared link looks like.** When someone pastes a page's address into a chat or a social site, it shows the page's title, your learning objective word for word, and a card with the kind of page ("Learning note", "Process note", "Closed case" or "Concept"), the title and a date. A closed case never shows a number or a result, on the card or anywhere else a link is shown.
+
+**The feed.** The site has a feed at `/feed.xml` that a feed reader can follow. It has one entry for each published version of a file, a note, a process note or a closed case, newest first, up to 50. An entry gives your reason for the change, the version and its date, what it teaches, and the line "For learning, not advice. Figures on the page are at least 30 days old." It holds nothing else: no figure from a file, no price, no result.
+
+**Search engines.** The site lists its public pages for search engines. Only pages that are already public are listed. A test copy of the site (not the real address) tells search engines to list nothing.
+
+**How soon it changes.** The feed, the page list and the cards follow what you publish or unpublish within an hour. A page you unpublish leaves them in that time. A copy a reader, a social site or a printer already took stays with them.
 
 ---
 
@@ -892,7 +916,7 @@ They are in `docs/project-memory/unanswered-questions.md`. Do not copy them here
 - The spreadsheet valuation page (reading a model from a spreadsheet).
 - A newsletter.
 - Videos and transcripts.
-- Exporting a file as a PDF.
+- A PDF made on the site's own server. **Save as PDF** uses the browser's print window, so the result differs a little from one browser to the next (section 4.11).
 - Logins for clients or readers. Only you sign in.
 - Voice notes (switched off).
 - The public copy of the Ledger's fingerprints (switched off).

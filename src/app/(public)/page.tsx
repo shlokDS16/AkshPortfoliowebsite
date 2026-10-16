@@ -1,3 +1,6 @@
+import { SITE_POSITION } from "@/components/desk/disclosure";
+import { JsonLd } from "@/components/desk/json-ld";
+import { PrintDisclosure } from "@/components/desk/print-disclosure";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { RegisterTable } from "@/components/desk/register-table";
 import { StatTile } from "@/components/desk/stat-tile";
@@ -5,11 +8,13 @@ import { StreakStrip } from "@/components/desk/streak-strip";
 import { Unavailable } from "@/components/desk/unavailable";
 import { UnitSquares } from "@/components/desk/unit-squares";
 import { WhatChangedList } from "@/components/desk/what-changed-list";
+import { publicEnv } from "@/lib/env";
 import { formatCount, formatDate } from "@/lib/format";
 import { totalTests } from "@/lib/test-status";
-import { buildHomeStats, buildRegister, buildSiteChrome, buildWhatChanged, getSnapshot } from "@/modules/showcase";
+import { buildHomeStats, buildRegister, buildSiteChrome, buildWhatChanged, getSnapshot, jsonLdFor, pageMetadata } from "@/modules/showcase";
 
 export const revalidate = 3600;
+export const metadata = pageMetadata("home", null);
 
 /** Register home (segment 2 A) with B's What changed above it and B's stat tiles (segment 3). The h1 never animates. */
 export default async function Home() {
@@ -49,6 +54,8 @@ export default async function Home() {
         <WhatChangedList entries={buildWhatChanged(s)} />
         <RegisterTable files={files} searchable={false} />
       </div>
+      <PrintDisclosure position={SITE_POSITION} reviewedOn={s.today} />
+      <JsonLd data={jsonLdFor("home", s, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
 }

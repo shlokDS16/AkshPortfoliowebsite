@@ -1,0 +1,68 @@
+/*
+ * Plan 5a Task 3, spec s5: a public page prints as a dated document, a desk page prints with a banner. The PDF is the browser's own
+ * print (no server work). Print runs at the width of an A4 page, which is under the 60rem desk breakpoint, so the phone layout is the
+ * one that prints: one column, no rail. The dark colours in globals.css are screen-only, so every print is the light theme.
+ * Tokens come from globals.css; what chrome to hide is mostly said in the components (`print:hidden`), and only the rules a
+ * component cannot carry are here.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font: 8pt ui-monospace, monospace;
+      color: #62594d;
+    }
+  }
+
+  html { font-size: 87.5%; }
+  body { background: transparent; color: var(--ink-body); min-height: 0; }
+  main { padding-bottom: 0 !important; }
+  * { animation: none !important; transition: none !important; }
+
+  /* Controls do nothing on paper. A source chip is a citation (its label is the page), so it stays. */
+  button:not([data-chip]),
+  [data-strip-drawer],
+  [role="radiogroup"],
+  .progress-hairline { display: none !important; }
+
+  /* A block that reads as one thing stays on one page; a heading stays with what it introduces. */
+  figure, tr, details, section > header, [data-print-disclosure], #disclosure { break-inside: avoid; }
+  h1, h2, h3, section > header { break-after: avoid; }
+  thead { display: table-header-group; }
+
+  /* The part of a closed disclosure widget a reader cannot see on screen is not printed. */
+  details:not([open]) > :not(summary) { display: none; }
+
+  /* Where a source goes: the address in full after the text, so a PDF still names it. */
+  [aria-labelledby="sources"] a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: var(--ink-muted);
+    overflow-wrap: anywhere;
+  }
+
+  /* Colour that carries meaning (a chart's lines, the file tag, the VIEW label's fill, a hatch for a withheld figure) is printed even with
+     "background graphics" off; without it the label's light text would sit on nothing. The page itself stays white (body, above). */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Desk (spec s5, D71): the banner block heads page 1; the same sentence is set in the top margin of every page after it, through a
+     named page that only the desk's wrapper takes (a block cannot repeat on paper, a margin box does). */
+  [data-desk-print] { page: desk; }
+  [data-print-banner] { break-after: avoid; }
+}
+
+@page desk {
+  @top-center {
+    content: "Private desk copy. Not for sharing: it has not passed the publish gate and may show figures less than 30 days old.";
+    font: 8pt ui-monospace, monospace;
+    color: #1f1a14;
+  }
+}
+@page desk:first {
+  @top-center { content: none; }
+}

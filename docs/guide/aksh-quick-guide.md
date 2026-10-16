@@ -96,6 +96,10 @@ The entry price is set at the next close; the idea has no score until then.
 1. Close the idea and write the lesson. Open the idea: in the **Case study** block, press **Draft a case study** once the exit price is fixed.
 2. On its page, fill in **Learning objective** and **Holds position**, add your "Looking back" words if you want to (no price and no return in them), and run the publishing gate. It goes public only if Shlok has switched case studies on, and only 30 days after the latest entry it shows. Your entries cannot be edited there; if you write a new lesson, press **Refresh from the ledger**.
 
+### Save a public page as a PDF
+
+Open the public file, note or closed case and press **Save as PDF** under its dates. In the print window, choose "Save as PDF" as the printer. The PDF says which revision it shows and carries the full disclosure. A copy already saved cannot be called back if you change or unpublish the page later. The feed and the shared-link cards follow what you publish within an hour.
+
 ### Add prices when they are missing
 
 The desk fetches closing prices by itself each morning. Use the **Closes and corporate actions** page (from the Ledger tab) only when something is missing.
@@ -140,4 +144,4 @@ For anything else, copy the exact words on screen and send them to Shlok.
 
 ## 7. Not in this version
 
-A public view of the Ledger or any figure for how your ideas did (a closed idea can be written up as a case study, once Shlok switches that on); the spreadsheet valuation page; a newsletter; videos and transcripts; PDF export; logins for readers; voice notes; editing or removing a split or bonus (correct it with a new entry).
+A public view of the Ledger or any figure for how your ideas did (a closed idea can be written up as a case study, once Shlok switches that on); the spreadsheet valuation page; a newsletter; videos and transcripts; a PDF made on the site's server (Save as PDF uses your browser's print window); logins for readers; voice notes; editing or removing a split or bonus (correct it with a new entry).

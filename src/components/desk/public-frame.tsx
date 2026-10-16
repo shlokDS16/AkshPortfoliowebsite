@@ -17,6 +17,8 @@ type Props = {
   /** Where the phone back link on a file-style page goes; the default is the register. */
   back?: { href: string; label: string };
   file?: { fileNo: FileNo; shortName: string; sections: RailSection[] };
+  /** Print only (spec s5): the first thing in the column, above the strip. */
+  printMasthead?: ReactNode;
   children: ReactNode;
 };
 
@@ -28,7 +30,7 @@ export function tabFor(current: RailCurrent): TabCurrent | null {
  * Segment 2: one rail on desktop, four tabs on phone (hidden while scrolling a file), the site disclosure at the top
  * on desktop and the bottom on phone; on a file the strip is the only disclosure summary (design-dna 8.2-8.3).
  */
-export function PublicFrame({ current, chrome, strip, topBar = "home", back, file, children }: Props) {
+export function PublicFrame({ current, chrome, strip, topBar = "home", back, file, printMasthead, children }: Props) {
   return (
     <>
       {strip.variant === "site" ? (
@@ -44,8 +46,9 @@ export function PublicFrame({ current, chrome, strip, topBar = "home", back, fil
           id="main"
           className={cn("min-w-0 flex-1 px-(--gutter) pb-[calc(var(--tab-bar-h)+2rem)] desk:px-0 desk:pb-16", strip.variant === "file" && "desk:max-w-read")}
         >
+          {printMasthead}
           {strip.variant === "file" ? (
-            <div className="-mx-(--gutter) desk:mx-0">
+            <div className="-mx-(--gutter) desk:mx-0 print:mx-0">
               <ComplianceStrip variant="file" holdsPosition={strip.holdsPosition} dataAsOf={strip.dataAsOf} />
             </div>
           ) : null}

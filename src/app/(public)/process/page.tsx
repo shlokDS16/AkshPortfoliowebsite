@@ -1,13 +1,16 @@
-import type { Metadata } from "next";
 import { RecordKeeping } from "@/components/desk/case/record-keeping";
+import { SITE_POSITION } from "@/components/desk/disclosure";
+import { JsonLd } from "@/components/desk/json-ld";
 import { NoteList } from "@/components/desk/note-list";
+import { PrintDisclosure } from "@/components/desk/print-disclosure";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
+import { publicEnv } from "@/lib/env";
 import { PUBLIC_FINGERPRINT_FILE } from "@/modules/casefile/client";
-import { buildSiteChrome, getSnapshot, hasLedgerCases, listNoteSummaries } from "@/modules/showcase";
+import { buildSiteChrome, getSnapshot, hasLedgerCases, jsonLdFor, listNoteSummaries, pageMetadata } from "@/modules/showcase";
 
 export const revalidate = 3600;
-export const metadata: Metadata = { title: "Process", description: "How the desk works: how a file is kept, tested and revised." };
+export const metadata = pageMetadata("process", null);
 
 export default async function ProcessPage() {
   const snapshot = await getSnapshot();
@@ -26,6 +29,8 @@ export default async function ProcessPage() {
       </div>
       {/* Plan 3b D37: absent until one ledger case study is public, so a deploy changes nothing a visitor can see. */}
       {hasLedgerCases(snapshot.data) ? <RecordKeeping publicFile={PUBLIC_FINGERPRINT_FILE} /> : null}
+      <PrintDisclosure position={SITE_POSITION} reviewedOn={snapshot.data.today} />
+      <JsonLd data={jsonLdFor("process", snapshot.data, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
 }

@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { seedConceptWorld } from "./support/concept-world";
+import { adminDb } from "./support/desk";
 
 // Phone only: the floating Capture button and the tab bar must leave the last control on a desk page clear, with air around them.
 async function coveredControls(page: Page) {
@@ -31,4 +33,28 @@ test("on a phone nothing in the desk pages sits under the Capture button or the 
   await page.locator('main a[href^="/desk/items/"]').first().click();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   expect(await coveredControls(page), "item page").toEqual([]);
+});
+
+// The item page with the concept picker open: Save concepts sits mid-page, above a checklist whose "Make <concept> public" button carries
+// the concept's name. A long name once widened the whole phone page (the layout viewport grew past 375 px and the page shrank to fit), and
+// the button could then not be scrolled clear of the tab bar. The page stays as wide as the phone, and the button can be brought clear.
+test("on a phone the picker's Save concepts button scrolls clear of the bars and the page stays as wide as the phone", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "the bars float only on phone");
+  const world = await seedConceptWorld(await adminDb(), "f-m");
+  await page.goto(`/desk/concepts/${world.slug}`);
+  await page.getByRole("link", { name: world.learning }).click();
+  await page.getByRole("region", { name: "Concepts", exact: true }).getByRole("button", { name: "Change" }).click();
+  await expect(page.getByRole("button", { name: "Save concepts" })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  const width = page.viewportSize()!.width;
+  expect(await page.evaluate(() => document.documentElement.scrollWidth), "sideways overflow").toBeLessThanOrEqual(width);
+  for (const block of ["start", "center", "end"] as const) {
+    const reached = await page.evaluate((b) => {
+      const button = [...document.querySelectorAll("main button")].find((el) => el.textContent?.trim() === "Save concepts")!;
+      button.scrollIntoView({ block: b, inline: b, behavior: "instant" });
+      const r = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+    }, block);
+    expect(reached, `Save concepts scrolled to the ${block} of the screen`).toBe(true);
+  }
 });

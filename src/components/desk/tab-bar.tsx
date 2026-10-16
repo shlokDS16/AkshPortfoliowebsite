@@ -37,7 +37,7 @@ export function TabBar({ current, counts, hideOnScroll = false }: Props) {
       inert={hidden}
       animate={{ y: hidden ? "100%" : "0%" }}
       transition={reduced ? { duration: 0 } : { duration: MOTION.base, ease: EASE_SNAP }} // reduced motion: still hides, but jumps
-      className="fixed inset-x-0 bottom-0 z-(--z-tab-bar) border-t border-rule bg-paper pb-[env(safe-area-inset-bottom)] desk:hidden"
+      className="fixed inset-x-0 bottom-0 z-(--z-tab-bar) border-t border-rule bg-paper pb-[env(safe-area-inset-bottom)] desk:hidden print:hidden"
     >
       <ul className="grid h-14 grid-cols-4">
         {TABS.map((tab) => {

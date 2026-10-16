@@ -5,6 +5,9 @@ import { formatDate, positionWord } from "@/lib/format";
 export const STANDARD_DISCLOSURE = (position: string, reviewed: string) =>
   `Educational content only. Aksh Agrawal is not a SEBI-registered Research Analyst or Investment Adviser. Nothing here is a recommendation, offer or solicitation to buy or sell any security. Figures are shown with a minimum 30-day lag. Position in the security discussed: ${position}. Investments in securities are subject to market risk; consult a SEBI-registered adviser before acting. Last reviewed ${reviewed}.`;
 
+/** The position line for a page that names no one security (an index, a concept, a note without a company): the wording /about already prints. */
+export const SITE_POSITION = "stated on each file";
+
 /** Never empty, never collapsible, never animated. Heading "Disclosure" (ratified 2026-10-06). */
 export function Disclosure({ holdsPosition, reviewedOn }: { holdsPosition: HoldsPosition; reviewedOn: ISODate }) {
   return (

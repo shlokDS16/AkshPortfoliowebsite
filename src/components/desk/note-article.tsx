@@ -2,7 +2,9 @@ import { formatDate } from "@/lib/format";
 import type { NoteView } from "@/modules/showcase";
 import { BlockHeader } from "./block-header";
 import { ConceptLine } from "./concept-line";
-import { Disclosure } from "./disclosure";
+import { Disclosure, SITE_POSITION } from "./disclosure";
+import { PrintButton } from "./print-button";
+import { PrintDisclosure } from "./print-disclosure";
 import { UsedIn } from "./used-in";
 import { ViewBlock } from "./view-block";
 
@@ -21,6 +23,9 @@ export function NoteArticle({ note }: { note: NoteView }) {
       <p className="mt-2 text-small tabular-nums text-ink-muted">
         Revised {formatDate(note.revisedOn)} · first written {formatDate(note.firstWrittenOn)} · {note.minutes} min
       </p>
+      <div className="mt-3 print:hidden">
+        <PrintButton />
+      </div>
       <div className="mt-(--block-gap)">
         <ViewBlock blocks={note.body} />
         <ConceptLine concepts={note.concepts} />
@@ -35,7 +40,9 @@ export function NoteArticle({ note }: { note: NoteView }) {
         <div className="mt-(--section-gap)">
           <Disclosure holdsPosition={note.holdsPosition} reviewedOn={note.revisedOn} />
         </div>
-      ) : null}
+      ) : (
+        <PrintDisclosure position={SITE_POSITION} reviewedOn={note.revisedOn} />
+      )}
     </article>
   );
 }

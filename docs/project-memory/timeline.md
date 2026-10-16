@@ -159,3 +159,11 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - Reviews caught: a private concept's name could reach the public through a change note; a deploy-state e2e that would skip instead of fail if something leaked; an unlocked read of linked themes in the gate; hashes from capture tags showing in public titles.
 - Evidence at d334e9f: unit 5325, pgTAP 2284, full e2e 336 passed, 0 failed.
 - Next: release after 2.7 and 3b, with the pre-push theme check.
+
+## 2026-10-15 (late) - 2.7, 3b and Phase 4 released together
+- Stacked PRs merged down (#10 into 3b, #9 into 2.7), Shlok pushed migrations 0017-0021 and merged #8 (d99daaa). Production: health green, `/cases` and `/concepts` 404 as designed, the engine wasm served. One check left for Aksh's sign-in: a spreadsheet upload on production reaching Ready for you.
+
+## 2026-10-16 - Phase 5 planned; 5a print, search and feeds built and reviewed
+- Phase 5 split into 5a (no migration, no outbound), 5b videos (reads YouTube only) and 5c letters (the only part that can send, only on Aksh's press).
+- 5a: metadata, JSON-LD, share cards, sitemap, RSS, request-time robots, print layout with the full disclosure on every page. The review and its e2e caught a share card that stayed hidden for an hour after a republish, and index pages printing without the standard disclosure.
+- Evidence at 03a038d: unit 5472, full e2e 419 passed, 0 failed.

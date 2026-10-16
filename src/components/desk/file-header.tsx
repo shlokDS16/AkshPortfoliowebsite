@@ -1,5 +1,6 @@
 import type { FileView } from "@/modules/showcase";
 import { Dateline } from "./dateline";
+import { PrintButton } from "./print-button";
 import { FileTitleTransition } from "./file-title-transition";
 import { FileTag } from "./id-mark";
 import { ReadFirst } from "./read-first";
@@ -21,6 +22,9 @@ export function FileHeader({ file }: { file: FileView }) {
       </p>
       <div className="mt-4">
         <Dateline {...file.dateline} />
+      </div>
+      <div className="mt-3 print:hidden">
+        <PrintButton />
       </div>
       <div className="mt-3">
         <ReadFirst notes={file.readFirst} />

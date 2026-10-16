@@ -17,7 +17,7 @@ export type LedgerCase = { item: PublicItemRow; record: CaseRecordV1 };
 export const caseHref = (slug: string) => `/cases/${slug}`;
 
 const KIND_LABEL: Record<CaseEvent["kind"], string> = { open: "Opening entry", revise: "Change of period", close: "Closing entry", review: "Review" };
-const monthYear = (iso: string) => formatDate(iso).split(" ").slice(1).join(" ");
+export const monthYear = (iso: string) => formatDate(iso).split(" ").slice(1).join(" ");
 const lastOf = (record: CaseRecordV1, kind: CaseEvent["kind"]) => record.events.findLast((e) => e.kind === kind);
 
 /** A published case needs a close and a lesson; the gate guarantees both, and a record without them is not shown. */

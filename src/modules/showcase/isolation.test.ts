@@ -204,3 +204,51 @@ describe("Plan 4: public concept code never reaches the private learning graph",
     expect(readFileSync(join(ROOT, "modules/showcase/repo.ts"), "utf8").match(/CONCEPT_COLUMNS = "([^"]+)"/)![1]).toBe("id, slug, name");
   });
 });
+
+// Phase 5a (spec s4.1, rule 11): the derived surfaces (metadata, structured data, the feed, the sitemap, robots, share cards) are built
+// from the public snapshot and nothing else. They reach no desk module, no cookie client and no service client; `@/modules/distribution`
+// does not exist yet, and when it does only its `public` entry (pure renderers) may be reached from here.
+describe("Phase 5a: derived public surfaces stay inside the public boundary", () => {
+  // compliance and catalog are reached through shared barrels today (the existing walkers above accept it and pin that no public file names the catalog).
+  const DESK_ONLY = /^(?:modules\/(?:ledger|cases|valuation|knowledge|distribution|ops|identity|ingestion|documents)|components\/desk\/private)(?:\/|$)/;
+  const DISTRIBUTION_PUBLIC = /^modules\/distribution\/public(?:\.ts|\/)/;
+  const relative = (f: string) => f.slice(ROOT.length + 1).replaceAll("\\", "/");
+  const builders = [
+    "app/sitemap.ts", "app/robots.ts", "app/feed.xml/route.ts", "modules/showcase/seo.ts", "modules/showcase/feed.ts", "modules/showcase/derived-scan.ts",
+    "components/desk/json-ld.tsx",
+  ].map((e) => join(ROOT, e));
+  // The public pages and the print components are on the same boundary: a page that imported ops for a date, or the private banner, would leak.
+  const pages = [...walkFiles(join(ROOT, "app/(public)")), ...["print-masthead", "print-disclosure", "print-button"].map((n) => join(ROOT, `components/desk/${n}.tsx`))].filter((f) => !/\.test\.tsx?$/.test(f));
+  const ogCards = walkFiles(join(ROOT, "app")).filter((f) => /opengraph-image\.tsx$/.test(f));
+  const all = [...builders, ...pages, ...ogCards];
+  const reach = new Map<string, string>();
+  for (const entry of all) for (const [file, text] of closure(entry)) reach.set(file, text);
+  const names = [...reach.keys()].map(relative);
+
+  it("covers the sitemap, robots, the feed, the builders, the JSON-LD script and every share card", () => {
+    expect(all.map(relative)).toEqual(
+      expect.arrayContaining(["app/sitemap.ts", "app/robots.ts", "app/feed.xml/route.ts", "modules/showcase/seo.ts", "modules/showcase/feed.ts", "app/opengraph-image.tsx", "app/(public)/notes/[slug]/page.tsx", "components/desk/print-masthead.tsx"]),
+    );
+    expect(ogCards.length).toBeGreaterThanOrEqual(2);
+    expect(names).toEqual(expect.arrayContaining(["modules/showcase/queries.ts", "lib/supabase/public.ts"]));
+  });
+
+  it("reach no service client, no cookie client, no desk module and no private desk component", () => {
+    expect(names).not.toContain("lib/supabase/service.ts");
+    expect(names).not.toContain("lib/supabase/server.ts");
+    expect(names.filter((n) => DESK_ONLY.test(n) && !DISTRIBUTION_PUBLIC.test(n))).toEqual([]);
+    // env.server.ts declares the secrets robots.ts never asks for (checked in the next test), so its own text is the one exception.
+    for (const [file, text] of reach) if (relative(file) !== "lib/env.server.ts") expect(text, relative(file)).not.toMatch(/supabase\/service|supabase\/server["']|SERVICE_ROLE|sb_secret/);
+  });
+
+  it("only robots.ts reads the server env, and it takes one value: VERCEL_ENV", () => {
+    const readers = [...reach.entries()].filter(([, text]) => /env\.server["']/.test(text)).map(([f]) => relative(f));
+    expect(readers).toEqual(["app/robots.ts"]);
+    const robots = reach.get(join(ROOT, "app/robots.ts"))!;
+    expect([...robots.matchAll(/serverEnv\(\)\.(\w+)/g)].map((m) => m[1])).toEqual(["VERCEL_ENV"]);
+  });
+
+  it("the new builders and routes name no ledger, digest or reading table", () => {
+    for (const entry of builders) expect(readFileSync(entry, "utf8"), relative(entry)).not.toMatch(/idea_events|idea_scores|document_digests|reading_proposals|case_study_record/);
+  });
+});

@@ -82,10 +82,11 @@ export default defineConfig({
     },
     // The public case pages again, now that the loop above has left one case public: the published half of public-cases.spec.ts
     // (axe, one h1, no sideways scroll, the in-browser fingerprint check) runs here. In the public-* projects, which run first, that
-    // half skips because nothing is public yet (the deploy state, which those projects check instead).
+    // half skips because nothing is public yet (the deploy state, which those projects check instead). Plan 5a Task 4: the derived
+    // surfaces (public-distribution, public-print) run here too: sitemap, feed, metadata, cards and print with a case public.
     ...(["375", "1280"] as const).map((w) => ({
       name: `cases-public-${w}`,
-      testMatch: spec("public-cases"),
+      testMatch: spec("public-cases|public-distribution|public-print"),
       dependencies: ["cases"],
       use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
     })),
@@ -99,10 +100,11 @@ export default defineConfig({
       use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
     },
     // The public concept pages again, now that the loop above has left two concepts public: the published half of public-concepts.spec.ts
-    // (axe, one h1, no sideways scroll, the 44 px targets on the phone) runs here; in the public-* projects it skips.
+    // (axe, one h1, no sideways scroll, the 44 px targets on the phone) runs here; in the public-* projects it skips. The derived surfaces
+    // (public-distribution, public-print) run here once more, with concepts public.
     ...(["375", "1280"] as const).map((w) => ({
       name: `concepts-public-${w}`,
-      testMatch: spec("public-concepts"),
+      testMatch: spec("public-concepts|public-distribution|public-print"),
       dependencies: ["concepts"],
       use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
     })),

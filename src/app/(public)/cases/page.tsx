@@ -1,12 +1,15 @@
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CaseList } from "@/components/desk/case/case-list";
+import { SITE_POSITION } from "@/components/desk/disclosure";
+import { JsonLd } from "@/components/desk/json-ld";
+import { PrintDisclosure } from "@/components/desk/print-disclosure";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { Unavailable } from "@/components/desk/unavailable";
-import { buildSiteChrome, getSnapshot, hasLedgerCases, listCaseSummaries } from "@/modules/showcase";
+import { publicEnv } from "@/lib/env";
+import { buildSiteChrome, getSnapshot, hasLedgerCases, jsonLdFor, listCaseSummaries, pageMetadata } from "@/modules/showcase";
 
 export const revalidate = 3600;
-export const metadata: Metadata = { title: "Closed cases", description: "Ideas Aksh has closed and written up: what he expected, what happened and what he learned." };
+export const metadata = pageMetadata("cases", null);
 
 /** Plan 3b D37: a 404 until one ledger case study is public, so merging this changes nothing a visitor can see. No navigation tab. */
 export default async function CasesPage() {
@@ -28,6 +31,8 @@ export default async function CasesPage() {
       <div className="mt-(--block-gap)">
         <CaseList cases={listCaseSummaries(snapshot.data)} />
       </div>
+      <PrintDisclosure position={SITE_POSITION} reviewedOn={snapshot.data.today} />
+      <JsonLd data={jsonLdFor("cases", snapshot.data, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
 }

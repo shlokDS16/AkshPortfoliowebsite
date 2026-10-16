@@ -1,11 +1,14 @@
-import type { Metadata } from "next";
+import { SITE_POSITION } from "@/components/desk/disclosure";
+import { JsonLd } from "@/components/desk/json-ld";
+import { PrintDisclosure } from "@/components/desk/print-disclosure";
 import { PublicFrame } from "@/components/desk/public-frame";
 import { RegisterTable } from "@/components/desk/register-table";
 import { Unavailable } from "@/components/desk/unavailable";
-import { buildRegister, buildSiteChrome, getSnapshot } from "@/modules/showcase";
+import { publicEnv } from "@/lib/env";
+import { buildRegister, buildSiteChrome, getSnapshot, jsonLdFor, pageMetadata } from "@/modules/showcase";
 
 export const revalidate = 3600;
-export const metadata: Metadata = { title: "Files", description: "Every public case file: version, last revision, tests and the date its figures run to." };
+export const metadata = pageMetadata("files", null);
 
 export default async function FilesPage() {
   const snapshot = await getSnapshot();
@@ -22,6 +25,8 @@ export default async function FilesPage() {
       <div className="pt-8">
         <RegisterTable files={buildRegister(snapshot.data)} />
       </div>
+      <PrintDisclosure position={SITE_POSITION} reviewedOn={snapshot.data.today} />
+      <JsonLd data={jsonLdFor("files", snapshot.data, undefined, publicEnv().NEXT_PUBLIC_SITE_URL)} />
     </PublicFrame>
   );
 }

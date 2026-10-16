@@ -47,6 +47,13 @@ export type FileView = {
   factCount: number; sources: SourceListItem[]; exhibits: ExhibitData[]; scenario: ScenarioData | null;
   diff: RevisionDiffData | null; log: RevisionLogEntry[]; sections: RailSection[]; concepts: ItemConcept[];
 };
+/**
+ * What a share card shows (Plan 5a, spec s4.4). `kicker` (a line above the title) and `aside` (a fixed sentence under the standfirst) are
+ * optional. Text is his linted words, cut to a slot's budget, plus fixed copy and dates; never a figure of a case.
+ */
+export type ShareCardContent = {
+  tag: string; number: string; sub: string; kicker?: string; title: string; standfirst: string; aside?: string; footerLeft: string; footerRight: string;
+};
 export type ShareCardModel = { fileNo: FileNo; revNo: number; company: string; title: string; learningObjective: string; revisedOn: ISODate; dataAsOf: ISODate };
 export type NoteKind = "learning" | "process";
 export type NoteSummary = { slug: string; title: string; learningObjective: string; revisedOn: ISODate; minutes: number; href: string };

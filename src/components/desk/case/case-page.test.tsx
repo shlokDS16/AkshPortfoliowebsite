@@ -123,7 +123,7 @@ describe("the case page (spec s33.5)", () => {
 
   it("how to check: the rule, one collapsed block per entry with the previous fingerprint and the sealed text, and what the check does not show", () => {
     const { view, record } = setup();
-    const { container } = render(<CasePage view={view} />);
+    render(<CasePage view={view} />);
     const s = section("How to check these entries");
     expect(within(s).getByText("Each fingerprint is the SHA-256 of the fingerprint before it, one line break, and the sealed text below, in UTF-8, with nothing after it.")).toBeInTheDocument();
     const blocks = s.querySelectorAll("details");
@@ -134,7 +134,7 @@ describe("the case page (spec s33.5)", () => {
     expect(blocks[1].querySelector("pre")?.textContent).toBe(record.events[1].canonical);
     expect(within(blocks[1] as HTMLElement).getByRole("button", { name: "Check in this browser" })).toBeInTheDocument();
     expect(within(s).getByText("This shows the text is the one the desk sealed at that place in its chain. It does not show when it was written: the public copy of the fingerprints is not switched on.")).toBeInTheDocument();
-    expect(container.querySelectorAll("button")).toHaveLength(4);
+    expect(s.querySelectorAll("button")).toHaveLength(4); // one per entry; the page's only other button is Save as PDF
   });
 
   it("ends with the standard disclosure and the closing line", () => {

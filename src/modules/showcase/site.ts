@@ -70,7 +70,10 @@ export function buildRegister(s: PublicSnapshot): RegisterFile[] {
   }));
 }
 
-function whatChangedEntry(s: PublicSnapshot, all: FileRow[], rev: PublicSnapshot["revisions"][number]): WhatChangedEntry | null {
+/** One gated revision as the "What changed" list and the feed describe it. `n` is its public R-number; `path` is the page it belongs to. */
+export type DescribedRevision = { entry: WhatChangedEntry; n: number; path: string; item: PublicItemRow };
+
+export function describeRevision(s: PublicSnapshot, all: FileRow[], rev: PublicSnapshot["revisions"][number]): DescribedRevision | null {
   const item = s.items.find((i) => i.id === rev.itemId);
   if (!item) return null;
   const revs = revisionsOf(s, item.id);
@@ -79,20 +82,22 @@ function whatChangedEntry(s: PublicSnapshot, all: FileRow[], rev: PublicSnapshot
   const on = istDate(rev.createdAt);
   if (file) {
     const figures = `figures to ${formatDate(file.item.dataAsOf)}`;
-    const subject = { label: file.company.name, href: `/companies/${file.company.slug}` };
+    const path = `/companies/${file.company.slug}`;
+    const subject = { label: file.company.name, href: path };
     if (n === 1) {
       const tests = splitThesisBody(rev.bodyMd).conditions.length;
-      return { on, kind: "new_file", fileNo: formatFileNo(file.item.fileNo), subject, text: rev.changeReason ?? "First version.", detail: `New file · ${tests} tests · ${figures}` };
+      return { n, path, item, entry: { on, kind: "new_file", fileNo: formatFileNo(file.item.fileNo), subject, text: rev.changeReason ?? "First version.", detail: `New file · ${tests} tests · ${figures}` } };
     }
     const changed = sentenceDiff(revs[n - 2].bodyMd, rev.bodyMd).reduce((sum, g) => sum + Math.max(g.removed.length, g.added.length), 0);
-    return { on, kind: "revision", fileNo: formatFileNo(file.item.fileNo), subject, text: rev.changeReason ?? "Revised.", detail: `Revision R${n} · ${changed} sentences changed · ${figures}` };
+    return { n, path, item, entry: { on, kind: "revision", fileNo: formatFileNo(file.item.fileNo), subject, text: rev.changeReason ?? "Revised.", detail: `Revision R${n} · ${changed} sentences changed · ${figures}` } };
   }
   if (item.kind !== "learning" && item.kind !== "process") return null;
   const base = item.kind === "learning" ? "/notes" : "/process";
   const label = item.kind === "learning" ? "Learning note" : "Process note";
+  const path = `${base}/${item.slug}`;
   return {
-    on, kind: item.kind, fileNo: null, subject: { label: item.title, href: `${base}/${item.slug}` },
-    text: rev.changeReason ?? (n === 1 ? "First version." : "Revised."), detail: `${label} · R${n}`,
+    n, path, item,
+    entry: { on, kind: item.kind, fileNo: null, subject: { label: item.title, href: path }, text: rev.changeReason ?? (n === 1 ? "First version." : "Revised."), detail: `${label} · R${n}` },
   };
 }
 
@@ -102,8 +107,8 @@ export function buildWhatChanged(s: PublicSnapshot, limit = 5): WhatChangedEntry
   // Newest first; stop as soon as `limit` entries exist so no sentence diff is computed for an older revision.
   for (const rev of [...s.revisions].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
     if (entries.length >= limit) break;
-    const entry = whatChangedEntry(s, all, rev);
-    if (entry) entries.push(entry);
+    const described = describeRevision(s, all, rev);
+    if (described) entries.push(described.entry);
   }
   return entries;
 }
