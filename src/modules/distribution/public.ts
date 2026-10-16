@@ -70,5 +70,22 @@ export const LETTERS_COPY = {
   leaveButton: "Stop",
   left: "Done. If a letter was already on its way, it may still arrive.",
   empty: "No letters yet.",
+  /** Spec s8.9 asks for this line on a sent letter. The public side cannot know a send (anon reads no send row, binding rule of Task 14), so no page uses it. */
   sentLine: (date: string) => `Sent to subscribers on ${date}.`,
+  // Task 14: the words the pages add around his. Pending Shlok's approval.
+  archiveTitle: "Letters",
+  archiveIntro: "Each letter lists what changed on this site since the last one. For learning, not advice.",
+  signupTitle: "Get the letters by email",
+  honeypotLabel: "Leave this field empty",
+  allLetters: "All letters",
+  stopLink: "Stop my letters",
+  whatChanged: "What changed",
+  confirmIntro: "Press the button to start receiving letters.",
+  leaveIntro: "Enter the address the letters come to. We delete it at once.",
+  published: (date: string) => `Published ${date}`,
 } as const;
+
+/** The kind line of an entry, as the email and the archive page both print it (spec s8.7). */
+export const LETTER_KIND_LABEL = { file: "File", case: "Closed case", learning: "Learning note", process: "Process note", video: "Video" } as const;
+export const LETTER_POSITION_LABEL = "Position";
+export const LETTER_POSITION_WORD = { yes: "Yes", no: "No", not_disclosed: "Not disclosed" } as const;

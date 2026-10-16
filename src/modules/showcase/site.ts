@@ -6,6 +6,7 @@ import type { HomeStats, RegisterFile, SiteChrome, StreakData, WhatChangedEntry 
 import { captureStreak, toStreakData } from "@/modules/capture";
 import { buildKillTests, isIsoDate, isLagged, isLedgerCase, readCaseFile, sentenceDiff, splitThesisBody } from "@/modules/casefile";
 import type { PublicCompanyRow, PublicItemRow, PublicSnapshot } from "./types";
+import { listedLetters } from "./letter-list";
 import { listedVideos, videoHref } from "./video-list";
 
 export type FileRow = { item: PublicItemRow & { fileNo: number; dataAsOf: string }; company: PublicCompanyRow };
@@ -61,8 +62,9 @@ export function buildStreak(s: PublicSnapshot): StreakData {
 export function buildSiteChrome(s: PublicSnapshot): SiteChrome {
   const count = (kind: string) => s.items.filter((i) => i.kind === kind).length;
   const videos = listedVideos(s).length;
+  const letters = listedLetters(s).length;
   // `videos` is present only when there is one, so the rail's Videos entry (and its link) appear only once a video is listed.
-  return { counts: { files: servedFiles(s).length, notes: count("learning"), process: count("process"), ...(videos > 0 ? { videos } : {}) }, streak: buildStreak(s) };
+  return { counts: { files: servedFiles(s).length, notes: count("learning"), process: count("process"), ...(videos > 0 ? { videos } : {}), ...(letters > 0 ? { letters } : {}) }, streak: buildStreak(s) };
 }
 
 export function buildRegister(s: PublicSnapshot): RegisterFile[] {

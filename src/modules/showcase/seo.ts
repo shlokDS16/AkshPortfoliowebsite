@@ -3,7 +3,9 @@ import { istDate } from "@/lib/dates";
 import { formatDate, formatFileNo } from "@/lib/format";
 import { buildCaseStudyView, hasLedgerCases, ledgerCases, monthYear } from "./case-study";
 import { buildConceptView, listConceptSummaries } from "./concepts";
-import { embedUrl, formatClock, isoDuration, thumbnailUrl } from "@/modules/distribution/public";
+import { embedUrl, formatClock, isoDuration, LETTERS_COPY, thumbnailUrl } from "@/modules/distribution/public";
+import { hasLetters, letterHref, listedLetters } from "./letter-list";
+import { cutWords, OBJECTIVE_BUDGET, TITLE_BUDGET } from "./seo-text";
 import { ordinal, revisionsOf, servedFiles } from "./site";
 import type { PublicSnapshot, ShareCardContent } from "./types";
 import { listedVideos, type ListedVideo, videoHref } from "./video-list";
@@ -12,7 +14,7 @@ import { listedVideos, type ListedVideo, videoHref } from "./video-list";
 // Text comes only from fields the gate lints (title, learning objective, company and concept names) and fixed copy; a date is a
 // gated revision's IST date; a path uses a slug. No id of the database, no figure of a case, no rating, price or offer.
 
-export type SeoRoute = "home" | "files" | "file" | "notes" | "note" | "process" | "processNote" | "cases" | "case" | "mistakes" | "concepts" | "concept" | "videos" | "video" | "about";
+export type SeoRoute = "home" | "files" | "file" | "notes" | "note" | "process" | "processNote" | "cases" | "case" | "mistakes" | "concepts" | "concept" | "videos" | "video" | "letters" | "letter" | "about";
 
 export const SITE_NAME = "Aksh Agrawal · Case files";
 export const SITE_DESCRIPTION = "Each file says what Aksh expected, what would prove him wrong, and every revision since. For learning, not advice.";
@@ -24,7 +26,7 @@ const AUTHOR = "Aksh Agrawal";
 const FEED_TYPES = { "application/rss+xml": "/feed.xml" };
 
 /** What an index route says about itself. `title` is absent on the home page, which keeps the layout's default. */
-const INDEX: Record<"home" | "files" | "notes" | "process" | "cases" | "mistakes" | "concepts" | "videos" | "about", { path: string; title?: string; description: string }> = {
+const INDEX: Record<"home" | "files" | "notes" | "process" | "cases" | "mistakes" | "concepts" | "videos" | "letters" | "about", { path: string; title?: string; description: string }> = {
   home: { path: "/", description: SITE_DESCRIPTION },
   files: { path: "/companies", title: "Files", description: "Every public case file: version, last revision, tests and the date its figures run to." },
   notes: { path: "/notes", title: "Learning notes", description: "Notes on how to read businesses, each listing the files that use it." },
@@ -33,10 +35,11 @@ const INDEX: Record<"home" | "files" | "notes" | "process" | "cases" | "mistakes
   mistakes: { path: "/mistakes", title: "Mistakes", description: "Cases in which Aksh judged his own process flawed, or named a kind of mistake." },
   concepts: { path: "/concepts", title: "Concepts", description: CONCEPTS_STANDFIRST },
   videos: { path: "/videos", title: "Videos", description: "Videos by Aksh Agrawal, each with its chapters and a transcript of what is said. For learning, not advice." },
+  letters: { path: "/letters", title: LETTERS_COPY.archiveTitle, description: LETTERS_COPY.archiveIntro },
   about: { path: "/about", title: "About and disclosures", description: "Who writes the case files, how a page gets published, and the standard disclosure." },
 };
 /** The section a detail page sits in, for its breadcrumb. */
-const SECTION = { file: "files", note: "notes", processNote: "process", case: "cases", concept: "concepts", video: "videos" } as const;
+const SECTION = { file: "files", note: "notes", processNote: "process", case: "cases", concept: "concepts", video: "videos", letter: "letters" } as const;
 
 type Detail = {
   route: keyof typeof SECTION; path: string; title: string; description: string; kind: "article" | "website";
@@ -79,6 +82,12 @@ function detailOf(route: keyof typeof SECTION, s: PublicSnapshot, slug: string):
     if (!found) return null;
     const { item } = found;
     return { route, path: videoHref(item.slug), title: item.title, description: item.learningObjective ?? "", kind: "article", ...dates(s, item), revNo: ordinal(s, item).revNo, crumb: item.title };
+  }
+  if (route === "letter") {
+    const found = listedLetters(s).find((l) => l.item.slug === slug);
+    if (!found) return null;
+    const { item } = found;
+    return { route, path: letterHref(item.slug), title: item.title, description: item.learningObjective ?? "", kind: "article", ...dates(s, item), revNo: ordinal(s, item).revNo, crumb: item.title };
   }
   const view = buildConceptView(s, slug);
   return view ? { route, path: `/concepts/${view.slug}`, title: view.name, description: view.standfirst, kind: "website", crumb: view.name } : null;
@@ -199,10 +208,12 @@ export function sitemapEntries(s: PublicSnapshot | null, siteUrl: string): Metad
     ...(hasLedgerCases(s) ? stat("cases", "mistakes") : []),
     ...(concepts.length > 0 ? stat("concepts") : []),
     ...(videos.length > 0 ? stat("videos") : []),
+    ...(hasLetters(s) ? stat("letters") : []),
     ...servedFiles(s).map(({ item, company }) => page(`/companies/${company.slug}`, istDate(item.revisedAt))),
     ...s.items.flatMap((i) => (i.kind === "learning" ? [page(`/notes/${i.slug}`, istDate(i.revisedAt))] : i.kind === "process" ? [page(`/process/${i.slug}`, istDate(i.revisedAt))] : [])),
     ...ledgerCases(s).map(({ item }) => page(`/cases/${item.slug}`, istDate(item.revisedAt))),
     ...videos.map(({ item }) => page(videoHref(item.slug), istDate(item.revisedAt))),
+    ...listedLetters(s).map(({ item }) => page(letterHref(item.slug), istDate(item.revisedAt))),
     ...concepts.flatMap((c) => {
       const view = buildConceptView(s, c.slug);
       const newest = view ? [...view.notes, ...view.applied].map((i) => i.since).sort().at(-1) : undefined;
@@ -219,23 +230,9 @@ export function robotsFor(vercelEnv: string | undefined, siteUrl: string): Metad
 
 // ---- Share cards (spec s4.4). Each is a pure function of the snapshot; null means the page 404s. ----
 
-const CARD_FOOTER = "For learning, not advice";
-export const TITLE_BUDGET = 72;
-export const OBJECTIVE_BUDGET = 120;
-
-/**
- * At most `max` characters (code points): text over the budget is cut on a word boundary and ends with "…", so a card slot never
- * overflows and his words are never re-worded. A single word longer than the budget is cut by characters.
- */
-export function cutWords(text: string, max: number): string {
-  const chars = Array.from(text);
-  if (chars.length <= max) return text;
-  const room = chars.slice(0, max - 1);
-  const space = room.lastIndexOf(" ");
-  const end = chars[room.length] === " " || space <= 0 ? room.length : space;
-  return `${room.slice(0, end).join("").replace(/[\s,;:]+$/, "")}…`;
-}
-
+export { letterCard } from "./letters";
+export { cutWords, OBJECTIVE_BUDGET, TITLE_BUDGET };
+export const CARD_FOOTER = "For learning, not advice";
 function noteCardOf(s: PublicSnapshot, kind: "learning" | "process", slug: string): ShareCardContent | null {
   const item = s.items.find((i) => i.kind === kind && i.slug === slug);
   if (!item) return null;

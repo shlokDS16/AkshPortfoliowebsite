@@ -687,3 +687,30 @@ Written with the video screens. Where this section and s7 disagree, this section
   no longer returns has every YouTube column cleared, not only marked gone (and gate 12.1 reports it as gone, not as another channel's). "Fetch
   again" is refused for a source fetched less than a minute ago (read from `fetched_at`, so every instance sees it). The response cap is 1 MB,
   not 512 KB, so a full batch of escaped descriptions fits.
+
+## Amendment 2026-10-16 (5c Task 14 as built)
+Written with the public letters pages. Where this section and s8.5 or s8.9 disagree, this section describes the build and gives the reason. Append only.
+
+- **(w) The archive page shows no "Sent to subscribers on {date}."** s8.9 and s15 ask for it on a sent letter. The Task 14 brief binds the public pages to never show
+  "a reader count, address or send data", and anon can read no `letter_sends` row (0024 grants it admin select only; the anon inventory grows by the four
+  functions and nothing else). The line stays in `LETTERS_COPY.sentLine` unused; showing it would need a new anon door and a new ruling.
+- **(x) The three public forms are plain forms with no script, and the answer is a redirect.** `app/(public)/letters/form-actions.ts` wraps the reader actions of
+  `public-actions.ts` and ends each post on an ordinary GET: `/letters?asked=1#subscribe`, `/letters/confirm?r=confirmed|expired`, `/letters/leave?r=left`. The
+  address a reader types and the token are never put in a URL; the confirm link carries only `?t=<token>`. The `useActionState` shape of the actions is kept (the
+  wrappers pass `{ status: "idle" }`), so a later client form needs no change to them.
+- **(y) An entry is shown only while its page is still public.** The letter keeps the words it copied when it passed the gate. The archive page, though, is a
+  derived surface (rule 11.5): an entry whose revision has left the snapshot (unpublished since), whose video is no longer listed, or whose dated page is not past
+  the 30-day lag is left out, and a letter with no entry left is not listed (no page, feed line, sitemap line or card). The email already sent is not recalled
+  (s10).
+- **(z) `/letters` is rendered per request.** The sign-up form carries `issueFormTicket()` (made at render, refused if under 3 s old), so the page is
+  `force-dynamic`; the snapshot and the switch it reads stay cached. `letters_open()` is read through `getLettersOpen` (the snapshot's tag, 300 s) and
+  `setSignupAction` now calls `updateTag` and revalidates `/letters`, so a closed door is closed at once.
+- **(aa) The public side now reaches `lib/env.server.ts` through one file.** `lib/letters-form.ts` reads `CRON_SECRET` to sign and check the ticket. The isolation
+  tests allow exactly that one reader (besides `robots.ts`), allow exactly four files of the distribution module (`public.ts`, `public-actions.ts`,
+  `letters/signup.ts`, `letters/copy.ts`), forbid `distribution/actions.ts`, `send-rpc.ts` and the module index, and pin the four anon functions as the only letters
+  doors public code names (`showcase/isolation.letters.test.ts`).
+- **(ab) Navigation.** The rail gains "Letters" only once a letter is public (`counts.letters` absent before, as for videos); there is no phone tab. A sign-up page
+  with no letter yet is reached by its address. "What changed" on the home page does not list letters (it lists pages); the feed does.
+- **(ac) Words.** `public.ts` gains the page words (`archiveTitle`, `archiveIntro`, `signupTitle`, `honeypotLabel`, `allLetters`, `stopLink`, `whatChanged`,
+  `confirmIntro`, `leaveIntro`, `published`) and the entry labels (`LETTER_KIND_LABEL`, `LETTER_POSITION_*`), which the email's `copy.ts` now re-exports, so the
+  email and the archive cannot drift. All pending Shlok's approval.

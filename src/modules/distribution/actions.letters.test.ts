@@ -24,8 +24,9 @@ const redirect = vi.fn((to: string) => {
   throw new Error(`NEXT_REDIRECT:${to}`);
 });
 const revalidatePath = vi.hoisted(() => vi.fn());
+const updateTag = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ redirect: (to: string) => redirect(to) }));
-vi.mock("next/cache", async (original) => ({ ...(await original<typeof import("next/cache")>()), revalidatePath }));
+vi.mock("next/cache", async (original) => ({ ...(await original<typeof import("next/cache")>()), revalidatePath, updateTag }));
 vi.mock("next/server", () => ({ after: (task: () => unknown) => void state.afterTasks.push(task) }));
 vi.mock("@/modules/identity", () => ({
   requireAdmin: async () => {
@@ -253,6 +254,14 @@ describe("readers", () => {
     expect(rpc.signup).toBe(true);
     expect(param(await target(() => setSignupAction(false)), "notice")).toBe("signup-closed");
     expect(rpc.signup).toBe(false);
+  });
+
+  it("refreshes the public side at once: the cached switch the sign-up page reads (the snapshot's tag) and the page itself", async () => {
+    updateTag.mockClear();
+    revalidatePath.mockClear();
+    await target(() => setSignupAction(true));
+    expect(updateTag).toHaveBeenCalledWith("public-items");
+    expect(revalidatePath).toHaveBeenCalledWith("/letters");
   });
 });
 

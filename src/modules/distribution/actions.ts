@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { after } from "next/server";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { istDate } from "@/lib/dates";
 import { InvalidInputError } from "@/lib/errors";
 import type { ItemNoticeCode } from "@/lib/messages";
@@ -250,6 +251,10 @@ export async function setSignupAction(on: boolean): Promise<void> {
   } catch (error) {
     failTo(READERS, error, "letters");
   }
+  // The sign-up page reads the switch through a cache that shares the public snapshot's tag (a five-minute life otherwise): drop it, so a door that
+  // is shut stays shut at once and one that is opened shows the form at once.
+  updateTag(CACHE_TAGS.publicItems);
+  revalidatePath("/letters");
   revalidatePath(READERS);
   doneTo(READERS, on === true ? "signup-opened" : "signup-closed");
 }

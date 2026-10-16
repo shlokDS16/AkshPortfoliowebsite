@@ -1,4 +1,4 @@
-import { LETTERS_COPY, LETTERS_NOTICE_VERSION } from "../public";
+import { LETTER_KIND_LABEL, LETTER_POSITION_LABEL, LETTER_POSITION_WORD, LETTERS_COPY, LETTERS_NOTICE_VERSION } from "../public";
 
 // Fixed words of the letters (spec s15). Every string here is pending Shlok's approval; the task report lists them. A banned-word test
 // reads this file and public.ts (copy.test.ts). Nothing in it is typed by a reader or by Aksh. The words a reader sees on the public pages
@@ -13,7 +13,7 @@ export const LEAVE_DONE = LETTERS_COPY.left;
 /** The placeholder Resend replaces with the reader's own unsubscribe link in a broadcast. */
 export const UNSUBSCRIBE_PLACEHOLDER = "{{{RESEND_UNSUBSCRIBE_URL}}}";
 
-export const KIND_LABEL = { file: "File", case: "Closed case", learning: "Learning note", process: "Process note", video: "Video" } as const;
+export const KIND_LABEL = LETTER_KIND_LABEL;
 
 /** The standard disclosure's first two sentences, then the one the letter adds (spec s8.7). */
 export const DISCLOSURE_LINE =
@@ -21,8 +21,8 @@ export const DISCLOSURE_LINE =
 export const WHY_YOU_GET_THIS = (host: string) => `You get this because you asked on ${host} and confirmed by email.`;
 export const UNSUBSCRIBE_LABEL = "Unsubscribe";
 export const ARCHIVE_LABEL = "The archive";
-export const POSITION_LABEL = "Position";
-export const POSITION_WORD = { yes: "Yes", no: "No", not_disclosed: "Not disclosed" } as const;
+export const POSITION_LABEL = LETTER_POSITION_LABEL;
+export const POSITION_WORD = LETTER_POSITION_WORD;
 
 export const CONFIRMATION_SUBJECT = "Confirm your letters from Aksh Agrawal";
 export const CONFIRMATION_BODY = (host: string, link: string) =>

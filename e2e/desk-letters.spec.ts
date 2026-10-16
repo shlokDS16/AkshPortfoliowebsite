@@ -23,6 +23,7 @@ test.describe.configure({ mode: "serial" });
 let db: Db;
 let letterPath = "";
 let letterId = "";
+let letterSlug = "";
 
 test.beforeAll(async () => {
   requireStack();
@@ -64,6 +65,45 @@ async function runGate(page: Page) {
   // A refusal names its rules; show them rather than a bare timeout.
   expect(await decision.getAttribute("data-verdict"), await gate(page).innerText()).toBe("pass");
   await expect(page.getByTestId("visibility")).toHaveText("Public");
+}
+
+const SENTENCE = "Which public pages changed since the last letter.";
+
+/**
+ * Plan 5c Task 14: what a signed-out reader gets once the letter has passed the gate. The pages are read here with the desk's cookies, which the public
+ * pages never look at. The archive and the letter page pass axe and do not scroll sideways; the letter page holds his words, his copied entries and no
+ * unsubscribe link; the share card, the feed and the sitemap carry it.
+ */
+async function expectOnThePublicSite(page: Page) {
+  const { data, error } = await db.from("items").select("slug").eq("id", letterId).single();
+  if (error) throw error;
+  letterSlug = data.slug ?? "";
+
+  expect((await page.goto("/letters"))?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1, name: "Letters" })).toBeVisible();
+  await expect(page.getByRole("link", { name: SUBJECT })).toHaveAttribute("href", `/letters/${letterSlug}`);
+  await expect(page.getByText(SENTENCE)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Stop my letters" })).toBeVisible();
+  await noSideways(page);
+  await clean(page);
+
+  expect((await page.goto(`/letters/${letterSlug}`))?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1, name: SUBJECT })).toBeVisible();
+  await expect(page.getByText(SENTENCE)).toBeVisible();
+  const entries = page.getByRole("region", { name: "What changed" });
+  expect(await entries.getByRole("listitem").count()).toBeGreaterThan(0);
+  await expect(entries.getByRole("link").first()).toHaveAttribute("href", /^\/(companies|notes|process|cases|videos)\/[a-z0-9-]+$/);
+  await expect(page.getByText(/unsubscribe/i)).toHaveCount(0);
+  await expect(page.getByText(/\{\{\{/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /save as pdf/i })).toBeVisible();
+  await noSideways(page);
+  await clean(page);
+
+  const card = await page.request.get(`/letters/${letterSlug}/opengraph-image`);
+  expect(card.status()).toBe(200);
+  expect(card.headers()["content-type"]).toBe("image/png");
+  expect(await (await page.request.get("/feed.xml")).text()).toContain(`/letters/${letterSlug}#r`);
+  expect(await (await page.request.get("/sitemap.xml")).text()).toContain(`/letters/${letterSlug}`);
 }
 
 async function unpublish(page: Page) {
@@ -135,6 +175,7 @@ test("replacing the label: the note goes, the subject is his, and with nobody co
   await expect(page.getByText(LABEL_WHY)).toHaveCount(0);
   await noSideways(page);
   await clean(page);
+  await expectOnThePublicSite(page);
 });
 
 test("the letter shows in the list with its line, then comes off the archive", async ({ page }) => {
@@ -148,6 +189,12 @@ test("the letter shows in the list with its line, then comes off the archive", a
   await unpublish(page);
   await page.goto("/desk/letters");
   await expect(row).toContainText("Private. Not on the archive yet.");
+  // Unpublishing takes it off every public surface at once: the page, its card, the feed and the sitemap. With sign-ups closed the archive is a 404 again.
+  expect((await page.request.get(`/letters/${letterSlug}`)).status()).toBe(404);
+  expect((await page.request.get(`/letters/${letterSlug}/opengraph-image`)).status()).toBe(404);
+  expect(await (await page.request.get("/feed.xml")).text()).not.toContain(`/letters/${letterSlug}`);
+  expect(await (await page.request.get("/sitemap.xml")).text()).not.toContain("/letters");
+  expect((await page.request.get("/letters")).status()).toBe(404);
 });
 
 test("readers: counts and a waiting list with no export, the switch, and confirmation emails as their own press", async ({ page }) => {

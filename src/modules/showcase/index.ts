@@ -1,13 +1,14 @@
 export * from "./types";
 export { COMPANY_COLUMNS, createSupabaseShowcaseRepo, ITEM_COLUMNS, loadSnapshot, REVISION_COLUMNS } from "./repo";
 export { createSnapshotLoader, type Loaded } from "./loader";
-export { getSnapshot, getVideoTranscript } from "./queries";
+export { getLettersOpen, getSnapshot, getVideoTranscript } from "./queries";
 export { buildHomeStats, buildRegister, buildSiteChrome, buildStreak, buildWhatChanged } from "./site";
 export { buildFileView, buildShareCard } from "./file";
 export { buildNoteView, listNoteSummaries, readingMinutes } from "./notes";
 export { buildCaseStudyView, buildMistakes, caseHref, hasLedgerCases, ledgerCases, listCaseSummaries, recordEntryViews, type LedgerCase } from "./case-study";
 export { buildConceptView, conceptHref, itemConcepts, listConceptSummaries } from "./concepts";
-export { caseCard, conceptCard, CONCEPTS_STANDFIRST, cutWords, jsonLdFor, noteCard, OBJECTIVE_BUDGET, processCard, pageMetadata, robotsFor, serializeJsonLd, SITE_CARD_ALT, SITE_DESCRIPTION, SITE_NAME, sitemapEntries, TITLE_BUDGET, videoCard, type SeoRoute } from "./seo";
+export { caseCard, conceptCard, CONCEPTS_STANDFIRST, cutWords, jsonLdFor, noteCard, OBJECTIVE_BUDGET, processCard, pageMetadata, robotsFor, serializeJsonLd, SITE_CARD_ALT, SITE_DESCRIPTION, SITE_NAME, sitemapEntries, TITLE_BUDGET, letterCard, videoCard, type SeoRoute } from "./seo";
 export { buildVideoView, hasVideos, listVideoSummaries, transcriptLines, videoHref } from "./videos";
 export { feedEntries, renderRss } from "./feed";
 export { derivedProblems } from "./derived-scan";
+export { buildLetterView, hasLetters, letterHref, listLetterSummaries } from "./letters";

@@ -112,3 +112,12 @@ export type VideoView = {
   holdsPosition: HoldsPosition | null; dataAsOf: ISODate | null;
 };
 export type TranscriptLine = { s: number; clock: string; text: string };
+
+// ---- Letters (Plan 5c, spec s8.9). His words: the subject, the sentence, the note, and each entry's title and change reason (copied by the ----
+// ---- candidate builder). The machine's: the kind label, the page link, its own line, the position word and the dates. No reader, send or address. ----
+export type LetterEntryView = { kindLabel: string; title: string; changeReason: string | null; detail: string; href: string; position: string | null };
+export type LetterSummary = { slug: string; href: string; subject: string; objective: string; publishedOn: ISODate };
+export type LetterPageView = {
+  slug: string; subject: string; objective: string; note: string[]; entries: LetterEntryView[];
+  publishedOn: ISODate; revisedOn: ISODate; revNo: number; revCount: number;
+};
