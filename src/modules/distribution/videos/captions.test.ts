@@ -162,4 +162,29 @@ describe("parseCaptions: refusals", () => {
     const out = refused("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n<script>alert(1)</script>hello <b>bold</b>\n");
     expect(out).toEqual({ ok: true, segments: [{ s: 1, t: "alert(1)hello bold" }] });
   });
+
+  it("refuses a megabyte of spaces quickly (no quadratic start test)", () => {
+    const t0 = performance.now();
+    expect(parseCaptions(bytes(" ".repeat(1_000_000)), "a.srt")).toEqual({ ok: false, reason: REFUSAL });
+    expect(performance.now() - t0).toBeLessThan(500);
+  });
+
+  it("parses a megabyte-long cue line of unclosed tags quickly (no quadratic tag removal)", () => {
+    const t0 = performance.now();
+    const out = parseCaptions(bytes(`WEBVTT\n\n00:00:00.000 --> 00:00:05.000\n${"<a".repeat(400_000)}`), "a.vtt");
+    expect(performance.now() - t0).toBeLessThan(500);
+    expect(out.ok || out.reason.length > 0).toBe(true);
+  });
+
+  it("never cuts a long space-free line inside a surrogate pair", () => {
+    const out = parseCaptions(bytes(`WEBVTT\n\n00:00:00.000 --> 00:00:05.000\n${"\u{1F600}".repeat(300)}\n`), "a.vtt");
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    const lone = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+    expect(out.segments.length).toBeGreaterThan(1);
+    for (const seg of out.segments) {
+      expect(seg.t).not.toMatch(lone);
+      expect(seg.t.length).toBeLessThanOrEqual(500);
+    }
+  });
 });

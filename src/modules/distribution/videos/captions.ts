@@ -14,9 +14,10 @@ export type CaptionsResult = { ok: true; segments: Segment[] } | { ok: false; re
 const SEGMENT_SECONDS = 30;
 const TIME = String.raw`((?:\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{1,3})`;
 const TIMING = new RegExp(String.raw`^[ \t]*${TIME}[ \t]*-->[ \t]*${TIME}(?:[ \t].*)?$`);
-const SRT_START = new RegExp(String.raw`^\s*(?:\d+[ \t]*\n)?[ \t]*${TIME}[ \t]*-->`);
+// Anchored with no leading \s*: the caller trims and caps the head it tests, so a megabyte of spaces cannot make this quadratic.
+const SRT_START = new RegExp(String.raw`^(?:\d+[ \t]*\n)?[ \t]*${TIME}[ \t]*-->`);
 const VTT_START = /^WEBVTT(?:[ \t\n]|$)/;
-const TAG = /<\/?[A-Za-z][^>]*>|<\d{1,2}:\d{2}(?:[:.]\d+)*>/g;
+const TAG = /<\/?[A-Za-z][^<>]*>|<\d{1,2}:\d{2}(?:[:.]\d+)*>/g;
 const STYLE_OVERRIDE = /\{\\[^}]*\}/g;
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
 const ENTITIES: Record<string, string> = { lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", amp: "&" };
@@ -47,7 +48,12 @@ function pieces(line: string): string[] {
   let rest = line;
   while (rest.length > MAX_SEGMENT_CHARS) {
     const cut = rest.lastIndexOf(" ", MAX_SEGMENT_CHARS);
-    const at = cut > 0 ? cut : MAX_SEGMENT_CHARS;
+    let at = cut > 0 ? cut : MAX_SEGMENT_CHARS;
+    // Never cut between the halves of a surrogate pair: the database refuses a lone one.
+    if (cut <= 0) {
+      const code = rest.charCodeAt(at - 1);
+      if (code >= 0xd800 && code <= 0xdbff) at -= 1;
+    }
     out.push(rest.slice(0, at).trim());
     rest = rest.slice(at).trim();
   }
@@ -69,7 +75,7 @@ export function parseCaptions(bytes: Uint8Array, name: string): CaptionsResult {
   if (text.includes("\u0000")) return refuse(NOT_A_CAPTION_FILE);
   text = text.replace(/\r\n?/g, "\n");
   if (text.trimStart().startsWith("<")) return refuse(NOT_A_CAPTION_FILE);
-  if (!VTT_START.test(text) && !SRT_START.test(text)) return refuse(NOT_A_CAPTION_FILE);
+  if (!VTT_START.test(text) && !SRT_START.test(text.trimStart().slice(0, 256))) return refuse(NOT_A_CAPTION_FILE);
 
   const kept: Line[] = [];
   let cue: { start: number; lines: string[] } | null = null;
