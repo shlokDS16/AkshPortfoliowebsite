@@ -3,13 +3,15 @@
 -- (spec s8.4, s8.6; plan Part 5c; v1.2 addendum rule 13). publish_revision() is NOT restated: it already calls
 -- private.distribution_gate_failures (0023), which this file replaces with the same signature, keeping the 0023 video branch
 -- verbatim and sending a letter to private.letter_gate_failures (below). The policy stays sebi-unreg-2026-07-v1.2.
---   13.1 subject (the item title) 1..120 characters; the note (the revision body) at most 4,000; the objective is rule 6.
+--   13.1 subject (the item title) 1..120 characters and not the desk's own label ("Untitled letter, 16 Oct 2026"); the note (the
+--        revision body) at most 4,000; the objective is rule 6.
 --   13.2 structured is letter/1 with 1..20 entries; each names, by revisionId, the CURRENT passed revision of a public item that
 --        is not a letter, at most once, and copies its title, learningObjective and changeReason exactly (and, for a page that
 --        names a company, its holdsPosition and companyName; a page that names none carries neither). Its path, the one link
 --        the machine adds, must be a page of this site ("/companies/x", "/notes/x"), never another address.
 --   13.3 rule 4 and the position check for every entry, through private.ledger_gate_item_failures, recorded as rule 4.
---   13.4 a letter sent (or being sent) to subscribers cannot publish another revision (the 0024 trigger stops new ones).
+--   13.4 a letter sent (or being sent) to subscribers cannot publish another revision (the 0024 trigger stops new ones); a send
+--        that failed with a broadcast id recorded counts, since the broadcast may have gone out.
 -- The send doors (service_role only, called after requireAdmin or by the letters:send step): approve_letter_send writes the
 -- audit row; claim_letter_send expires approvals older than 24 h, re-checks everything and hands one send to one worker;
 -- finish_letter_send records the broadcast and the outcome. Nothing here talks to the network.
@@ -45,13 +47,18 @@ begin
   if (select length(i.title) between 1 and 120 from public.items i where i.id = p_item_id) is not true then
     v_out := v_out || jsonb_build_array(jsonb_build_object('rule', '13', 'code', '13.1',
       'message', 'A letter''s subject must be 1 to 120 characters.'));
+  elsif (select i.title ~ '^\s*Untitled letter(?:, .*)?\s*$' from public.items i where i.id = p_item_id) then
+    -- One rule, two places: the same pattern is LABEL in src/modules/distribution/letters/subject.ts (a test keeps them equal).
+    v_out := v_out || jsonb_build_array(jsonb_build_object('rule', '13', 'code', '13.1',
+      'message', 'Replace the label with your own subject.'));
   end if;
   if (select length(r.body_md) <= 4000 from public.item_revisions r where r.id = p_revision_id) is not true then
     v_out := v_out || jsonb_build_array(jsonb_build_object('rule', '13', 'code', '13.1',
       'message', 'A letter''s note must be at most 4,000 characters.'));
   end if;
   if exists (select 1 from public.letter_sends s
-              where s.item_id = p_item_id and s.kind = 'subscribers' and s.status in ('sending', 'sent')
+              where s.item_id = p_item_id and s.kind = 'subscribers'
+                and (s.status in ('sending', 'sent') or (s.status = 'failed' and s.broadcast_id is not null))
                 and s.revision_id is distinct from p_revision_id) then
     v_out := v_out || jsonb_build_array(jsonb_build_object('rule', '13', 'code', '13.4',
       'message', 'This letter was sent to subscribers and cannot change.'));
@@ -283,6 +290,10 @@ begin
     if exists (select 1 from public.letter_sends s where s.item_id = p_item_id and s.kind = 'subscribers'
                  and s.status not in ('failed', 'expired', 'cancelled')) then
       raise exception 'This letter has already been sent to subscribers, or its send is waiting.' using errcode = '55000';
+    end if;
+    -- A send that failed after its broadcast was made may have gone out; a second send could email every reader twice.
+    if exists (select 1 from public.letter_sends s where s.item_id = p_item_id and s.kind = 'subscribers' and s.broadcast_id is not null) then
+      raise exception 'A broadcast was already made for this letter. Check it in Resend; to send again, make a new letter.' using errcode = '55000';
     end if;
     if exists (select 1 from public.letter_sends s where s.kind = 'subscribers' and s.status in ('approved', 'sending')) then
       raise exception 'Another letter is being sent. Wait until it has gone.' using errcode = '55000';

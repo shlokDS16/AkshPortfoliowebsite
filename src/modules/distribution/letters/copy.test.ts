@@ -69,7 +69,7 @@ describe("the fixed codes", () => {
 
   it("the database's refusal sentences are the ones the codes show", () => {
     const sql = readFileSync(resolve(SRC, "../supabase/migrations/20261018000025_letters_gate.sql"), "utf8");
-    for (const code of ["letter-not-a-letter", "letter-not-current", "letter-not-public", "letter-gate-stale", "letter-already-sent", "letter-another-sending", "letter-test-limit", "letter-cannot-cancel", "letter-send-not-found"] as const) {
+    for (const code of ["letter-not-a-letter", "letter-not-current", "letter-not-public", "letter-gate-stale", "letter-already-sent", "letter-broadcast-made", "letter-another-sending", "letter-test-limit", "letter-cannot-cancel", "letter-send-not-found"] as const) {
       expect(sql.replaceAll("''", "'"), code).toContain(LETTER_ERROR_TEXT[code]);
     }
   });

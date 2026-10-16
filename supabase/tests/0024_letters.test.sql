@@ -187,16 +187,18 @@ select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select lives_ok($$ select public.letters_leave(' ' || upper(pg_temp.w(1)) || ' ') $$, 'anon leaves');
 select lives_ok($$ select public.letters_leave('never.here@example.com') $$, 'leaving an unknown address answers the same');
 reset role;
-select is(pg_temp.st(pg_temp.w(1)) || ' ' || pg_temp.n_ev('left'), 'none 1', 'the row is deleted at once; one left event');
-select is((select count(*) from public.subscriber_events where event = 'left' and email_hmac = pg_temp.hm(pg_temp.w(1))), 1::bigint,
-  'the left event is keyed by the HMAC');
+select is(pg_temp.st(pg_temp.w(1)) || ' ' || pg_temp.n_ev('left_form') || ' ' || pg_temp.n_ev('left'), 'none 1 0',
+  'the row is deleted at once; one left_form event (the typed form), and no left event');
+select is((select count(*) from public.subscriber_events where event = 'left_form' and email_hmac = pg_temp.hm(pg_temp.w(1))), 1::bigint,
+  'the left_form event is keyed by the HMAC');
 select throws_ok($$ select public.letters_erase('bbbbbbbb-0000-4000-8000-000000000002', (select id from public.subscribers where email = pg_temp.w(2))) $$,
   '42501', null, 'a non-admin actor cannot erase');
 select is(public.letters_erase('aaaaaaaa-0000-4000-8000-000000000001', (select id from public.subscribers where email = pg_temp.w(2))), 1,
   'the admin erases an address');
 select is(pg_temp.st(pg_temp.w(2)) || ' ' || pg_temp.n_ev('erased'), 'none 1', 'gone, with an erased event');
 select is(public.letters_mark_left(array[upper(pg_temp.w(3)), 'nobody@example.com']), 1, 'mark_left erases what Resend reports unsubscribed');
-select is(pg_temp.st(pg_temp.w(3)) || ' ' || pg_temp.n_ev('left'), 'none 2', 'with a left event');
+select is(pg_temp.st(pg_temp.w(3)) || ' ' || pg_temp.n_ev('left') || ' ' || pg_temp.n_ev('left_form'), 'none 1 1',
+  'with a left event (what Resend reports), apart from the one typed on the form');
 select throws_ok($$ select public.letters_bin('bbbbbbbb-0000-4000-8000-000000000002', array[]::uuid[]) $$, '42501', null,
   'a non-admin actor cannot bin');
 select is(public.letters_bin('aaaaaaaa-0000-4000-8000-000000000001',

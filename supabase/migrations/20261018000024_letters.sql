@@ -62,7 +62,7 @@ create index subscribers_status_idx on public.subscribers (status, requested_at)
 
 create table public.subscriber_events (
   id             uuid primary key default gen_random_uuid(),
-  event          text not null check (event in ('requested', 'sent', 'confirmed', 'left', 'erased', 'expired', 'binned')),
+  event          text not null check (event in ('requested', 'sent', 'confirmed', 'left', 'left_form', 'erased', 'expired', 'binned')),
   email_hmac     bytea not null check (length(email_hmac) = 32),
   notice_version text not null,
   at             timestamptz not null default now()
@@ -89,7 +89,8 @@ create table public.letter_sends (
   item_id                uuid not null references public.items (id) on delete restrict,
   revision_id            uuid not null references public.item_revisions (id) on delete restrict,
   -- No foreign key: gate_decisions is append-only (never deleted), and a key would make its TRUNCATE guard answer with a key
-  -- error instead of its own. Written only by approve_letter_send, from the decision it read.
+  -- error instead of its own. Written only by approve_letter_send, from the decision it read; the insert trigger below
+  -- (private.check_letter_send_decision) refuses an id that is not a pass of this letter's revision.
   gate_decision_id       uuid not null,
   kind                   text not null check (kind in ('self_test', 'subscribers')),
   approved_by            uuid not null,
@@ -137,13 +138,31 @@ create trigger letter_sends_guard before update or delete on public.letter_sends
 create trigger letter_sends_no_truncate before truncate on public.letter_sends
   for each statement execute function private.reject_mutation();
 
--- 3. A letter sent (or being sent) to subscribers is frozen: no new revision (D87). Definer: it must see every send.
+-- The audit row is the evidence of rule 13.1 (who approved what), so its decision must exist, belong to this letter's revision and be
+-- a pass. A trigger rather than a foreign key (see the column). Definer: it reads gate_decisions on behalf of any writer.
+create function private.check_letter_send_decision()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+begin
+  if not exists (select 1 from public.gate_decisions g
+                  where g.id = new.gate_decision_id and g.item_id = new.item_id and g.revision_id = new.revision_id and g.verdict = 'pass') then
+    raise exception 'letter_sends: the decision must be a pass of this letter''s revision' using errcode = '23503';
+  end if;
+  return new;
+end;
+$$;
+create trigger letter_sends_check_decision before insert on public.letter_sends
+  for each row execute function private.check_letter_send_decision();
+
+-- 3. A letter sent (or being sent) to subscribers is frozen: no new revision (D87). Definer: it must see every send. A send that
+-- failed with a broadcast id recorded may still have gone out (an email cannot be called back), so it freezes the letter too.
 create function private.freeze_sent_letter()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
 begin
   if exists (select 1 from public.letter_sends s
-              where s.item_id = new.item_id and s.kind = 'subscribers' and s.status in ('sending', 'sent')) then
+              where s.item_id = new.item_id and s.kind = 'subscribers'
+                 and (s.status in ('sending', 'sent') or (s.status = 'failed' and s.broadcast_id is not null))) then
     raise exception 'letters: a letter sent to subscribers cannot get a new revision' using errcode = '23514';
   end if;
   return new;
@@ -254,7 +273,8 @@ begin
   end if;
   delete from public.subscribers b where b.email = lower(btrim(p_email)) returning * into v_row;
   if v_row.id is not null then
-    perform private.letters_log('left', v_row.email, v_row.notice_version);
+    -- 'left_form', not 'left': the desk counts the typed form apart from what Resend reports (review finding 2).
+    perform private.letters_log('left_form', v_row.email, v_row.notice_version);
   end if;
 end;
 $$;
@@ -404,5 +424,5 @@ grant execute on function public.letters_issue_confirmations(uuid, uuid[]), publ
   public.letters_bin(uuid, uuid[]), public.letters_erase(uuid, uuid), public.letters_purge(), public.letters_mark_left(text[]),
   public.confirmed_subscribers(), public.set_letters_signup(uuid, boolean) to service_role;
 revoke execute on function private.guard_letter_item(), private.guard_letter_send(), private.freeze_sent_letter(),
-  private.letters_notice_version(), private.letters_hmac(text), private.ist_day_start(), private.letters_log(text, text, text),
+  private.check_letter_send_decision(), private.letters_notice_version(), private.letters_hmac(text), private.ist_day_start(), private.letters_log(text, text, text),
   private.letters_delete(uuid[], text) from public, anon, authenticated, service_role;

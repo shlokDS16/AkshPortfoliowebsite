@@ -21,6 +21,7 @@ const REFUSALS: ReadonlyMap<string, LetterErrorCode> = new Map<string, LetterErr
   ["The letter is not public.", "letter-not-public"],
   ["The letter's last gate decision is not a pass under the current policy. Publish it again.", "letter-gate-stale"],
   ["This letter has already been sent to subscribers, or its send is waiting.", "letter-already-sent"],
+  ["A broadcast was already made for this letter. Check it in Resend; to send again, make a new letter.", "letter-broadcast-made"],
   ["Another letter is being sent. Wait until it has gone.", "letter-another-sending"],
   ["5 test copies sent today. The next can go tomorrow.", "letter-test-limit"],
   ["Only a send that is still waiting can be cancelled.", "letter-cannot-cancel"],

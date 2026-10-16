@@ -183,6 +183,82 @@ describe("a send to subscribers: reconcile, draft, record, send, record (spec s8
   });
 });
 
+describe("a re-leased send whose broadcast already exists is never failed while it may have gone out (review finding 1)", () => {
+  const crashAfterSend = async () => {
+    await approve();
+    rpc.failFinish("sent");
+    await expect(runLetterSends(deps)).rejects.toThrow("dropped");
+    expect(sentBroadcasts()).toHaveLength(1);
+    rpc.clock.now += LEASE_MS + 1000;
+  };
+  const withSender = (over: Partial<LetterPorts["sender"]>): LetterPorts => ({ ...ports, sender: { ...ports.sender, ...over } });
+
+  it("records sent, not failed, when the letter was unpublished after the send went out", async () => {
+    await crashAfterSend();
+    const gone = { ...deps, source: fakeSource(null) };
+    expect(await runLetterSends(gone)).toMatchObject({ sent: 1, failed: 0 });
+    expect(rpc.calls).not.toContain("finish:failed");
+    expect(rpc.sends[0]).toMatchObject({ status: "sent", recipientsSent: 2 });
+    expect(sentBroadcasts()).toHaveLength(1);
+    expect(peekFixtureLetters().broadcasts).toHaveLength(1);
+  });
+
+  it("does not call sendBroadcast again for a broadcast that Resend already has", async () => {
+    await crashAfterSend();
+    let calls = 0;
+    const counting = withSender({ sendBroadcast: async (...a) => (calls += 1, ports.sender.sendBroadcast(...a)) });
+    await runLetterSends({ ...deps, ports: counting, source: fakeSource(null) });
+    expect(calls).toBe(0);
+  });
+
+  it("defers, never fails, when Resend cannot be read for over a day", async () => {
+    await crashAfterSend();
+    rpc.clock.now += 25 * 3_600_000;
+    const down = withSender({ getBroadcast: async () => ({ ok: false, kind: "unavailable", message: "Resend did not answer in time" }) });
+    expect(await runLetterSends({ ...deps, ports: down, source: fakeSource(null) })).toMatchObject({ deferred: 1, failed: 0, sent: 0 });
+    expect(rpc.calls).not.toContain("finish:failed");
+    expect(rpc.sends[0]!.status).toBe("sending");
+  });
+
+  it("defers, never fails, when the broadcast read is refused", async () => {
+    await crashAfterSend();
+    const refused = withSender({ getBroadcast: async () => ({ ok: false, kind: "refused", message: "Resend answered 403" }) });
+    expect(await runLetterSends({ ...deps, ports: refused })).toMatchObject({ deferred: 1, failed: 0 });
+    expect(rpc.sends[0]!.status).toBe("sending");
+  });
+
+  it("keeps waiting past a day while the send itself cannot reach Resend and a broadcast id exists", async () => {
+    await approve();
+    const down = withSender({ sendBroadcast: async () => ({ ok: false, kind: "unavailable", message: "Resend did not answer in time" }) });
+    expect(await runLetterSends({ ...deps, ports: down })).toMatchObject({ deferred: 1 });
+    expect(rpc.sends[0]!.broadcastId).not.toBeNull();
+    rpc.clock.now += 25 * 3_600_000;
+    expect(await runLetterSends({ ...deps, ports: down })).toMatchObject({ deferred: 1, failed: 0 });
+    expect(rpc.sends[0]!.status).toBe("sending");
+  });
+
+  it("re-reads the broadcast after a 4xx on the send, and records sent when Resend has it", async () => {
+    await approve();
+    const lying = withSender({
+      sendBroadcast: async (...a) => {
+        await ports.sender.sendBroadcast(...a);
+        return { ok: false, kind: "refused", message: "Resend answered 422" };
+      },
+    });
+    expect(await runLetterSends({ ...deps, ports: lying })).toMatchObject({ sent: 1, failed: 0 });
+    expect(rpc.calls).not.toContain("finish:failed");
+    expect(sentBroadcasts()).toHaveLength(1);
+  });
+
+  it("fails on a 4xx only when the broadcast is still a draft (nothing went out)", async () => {
+    await approve();
+    const refusing = withSender({ sendBroadcast: async () => ({ ok: false, kind: "refused", message: "Resend answered 422" }) });
+    expect(await runLetterSends({ ...deps, ports: refusing })).toMatchObject({ failed: 1, sent: 0 });
+    expect(sentBroadcasts()).toHaveLength(0);
+    expect(rpc.sends[0]).toMatchObject({ status: "failed", broadcastId: expect.any(String) });
+  });
+});
+
 describe("a test copy: one email to the admin only", () => {
   it("sends the letter to ADMIN_EMAIL with the leave page as its unsubscribe link, and touches no reader or contact", async () => {
     await approve("self_test");

@@ -47,6 +47,7 @@ export function createFakeRpc(): FakeRpc {
       if (actor !== ADMIN) throw new LetterError("letter-refused");
       if (kind === "subscribers") {
         if (sends.some((s) => s.itemId === itemId && live("subscribers")(s))) throw new LetterError("letter-already-sent");
+        if (sends.some((s) => s.itemId === itemId && s.kind === "subscribers" && s.broadcastId !== null)) throw new LetterError("letter-broadcast-made");
         if (sends.some((s) => live("subscribers")(s) && ["approved", "sending"].includes(s.status))) throw new LetterError("letter-another-sending");
       } else if (sends.filter((s) => s.kind === "self_test").length >= 5) throw new LetterError("letter-test-limit");
       const row: SendRow = {

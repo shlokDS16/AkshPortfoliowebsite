@@ -5,7 +5,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(84);
+select plan(100);
 
 insert into private.settings (key, value) values ('admin_email', 'admin@pgtap.test')
   on conflict (key) do update set value = excluded.value;
@@ -119,6 +119,14 @@ select is(pg_temp.pub(pg_temp.lt(10), 1) || ' ' || pg_temp.f(pg_temp.lt(10), 1, 
 select is(pg_temp.f(pg_temp.lt(10), 1, 'rule'), '13', 'under rule 13');
 select pg_temp.mkl(11, jsonb_build_array(pg_temp.en('e1000000-0000-4000-8000-000000000001')), p_body => repeat('b', 4001));
 select is(pg_temp.pub(pg_temp.lt(11), 1) || ' ' || pg_temp.f(pg_temp.lt(11), 1, 'code'), 'fail 13.1', 'a 4,001-character note fails 13.1');
+-- A subject that is still the desk's label is a machine text in his field (finding 3, rule 13.2's hard rule): refused by the gate.
+select pg_temp.mkl(12, jsonb_build_array(pg_temp.en('e1000000-0000-4000-8000-000000000001')), p_title => 'Untitled letter, 16 Oct 2026');
+select is(pg_temp.pub(pg_temp.lt(12), 1) || ' ' || pg_temp.f(pg_temp.lt(12), 1, 'code') || ' ' || pg_temp.f(pg_temp.lt(12), 1, 'message'),
+  'fail 13.1 Replace the label with your own subject.', 'a subject that is still the label fails 13.1');
+select pg_temp.mkl(13, jsonb_build_array(pg_temp.en('e1000000-0000-4000-8000-000000000001')), p_title => 'Untitled letters from Pune');
+select is(pg_temp.pub(pg_temp.lt(13), 1), 'pass', 'a real subject that merely starts with the same words passes');
+select pg_temp.mkl(14, jsonb_build_array(pg_temp.en('e1000000-0000-4000-8000-000000000001')), p_title => 'Untitled letter');
+select is(pg_temp.pub(pg_temp.lt(14), 1) || ' ' || pg_temp.f(pg_temp.lt(14), 1, 'code'), 'fail 13.1', 'the bare label fails too');
 
 -- 3. Rule 13.2: letter/1, 1..20 entries, each a live, current, public, non-letter page copied exactly.
 select pg_temp.mkl(20, jsonb_build_array(pg_temp.en('e1000000-0000-4000-8000-000000000001')), p_schema => 'letter/2');
@@ -260,6 +268,44 @@ select throws_ok($$ insert into public.item_revisions (item_id, body_md) values 
   'a sent letter takes no new revision');
 select is(pg_temp.pub(pg_temp.lt(2), 2) || ' ' || pg_temp.f(pg_temp.lt(2), 2, 'code'), 'pass ', 'a letter whose send failed can still change');
 select lives_ok($$ select public.unpublish_item('aaaaaaaa-0000-4000-8000-000000000001', pg_temp.lt(1)) $$, 'a sent letter can be unpublished');
+
+-- 7b. A broadcast that was made cannot be made again (finding 1): a send that failed with a broadcast id may have gone out.
+select pg_temp.mkl(52, jsonb_build_array(pg_temp.en('e1000000-0000-4000-8000-000000000001')));
+select is(pg_temp.pub(pg_temp.lt(52), 1), 'pass', 'fixture: letter 52 public');
+select is((pg_temp.approve(52)).status, 'approved', 'fixture: letter 52 approved');
+select is(pg_temp.claim(), 'sending', 'and claimed');
+select is((public.finish_letter_send((select id from public.letter_sends where item_id = pg_temp.lt(52) and status = 'sending'), 'sending', 'bc_52', null, null)).broadcast_id,
+  'bc_52', 'its broadcast id is recorded');
+select is((public.finish_letter_send((select id from public.letter_sends where item_id = pg_temp.lt(52) and status = 'sending'), 'failed', null, null, 'Resend was down')).status,
+  'failed', 'and the send is then recorded failed');
+select throws_ok($$ select pg_temp.approve(52) $$, '55000',
+  'A broadcast was already made for this letter. Check it in Resend; to send again, make a new letter.',
+  'a new subscribers approval is refused once an earlier send of the letter has a broadcast id');
+select throws_ok($$ insert into public.item_revisions (item_id, body_md) values (pg_temp.lt(52), 'A fix after a failed send') $$, '23514', null,
+  'a letter whose failed send has a broadcast id takes no new revision');
+select ok(private.letter_gate_failures(pg_temp.lt(52), pg_temp.rv(pg_temp.lt(2), 1), '{}'::jsonb) @> '[{"code":"13.4"}]'::jsonb,
+  'and rule 13.4 treats that failed send as possibly sent');
+select ok(not (private.letter_gate_failures(pg_temp.lt(2), pg_temp.rv(pg_temp.lt(2), 1), '{}'::jsonb) @> '[{"code":"13.4"}]'::jsonb),
+  'while a send that failed with no broadcast does not freeze its letter');
+
+-- 7c. The audit row's decision must exist, be this letter's revision and be a pass (finding 7; no foreign key, a trigger).
+select throws_ok($$ insert into public.letter_sends (item_id, revision_id, gate_decision_id, kind, approved_by, recipients_at_approval)
+  values (pg_temp.lt(1), pg_temp.rv(pg_temp.lt(1), 1), gen_random_uuid(), 'self_test', 'aaaaaaaa-0000-4000-8000-000000000001', 1) $$,
+  '23503', null, 'a send naming a decision that does not exist is refused');
+select throws_ok($$ insert into public.letter_sends (item_id, revision_id, gate_decision_id, kind, approved_by, recipients_at_approval)
+  values (pg_temp.lt(1), pg_temp.rv(pg_temp.lt(1), 1),
+          (select g.id from public.gate_decisions g where g.revision_id = pg_temp.rv(pg_temp.lt(50), 1) and g.verdict = 'fail'), 'self_test',
+          'aaaaaaaa-0000-4000-8000-000000000001', 1) $$,
+  '23503', null, 'a send naming a decision of another revision (here a failure) is refused');
+select throws_ok($$ insert into public.letter_sends (item_id, revision_id, gate_decision_id, kind, approved_by, recipients_at_approval)
+  values (pg_temp.lt(50), pg_temp.rv(pg_temp.lt(50), 1),
+          (select g.id from public.gate_decisions g where g.revision_id = pg_temp.rv(pg_temp.lt(50), 1) and g.verdict = 'fail'), 'self_test',
+          'aaaaaaaa-0000-4000-8000-000000000001', 1) $$,
+  '23503', null, 'a send naming a failed decision of its own revision is refused');
+select lives_ok($$ insert into public.letter_sends (item_id, revision_id, gate_decision_id, kind, approved_by, recipients_at_approval)
+  values (pg_temp.lt(1), pg_temp.rv(pg_temp.lt(1), 1),
+          (select g.id from public.gate_decisions g where g.revision_id = pg_temp.rv(pg_temp.lt(1), 1) and g.verdict = 'pass' limit 1), 'self_test',
+          'aaaaaaaa-0000-4000-8000-000000000001', 1) $$, 'a send naming this revision''s pass is accepted');
 
 -- 8. Structure and privileges.
 select is(private.gate_policy(), 'sebi-unreg-2026-07-v1.2', 'gate_policy reads the policy publish_revision pins');

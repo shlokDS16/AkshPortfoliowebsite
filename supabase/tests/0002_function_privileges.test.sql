@@ -114,8 +114,8 @@ select ok((select bool_and(not has_function_privilege('anon', f, 'execute') and 
                                'private.letters_notice_version()', 'private.letters_hmac(text)', 'private.ist_day_start()',
                                'private.letters_log(text, text, text)', 'private.letters_delete(uuid[], text)',
                                'private.gate_policy()', 'private.letter_gate_failures(uuid, uuid, jsonb)',
-                               'private.expire_letter_sends()', 'private.letter_send_check(uuid, uuid)']::regprocedure[]) f),
-  'the twelve letters helpers and trigger functions: no API role');
+                               'private.expire_letter_sends()', 'private.letter_send_check(uuid, uuid)', 'private.check_letter_send_decision()']::regprocedure[]) f),
+  'the thirteen letters helpers and trigger functions: no API role');
 select ok((select bool_and(p.prosecdef) from pg_proc p
             where p.oid = any (array['public.letters_open()', 'public.letters_request(text, text, boolean)', 'public.letters_confirm(text)',
                                      'public.letters_leave(text)', 'public.approve_letter_send(uuid, uuid, uuid, text)',

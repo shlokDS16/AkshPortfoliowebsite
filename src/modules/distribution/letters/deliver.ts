@@ -27,16 +27,45 @@ export async function deliverLetter(send: SendRow, deps: DeliverDeps): Promise<D
     return { status: "failed", problem };
   };
   const deferred = (reason: string): Delivery => ({ status: "deferred", reason });
-  /** Whether a failure may pass: Resend slow or asking for time is waited out (for a day at most); every other answer ends the send. */
+  let broadcastId = send.kind === "subscribers" ? send.broadcastId : null;
+  const recordSent = async (): Promise<Delivery> => {
+    await rpc.finish(send.id, "sent", broadcastId, send.recipientsAtApproval, null);
+    return { status: "sent", recipients: send.recipientsAtApproval };
+  };
+  /**
+   * With a broadcast id the send may already have gone out, and an email cannot be called back: Resend is asked what the broadcast is,
+   * and the row is failed only when the answer is `draft` or `canceled`. A broadcast that went out is recorded `sent` (never `failed`,
+   * which would re-open the letter for a second send); one that cannot be read, or whose state is not known, waits.
+   */
+  const settleKnownBroadcast = async (reason: string): Promise<Delivery> => {
+    const read = await ports.sender.getBroadcast(broadcastId!);
+    if (!read.ok) return deferred(read.message);
+    const status = read.value.status;
+    if (status === "scheduled" || status === "queued" || status === "sent") return recordSent();
+    if (status === "draft" || status === "canceled") return fail(reason);
+    return deferred("Resend did not say what became of the broadcast.");
+  };
+  /** Whether a failure may pass: Resend slow or asking for time is waited out (for a day at most, and without a broadcast id); every other answer ends the send. */
   const settle = (failure: LetterFailure): Promise<Delivery> | Delivery => {
     if (failure.kind === "rate_limited") return deferred(failure.message);
+    if (broadcastId) return failure.kind === "unavailable" ? deferred(failure.message) : settleKnownBroadcast(failure.message);
     if (failure.kind === "unavailable" && now() - Date.parse(send.approvedAt) <= WAIT_LIMIT_MS) return deferred(failure.message);
     return fail(failure.message);
   };
 
+  // A retry that finds a broadcast id reads the broadcast before anything else, so a letter that changed or a Resend outage
+  // after the send went out cannot fail the row (and re-open the letter).
+  if (broadcastId) {
+    const read = await ports.sender.getBroadcast(broadcastId);
+    if (!read.ok) return deferred(read.message);
+    const status = read.value.status;
+    if (status === "scheduled" || status === "queued" || status === "sent") return recordSent();
+    if (status === "unknown") return deferred("Resend did not say what became of the broadcast.");
+  }
+
   // The letter is read as the public reads it: the current revision that passed the gate, or nothing.
   const letter = await deps.source.load(send.itemId, send.revisionId);
-  if (!letter) return fail(CHANGED_AFTER_APPROVAL);
+  if (!letter) return broadcastId ? settleKnownBroadcast(CHANGED_AFTER_APPROVAL) : fail(CHANGED_AFTER_APPROVAL);
 
   if (send.kind === "self_test") {
     const sent = await ports.sender.sendSelfTest({ sendId: send.id }, renderLetter(letter, siteUrl, { unsubscribeUrl: `${siteUrl.replace(/\/+$/, "")}/letters/leave` }));
@@ -50,7 +79,6 @@ export async function deliverLetter(send: SendRow, deps: DeliverDeps): Promise<D
   if (!list.complete) return deferred("The reader list is still being made equal.");
   if (list.readers === 0) return fail(NO_CONFIRMED_READERS);
 
-  let broadcastId = send.broadcastId;
   if (!broadcastId) {
     const created = await ports.sender.createBroadcast({ sendId: send.id }, renderLetter(letter, siteUrl));
     if (!created.ok) return settle(created);

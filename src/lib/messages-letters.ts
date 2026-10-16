@@ -19,6 +19,7 @@ export const LETTER_ERROR_TEXT = {
   "letter-not-public": "The letter is not public.",
   "letter-gate-stale": "The letter's last gate decision is not a pass under the current policy. Publish it again.",
   "letter-already-sent": "This letter has already been sent to subscribers, or its send is waiting.",
+  "letter-broadcast-made": "A broadcast was already made for this letter. Check it in Resend; to send again, make a new letter.",
   "letter-another-sending": "Another letter is being sent. Wait until it has gone.",
   "letter-test-limit": "5 test copies sent today. The next can go tomorrow.",
   "letter-refused": "The database would not approve this send. Publish the letter again, then try once more.",

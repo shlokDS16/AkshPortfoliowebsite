@@ -17,8 +17,8 @@ installOutboundGuard(); // nothing leaves the machine
 // process reads (support/letters-loop.ts). No key is set and no request leaves this machine (the outbound guard fails a test that reaches one).
 //  1. Reader A asks on /letters: no email goes. Aksh presses "Send confirmation emails": exactly one confirmation, with a token link. A opens it
 //     (a GET changes nothing) and confirms. Reader B asks too and is left waiting.
-//  2. Letter 1 and letter 2 are made from "what changed". Letter 1 shows "Untitled letter" and cannot be sent until the subject is his. It passes
-//     the real gate; the outbox still holds no broadcast. He presses Send: the dialog names the exact count, the approval row is recorded, the outbox
+//  2. Letter 1 and letter 2 are made from "what changed". Letter 1 shows "Untitled letter": the real gate refuses it (13.1) until the subject
+//     is his, then it passes; the outbox still holds no broadcast. He presses Send: the dialog names the exact count, the approval row is recorded, the outbox
 //     holds one broadcast to exactly A (B, still waiting, gets nothing). A second press (a stale tab, then the pump twice) sends nothing again.
 //  3. B is sent a confirmation and confirms. A leaves. Letter 2 is sent: its broadcast goes to B only. Letter 1 is unpublished and is gone from
 //     every public surface; letter 2 stays public (letters-public-*), sign-ups are shut, and `pnpm supabase db reset` clears it for the next run.
@@ -28,6 +28,7 @@ const B = `reader-b-${tag}@example.com`;
 const SUBJECT_1 = `What changed, first letter ${tag}`;
 const SUBJECT_2 = `What changed, second letter ${tag}`;
 const OBJECTIVE = "Which public pages changed since the last letter.";
+const LABEL_GATE = "Replace the label with your own subject.";
 const LABEL_WHY = "The subject is still a label. Replace it with your own subject, save, and run the gate again.";
 
 test.describe.configure({ mode: "serial" });
@@ -148,10 +149,12 @@ test("the letters desk offers what changed; the first letter is a label until he
   await expect(page.getByRole("heading", { level: 1, name: /^Untitled letter, / })).toBeVisible();
   await expect(page.getByText("Run the publishing gate first.")).toBeVisible();
   await save(page, { objective: OBJECTIVE });
-  await runGate(page);
-  await expect(gate(page).getByRole("button", { name: "Send to 1 subscriber" })).toBeDisabled();
+  // The real gate refuses the label (rule 13.1, review finding 3): nothing is published under a machine subject.
+  await gate(page).getByRole("button", { name: /^Run the publishing gate on revision #\d+$/ }).click();
+  await expect(gate(page).getByTestId("gate-decision")).toHaveAttribute("data-verdict", "fail");
+  await expect(gate(page).getByTestId("gate-failure").filter({ hasText: LABEL_GATE })).toHaveAttribute("data-rule", "13");
+  await expect(page.getByTestId("visibility")).toHaveText("Private");
   await expect(page.getByText(LABEL_WHY).first()).toBeVisible();
-  await unpublish(page);
 
   await save(page, { subject: SUBJECT_1 });
   await runGate(page);
