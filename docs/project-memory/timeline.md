@@ -167,3 +167,9 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - Phase 5 split into 5a (no migration, no outbound), 5b videos (reads YouTube only) and 5c letters (the only part that can send, only on Aksh's press).
 - 5a: metadata, JSON-LD, share cards, sitemap, RSS, request-time robots, print layout with the full disclosure on every page. The review and its e2e caught a share card that stayed hidden for an hour after a republish, and index pages printing without the standard disclosure.
 - Evidence at 03a038d: unit 5472, full e2e 419 passed, 0 failed.
+
+## 2026-10-16 (afternoon) - Phase 5b videos built and reviewed (not yet released)
+- Read-only YouTube adapter (videos stay off until the key is set), caption files from YouTube Studio, chapters, rule 12 lint over every spoken word, public video pages behind the gate. Privacy ruling: no request to Google or YouTube before the visitor presses Play.
+- The review caught caption-parsing regexes that took minutes on a hostile 1 MB file, YouTube data that could outlive YouTube's 30-day storage limit, and e2e runs that reached i.ytimg.com; all fixed, and an e2e guard now fails any test that touches an outside host.
+- A laptop restart cut Task 9 short; the work was recovered from a checkpoint commit and finished.
+- Evidence at 769fb3a: unit 5911, pgTAP 2435, full e2e 463 passed, 0 failed.
