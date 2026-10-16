@@ -29,7 +29,8 @@ export async function createItemAction(formData: FormData): Promise<void> {
   if (!parsed.success) failTo("/desk/items", parsed.error, "research");
   // A video exists only through the capture box (v: and a YouTube link): that is what files its YouTube row (Phase 5b). The Create list no
   // longer offers it, so this is a crafted post; such an item could never pass rule 12.1, and is better never created.
-  if (parsed.data.kind === "video") failTo("/desk/items", new InvalidInputError(), "research");
+  // A letter exists only through "Make this letter" (Phase 5c): its record must hold entries copied from the public site, which a bare item has not.
+  if (parsed.data.kind === "video" || parsed.data.kind === "letter") failTo("/desk/items", new InvalidInputError(), "research");
   let itemId: string;
   try {
     itemId = (await createItem(await repo(), parsed.data)).item.id;

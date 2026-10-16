@@ -59,5 +59,7 @@ export function appEnv(stack: LocalStack): Record<string, string> {
     VOICE_NOTES: "on",
     // YouTube is faked at the port (src/lib/providers/fixture-video-meta.ts): no key is set and no request leaves this machine. Refused on Vercel.
     DISTRIBUTION_ADAPTER: "fixture",
+    // The sign-up notice names this address and the desk will not open sign-ups without it (review finding 5). A test address, never real.
+    LETTERS_GRIEVANCE_EMAIL: "grievance@example.test",
   };
 }

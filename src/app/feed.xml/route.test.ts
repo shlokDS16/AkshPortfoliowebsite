@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { derivedProblems } from "@/modules/showcase";
-import { buildRichSnapshot, buildSeedSnapshot } from "@/test/fakes/showcase-snapshot";
+import { buildRichSnapshot, buildSeedSnapshot, withLetter } from "@/test/fakes/showcase-snapshot";
 
 const state = vi.hoisted(() => ({ snapshot: null as unknown }));
 vi.mock("@/lib/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/lib/env")>()), publicEnv: () => ({ NEXT_PUBLIC_SITE_URL: "https://desk.example" }) }));
@@ -43,6 +43,16 @@ describe("GET /feed.xml", () => {
     const xml = await (await GET()).text();
     expect(xml).toContain("/cases/lc1-a-closed-idea#r1");
     expect(derivedProblems(xml)).toEqual([]);
+  });
+
+  it("carries a public letter as an entry with its subject, and carries none once it is unpublished (Plan 5c)", async () => {
+    state.snapshot = { status: "ok", data: withLetter(buildRichSnapshot()) };
+    const xml = await (await GET()).text();
+    expect(xml).toContain('<guid isPermaLink="false">/letters/l1-what-changed-this-fortnight#r1</guid>');
+    expect(xml).toContain("<title>What changed this fortnight</title>");
+    expect(derivedProblems(xml.replace(/<atom:link[^>]*>/, ""))).toEqual([]);
+    state.snapshot = { status: "ok", data: buildRichSnapshot() };
+    expect(await (await GET()).text()).not.toContain("/letters/");
   });
 
   it("with the snapshot unavailable answers 503 and tells a reader to keep its last copy and try in an hour", async () => {

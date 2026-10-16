@@ -12,8 +12,11 @@ const VALUATION_ENGINE_ENTRY = "!@/modules/valuation/engine";
 // distribution has one more: the pure renderers the public pages may import (Phase 5b). distribution.graph.test.ts and showcase/isolation.test.ts
 // prove that file reaches nothing server-side, and that the public side reaches nothing else of the module.
 const DISTRIBUTION_PUBLIC_ENTRY = "!@/modules/distribution/public";
+// ... and the reader's three doors (Phase 5c Task 14): a server-action file that reaches only the cookie-less client and lib/letters-form. The desk's
+// actions.ts is NOT for the public side; showcase/isolation.letters.test.ts forbids it there (it reaches the secret-key client).
+const DISTRIBUTION_PUBLIC_ACTIONS_ENTRY = "!@/modules/distribution/public-actions";
 const MODULE_ENTRY_POINTS = {
-  group: ["@/modules/*/*", "@/modules/*/*/**", "!@/modules/*/index", "!@/modules/*/actions", "!@/modules/*/client", ...OPS_ENTRY_POINTS, VALUATION_ENGINE_ENTRY, DISTRIBUTION_PUBLIC_ENTRY],
+  group: ["@/modules/*/*", "@/modules/*/*/**", "!@/modules/*/index", "!@/modules/*/actions", "!@/modules/*/client", ...OPS_ENTRY_POINTS, VALUATION_ENGINE_ENTRY, DISTRIBUTION_PUBLIC_ENTRY, DISTRIBUTION_PUBLIC_ACTIONS_ENTRY],
   message: "Import a module through its index, actions or client entry point only (spec s4).",
 };
 const NO_SECRET_CLIENT = {
@@ -23,6 +26,9 @@ const NO_SECRET_CLIENT = {
 // ADR-003: the publish gate's functions are service_role only; this one server-only file calls them after
 // requireAdmin(). gate.graph.test.ts proves only compliance/gate-service.ts imports it.
 const GATE_RPC_FILE = "src/modules/compliance/gate-rpc.ts";
+// Phase 5c: the letters' service_role doors (approve, cancel, issue a confirmation link) are called after requireAdmin() through this one server-only file;
+// distribution.graph.test.ts proves only distribution/actions.ts imports it.
+const SEND_RPC_FILE = "src/modules/distribution/send-rpc.ts";
 const restrict = (...patterns) => ({ "no-restricted-imports": ["error", { patterns }] });
 
 const eslintConfig = defineConfig([
@@ -32,10 +38,10 @@ const eslintConfig = defineConfig([
   { files: ["src/components/**/*.{ts,tsx}"], rules: restrict(NO_APP, MODULE_ENTRY_POINTS, NO_SECRET_CLIENT) },
   {
     files: ["src/modules/**/*.{ts,tsx}"],
-    ignores: ["src/modules/ops/**", GATE_RPC_FILE],
+    ignores: ["src/modules/ops/**", GATE_RPC_FILE, SEND_RPC_FILE],
     rules: restrict(NO_APP, MODULE_ENTRY_POINTS, NO_SECRET_CLIENT),
   },
-  { files: [GATE_RPC_FILE], rules: restrict(NO_APP, MODULE_ENTRY_POINTS) },
+  { files: [GATE_RPC_FILE, SEND_RPC_FILE], rules: restrict(NO_APP, MODULE_ENTRY_POINTS) },
   { files: ["src/modules/ops/**/*.{ts,tsx}"], rules: restrict(NO_APP, MODULE_ENTRY_POINTS) },
   {
     files: ["src/lib/**/*.{ts,tsx}"],

@@ -113,10 +113,18 @@ describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they im
     for (const [file, text] of reach) if (!GENERATED.test(file)) expect(text, file).not.toMatch(/\/desk\/models|valuation_(?:versions|cells|scenarios)/);
   });
 
-  it("no public route imports the service client or the server secrets", () => {
+  it("no public route imports the service client or the server secrets (the one exception: the sign-up form's ticket key, lib/letters-form.ts, Plan 5c)", () => {
     expect(names).not.toContain("lib/supabase/service.ts");
-    expect(names).not.toContain("lib/env.server.ts");
-    for (const [file, text] of reach) expect(text, file).not.toMatch(/supabase\/service|env\.server["']|SERVICE_ROLE|sb_secret/);
+    // env.server.ts is reached by two files and no other: lib/letters-form.ts, which reads CRON_SECRET to sign a render-time ticket, and
+    // lib/letters-config.ts, which answers two plain questions about the letters settings (isolation.letters.test.ts pins what each reads
+    // and that nothing else of the distribution module is reached).
+    expect(names.includes("lib/env.server.ts")).toBe(names.includes("lib/letters-form.ts"));
+    expect(names.includes("lib/letters-config.ts")).toBe(names.includes("lib/letters-form.ts"));
+    for (const [file, text] of reach) {
+      // letters-form.ts imports the env; env.server.ts declares every secret by name, so its own text is the other exception.
+      if (/\/lib\/(?:letters-form|letters-config|env\.server)\.ts$/.test(file.replaceAll("\\", "/"))) continue;
+      expect(text, file).not.toMatch(/supabase\/service|env\.server["']|SERVICE_ROLE|sb_secret/);
+    }
   });
 });
 
@@ -211,7 +219,8 @@ describe("Plan 4: public concept code never reaches the private learning graph",
 describe("Phase 5a: derived public surfaces stay inside the public boundary", () => {
   // compliance and catalog are reached through shared barrels today (the existing walkers above accept it and pin that no public file names the catalog).
   const DESK_ONLY = /^(?:modules\/(?:ledger|cases|valuation|knowledge|distribution|ops|identity|ingestion|documents)|components\/desk\/private)(?:\/|$)/;
-  const DISTRIBUTION_PUBLIC = /^modules\/distribution\/public(?:\.ts|\/)/;
+  // Plan 5c: the pure renderers and words (public.ts), the reader's three doors (public-actions.ts) and the two files of the letters folder that file reaches.
+  const DISTRIBUTION_PUBLIC = /^modules\/distribution\/(?:public(?:-actions)?\.ts|public\/|letters\/(?:signup|copy)\.ts)$/;
   const relative = (f: string) => f.slice(ROOT.length + 1).replaceAll("\\", "/");
   const builders = [
     "app/sitemap.ts", "app/robots.ts", "app/feed.xml/route.ts", "modules/showcase/seo.ts", "modules/showcase/feed.ts", "modules/showcase/derived-scan.ts",
@@ -241,9 +250,9 @@ describe("Phase 5a: derived public surfaces stay inside the public boundary", ()
     for (const [file, text] of reach) if (relative(file) !== "lib/env.server.ts") expect(text, relative(file)).not.toMatch(/supabase\/service|supabase\/server["']|SERVICE_ROLE|sb_secret/);
   });
 
-  it("only robots.ts reads the server env, and it takes one value: VERCEL_ENV", () => {
-    const readers = [...reach.entries()].filter(([, text]) => /env\.server["']/.test(text)).map(([f]) => relative(f));
-    expect(readers).toEqual(["app/robots.ts"]);
+  it("only robots.ts (VERCEL_ENV), the sign-up form's ticket (lib/letters-form.ts, CRON_SECRET) and the letters settings answers (lib/letters-config.ts) read the server env", () => {
+    const readers = [...reach.entries()].filter(([, text]) => /env\.server["']/.test(text)).map(([f]) => relative(f)).sort();
+    expect(readers).toEqual(["app/robots.ts", "lib/letters-config.ts", "lib/letters-form.ts"]);
     const robots = reach.get(join(ROOT, "app/robots.ts"))!;
     expect([...robots.matchAll(/serverEnv\(\)\.(\w+)/g)].map((m) => m[1])).toEqual(["VERCEL_ENV"]);
   });

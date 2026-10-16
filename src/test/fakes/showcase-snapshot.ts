@@ -124,3 +124,30 @@ export function withVideo(snapshot: PublicSnapshot, patch: Partial<PublicItemRow
   const video: PublicVideoRow = { itemId: id, youtubeId: VIDEO_ID, durationSeconds: 3725, publishedAt: "2026-09-24T08:30:00+00:00", ...row };
   return { ...snapshot, items: [...snapshot.items, item], revisions: [...snapshot.revisions, revision], videos: [...(snapshot.videos ?? []), video] };
 }
+
+/** Plan 5c: the entries of a fixture letter. Each names a revision of the seed (r1b: the Kaveri file, rn0: the first learning note) and copies its words. */
+export const LETTER_ENTRIES = [
+  {
+    revisionId: "r1b", kind: "file", path: "/companies/kavpump", revNo: 2, detail: "Revision R2 · 3 sentences changed · figures to 22 Aug 2026",
+    title: "Kaveri Pumps", learningObjective: "How to read a pump maker.", changeReason: "Moved the receivable days test.", holdsPosition: "no", companyName: "Kaveri Pumps",
+  },
+  {
+    revisionId: "rn0", kind: "learning", path: "/notes/how-to-read-receivable-days", revNo: 1, detail: "Learning note · R1",
+    title: "How to read receivable days", learningObjective: "Why days matter.", changeReason: "First version.", holdsPosition: null, companyName: null,
+  },
+] as const;
+
+/** Plan 5c: a published letter (no company, theme or data_as_of). `patch` changes the item; its revision follows. His note is the body. */
+export function withLetter(snapshot: PublicSnapshot, patch: Partial<PublicItemRow> = {}, changeReason: string | null = "First version."): PublicSnapshot {
+  const id = patch.id ?? "l1";
+  const revisionId = patch.revisionId ?? `${id}-rev`;
+  const structured = patch.structured ?? { schema: "letter/1", entries: LETTER_ENTRIES.map((e) => ({ ...e })) };
+  const publishedAt = patch.publishedAt ?? "2026-09-28T05:00:00Z";
+  const item: PublicItemRow = {
+    id, kind: "letter", slug: `${id}-what-changed-this-fortnight`, title: "What changed this fortnight", companyId: null, themeId: null, publishedAt, dataAsOf: null,
+    learningObjective: "Two pages changed and one test moved.", holdsPosition: null, revisionId, revNo: 1, bodyMd: "Two things this time.\n\nThe first line of the second paragraph\nand its second line.",
+    structured, revisedAt: publishedAt, fileNo: null, ...patch,
+  };
+  const revision: PublicRevisionRow = { id: revisionId, itemId: id, revNo: item.revNo, bodyMd: item.bodyMd, structured, changeReason, createdAt: item.revisedAt };
+  return { ...snapshot, items: [...snapshot.items, item], revisions: [...snapshot.revisions, revision] };
+}

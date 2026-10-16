@@ -5,6 +5,7 @@ import { istDate } from "@/lib/dates";
 import { isBuildPhase } from "@/lib/env";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { createSnapshotLoader } from "./loader";
+import { readLettersOpen } from "./letters-open";
 import { createSupabaseShowcaseRepo, loadSnapshot } from "./repo";
 import type { PublicSnapshot, VideoSegment } from "./types";
 import { transcriptKey } from "./videos";
@@ -43,3 +44,11 @@ export async function getVideoTranscript(s: PublicSnapshot, slug: string): Promi
   if (isBuildPhase()) return null;
   throw new Error("showcase: the stored transcript does not match the revision");
 }
+
+// Plan 5c: are sign-ups for the letters open? The same public tag as the snapshot (the desk's switch refreshes it), and a short life of its own:
+// five minutes at most between Aksh closing the door and the form going. Throws when the database cannot be read, so a wrong "closed" is never kept.
+export const getLettersOpen = unstable_cache(
+  async () => readLettersOpen(createSupabasePublicClient()),
+  ["showcase-letters-open-v1"],
+  { tags: [CACHE_TAGS.publicItems], revalidate: 300 },
+);

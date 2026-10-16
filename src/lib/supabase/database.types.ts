@@ -1355,6 +1355,135 @@ export type Database = {
         }
         Relationships: []
       }
+      letter_sends: {
+        Row: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          approved_at?: string
+          approved_by: string
+          broadcast_id?: string | null
+          claimed_at?: string | null
+          gate_decision_id: string
+          id?: string
+          item_id: string
+          kind: string
+          problem?: string | null
+          recipients_at_approval: number
+          recipients_sent?: number | null
+          revision_id: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string
+          broadcast_id?: string | null
+          claimed_at?: string | null
+          gate_decision_id?: string
+          id?: string
+          item_id?: string
+          kind?: string
+          problem?: string | null
+          recipients_at_approval?: number
+          recipients_sent?: number | null
+          revision_id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "letter_sends_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "letter_sends_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "letter_sends_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "public_video_transcripts"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_concept_links"
+            referencedColumns: ["revision_id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_item_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "letter_sends_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "public_items"
+            referencedColumns: ["revision_id"]
+          },
+        ]
+      }
+      letters_signup_events: {
+        Row: {
+          actor: string
+          at: string
+          id: string
+          signup_on: boolean
+        }
+        Insert: {
+          actor: string
+          at?: string
+          id?: string
+          signup_on: boolean
+        }
+        Update: {
+          actor?: string
+          at?: string
+          id?: string
+          signup_on?: boolean
+        }
+        Relationships: []
+      }
       lint_allowances: {
         Row: {
           created_at: string
@@ -1815,6 +1944,72 @@ export type Database = {
             referencedColumns: ["revision_id"]
           },
         ]
+      }
+      subscriber_events: {
+        Row: {
+          at: string
+          email_hmac: string
+          event: string
+          id: string
+          notice_version: string
+        }
+        Insert: {
+          at?: string
+          email_hmac: string
+          event: string
+          id?: string
+          notice_version: string
+        }
+        Update: {
+          at?: string
+          email_hmac?: string
+          event?: string
+          id?: string
+          notice_version?: string
+        }
+        Relationships: []
+      }
+      subscribers: {
+        Row: {
+          adult: boolean
+          confirm_expires_at: string | null
+          confirm_sent_at: string | null
+          confirm_token_hash: string | null
+          confirmed_at: string | null
+          email: string
+          id: string
+          notice_version: string
+          requested_at: string
+          sends_used: number
+          status: string
+        }
+        Insert: {
+          adult: boolean
+          confirm_expires_at?: string | null
+          confirm_sent_at?: string | null
+          confirm_token_hash?: string | null
+          confirmed_at?: string | null
+          email: string
+          id?: string
+          notice_version: string
+          requested_at?: string
+          sends_used?: number
+          status?: string
+        }
+        Update: {
+          adult?: boolean
+          confirm_expires_at?: string | null
+          confirm_sent_at?: string | null
+          confirm_token_hash?: string | null
+          confirmed_at?: string | null
+          email?: string
+          id?: string
+          notice_version?: string
+          requested_at?: string
+          sends_used?: number
+          status?: string
+        }
+        Relationships: []
       }
       themes: {
         Row: {
@@ -2401,6 +2596,61 @@ export type Database = {
           opened_at: string
         }[]
       }
+      approve_letter_send: {
+        Args: {
+          p_actor: string
+          p_item_id: string
+          p_kind: string
+          p_revision_id: string
+        }
+        Returns: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "letter_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cancel_letter_send: {
+        Args: { p_actor: string; p_id: string }
+        Returns: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "letter_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       capture_days: {
         Args: { p_days?: number }
         Returns: {
@@ -2462,13 +2712,75 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_letter_send: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "letter_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       confirm_valuation_version: {
         Args: { p_cells: Json; p_version_id: string }
         Returns: undefined
       }
+      confirmed_subscribers: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          email: string
+        }[]
+      }
       enter_closes: {
         Args: { p_index_close: number; p_rows: Json; p_trade_date: string }
         Returns: Record<string, unknown>
+      }
+      finish_letter_send: {
+        Args: {
+          p_broadcast_id: string
+          p_id: string
+          p_problem: string
+          p_recipients: number
+          p_status: string
+        }
+        Returns: {
+          approved_at: string
+          approved_by: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          gate_decision_id: string
+          id: string
+          item_id: string
+          kind: string
+          problem: string | null
+          recipients_at_approval: number
+          recipients_sent: number | null
+          revision_id: string
+          sent_at: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "letter_sends"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       heartbeat_ages: {
         Args: Record<PropertyKey, never>
@@ -2485,6 +2797,44 @@ export type Database = {
           holds_position: boolean
           ledger_ok: boolean
         }[]
+      }
+      letters_bin: {
+        Args: { p_actor: string; p_ids: string[] }
+        Returns: number
+      }
+      letters_confirm: { Args: { p_token: string }; Returns: boolean }
+      letters_confirmation_failed: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      letters_confirmation_live: {
+        Args: { p_email: string; p_id: string; p_sent_at: string }
+        Returns: boolean
+      }
+      letters_erase: {
+        Args: { p_actor: string; p_id: string }
+        Returns: number
+      }
+      letters_issue_confirmations: {
+        Args: { p_actor: string; p_ids: string[] }
+        Returns: {
+          email: string
+          id: string
+          sent_at: string
+          token: string
+        }[]
+      }
+      letters_leave: { Args: { p_email: string }; Returns: undefined }
+      letters_mark_left: { Args: { p_emails: string[] }; Returns: number }
+      letters_open: { Args: Record<PropertyKey, never>; Returns: boolean }
+      letters_purge: { Args: Record<PropertyKey, never>; Returns: number }
+      letters_request: {
+        Args: { p_adult: boolean; p_email: string; p_notice_version: string }
+        Returns: undefined
+      }
+      letters_send_live: {
+        Args: { p_broadcast_id: string; p_id: string; p_kind: string }
+        Returns: boolean
       }
       mark_market_day_shut: {
         Args: { p_trade_date: string }
@@ -2629,6 +2979,10 @@ export type Database = {
       }
       score_ideas: { Args: Record<PropertyKey, never>; Returns: number }
       seal_ledger_days: { Args: Record<PropertyKey, never>; Returns: number }
+      set_letters_signup: {
+        Args: { p_actor: string; p_on: boolean }
+        Returns: boolean
+      }
       start_valuation_version: {
         Args: { p_document_id: string }
         Returns: string

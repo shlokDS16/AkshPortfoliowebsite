@@ -49,8 +49,10 @@ select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
      and p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')'
-         not in ('heartbeat_ages()', 'capture_days(p_days integer)', 'queue_age()', 'public_fact_checks()')
-$$, 'anon can execute exactly queue_age, heartbeat_ages, capture_days and public_fact_checks');
+         not in ('heartbeat_ages()', 'capture_days(p_days integer)', 'queue_age()', 'public_fact_checks()',
+                 'letters_open()', 'letters_request(p_email text, p_notice_version text, p_adult boolean)',
+                 'letters_confirm(p_token text)', 'letters_leave(p_email text)')
+$$, 'anon can execute exactly queue_age, heartbeat_ages, capture_days, public_fact_checks and the four letters doors (0024)');
 
 -- 3. The cron job exists once with the right schedule and command.
 select is((select count(*)::integer from cron.job where jobname = 'desk-pump'), 1, 'exactly one cron job named desk-pump');

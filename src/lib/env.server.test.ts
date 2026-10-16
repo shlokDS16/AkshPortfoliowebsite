@@ -248,3 +248,27 @@ describe("parseServerEnv: video listing (Phase 5b; off while the YouTube setting
     }
   });
 });
+
+describe("parseServerEnv: letters (Phase 5c; off while the three settings are unset)", () => {
+  const SET = { RESEND_LETTERS_KEY: "re_lettersKEY_1234567890secretsecret", LETTERS_FROM: "Aksh Agrawal <letters@akshagrawal.example>", LETTERS_SEGMENT_ID: "78261eea-8f8b-4381-83c6-79fa7120f1cf" };
+
+  it("leaves letters off when the settings are unset or empty", () => {
+    const env = parseServerEnv({ ...valid, RESEND_LETTERS_KEY: "", LETTERS_FROM: "", LETTERS_SEGMENT_ID: "" });
+    expect([env.RESEND_LETTERS_KEY, env.LETTERS_FROM, env.LETTERS_SEGMENT_ID]).toEqual([undefined, undefined, undefined]);
+  });
+
+  it("reads the three settings trimmed; their shape is checked where letters are built, so a typo turns letters off, not the app", () => {
+    const env = parseServerEnv({ ...valid, RESEND_LETTERS_KEY: ` ${SET.RESEND_LETTERS_KEY} `, LETTERS_FROM: ` ${SET.LETTERS_FROM} `, LETTERS_SEGMENT_ID: ` ${SET.LETTERS_SEGMENT_ID} ` });
+    expect([env.RESEND_LETTERS_KEY, env.LETTERS_FROM, env.LETTERS_SEGMENT_ID]).toEqual([SET.RESEND_LETTERS_KEY, SET.LETTERS_FROM, SET.LETTERS_SEGMENT_ID]);
+    expect(parseServerEnv({ ...valid, RESEND_LETTERS_KEY: "not a key" }).RESEND_LETTERS_KEY).toBe("not a key");
+    expect(parseServerEnv({ ...valid, LETTERS_GRIEVANCE_EMAIL: "" }).LETTERS_GRIEVANCE_EMAIL).toBeUndefined();
+    expect(parseServerEnv(valid).LETTERS_GRIEVANCE_EMAIL).toBeUndefined();
+    expect(parseServerEnv({ ...valid, LETTERS_GRIEVANCE_EMAIL: " not an address " }).LETTERS_GRIEVANCE_EMAIL).toBe("not an address");
+  });
+
+  it("reads CI, NODE_ENV and VITEST, so letters can refuse a test or CI run", () => {
+    const env = parseServerEnv({ ...valid, CI: "1", NODE_ENV: "test", VITEST: "true" });
+    expect([env.CI, env.NODE_ENV, env.VITEST]).toEqual(["1", "test", "true"]);
+    expect(parseServerEnv({ ...valid, CI: "" }).CI).toBeUndefined();
+  });
+});

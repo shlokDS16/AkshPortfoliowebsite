@@ -82,8 +82,28 @@ const serverSchema = publicSchema.extend({
   YOUTUBE_CHANNEL_ID: optional(z.string().trim().regex(/^UC[A-Za-z0-9_-]{22}$/, "must be a YouTube channel id (UC followed by 22 characters)")),
   /** [DEV-ONLY] `fixture` for local e2e: no YouTube or email call is made. createVideoMetaPort refuses it on Vercel preview/production. */
   DISTRIBUTION_ADAPTER: optional(z.enum(["fixture"])),
-  /** Set by Vercel (development | preview | production); unset locally and in CI. */
+  // Letters (Phase 5c, spec s8.8 and s9). All three owner-set, or letters are off: nothing is sent and the sign-up form is not shown.
+  // Their SHAPE is checked where letters are built (src/lib/providers/resend-letters.ts), so a typo turns letters off, not the app.
+  /** A FULL-ACCESS Resend key (broadcasts and contacts need it), separate from RESEND_API_KEY, which can stay sending-only. */
+  RESEND_LETTERS_KEY: optional(z.string().trim()),
+  /** `Aksh Agrawal <letters@{verified domain}>`: an address on a domain verified at Resend, never resend.dev. */
+  LETTERS_FROM: optional(z.string().trim()),
+  /** The Resend segment the letters go to (Audiences are now Segments). */
+  LETTERS_SEGMENT_ID: optional(z.string().trim()),
+  /**
+   * The address a reader writes to with a question or a complaint about their data (named in the sign-up notice; DPDP grievance route).
+   * Owner-set. Unset, sign-ups cannot be opened and the form is not shown. Its SHAPE is checked in lib/letters-config.ts, so a typo
+   * turns sign-ups off, not the app.
+   */
+  LETTERS_GRIEVANCE_EMAIL: optional(z.string().trim()),
+  /** Set by Vercel (development | preview | production); unset locally and in CI. Letters send only when it is `production`. */
   VERCEL_ENV: optional(z.string().trim()),
+  /** Set by CI providers (and by Vercel at build time only). Letters never send while it is set. */
+  CI: optional(z.string().trim()),
+  /** Set by Next.js and vitest. Letters never send under `test`. */
+  NODE_ENV: optional(z.string().trim()),
+  /** Set by vitest. Letters never send while it is set. */
+  VITEST: optional(z.string().trim()),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;

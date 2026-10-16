@@ -127,9 +127,28 @@ export default defineConfig({
       dependencies: ["videos"],
       use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
     })),
+    // Plan 5c Task 15: the letters loop end to end (sign-up, the held confirmation press, a token link, two letters through the real gate, the
+    // Send dialog and its recorded approval, a stale second press, a reader who leaves). The ports are the fixture ones (DISTRIBUTION_ADAPTER=fixture
+    // in the web server's env, e2e/support/stack.ts), so nothing is emailed; the fixture's outbox is a file this process reads. It publishes two
+    // letters through the real gate, unpublishes the first and leaves the second (a sent letter) public with the sign-ups shut, so it runs after
+    // every project that expects the deploy state or checks the sitemap and the feed exactly (the videos-public ones included).
+    {
+      name: "letters",
+      testMatch: spec("letters"),
+      dependencies: ["anon", ...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop", "cases", "concepts", "videos", "cases-public-375", "cases-public-1280", "concepts-public-375", "concepts-public-1280", "videos-public-375", "videos-public-1280"],
+      use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
+    },
+    // The public letters pages once more, now that the loop above has left one sent letter on the archive: the published half of
+    // public-letters-published.spec.ts runs here and skips in the public-* projects.
+    ...(["375", "1280"] as const).map((w) => ({
+      name: `letters-public-${w}`,
+      testMatch: spec("public-letters-published"),
+      dependencies: ["letters"],
+      use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
+    })),
     // Signing out revokes every session of the admin (GoTrue's default scope), including the stored
-    // one the desk projects share, so this runs last and only after the desk, case, concept and video projects have finished.
-    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts", "videos"] },
+    // one the desk projects share, so this runs last and only after the desk, case, concept, video and letters projects have finished.
+    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts", "videos", "letters"] },
   ],
   webServer: {
     command: stack ? `pnpm build && pnpm start -p ${E2E_PORT}` : `pnpm start -p ${E2E_PORT}`,

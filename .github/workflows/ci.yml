@@ -48,13 +48,16 @@ jobs:
       - run: supabase db reset
       - run: supabase test db
 
-  # Every Playwright project (anon, setup, seed, public-*, desk-*, cases, cases-public-*, concepts, concepts-public-*, videos, videos-public-*, signout) against a LOCAL Supabase stack.
+  # Every Playwright project (anon, setup, seed, public-*, desk-*, cases, cases-public-*, concepts, concepts-public-*, videos, videos-public-*, letters, letters-public-*, signout) against a LOCAL Supabase stack.
   # No repository secrets and no hosted project: playwright.config.ts reads the local URL and keys
   # from `supabase status -o env`, refuses a non-local API URL, then builds and starts the app with
   # that explicit env (NEXT_PUBLIC_* are inlined at build time, so the build happens in the web server step).
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # 50, not 35 (Phase 5c review, finding 10): the full e2e took 28.4 min locally (T15), and that already includes the build; install,
+    # `supabase start` with no image cache, db reset and the browser add about 5 to 8 min on a runner. If a run passes 40 min, split it
+    # into two jobs with their own Supabase stack (--shard does not fit the ordered, stateful projects).
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

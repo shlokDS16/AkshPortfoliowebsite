@@ -687,3 +687,43 @@ Written with the video screens. Where this section and s7 disagree, this section
   no longer returns has every YouTube column cleared, not only marked gone (and gate 12.1 reports it as gone, not as another channel's). "Fetch
   again" is refused for a source fetched less than a minute ago (read from `fetched_at`, so every instance sees it). The response cap is 1 MB,
   not 512 KB, so a full batch of escaped descriptions fits.
+
+## Amendment 2026-10-16 (5c Task 14 as built)
+Written with the public letters pages. Where this section and s8.5 or s8.9 disagree, this section describes the build and gives the reason. Append only.
+
+- **(w) The archive page shows no "Sent to subscribers on {date}."** s8.9 and s15 ask for it on a sent letter. The Task 14 brief binds the public pages to never show
+  "a reader count, address or send data", and anon can read no `letter_sends` row (0024 grants it admin select only; the anon inventory grows by the four
+  functions and nothing else). The line stays in `LETTERS_COPY.sentLine` unused; showing it would need a new anon door and a new ruling.
+- **(x) The three public forms are plain forms with no script, and the answer is a redirect.** `app/(public)/letters/form-actions.ts` wraps the reader actions of
+  `public-actions.ts` and ends each post on an ordinary GET: `/letters?asked=1#subscribe`, `/letters/confirm?r=confirmed|expired`, `/letters/leave?r=left`. The
+  address a reader types and the token are never put in a URL; the confirm link carries only `?t=<token>`. The `useActionState` shape of the actions is kept (the
+  wrappers pass `{ status: "idle" }`), so a later client form needs no change to them.
+- **(y) An entry is shown only while its page is still public.** The letter keeps the words it copied when it passed the gate. The archive page, though, is a
+  derived surface (rule 11.5): an entry whose revision has left the snapshot (unpublished since), whose video is no longer listed, or whose dated page is not past
+  the 30-day lag is left out, and a letter with no entry left is not listed (no page, feed line, sitemap line or card). The email already sent is not recalled
+  (s10).
+- **(z) `/letters` is rendered per request.** The sign-up form carries `issueFormTicket()` (made at render, refused if under 3 s old), so the page is
+  `force-dynamic`; the snapshot and the switch it reads stay cached. `letters_open()` is read through `getLettersOpen` (the snapshot's tag, 300 s) and
+  `setSignupAction` now calls `updateTag` and revalidates `/letters`, so a closed door is closed at once.
+- **(aa) The public side now reaches `lib/env.server.ts` through one file.** `lib/letters-form.ts` reads `CRON_SECRET` to sign and check the ticket. The isolation
+  tests allow exactly that one reader (besides `robots.ts`), allow exactly four files of the distribution module (`public.ts`, `public-actions.ts`,
+  `letters/signup.ts`, `letters/copy.ts`), forbid `distribution/actions.ts`, `send-rpc.ts` and the module index, and pin the four anon functions as the only letters
+  doors public code names (`showcase/isolation.letters.test.ts`).
+- **(ab) Navigation.** The rail gains "Letters" only once a letter is public (`counts.letters` absent before, as for videos); there is no phone tab. A sign-up page
+  with no letter yet is reached by its address. "What changed" on the home page does not list letters (it lists pages); the feed does.
+- **(ac) Words.** `public.ts` gains the page words (`archiveTitle`, `archiveIntro`, `signupTitle`, `honeypotLabel`, `allLetters`, `stopLink`, `whatChanged`,
+  `confirmIntro`, `leaveIntro`, `published`) and the entry labels (`LETTER_KIND_LABEL`, `LETTER_POSITION_*`), which the email's `copy.ts` now re-exports, so the
+  email and the archive cannot drift. All pending Shlok's approval.
+
+## Amendment 2026-10-16 (5c fix wave after the review)
+Written with the fix wave of `.superpowers/sdd/2026-10-16-phase-5c-ledger/review.md`. Where this section and s8.4 to s8.9 disagree, this section describes the build. Append only.
+
+- **(ad) A send is never failed while its broadcast may have gone out (s8.6).** `deliverLetter` reads the broadcast first when the row has a broadcast id: `scheduled`, `queued` or `sent` is recorded `sent` (with the readers counted at approval) before the letter is even loaded; a read that fails, or a status it does not know, leaves the row `sending`. A failure after the id is known (a 4xx, the letter unpublished, a day of Resend outage) re-reads the broadcast and fails the row only when it is `draft` or `canceled`. In SQL (migration 0025, not yet on hosted, edited in place): `approve_letter_send` refuses a new subscribers approval once any earlier send of that letter has a broadcast id (55000, "A broadcast was already made for this letter. Check it in Resend; to send again, make a new letter."), and rule 13.4 and the 0024 freeze trigger count a `failed` send with a broadcast id as possibly sent.
+- **(ae) Rule 13.1 refuses the desk's label.** A subject that matches `^\s*Untitled letter(?:, .*)?\s*$` fails the gate with "Replace the label with your own subject." (the same pattern as `subject.ts`; a test keeps them equal). The desk still explains it earlier and keeps Send off.
+- **(af) `letter_sends.gate_decision_id` is checked by a BEFORE INSERT trigger** (`private.check_letter_send_decision`): it must be a pass decision of the same item and revision (23503). Still no foreign key, so the TRUNCATE guard of `gate_decisions` answers with its own error.
+- **(ag) The typed leave is logged apart.** `letters_leave` records the event `left_form`; the reconcile's `letters_mark_left` keeps `left`. The readers page shows "Stopped on this page today: {n}" (typed leaves since midnight India time) when n is above 0. The leave stays one typed step without the ticket (a fast autofilled withdrawal must not be dropped). The form's ticket and honeypot are a speed bump for scripts, not a control: the SQL caps are.
+- **(ah) The ticket key is derived.** The sign-up ticket is signed with an HKDF-SHA256 key derived from `CRON_SECRET` with the label `aksh-desk/letters-form-v1`, never with `CRON_SECRET` itself; no new setting. Rotating `CRON_SECRET` voids open forms.
+- **(ai) The public sign-up form needs three things at render time:** the switch on, email set up in this environment (`lettersMode` is now the pure `lib/providers/letters-mode.ts`, so the public page reaches no adapter), and `LETTERS_GRIEVANCE_EMAIL` set. The notice (`lettersNotice(contact)`) now says what is kept (the address and the dates asked and confirmed), that the address is deleted within a day of stopping with a one-way code kept as the record of consent, who to write to, and the Data Protection Board of India. The desk refuses to open sign-ups while `LETTERS_GRIEVANCE_EMAIL` is unset (`letter-signup-contact`). Notice version `letters-2026-10-v1` is edited in place because 0024 has not reached hosted. `lib/letters-config.ts` is the third public reader of the server env (isolation test updated).
+- **(aj) The letters fixture needs a database on this machine** (`lettersMode`: `DISTRIBUTION_ADAPTER=fixture` with any other `NEXT_PUBLIC_SUPABASE_URL` is off, reason `fixture_refused`).
+- **(ak) The unit outbound guard is a loopback allowlist** (`src/test/outbound-hosts.ts`, `installNoOutbound`); every test of it uses a spy as the real fetch.
+- **(al) The readers page** also says when 300 requests are waiting (new requests are dropped until some are sent or binned; `WAITING_CAP` is tied to the SQL by a test), and when sign-ups are open but email or the contact is not set.

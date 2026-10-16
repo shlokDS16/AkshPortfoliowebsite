@@ -173,3 +173,12 @@ in `claude/`. End-of-session routine runs before any session finishes.
 - The review caught caption-parsing regexes that took minutes on a hostile 1 MB file, YouTube data that could outlive YouTube's 30-day storage limit, and e2e runs that reached i.ytimg.com; all fixed, and an e2e guard now fails any test that touches an outside host.
 - A laptop restart cut Task 9 short; the work was recovered from a checkpoint commit and finished.
 - Evidence at 769fb3a: unit 5911, pgTAP 2435, full e2e 463 passed, 0 failed.
+
+## 2026-10-16 (evening) - 5c Task 11: letters adapter and no-send guards
+- Resend letters transport (shared HTTP with the alert mailer), a guard that sends nothing without a live approval row read from SQL, a fixture, env names; nothing sent (report docs/plans/2026-10-16-phase-5c-T11-report.md).
+
+## 2026-10-16 (evening) - Phase 5c letters built and reviewed (not yet released; nothing can send until a domain is verified)
+- The only part that can email real people: every send needs Aksh's press and an approval row for exactly that send; the adapter refuses without a key, a verified domain and a non-test environment. Readers' addresses are kept behind four narrow database doors.
+- The review caught a retry path that could email every reader twice; fixed. A test guard broke during the build and let a few unauthenticated GETs reach Resend and Google API hosts (nothing sent); the guard was rebuilt as a loopback allowlist.
+- Sign-ups stay closed until Shlok chooses the grievance contact (Q41).
+- Evidence at 93bee5c: unit 6458, pgTAP 2659, full e2e 529 passed, 0 failed.

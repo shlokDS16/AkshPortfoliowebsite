@@ -20,6 +20,8 @@ const SITE: { id: RailCurrent; label: string; href: string; count?: keyof SiteCo
   { id: "process", label: "Process", href: "/process", count: "process" },
   // Plan 5b: only once a video is listed (`counts.videos` is absent before), so the deploy state shows no link to a page that 404s.
   { id: "videos", label: "Videos", href: "/videos", count: "videos" },
+  // Plan 5c: the same, for the archive of letters (shown once one is public; a sign-up page alone is reached by its address).
+  { id: "letters", label: "Letters", href: "/letters", count: "letters" },
   // No number beside Mistakes: it lists his own calls, and a bare count would read as a tally (addendum s6).
   { id: "mistakes", label: "Mistakes", href: "/mistakes" },
   { id: "about", label: "About and disclosures", href: "/about" },
@@ -33,7 +35,7 @@ export function DeskRail({ current, counts, streak, file }: Props) {
       className="sticky top-(--top-bar-h) hidden max-h-[calc(100dvh-var(--top-bar-h))] w-(--rail-w) shrink-0 overflow-y-auto border-r border-rule py-6 pr-4 desk:block print:hidden"
     >
       <ul className="space-y-1 text-small desk:text-small-desk">
-        {SITE.filter((s) => s.id !== "videos" || (counts.videos ?? 0) > 0).map((s) => (
+        {SITE.filter((s) => !(s.count === "videos" || s.count === "letters") || (counts[s.count] ?? 0) > 0).map((s) => (
           <li key={s.id}>
             <Link
               href={s.href}

@@ -3,8 +3,10 @@ import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // Phase 5 global constraints and spec s9.3: the distribution module holds no LLM, OCR or transcriber port, no secret-key client and no
-// secret; only the YouTube adapter names googleapis.com and it has no method but GET; nothing here reads the ledger or the valuations; and
-// the one file the public side may import (public.ts) reaches nothing server-side.
+// secret (the one exception is send-rpc.ts, which hands the secret-key client to the letters' doors for the desk's actions and is imported
+// by actions.ts alone); only the YouTube adapter names googleapis.com and it has no method but GET; nothing here reads the ledger or the
+// valuations; the letters' broadcast and contact calls are made from one place each; and the one file the public side may import
+// (public.ts) reaches nothing server-side.
 const SRC = resolve(__dirname, "../..");
 const MODULE = __dirname;
 
@@ -53,10 +55,16 @@ describe("the distribution module's boundaries", () => {
     }
   });
 
-  it("imports no secret-key client, reads no secret and no process.env", () => {
+  it("imports no secret-key client, reads no secret and no process.env (send-rpc.ts alone holds the client)", () => {
     for (const [file, source] of sources) {
-      expect(source, rel(file)).not.toMatch(/supabase\/service|env\.server|SUPABASE_SECRET_KEY|CRON_SECRET|YOUTUBE_API_KEY|process\.env/);
+      const pattern = rel(file) === "send-rpc.ts" ? /env\.server|SUPABASE_SECRET_KEY|CRON_SECRET|YOUTUBE_API_KEY|process\.env/ : /supabase\/service|env\.server|SUPABASE_SECRET_KEY|CRON_SECRET|YOUTUBE_API_KEY|process\.env/;
+      expect(source, rel(file)).not.toMatch(pattern);
     }
+  });
+
+  it("send-rpc.ts holds the secret-key client, and only actions.ts imports it", () => {
+    expect(sources.find(([f]) => rel(f) === "send-rpc.ts")?.[1]).toMatch(/supabase\/service/);
+    expect(sources.filter(([, s]) => /from "(?:\.\/|\.\.\/)+send-rpc"/.test(s)).map(([f]) => rel(f))).toEqual(["actions.ts"]);
   });
 
   it("does not import the ledger or the valuations", () => {
@@ -70,11 +78,55 @@ describe("the distribution module's boundaries", () => {
     expect(sources.filter(([, s]) => /@\/modules\/ops/.test(s)).map(([f]) => rel(f))).toEqual(["actions.ts"]);
   });
 
-  it("nothing it can reach at run time is the service client or the server env (the ops job entry is opaque: it is job code)", () => {
-    const entries = files.filter((f) => rel(f) !== "actions.ts");
-    const paths = [...reachable(entries).keys()].map((p) => p.replaceAll("\\", "/"));
-    expect(paths.some((p) => p.endsWith("lib/supabase/service.ts"))).toBe(false);
-    expect(paths.some((p) => p.endsWith("lib/env.server.ts"))).toBe(false);
+  it("nothing it can reach at run time is the service client or the server env, except through actions.ts and send-rpc.ts (the ops job entry is opaque: it is job code); public-actions.ts reaches the server env for the form ticket's key and nothing else", () => {
+    const paths = (excluded: string[]) => [...reachable(files.filter((f) => !excluded.includes(rel(f)))).keys()].map((p) => p.replaceAll("\\", "/"));
+    expect(paths(["actions.ts", "send-rpc.ts"]).some((p) => p.endsWith("lib/supabase/service.ts"))).toBe(false);
+    expect(paths(["actions.ts", "send-rpc.ts", "public-actions.ts"]).some((p) => p.endsWith("lib/env.server.ts"))).toBe(false);
+  });
+
+  it("the reader's actions (public-actions.ts) reach no admin session, no job code and no secret-key client", () => {
+    const paths = [...reachable([join(MODULE, "public-actions.ts")]).keys()].map((p) => p.replaceAll("\\", "/"));
+    expect(paths.some((p) => /lib\/supabase\/(?:service|server)\.ts$|modules\/identity|modules\/ops/.test(p))).toBe(false);
+    expect(paths.some((p) => p.endsWith("lib/letters-form.ts"))).toBe(true);
+  });
+});
+
+describe("the letters send only through deliverLetter, and only up to the approval guard", () => {
+  const srcFiles = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) return entry.name === "node_modules" || entry.name === "test" ? [] : srcFiles(path);
+      return /\.(?:ts|tsx|mts|mjs)$/.test(entry.name) && !isTest(entry.name) && !/database\.types\.ts$/.test(entry.name) ? [path] : [];
+    });
+  const callers = (pattern: RegExp) =>
+    srcFiles(SRC)
+      .filter((f) => pattern.test(strip(readFileSync(f, "utf8"))))
+      .map((f) => f.slice(SRC.length + 1).replaceAll("\\", "/"))
+      .sort();
+
+  it("a broadcast is created and sent from one place of the app (deliverLetter), behind the approval guard that wraps the transport", () => {
+    expect(callers(/\.sendBroadcast\(/)).toEqual(["lib/providers/letters-guard.ts", "modules/distribution/letters/deliver.ts"]);
+    expect(callers(/\.createBroadcast\(/)).toEqual(["lib/providers/letters-guard.ts", "modules/distribution/letters/deliver.ts"]);
+  });
+
+  it("a test copy and a confirmation are each sent from one place", () => {
+    expect(callers(/\.sendSelfTest\(/)).toEqual(["modules/distribution/letters/deliver.ts"]);
+    expect(callers(/\.sendConfirmation\(/)).toEqual(["modules/distribution/letters/readers.ts"]);
+    expect(callers(/\.sendOne\(/)).toEqual(["lib/providers/letters-guard.ts"]);
+  });
+
+  it("the contact calls (add, delete, list) are made from the reconcile alone", () => {
+    expect(callers(/\.(?:upsertContact|deleteContact|listContacts)\(/)).toEqual(["lib/providers/letters-guard.ts", "modules/distribution/letters/readers.ts"]);
+  });
+
+  it("the letters ports are built only by the factory and job code (an action never builds one)", () => {
+    expect(callers(/createLetterPorts\(/)).toEqual(["lib/providers/index.ts", "modules/ops/letter-steps.ts"]);
+  });
+
+  it("nothing in the letters module names Resend's host or the letters settings", () => {
+    for (const [file, source] of sources) {
+      expect(source, rel(file)).not.toMatch(/api\.resend\.com|RESEND_LETTERS_KEY|LETTERS_FROM|LETTERS_SEGMENT_ID/);
+    }
   });
 });
 
