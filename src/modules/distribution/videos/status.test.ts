@@ -75,6 +75,13 @@ describe("the status line", () => {
     expect(videoStatus(facts({ off: true, source: null }))).toMatchObject({ code: "off", line: "Video listing is not set up yet (Shlok adds a YouTube key).", tone: "muted" });
   });
 
+  it("a listed video is still said to be listed, or gone, while video listing is off (the key was removed)", () => {
+    expect(videoStatus(facts({ off: true, listed: true }))).toMatchObject({ code: "listed" });
+    expect(videoStatus(facts({ off: true, listed: true, source: { ...facts().source!, privacy: "gone" } }))).toMatchObject({ code: "gone", tone: "bad" });
+    expect(videoStatus(facts({ off: true, listed: true, source: null }))).toMatchObject({ code: "listed" });
+    expect(videoStatus(facts({ off: true, listed: false }))).toMatchObject({ code: "off" });
+  });
+
   it("waiting for YouTube until the first fetch has answered", () => {
     const s = facts({ source: { ...facts().source!, fetchedAt: null } });
     expect(videoStatus(s)).toMatchObject({ code: "waiting", line: "Waiting for YouTube", tone: "muted" });

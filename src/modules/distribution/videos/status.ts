@@ -89,16 +89,17 @@ const status = (code: VideoStatus["code"], tone: VideoStatus["tone"], line: stri
 
 /** The one line of the list and the sentence on the page, from the machine's facts. Never changes anything. */
 export function videoStatus(f: VideoFacts): VideoStatus {
-  if (f.off) return status("off", "muted", OFF_LINE);
   const s = f.source;
-  if (!s || s.fetchedAt === null) return status("waiting", "muted", "Waiting for YouTube");
-  if (s.privacy === "gone" && f.listed) return status("gone", "bad", "This video is no longer on YouTube. Unpublish it here.");
+  // A listed video says so (and says when it is gone) whether or not the key is still set: the page is public either way.
+  if (f.listed && s?.privacy === "gone") return status("gone", "bad", "This video is no longer on YouTube. Unpublish it here.");
   if (f.listed) {
     if (f.companyNamed && f.dataAsOf !== null && !isPastLag(f.dataAsOf, f.today)) {
       return status("lagged", "ok", `Passed the gate. Listed from ${formatDate(addDays(f.dataAsOf, PUBLICATION_LAG_DAYS))}`);
     }
-    return status("listed", "ok", "Listed", s.privacy === "public" ? "Listed on the site." : "Listed on the site. You can now make it Public on YouTube.");
+    return status("listed", "ok", "Listed", s?.privacy === "public" ? "Listed on the site." : "Listed on the site. You can now make it Public on YouTube.");
   }
+  if (f.off) return status("off", "muted", OFF_LINE);
+  if (!s || s.fetchedAt === null) return status("waiting", "muted", "Waiting for YouTube");
   if (s.privacy === "public") return status("public-on-youtube", "warn", "Public on YouTube but not listed here", "This video is Public on YouTube but not listed here. Check it before sharing.");
   const first = videoChecks(f).find((c) => c.state === "fail");
   return status("not-listed", "muted", first ? `Not listed: ${first.detail}` : "Not listed: run the publishing gate.");
