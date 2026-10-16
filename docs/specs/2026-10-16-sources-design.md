@@ -91,8 +91,8 @@ cannot be public (Q54).
   public revision of a public `thesis` or non-ledger `case_study` item: `item_id, position, kind, url, saved_on` (IST date of
   `created_at`), `note` (the entry's note, his public words), and, only when the entry has `show = true` and its `metaSha`
   equals the link's current `meta_sha`: `title, site_name, channel_url, thumb_path, thumb_sha256`; else those are null. A row
-  appears only when the link is not `gone` and the IST date of `meta_since` (or of `created_at` when there is no meta) is at least
-  30 days before today (rule 14.4). Never: `note` of the link, `id`, `youtube_id`, `fetch_problem`, company or concept rows.
+  appears as soon as the revision is public and the link is not `gone`; there is no 30-day hold (Shlok's ruling, 2026-10-16,
+  amendment below). Never: `note` of the link, `id`, `youtube_id`, `fetch_problem`, company or concept rows.
 - Anon grant inventory: exactly `public_studied` (select) and the column grants it needs.
 
 ## 5. The revision entry and the gate (migration `20261019000027_sources_gate.sql`, rule 14)
@@ -108,10 +108,12 @@ cannot be public (Q54).
   - 14.3 `show = true` needs `metaSha` equal to the link's current `meta_sha` ("YouTube or the page changed since you chose it.
     Save the sources again.") and `metaSha` present in `p_lint -> 'studied'` (the lint read exactly that title); `show = false`
     needs `metaSha` null.
-- The lag (14.4) is applied by the view, not refused by the gate: a fresh source on an old file publishes and appears on its 30th
-  day, so adding a link never hides a file.
+- No display hold (14.4, Shlok's ruling 2026-10-16): a source shows from the moment its revision passes the gate. Rule 3 is
+  kept by the lint instead (next point).
 - Lint (TypeScript): new fields `outsideTitle`, `outsideSite` (when `show`) and `outsideLink` (always: host and path, hyphens and
-  slashes read as spaces), rules 1 and 2 only (a rule 1 allowance applies as usual); entry machine keys are skipped by the
+  slashes read as spaces), rules 1 and 2 (a rule 1 allowance applies as usual) and the rule 3 figure patterns: a price, return
+  or valuation figure in a third-party title, name or link is refused whatever the file's "Figures to" date (its own date is
+  unknown and may be today), never allowanceable; untick "Show its title and picture" to publish the link alone; entry machine keys are skipped by the
   structured walk; his entry `note` is linted as structured text like the body (all rules). The lint result gains `studied:
   string[]`, the `metaSha` of each entry whose texts it read. `compliance/repo.ts` loads the texts only for links whose current
   `meta_sha` equals the entry's.
@@ -160,7 +162,7 @@ the `html-text.ts` approach) reads the two tags.
   sources newest first, filterable by company, concept and "on a public file". Each card: thumbnail (through the desk route
   `/desk/sources/[id]/thumb`, admin session), the machine block in the machine face labelled "From YouTube, read {date}" or
   "From the page, read {date}" (title, channel or site), his note (editable), company and concept chips (editable), status
-  ("Reading the link", a problem sentence, "Private", "On the public file", "On the public file from {date}"), Archive.
+  ("Reading the link", a problem sentence, "Private", "On the public file"), Archive.
 - File page (`/desk/items/[id]`, `thesis` and non-ledger `case_study`): panel "Outside sources" listing the company's sources,
   each with "Show on the public file", "Show its title and picture" (default on), and "What readers see from me" (prefilled from
   his note on his press). One button "Save as a new revision" (his change reason optional, never written by the machine), then
@@ -206,7 +208,7 @@ migration or env value changes.
 ## 10. Testing (nothing reaches the network)
 - **pgTAP** (`0026_sources.test.sql`, `0027_sources_gate.test.sql`): constraints, url_key uniqueness, guard trigger, no delete,
   archive refused while public, SQL-computed `meta_sha` and `meta_since`, purge, grants (anon exactly `public_studied` +
-  columns), storage policy (anon reads only a shown picture), the view (current revision only, lag, `show` and hash masking,
+  columns), storage policy (anon reads only a shown picture), the view (current revision only, shown at once on a pass, `show` and hash masking,
   `gone`), each 14.x failure and the pass, policy v1.3, every existing gate test unchanged but the policy string.
 - **Unit:** url_key per shape; capture `s:`; `readPageMeta` (entities, og vs title, hostile long input is linear); adapters with
   `safe-fetch-fakes.ts` resolvers and transports only (never `httpsTransport` or `systemResolver`; a graph test); `prefixOnly`;
@@ -233,7 +235,7 @@ migration or env value changes.
 | D98 | Public sources are entries in the file revision, not an item kind | One revision per change; concept-only sources stay private |
 | D99 | Policy v1.3, rule 14 in SQL; `publish_revision` restated only for the constant | Publishes refused between the hosted push and the merge (as 3b, 5b) |
 | D100 | Third-party titles, site names and links are linted (rules 1, 2), allowanceable for rule 1; untick shows the plain card | Some clickbait titles need an untick or an allowance |
-| D101 | 30-day lag per entry by the date its data was read, in the view | A fresh link shows a month later |
+| D101 | Shown as soon as the gate passes, no 30-day hold (Shlok's ruling 2026-10-16); a figure in a third-party title, name or link is refused (rule 3) | A title with a price needs an untick |
 | D102 | Up to 5 companies and 8 concepts per source; 12 entries per file revision | A thirteenth needs a choice |
 | D103 | Private bucket + our media route | One route to maintain |
 | D104 | Monthly YouTube re-check and 30-day purge | About 40 server reads a day |
@@ -249,11 +251,19 @@ migration or env value changes.
 
 ## 13. Copy (rendered, not typed; every string pending Shlok's approval)
 All strings in s6.1, s6.2, s6.4, s6.5 and s7 as quoted, plus: checklist lines "Outside sources match what you chose (rule 14)."
-and "Outside titles and links pass the wording check."; status "On the public file from {date} (30 days after it was read)."
+and "Outside titles and links pass the wording check."
 
 ## Why this impresses an allocator
 A research file that lists the other people's work its author studied, each with his own one-line judgement, answers the first
 question an AMC head asks of any analyst: where did this view come from, and did he read the other side? It shows reading breadth,
 citation discipline and the habit of disagreeing in writing, in the format a CIO already trusts in sell-side notes. It is
-"linked, not endorsed": every title passes the same wording check as his own words, nothing shows until it is a month old, and
+"linked, not endorsed": every title passes the same wording check as his own words, no third-party title may carry a price or return, and
 opening the page tells no third party who is reading. That care is visible to a professional reader and is rare on personal sites.
+
+## Amendment 2026-10-16 (Shlok's ruling: no 30-day hold)
+Shlok chose that a published source appears as soon as the gate passes. Removed: the view's 30-day condition (s4), the
+"On the public file from {date}" status (s6.5, s13), the lag tests and the aged-source e2e step. Kept: the wording checks on
+third-party titles, names, links and his note; the YouTube re-check every 25 days and purge at 30 (a storage rule, not a display
+delay). Added to keep rule 3 without the hold: the rule 3 figure patterns run on third-party titles, names and links and refuse
+any price, return or valuation figure in them, not allowanceable (s5). `meta_since` stays (it records when the shown data was
+first read; the desk prints it as "read {date}").

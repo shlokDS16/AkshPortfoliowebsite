@@ -9,7 +9,7 @@ v1.1 and v1.2 addenda are unchanged; where they and this addendum differ for an 
 ## Why
 A link to someone else's video, article or newsletter issue on a page about a named company can read as an endorsement of what
 that work says, and a third-party title can carry exactly the words rule 1 forbids ("5 stocks to buy now"). Its date can also
-reveal current interest in a security. Rule 8 already makes every public word subject to the lint; rule 14 says how that applies to
+reveal current interest in a security (accepted by Shlok's ruling of 2026-10-16; see 14.4). Rule 8 already makes every public word subject to the lint; rule 14 says how that applies to
 text the machine read from another site.
 
 ## Rule 14: outside sources (entries `structured.studied` on a company file)
@@ -21,9 +21,10 @@ at once and refused at the next publish).
 ticked "Show its title and picture" and they have not changed since (an SQL hash); otherwise the card shows only the kind of
 source and its host. The link, and the title and name when shown, are linted for rules 1 and 2; a rule 1 sentence allowance
 applies as usual; a rule 2 hit keeps the title off (untick) or the source off.
-14.4 30-day lag: an entry is shown only from 30 India calendar days after the date the machine read the data it shows (or saved
-the link, when nothing was read). This is rule 3 applied to third-party text whose own date is unknown. The gate does not refuse a
-fresh source; the public view withholds it.
+14.4 No display hold (Shlok's ruling, 2026-10-16): an entry is shown as soon as its revision passes the gate. Rule 3 is kept by the
+lint instead: a price, return or valuation figure in a third-party title, name or link is refused whatever the file's "Figures to"
+date, because that text's own date is unknown and may be today; it is never allowanceable, and unticking "Show its title and
+picture" publishes the link alone. The YouTube re-check every 25 days and purge at 30 are a storage rule, not a display delay.
 14.5 His note on the entry is his own words in the revision and is linted under every rule, as his body is. Rule 4 and the
 position check already apply because the file names the company.
 14.6 Machine text is never copied into his fields and his note is never re-worded. No article text, no page images, no LLM.
