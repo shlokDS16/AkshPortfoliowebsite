@@ -20,6 +20,8 @@ vi.mock("@/modules/knowledge", () => ({
   monthPage: (...a: unknown[]) => monthPage(...a),
   screenedConceptRefs: async () => [],
 }));
+const listSources = vi.fn(async (..._args: unknown[]) => [] as unknown[]);
+vi.mock("@/modules/sources", () => ({ createSupabaseSourcesRepo: () => ({}), listSources: (...a: unknown[]) => listSources(...a) }));
 vi.mock("@/modules/knowledge/actions", () => ({
   linkConceptsAction: vi.fn(),
   unlinkConceptsAction: vi.fn(),
@@ -64,6 +66,26 @@ describe("/desk/concepts/[slug]", () => {
     expect(html).toContain("Moats");
     expect(html).toContain("Make public");
     expect(html).toContain("Linked.");
+    expect(html).not.toContain("Sources");
+  });
+
+  it("lists the sources attached to the concept, asking for the id of this concept", async () => {
+    conceptPage.mockResolvedValueOnce({ concept: { id: "c1", slug: "moats", name: "Moats", status: "private", descriptionMd: null }, groups: [], related: [], suggestions: [] });
+    listSources.mockResolvedValueOnce([
+      { id: "s1", url: "https://youtu.be/abcdefghijk", kind: "youtube", title: "A talk on moats", siteName: "Some Channel", createdAt: "2026-10-03T05:00:00Z", note: "private words" },
+    ]);
+    const html = renderToStaticMarkup(await ConceptRoute({ params: Promise.resolve({ slug: "moats" }), searchParams: none }));
+    expect(listSources.mock.calls.at(-1)?.[1]).toEqual({ themeId: "c1" });
+    expect(html).toContain("A talk on moats");
+    expect(html).toContain("/desk/sources?concept=moats");
+    expect(html).not.toContain("private words");
+  });
+
+  it("still renders the concept when the sources cannot be read", async () => {
+    conceptPage.mockResolvedValueOnce({ concept: { id: "c1", slug: "moats", name: "Moats", status: "private", descriptionMd: null }, groups: [], related: [], suggestions: [] });
+    listSources.mockRejectedValueOnce(new Error("boom"));
+    const html = renderToStaticMarkup(await ConceptRoute({ params: Promise.resolve({ slug: "moats" }), searchParams: none }));
+    expect(html).toContain("Moats");
   });
 });
 

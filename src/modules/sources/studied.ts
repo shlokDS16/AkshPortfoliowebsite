@@ -3,6 +3,7 @@ import { isRecord } from "@/lib/records";
 import { isLedgerCase } from "@/modules/casefile/client";
 import { SourceError } from "./errors";
 import type { SourcesRepo } from "./repo";
+import { MAX_STUDIED, STUDIED_NOTE_MAX } from "./types";
 
 // What a company file's revision says about the outside sources it shows (spec s5, rule 14). `structured.studied` is a list of at most 12
 // entries, each exactly { link, show, metaSha, note }: `link`, `show` and `metaSha` are the machine's keys, `note` is his public words for
@@ -10,8 +11,7 @@ import type { SourcesRepo } from "./repo";
 // from the form: the hash is what ties "he chose to show this title" to the exact words the lint read.
 
 export const STUDIED_KEY = "studied";
-export const MAX_STUDIED = 12;
-export const STUDIED_NOTE_MAX = 500;
+export { MAX_STUDIED, STUDIED_NOTE_MAX };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const HEX64 = /^[0-9a-f]{64}$/;

@@ -19,3 +19,4 @@ export {
 } from "./fetch";
 export { buildStudiedCards, studiedByItem, type PublicStudiedRow, type StudiedCard } from "./public";
 export { deskThumbnail } from "./thumb";
+export { loadPanel, type PanelProblem, type PanelRow } from "./panel";

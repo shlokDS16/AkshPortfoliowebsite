@@ -9,6 +9,9 @@ export const MAX_SOURCE_COMPANIES = 5;
 export const MAX_SOURCE_CONCEPTS = 8;
 /** His private note on a link (source_links.note check). */
 export const NOTE_MAX = 4000;
+/** A company file lists at most this many outside sources, each with at most this many characters of his words for readers (rule 14.1). */
+export const MAX_STUDIED = 12;
+export const STUDIED_NOTE_MAX = 500;
 /** A link is read at most this many times when it keeps failing for a reason that may pass (timeout, unavailable). */
 export const MAX_READ_ATTEMPTS = 3;
 

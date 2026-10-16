@@ -8,6 +8,7 @@ import { createSupabaseDocumentsRepo } from "@/modules/documents";
 import { listStagedForItem, listStagedReadingsForItem, provenanceForItem } from "@/modules/ingestion";
 import { ledgerGateFacts } from "@/modules/ledger";
 import { createSupabaseResearchRepo, getItemWithHistory } from "@/modules/research";
+import { createSupabaseSourcesRepo, loadPanel } from "@/modules/sources";
 import { confirmedModelFor } from "@/modules/valuation";
 import { loadItemConcepts } from "./concepts";
 import { ledgerCaseOf } from "./ledger-case";
@@ -25,7 +26,7 @@ export async function loadEditor(id: string) {
   // A case study from the ledger is its body plus the record (D41): no facts sheet, no staged figures, no documents pane.
   const { isLedger, record: ledgerRecord } = ledgerCaseOf(latest?.structured);
   const isFile = (item.kind === "thesis" || item.kind === "case_study") && !isLedger;
-  const [ctx, allowances, company, decision, documents, staged, stagedReadings, provenance, model, ledgerView, concepts] = await Promise.all([
+  const [ctx, allowances, company, decision, documents, staged, stagedReadings, provenance, model, ledgerView, concepts, outside] = await Promise.all([
     candidate ? compliance.loadPublishContext(item.id, candidate.id) : Promise.resolve(null),
     compliance.listAllowances(item.id),
     item.companyId ? getCompanyBrief(db, item.companyId) : Promise.resolve(null),
@@ -43,6 +44,8 @@ export async function loadEditor(id: string) {
     isLedger ? loadLedgerView(db, item.id) : Promise.resolve(null),
     // The Concepts row: chips of the newest version and the picker's choices (null: unreadable, the row is left out).
     loadItemConcepts(db, item, latest),
+    // The "Outside sources" panel (Phase 5d): the company's saved sources and what the newest revision lists. Only a company file has one.
+    isFile && item.companyId ? loadPanel(createSupabaseSourcesRepo(db), item.companyId, latest?.structured ?? {}) : Promise.resolve(null),
   ]);
   // What the sealed ledger says about this company, asked of the same database function the gate uses. Advisory: if it cannot
   // be read the checklist falls back to the hand check alone (never to "clear"), and the database gate still decides.
@@ -69,6 +72,7 @@ export async function loadEditor(id: string) {
     ledgerRecord,
     ledgerStatus: ledgerView?.status ?? null,
     concepts,
+    outside,
     company,
     documents,
     staged,

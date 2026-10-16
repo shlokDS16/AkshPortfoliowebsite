@@ -2,6 +2,7 @@ import { formatDate } from "@/lib/format";
 import { GATE_LEDGER_TEXT } from "@/lib/messages";
 import { lintText } from "./lint";
 import { buildLintInput } from "./lint-input";
+import { outsideRows } from "./preview-outside";
 import type { PublishContext } from "./repo";
 import type { LintFinding, LintResult } from "./rules";
 
@@ -55,6 +56,7 @@ export function previewGate({ ctx, today, companyPublic, structureProblems, ledg
     row("structure", "File structure", "structure", ledgerCase ? "Body and ledger record only; no facts sheet." : isFile ? "View, tests and facts line up" : "Not a company file", structureProblems),
   ];
   if (ledgerCase) items.push(caseSwitchRow(ledgerCase.switches));
+  items.push(...outsideRows(ctx, lint));
   if (item.companyId) {
     items.push({ id: "company", name: "Company is public", state: companyPublic ? "pass" : "fail", detail: companyPublic ? "The company can be listed" : "Make the company public before publishing." });
   }

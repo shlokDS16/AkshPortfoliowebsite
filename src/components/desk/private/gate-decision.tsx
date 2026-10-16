@@ -6,7 +6,7 @@ import { RULE_TITLES, type GateDecision, type LintField } from "@/modules/compli
 import { splitAtMatch } from "./match-split";
 import { uniqueFindings } from "./unique-findings";
 
-const FIELD_LABELS: Record<LintField, string> = {
+export const FIELD_LABELS: Record<LintField, string> = {
   title: "Title",
   slug: "Slug",
   learningObjective: "Learning objective",
