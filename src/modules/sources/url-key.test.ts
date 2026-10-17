@@ -71,9 +71,54 @@ describe("urlKey: refusals", () => {
   });
 });
 
-describe("cleanSourceUrl: the link as saved, http upgraded to https", () => {
-  it("trims and upgrades the scheme only", () => {
-    expect(cleanSourceUrl("  http://Example.com/A?x=1#f ")).toBe("https://Example.com/A?x=1#f");
+describe("cleanSourceUrl: the address as the browser normalises it, http upgraded to https", () => {
+  it("trims, upgrades the scheme and stores the normalised address", () => {
+    expect(cleanSourceUrl("  http://Example.com/A?x=1#f ")).toBe("https://example.com/A?x=1#f");
     expect(cleanSourceUrl("https://example.com/a")).toBe("https://example.com/a");
+    expect(cleanSourceUrl("http://x.test/p")).toBe("https://x.test/p");
+  });
+
+  it("stores an address the database check accepts (no capital scheme, no whitespace)", () => {
+    const saved = cleanSourceUrl("HTTPS://Example.com/a b");
+    expect(saved).toBe("https://example.com/a%20b");
+    expect(saved).toMatch(/^https:\/\/\S+$/);
+    expect(cleanSourceUrl("HTTP://Example.com/post")).toMatch(/^https:\/\/\S+$/);
+  });
+
+  it("refuses an address that is over 2,000 characters once it is percent-encoded", () => {
+    expect(urlKey(`https://example.com/${"é ".repeat(900)}`)).not.toBeNull();
+    expect(cleanSourceUrl(`https://example.com/${"é ".repeat(900)}`)).toBeNull();
+  });
+});
+
+describe("cleanSourceUrl: tracking parameters are not saved (pending Shlok's approval)", () => {
+  it("strips YouTube's si, feature and pp and keeps the rest", () => {
+    expect(cleanSourceUrl(`https://youtu.be/${ID}?si=AbC123&t=42`)).toBe(`https://youtu.be/${ID}?t=42`);
+    expect(cleanSourceUrl(`https://youtu.be/${ID}?si=AbC123`)).toBe(`https://youtu.be/${ID}`);
+    expect(cleanSourceUrl(`https://www.youtube.com/watch?v=${ID}&feature=share&pp=ygUE&list=PL1&t=9s`)).toBe(`https://www.youtube.com/watch?v=${ID}&list=PL1&t=9s`);
+    expect(cleanSourceUrl(`https://m.youtube.com/watch?SI=x&v=${ID}#frag`)).toBe(`https://m.youtube.com/watch?v=${ID}#frag`);
+  });
+
+  it("strips utm_*, fbclid and gclid from any link and keeps the rest, in its order and encoding", () => {
+    expect(cleanSourceUrl("https://example.com/p?utm_source=x&b=2%2C3&fbclid=1&a=hello+world&gclid=2&UTM_Medium=m#top")).toBe("https://example.com/p?b=2%2C3&a=hello+world#top");
+    expect(cleanSourceUrl("https://example.com/p?utm_source=x")).toBe("https://example.com/p");
+    expect(cleanSourceUrl(`https://youtu.be/${ID}?utm_source=x&fbclid=1&t=5`)).toBe(`https://youtu.be/${ID}?t=5`);
+  });
+
+  it("keeps si, feature and pp on a page that is not YouTube, and parameters that only look like tracking ones", () => {
+    expect(cleanSourceUrl("https://example.com/p?si=1&feature=2&pp=3")).toBe("https://example.com/p?si=1&feature=2&pp=3");
+    expect(cleanSourceUrl("https://example.com/p?utmx=2&reference=1&ref=5")).toBe("https://example.com/p?utmx=2&reference=1&ref=5");
+  });
+
+  it("a link with and without the tracking parameters is the same source", () => {
+    const pairs: Array<[string, string]> = [
+      [`https://youtu.be/${ID}?si=AbC123&feature=share`, `https://youtu.be/${ID}`],
+      [`https://www.youtube.com/watch?v=${ID}&pp=ygUE&si=q`, `https://www.youtube.com/watch?v=${ID}`],
+      ["https://example.com/p?id=7&utm_source=x&fbclid=1&gclid=2", "https://example.com/p?id=7"],
+    ];
+    for (const [dirty, clean] of pairs) {
+      expect(urlKey(dirty)?.key).toBe(urlKey(clean)?.key);
+      expect(cleanSourceUrl(dirty)).toBe(cleanSourceUrl(clean));
+    }
   });
 });

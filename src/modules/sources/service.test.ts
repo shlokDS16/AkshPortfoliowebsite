@@ -16,12 +16,23 @@ async function code(promise: Promise<unknown>): Promise<string | undefined> {
 }
 
 describe("saveSource: a new link", () => {
-  it("stores the link as saved (http upgraded), its kind and key, his note as typed, and attaches the companies and concepts", async () => {
+  it("a link with and without its tracking parameters is the same source, and the tracking parameters are not stored", async () => {
+    const repo = createMemorySourcesRepo();
+    const first = await saveSource(repo, { ...base, url: "https://youtu.be/dQw4w9WgXcQ?si=AbC123&feature=share&t=42" }, NOW);
+    expect(repo.records.get(first.id)).toMatchObject({ url: "https://youtu.be/dQw4w9WgXcQ?t=42", kind: "youtube", youtubeId: "dQw4w9WgXcQ" });
+    expect(await saveSource(repo, { ...base, url: "https://youtu.be/dQw4w9WgXcQ?t=42" }, NOW)).toMatchObject({ id: first.id, duplicate: true });
+    expect(await saveSource(repo, { ...base, url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUE" }, NOW)).toMatchObject({ id: first.id, duplicate: true });
+    const page = await saveSource(repo, { ...base, url: "https://example.com/p?id=7&utm_source=x&fbclid=1&gclid=2" }, NOW);
+    expect(repo.records.get(page.id)?.url).toBe("https://example.com/p?id=7");
+    expect(await saveSource(repo, { ...base, url: "https://example.com/p?id=7" }, NOW)).toMatchObject({ id: page.id, duplicate: true });
+  });
+
+  it("stores the link as saved (http upgraded, host in lower case, tracking parameters dropped), its kind and key, his note as typed, and attaches the companies and concepts", async () => {
     const repo = createMemorySourcesRepo();
     const got = await saveSource(repo, { url: " http://www.Example.com/Post?utm_source=x ", note: " why the bull case is thin ", companyIds: [C1, C2, C1], themeIds: [T1] }, NOW);
     expect(got).toMatchObject({ duplicate: false, savedOn: null, noteAdded: false, restored: false, answer: "Source saved. Reading its title." });
     expect(repo.records.get(got.id)).toMatchObject({
-      url: "https://www.Example.com/Post?utm_source=x", kind: "web", youtubeId: null, note: "why the bull case is thin", companyIds: [C1, C2], themeIds: [T1],
+      url: "https://www.example.com/Post", kind: "web", youtubeId: null, note: "why the bull case is thin", companyIds: [C1, C2], themeIds: [T1],
     });
   });
 

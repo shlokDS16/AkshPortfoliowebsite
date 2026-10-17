@@ -35,7 +35,7 @@ describe("saveCapture: s: files a source, not an item", () => {
     expect(result).toMatchObject({ itemId: null, kind: "source", duplicate: false, parseError: null, sourceAnswer: "Source saved. Reading its title." });
     expect(research.items.size).toBe(0);
     expect(sourcesRepo.records.size).toBe(1);
-    expect(only(sourcesRepo.records)).toMatchObject({ url: LINK, kind: "web", note: "why the bull case is thin" });
+    expect(only(sourcesRepo.records)).toMatchObject({ url: "https://www.example.com/post/1", kind: "web", note: "why the bull case is thin" });
     expect(captures.records[0]).toMatchObject({ itemId: null, parsed: expect.objectContaining({ kind: "source" }) });
   });
 

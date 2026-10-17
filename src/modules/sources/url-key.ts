@@ -52,8 +52,41 @@ export function urlKey(raw: string): UrlKey | null {
   return { key: `${host}${path}${pairs.length > 0 ? `?${pairs.join("&")}` : ""}`, kind: "web", youtubeId: null };
 }
 
-/** The link as it is saved: trimmed, `http` upgraded to `https`, otherwise as typed. Null when `urlKey` refuses it. */
+/** Share and player parameters that YouTube adds to a link (compared in lower case); dropped on a YouTube link only. */
+const YOUTUBE_SHARE = new Set(["si", "feature", "pp"]);
+/** Dropped on every link when it is saved: `utm_*`, `fbclid`, `gclid`. */
+const SAVED_TRACKING = new Set(["fbclid", "gclid"]);
+
+function paramName(pair: string): string {
+  const eq = pair.indexOf("=");
+  let name = eq === -1 ? pair : pair.slice(0, eq);
+  try {
+    name = decodeURIComponent(name);
+  } catch {
+    // an undecodable name is compared as written
+  }
+  return name.toLowerCase();
+}
+
+/**
+ * The link as it is saved, as the browser normalises it (lower-case scheme and host, spaces and non-ASCII percent-encoded), `http` upgraded to `https`,
+ * without tracking parameters (`utm_*`, `fbclid`, `gclid` anywhere; `si`, `feature`, `pp` on a YouTube link). Everything else, in its order and
+ * encoding, is kept. Null when `urlKey` refuses it or the normalised address is over 2,000 characters.
+ */
 export function cleanSourceUrl(raw: string): string | null {
   if (urlKey(raw) === null) return null;
-  return raw.trim().replace(/^http:/i, "https:");
+  const url = new URL(raw.trim());
+  url.protocol = "https:";
+  const youtube = parseYoutubeUrl(url.href) !== null;
+  if (url.search.length > 1) {
+    const kept = url.search
+      .slice(1)
+      .split("&")
+      .filter((pair) => {
+        const name = paramName(pair);
+        return !(name.startsWith("utm_") || SAVED_TRACKING.has(name) || (youtube && YOUTUBE_SHARE.has(name)));
+      });
+    url.search = kept.join("&");
+  }
+  return url.href.length <= MAX_SOURCE_URL ? url.href : null;
 }
