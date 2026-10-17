@@ -20,7 +20,7 @@ vi.mock("@/modules/knowledge", () => ({
   monthPage: (...a: unknown[]) => monthPage(...a),
   screenedConceptRefs: async () => [],
 }));
-const listSources = vi.fn(async (..._args: unknown[]) => [] as unknown[]);
+const listSources = vi.fn<(...args: unknown[]) => Promise<unknown[]>>(async () => []);
 vi.mock("@/modules/sources", () => ({ createSupabaseSourcesRepo: () => ({}), listSources: (...a: unknown[]) => listSources(...a) }));
 vi.mock("@/modules/knowledge/actions", () => ({
   linkConceptsAction: vi.fn(),

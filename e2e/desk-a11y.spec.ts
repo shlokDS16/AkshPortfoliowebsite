@@ -10,7 +10,7 @@ const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 // full-flow spec (desk-staging), where a document is waiting for review. An idea's page (with entries) is scanned in
 // desk-ledger.spec.ts, where an idea exists.
 for (const colorScheme of ["light", "dark"] as const) {
-  for (const path of ["/desk", "/desk/inbox", "/desk/items", "/desk/names", "/desk/ledger", "/desk/ledger/new", "/desk/ledger/closes", "/desk/ledger/journal", "/desk/videos", "/desk/letters", "/desk/letters/new", "/desk/letters/readers"]) {
+  for (const path of ["/desk", "/desk/inbox", "/desk/items", "/desk/names", "/desk/ledger", "/desk/ledger/new", "/desk/ledger/closes", "/desk/ledger/journal", "/desk/sources", "/desk/videos", "/desk/letters", "/desk/letters/new", "/desk/letters/readers"]) {
     test(`${path} (${colorScheme}): no WCAG 2.2 A/AA violations`, async ({ page }) => {
       await page.emulateMedia({ colorScheme });
       await page.goto(path);

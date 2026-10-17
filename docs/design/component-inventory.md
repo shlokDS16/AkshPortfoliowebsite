@@ -423,3 +423,13 @@ Build order suggestion (dependencies first): tokens + fonts → `MotionRoot`, `S
 | LetterIndex | `src/components/desk/letter-index.tsx` | /letters archive list: subject, sentence, published date. "No letters yet." when open with none. |
 | SignupForm | `src/components/desk/signup-form.tsx` | Notice first, email, "I am 18 or older" tick (44 px row), off-page trap field, ticket; plain form posting to a server action; no script. |
 | ConfirmForm, LeaveForm | `src/components/desk/reader-forms.tsx` | One button (token in a hidden field) and one field plus one button. Same shape as SignupForm. |
+
+## F. Phase 5d additions (sources, 2026-10-17)
+
+| Component | Where | Notes |
+|---|---|---|
+| StudiedBlock | `src/components/desk/studied-block.tsx` | The file page's "Other people's work I studied": a ruled list of cards (picture, machine-face title and attribution, his note, link). Absent when empty. Server component; the only image on a public page is from `/media/studied`. Prints without pictures. |
+| SourceCard, SourceActions, SourceEdit | `src/components/desk/private/sources/` | One saved source on /desk/sources: machine block, status in words, his note, chips, Read again / Archive / Restore, folded edit. |
+| AddForm, AttachPicker, SourceFilters | `src/components/desk/private/sources/` | Add a source (link, note, companies, concepts); the type-to-find picker; the GET filter form. |
+| OutsidePanel, NoteField | `src/components/desk/private/sources/` | The company file's Outside sources panel: three controls per source, one save, the last gate run's refusals. |
+| ConceptSources | `src/components/desk/private/concepts/concept-sources.tsx` | Read-only list of the saved sources on a concept page, linking to the filtered Sources list. |

@@ -1,5 +1,5 @@
 import { createSupabasePublicClient } from "@/lib/supabase/public";
-import { serveStudiedPicture } from "@/modules/showcase/studied-media";
+import { serveStudiedPicture } from "@/modules/showcase";
 
 /**
  * Phase 5d (spec s7): the pictures of the outside sources a public file shows. Anon client only (rule 10): no cookie, no session, no secret key.

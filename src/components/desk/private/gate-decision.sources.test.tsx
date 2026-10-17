@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { decisionFromRow } from "@/modules/compliance/decision";
+import { decisionFromRow } from "@/modules/compliance";
 import { GateDecisionPanel } from "./gate-decision";
 
 vi.mock("@/modules/compliance/actions", () => ({ allowSentenceAction: vi.fn() }));

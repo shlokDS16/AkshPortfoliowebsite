@@ -13,3 +13,4 @@ export { feedEntries, renderRss } from "./feed";
 export { derivedProblems } from "./derived-scan";
 export { buildLetterView, hasLetters, letterHref, listLetterSummaries } from "./letters";
 export { buildStudiedBlock } from "./studied";
+export { MAX_PICTURE_BYTES, serveStudiedPicture, type PictureDeps } from "./studied-media";

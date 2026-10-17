@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { GateDecision } from "@/modules/compliance/client";
 import type { PanelRow } from "@/modules/sources";
-import { buildStudiedEntries, readStudiedForm } from "@/modules/sources/studied";
+import { buildStudiedEntries, readStudiedForm } from "@/modules/sources";
 import type { SourceRecord } from "@/modules/sources/client";
 import { expectNoMotion, expectTokenOnly } from "@/test/ui";
 import { OutsidePanel, outsideRefusals } from "./outside-panel";

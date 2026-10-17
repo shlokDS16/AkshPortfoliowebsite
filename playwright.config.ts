@@ -146,9 +146,19 @@ export default defineConfig({
       dependencies: ["letters"],
       use: { viewport: w === "375" ? { width: 375, height: 812 } : { width: 1280, height: 800 }, isMobile: w === "375", hasTouch: w === "375" },
     })),
+    // Phase 5d Task 4: the sources screens (the desk list, the file page's Outside sources panel, the public block and its picture from our own
+    // route). It saves a source on the seeded Kaveri file, publishes a revision that lists it through the real gate, checks the public file at
+    // both sizes, then takes the source off again (another revision), so it runs after every project that reads the seeded file as it was
+    // seeded (the letters-public ones last) and before the sign-out. It leaves the Kaveri file public with no outside source.
+    {
+      name: "sources-screens",
+      testMatch: spec("sources-screens"),
+      dependencies: ["anon", ...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop", "cases", "concepts", "videos", "letters", "cases-public-375", "cases-public-1280", "concepts-public-375", "concepts-public-1280", "videos-public-375", "videos-public-1280", "letters-public-375", "letters-public-1280"],
+      use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
+    },
     // Signing out revokes every session of the admin (GoTrue's default scope), including the stored
     // one the desk projects share, so this runs last and only after the desk, case, concept, video and letters projects have finished.
-    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts", "videos", "letters"] },
+    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts", "videos", "letters", "sources-screens"] },
   ],
   webServer: {
     command: stack ? `pnpm build && pnpm start -p ${E2E_PORT}` : `pnpm start -p ${E2E_PORT}`,
