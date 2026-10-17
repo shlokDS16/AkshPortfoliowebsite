@@ -3,7 +3,9 @@ import { unstable_cache } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { istDate } from "@/lib/dates";
 import { isBuildPhase } from "@/lib/env";
+import { hiddenItemKinds } from "@/lib/features";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
+import { withoutKinds } from "./hide-kinds";
 import { createSnapshotLoader } from "./loader";
 import { readLettersOpen } from "./letters-open";
 import { createSupabaseShowcaseRepo, loadSnapshot } from "./repo";
@@ -16,11 +18,13 @@ import { transcriptMatches } from "./video-transcript";
 // Rule 10 (Plan 1A ruling R6): the cookie-less public client only, never the service client.
 const cachedSnapshot = unstable_cache(
   async () => loadSnapshot(createSupabaseShowcaseRepo(createSupabasePublicClient()), istDate(new Date())),
-  ["showcase-snapshot-v4"],
+  ["showcase-snapshot-v5"],
   { tags: [CACHE_TAGS.publicItems], revalidate: 3600 },
 );
 
-export const getSnapshot = createSnapshotLoader({ load: cachedSnapshot, isBuildPhase });
+// Phase 5d (spec s8): the letters and the own-channel videos are off. They are taken out AFTER the cached read, so switching a feature back on
+// needs no cache bump, and no page, feed or sitemap built from the snapshot can show one.
+export const getSnapshot = createSnapshotLoader({ load: async () => withoutKinds(await cachedSnapshot(), hiddenItemKinds()), isBuildPhase });
 
 // A transcript is read per video, not with the snapshot: the data cache holds an entry up to 2 MB and an hour of speech is about 60 KB, so a
 // library of videos would push the one shared snapshot over it. Same tag, so publish and unpublish refresh both together.

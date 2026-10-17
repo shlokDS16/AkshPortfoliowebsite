@@ -40,3 +40,29 @@ describe("a letter is shown by its own page", () => {
     expect(await target({ error: "letter-subject-label" })).toBe(`/desk/letters/${ID}?error=letter-subject-label`);
   });
 });
+
+// Phase 5d (spec s8): while the letters and the own-channel videos are off their pages are a 404, so the item page does not send a letter or a
+// video there; it is a 404 itself, never a redirect to a 404.
+describe("a letter or a video item while its feature is off", () => {
+  const page = () => ItemPage({ params: Promise.resolve({ id: ID }), searchParams: Promise.resolve({}) });
+
+  it("a letter item is a 404, not a redirect", async () => {
+    vi.stubEnv("FEATURES_ON", "ownVideos");
+    loadEditor.mockResolvedValue({ item: { id: ID, kind: "letter" } });
+    await expect(page()).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("a video item is a 404, not a redirect", async () => {
+    vi.stubEnv("FEATURES_ON", "letters");
+    loadEditor.mockResolvedValue({ item: { id: ID, kind: "video" } });
+    await expect(page()).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("is still a redirect for each when its own feature is on (the control)", async () => {
+    vi.stubEnv("FEATURES_ON", "ownVideos,letters");
+    loadEditor.mockResolvedValue({ item: { id: ID, kind: "letter" } });
+    await expect(page()).rejects.toThrow(`NEXT_REDIRECT:/desk/letters/${ID}`);
+    loadEditor.mockResolvedValue({ item: { id: ID, kind: "video" } });
+    await expect(page()).rejects.toThrow(`NEXT_REDIRECT:/desk/videos/${ID}`);
+  });
+});

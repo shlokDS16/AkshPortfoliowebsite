@@ -11,9 +11,11 @@ import { FocusOnHash } from "@/components/desk/private/focus-on-hash";
 import { GateDecisionPanel } from "@/components/desk/private/gate-decision";
 import { History } from "@/components/desk/private/history";
 import { PublishChecklist } from "@/components/desk/private/publish-checklist";
+import { OutsidePanel, outsideRefusals } from "@/components/desk/private/sources/outside-panel";
 import { RevisionEditor } from "@/components/desk/private/revision-editor";
 import { WordingGuide } from "@/components/desk/private/wording-guide";
 import { istDate } from "@/lib/dates";
+import { featureOn } from "@/lib/features";
 import { errorText, noticeText } from "@/lib/messages";
 import { saveCaseFileRevisionAction, setFiguresToAction } from "@/modules/casefile/actions";
 import { refreshCaseStudyAction } from "@/modules/cases/actions";
@@ -22,6 +24,7 @@ import { publishCheckedAction, unpublishItemAction } from "@/modules/compliance/
 import type { ChecklistItem } from "@/modules/compliance/client";
 import { unstageAction } from "@/modules/ingestion/actions";
 import { saveConceptsAction } from "@/modules/knowledge/actions";
+import { saveStudiedRevisionAction } from "@/modules/sources/actions";
 import { conceptChecks } from "./concepts";
 import { loadEditor } from "./load";
 import { MetaForm } from "./meta-form";
@@ -43,12 +46,14 @@ const search = (query: ItemQuery) => {
 export async function ItemView({ id, query, video }: { id: string; query: ItemQuery; video?: (data: EditorData) => Promise<VideoExtras> }) {
   const data = await loadEditor(id);
   if (!data) notFound();
+  // Phase 5d (spec s8): a video or a letter has no desk page while its feature is off, so the item page is a 404 itself, not a redirect to one.
+  if ((data.item.kind === "video" && !featureOn("ownVideos")) || (data.item.kind === "letter" && !featureOn("letters"))) notFound();
   if (data.item.kind === "video" && !video) redirect(`/desk/videos/${id}${search(query)}`);
   if (video && data.item.kind !== "video") notFound();
   // A letter has its own page (Phase 5c): its fields, the email preview, the gate and the send block.
   if (data.item.kind === "letter") redirect(`/desk/letters/${id}${search(query)}`);
   const extras = video ? await video(data) : null;
-  const { item, revisions, current, pending, latest, candidate, isFile, isLedger, ledgerRecord, ledgerStatus, concepts, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure, model } = data;
+  const { item, revisions, current, pending, latest, candidate, isFile, isLedger, ledgerRecord, ledgerStatus, concepts, outside, company, documents, staged, stagedReadings, provenance, preview, body, sheet, decision, decisionRevNo, latestFigure, model } = data;
   const { from, to } = query;
   const isPublic = item.visibility === "public";
   const isRead = item.kind === "reading_note";
@@ -138,6 +143,9 @@ export async function ItemView({ id, query, video }: { id: string; query: ItemQu
             sendBack={unstageAction.bind(null, item.id)}
             ledgerCase={isLedger}
           />
+          {outside && company ? (
+            <OutsidePanel rows={outside} save={saveStudiedRevisionAction.bind(null, item.id)} company={company.name} refusals={outsideRefusals(decision, latest?.id ?? null)} />
+          ) : null}
           <WordingGuide />
           <History revisions={revisions} currentId={current?.id ?? null} pendingIds={new Set(pending.map((r) => r.id))} from={from} to={to} />
         </DocLayout>

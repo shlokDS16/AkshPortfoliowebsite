@@ -58,7 +58,9 @@ export async function expectNoViolations(page: Page): Promise<void> {
 /**
  * Waits until no animation on a rendered element is still going, for at most 5 s, and then throws naming what is still going (a scan taken
  * mid-fade reads the wrong colours, and a silent cap would hide an animation that never ends). An element that is not rendered (inside a
- * closed <details>, say) is skipped: its animation can stay "running" for ever, and axe does not look at it either.
+ * closed <details>, say) is skipped: its animation can stay "running" for ever, and axe does not look at it either. So is a scroll-driven
+ * animation (the reading hairline's `animation-timeline: scroll(root)`): it is "running" for as long as the page can scroll, moves only
+ * with the scroll position, and changes no colour.
  */
 export async function settleVisibleAnimations(page: Page): Promise<void> {
   const stuck = await page.evaluate(async () => {
@@ -67,6 +69,7 @@ export async function settleVisibleAnimations(page: Page): Promise<void> {
         const target = (a.effect as KeyframeEffect | null)?.target;
         if (!(target instanceof Element) || !target.checkVisibility()) return [];
         if (a.playState !== "running") return [];
+        if (a.timeline && !(a.timeline instanceof DocumentTimeline)) return [];
         return [`${target.tagName.toLowerCase()}${target.id ? `#${target.id}` : ""}${typeof target.className === "string" && target.className ? `.${target.className.trim().split(/\s+/).join(".")}` : ""}`];
       });
     const deadline = Date.now() + 5_000;

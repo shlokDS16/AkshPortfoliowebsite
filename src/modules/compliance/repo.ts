@@ -6,6 +6,7 @@ import type { Db } from "@/lib/supabase/types";
 import type { HoldsPosition, ItemKind, Visibility } from "@/modules/research";
 import type { DecisionRow } from "./decision";
 import type { AllowanceRecord } from "./preview";
+import type { OutsideSource } from "./rules";
 
 /** Everything lintText() needs for one revision of one item, loaded by the server, never supplied by a client. */
 export type PublishContext = {
@@ -29,6 +30,8 @@ export type PublishContext = {
   conceptSlugs: string[];
   /** A video revision's transcript: the stored segment texts joined by "\n"; null for any other kind, or when the revision names none of this video's. */
   transcript: string | null;
+  /** The outside sources a company file's revision lists (rule 14), in its order; empty for every other revision. */
+  outside: OutsideSource[];
   /** sentence_hash values allowed for this item (rule 1 only; see lint.ts). */
   allowances: string[];
 };
@@ -90,6 +93,29 @@ async function loadTranscript(db: Db, itemId: string, structured: Record<string,
   return texts.every((t) => t !== null) ? texts.join("\n") : null;
 }
 
+/**
+ * The outside sources a revision lists (`structured.studied`): each link's address, and, only for an entry that shows its title and whose hash
+ * is the table's current one, the title and the site or channel name the lint will read. Read here with one plain query (the public pages reach
+ * this file through the compliance index and may reach nothing of the sources module but its public entry). His private note on a link is never
+ * selected. An entry that is not shaped like one, or names a link the table does not hold, is left out: the database gate refuses it (14.1, 14.2).
+ */
+async function loadOutside(db: Db, structured: Record<string, unknown>): Promise<OutsideSource[]> {
+  const list = Array.isArray(structured.studied) ? structured.studied : [];
+  const entries = list.flatMap((e) =>
+    isRecord(e) && isUuid(e.link) ? [{ link: e.link as string, show: e.show === true, metaSha: typeof e.metaSha === "string" ? e.metaSha : null }] : [],
+  );
+  if (entries.length === 0) return [];
+  const { data, error } = await db.from("source_links").select("id, url, title, site_name, meta_sha").in("id", entries.map((e) => e.link));
+  if (error) throw dbError("compliance.loadOutside", error);
+  const byId = new Map((data ?? []).map((row) => [row.id, row]));
+  return entries.flatMap((e) => {
+    const row = byId.get(e.link);
+    if (!row) return [];
+    const read = e.show && e.metaSha !== null && row.meta_sha === e.metaSha;
+    return [{ url: row.url, show: e.show, metaSha: e.metaSha, read, title: read ? row.title : null, siteName: read ? row.site_name : null }];
+  });
+}
+
 export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
   return {
     async loadPublishContext(itemId, revisionId) {
@@ -110,6 +136,7 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
       const concepts = await loadConcepts(db, revision.data.concept_ids ?? []);
       const structured = asRecord(revision.data.structured) ?? {};
       const transcript = item.data.kind === "video" ? await loadTranscript(db, itemId, structured) : null;
+      const outside = await loadOutside(db, structured);
       return {
         item: {
           id: item.data.id,
@@ -134,6 +161,7 @@ export function createSupabaseComplianceRepo(db: Db): ComplianceRepo {
         conceptNames: concepts.map((c) => c.name),
         conceptSlugs: concepts.map((c) => c.slug),
         transcript,
+        outside,
         allowances: allowances.data.map((a) => a.sentence_hash),
       };
     },

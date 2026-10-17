@@ -96,9 +96,17 @@ The entry price is set at the next close; the idea has no score until then.
 1. Close the idea and write the lesson. Open the idea: in the **Case study** block, press **Draft a case study** once the exit price is fixed.
 2. On its page, fill in **Learning objective** and **Holds position**, add your "Looking back" words if you want to (no price and no return in them), and run the publishing gate. It goes public only if Shlok has switched case studies on, and only 30 days after the latest entry it shows. Your entries cannot be edited there; if you write a new lesson, press **Refresh from the ledger**.
 
+### Save a source (someone else's video or article)
+
+1. In the Capture box type `s:`, paste the link, add `$SYMBOL` or `#concept` if you like, and write what you think. Enter. The receipt says "Source, private". Or use **Items**, then **Sources**, then **Add a source**.
+2. Save the same link again and it is still one card: your new note is added under a dated line. Nothing is read twice.
+3. The desk reads the title and the picture once and shows them on the card in the machine's type, apart from your note.
+4. To show it on a company file: open the file, find **Outside sources**, tick **Show on the public file**, press **Save as a new revision**, then run the publishing gate. It is on the public file as soon as the gate passes; there is no 30-day wait for these.
+5. **Show its title and picture** is ticked by default. The desk does not read pictures, so untick it if the picture tells people to buy or sell. Untick it too if the gate refuses the title (a title with a price or a return in it, or an instruction to buy or sell, is refused because the title is someone else's sentence and you cannot change it). The link alone then passes.
+
 ### Add a video
 
-Videos are switched off until Shlok sets a YouTube key. The desk then shows "Video listing is not set up yet (Shlok adds a YouTube key)." You can do the steps in order once it is on.
+Videos and letters are switched off for now (the code has them off), so the Videos and Letters links are not on the desk. The steps below are for when Shlok turns them back on. They also need a YouTube key. The desk then shows "Video listing is not set up yet (Shlok adds a YouTube key)." You can do the steps in order once it is on.
 
 1. Upload to YouTube as **Unlisted**. Keep it Unlisted until the desk lists it.
 2. In the Capture box type `v:` and paste the link, then Enter. Open **Items**, then **Videos**, then the video. Press **Fetch again** if it says "Waiting for YouTube".
@@ -110,7 +118,7 @@ What the desk refuses, and why: the transcript is what a visitor reads, so the s
 
 ### Send a letter
 
-Letters are email, and nothing is emailed until Shlok has set up the email service; until then the desk says "Email is not set up yet. Letters still publish to the archive." Readers ask for letters on the site's letters page (they tick that they are 18 or older). It never emails anyone by itself. You make two presses.
+Letters are switched off for now. When they are back on, letters are email, and nothing is emailed until Shlok has set up the email service; until then the desk says "Email is not set up yet. Letters still publish to the archive." Readers ask for letters on the site's letters page (they tick that they are 18 or older). It never emails anyone by itself. You make two presses.
 
 1. **Items**, **Letters**, **Readers**: press **Send confirmation emails (n)**. Each person gets one email with a link, and they press a button to confirm. A reader may wait up to a day. **Bin** deletes a request you do not want.
 2. **Items**, **Letters**, **What changed**: untick what you do not want, press **Make this letter**, replace the "Untitled letter" subject with your own (**Send** stays off until you do), write the one sentence, **Save**, read the preview, run the publishing gate. Then press **Send to n subscribers**, read the box (it shows the exact number), tick "I have read the preview" and press **Send**. An email cannot be called back, and a second press sends nothing more.

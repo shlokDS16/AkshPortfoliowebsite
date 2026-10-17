@@ -18,6 +18,7 @@ import { RevisionLog } from "@/components/desk/revision-log";
 import { ScenarioTable } from "@/components/desk/scenario-table";
 import { SourceList } from "@/components/desk/source-list";
 import { StatTile } from "@/components/desk/stat-tile";
+import { StudiedBlock } from "@/components/desk/studied-block";
 import { StreakStrip } from "@/components/desk/streak-strip";
 import { TabBar } from "@/components/desk/tab-bar";
 import { TopBar } from "@/components/desk/top-bar";
@@ -26,8 +27,16 @@ import { UsedIn } from "@/components/desk/used-in";
 import { ViewBlock } from "@/components/desk/view-block";
 import { WhatChangedList } from "@/components/desk/what-changed-list";
 import { Skeleton } from "@/components/ui/skeleton";
+import { buildStudiedCards } from "@/modules/sources/public";
 import * as F from "@/test/fixtures/desk-ui";
 import { ThemeSwitch } from "./theme-switch";
+
+// Phase 5d: three outside sources as the public view would return them (a picture is left out of the first so a development server shows no broken image).
+const STUDIED = buildStudiedCards([
+  { itemId: "i1", position: 1, kind: "youtube", url: "https://www.youtube.com/watch?v=abcdefghijk", savedOn: "2026-10-03", note: "Worth watching for how the dealer book is described.", title: "How a pump maker finances its dealers", siteName: "Dealer Finance Channel", channelUrl: null, thumbPath: null, thumbSha256: null },
+  { itemId: "i1", position: 2, kind: "web", url: "https://blog.example.org/dealers", savedOn: "2026-10-05", note: "Disagrees with me on credit days.", title: "Dealer finance, explained", siteName: "Example Blog", channelUrl: null, thumbPath: null, thumbSha256: null },
+  { itemId: "i1", position: 3, kind: "youtube", url: "https://youtu.be/zzzzzzzzzzz", savedOn: "2026-10-06", note: "", title: null, siteName: null, channelUrl: null, thumbPath: null, thumbSha256: null },
+]);
 
 function Spec({ name, children }: { name: string; children: ReactNode }) {
   return (
@@ -74,6 +83,9 @@ export default function Preview() {
           </Spec>
           <Spec name="FACTS grouped by topic (E10): period after each metric, as-of once per group">
             <FactTable groups={F.FACT_GROUPS_BY_TOPIC} />
+          </Spec>
+          <Spec name="STUDIED · Other people's work I studied (card with a title, with a page, plain)">
+            <StudiedBlock cards={STUDIED} />
           </Spec>
           <Spec name="HISTORY">
             <BlockHeader label="HISTORY" id="history" title="Revisions" />

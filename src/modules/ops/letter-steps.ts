@@ -1,6 +1,7 @@
 import "server-only";
 import { publicEnv } from "@/lib/env";
 import { serverEnv } from "@/lib/env.server";
+import { featureOn } from "@/lib/features";
 import { createLetterPorts, lettersMode, type LetterPorts } from "@/lib/providers";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { createSupabaseServiceClient } from "@/lib/supabase/service";
@@ -33,7 +34,8 @@ export function buildLetterRuntime(): LetterRuntime {
   const rpc = createLettersRpc(createSupabaseServiceClient());
   return {
     rpc,
-    ports: createLetterPorts(serverEnv(), { approvals: rpc }),
+    // Phase 5d (spec s8): the letters are off, so there are no ports whatever the settings say: nothing is sent, listed or confirmed. The retention purge still runs.
+    ports: featureOn("letters") ? createLetterPorts(serverEnv(), { approvals: rpc }) : null,
     source: createPublicLetterSource(createSupabasePublicClient()),
     siteUrl: publicEnv().NEXT_PUBLIC_SITE_URL,
   };
@@ -41,6 +43,7 @@ export function buildLetterRuntime(): LetterRuntime {
 
 /** Whether letters are set up (all three settings on production, or the local fixture): the desk says "not set up yet" when they are not. A setting that cannot be read counts as off. */
 export function lettersOn(): boolean {
+  if (!featureOn("letters")) return false;
   try {
     return lettersMode(serverEnv()).mode !== "off";
   } catch {

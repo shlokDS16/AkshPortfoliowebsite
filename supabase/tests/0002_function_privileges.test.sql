@@ -2,7 +2,7 @@
 begin;
 set local client_min_messages = warning;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(37);
 
 -- publish_revision / unpublish_item / add_ and remove_lint_allowance: service_role only (ADR-003). The server
 -- action verifies the admin, then calls them through the service client with the admin as p_actor.
@@ -57,8 +57,9 @@ select is_empty($$
                            'register_clock_target', 'redeem_pump_ticket', 'record_video_fetch', 'purge_stale_video_data',
                            'letters_issue_confirmations', 'letters_confirmation_failed', 'letters_bin', 'letters_erase',
                            'letters_purge', 'letters_mark_left', 'confirmed_subscribers', 'set_letters_signup',
-                           'approve_letter_send', 'claim_letter_send', 'finish_letter_send', 'cancel_letter_send', 'letters_send_live', 'letters_confirmation_live')
-$$, 'service_role can execute no function in public except the four gate functions, claim_job_step, the usage ledger trio, verify_ledger_chain (0010), the five market functions (0011: store_fetched_closes, store_uploaded_closes, mark_market_day_shut, score_ideas, tracked_symbols) and the two anchor functions (0013: seal_ledger_days, verify_ledger_anchors) and the two alert functions (0015: alert_step, alert_sent) and the two pump-clock functions (0016: register_clock_target, redeem_pump_ticket) and record_video_fetch and purge_stale_video_data (0022) and the eight reader functions (0024) and the three send doors and the two live-approval checks (0025)');
+                           'approve_letter_send', 'claim_letter_send', 'finish_letter_send', 'cancel_letter_send', 'letters_send_live', 'letters_confirmation_live',
+                           'record_source_fetch', 'purge_stale_source_data')
+$$, 'service_role can execute no function in public except the four gate functions, claim_job_step, the usage ledger trio, verify_ledger_chain (0010), the five market functions (0011: store_fetched_closes, store_uploaded_closes, mark_market_day_shut, score_ideas, tracked_symbols) and the two anchor functions (0013: seal_ledger_days, verify_ledger_anchors) and the two alert functions (0015: alert_step, alert_sent) and the two pump-clock functions (0016: register_clock_target, redeem_pump_ticket) and record_video_fetch and purge_stale_video_data (0022) and the eight reader functions (0024) and the three send doors and the two live-approval checks (0025) and record_source_fetch and purge_stale_source_data (0026)');
 select is_empty($$
   select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
@@ -127,11 +128,25 @@ select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.
               and (p.proname like 'letters%' or p.proname like '%letter_send' or p.proname in ('confirmed_subscribers', 'set_letters_signup'))),
   18, 'exactly eighteen public letters functions exist (4 doors, 8 reader functions, 4 send doors, 2 live-approval checks)');
 
+-- Sources (0026, 0027): the two machine doors are service_role only; the rule 14 helper, studied_is_public and the four trigger
+-- functions no API role (studied_shown, called by public_studied, is pinned in 0001_core_grants and 0027_sources_gate).
+select ok((select bool_and(has_function_privilege('service_role', f, 'execute') and not has_function_privilege('anon', f, 'execute')
+                           and not has_function_privilege('authenticated', f, 'execute') and p.prosecdef)
+             from unnest(array['public.record_source_fetch(uuid, boolean, text, text, text, text, text, text, boolean)',
+                               'public.purge_stale_source_data()']::regprocedure[]) f
+             join pg_proc p on p.oid = f)
+      and (select bool_and(not has_function_privilege('anon', f, 'execute') and not has_function_privilege('authenticated', f, 'execute')
+                           and not has_function_privilege('service_role', f, 'execute'))
+             from unnest(array['private.studied_gate_failures(uuid, text, uuid, jsonb, jsonb)', 'private.studied_is_public(uuid, uuid)',
+                               'private.guard_source_link()', 'private.guard_source_link_public()',
+                               'private.guard_source_link_company()', 'private.limit_source_link_rows()']::regprocedure[]) f),
+  'record_source_fetch and purge_stale_source_data: service_role only, SECURITY DEFINER; the rule 14 helper, studied_is_public and the source triggers: no API role');
+
 -- Behaviour, through real roles.
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select throws_ok($$ select public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', '{}'::jsonb) $$,
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.3', '{}'::jsonb) $$,
   '42501', null, 'anon calling publish_revision is denied');
 select throws_ok($$ select public.unpublish_item('aaaaaaaa-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001') $$,
   '42501', null, 'anon calling unpublish_item is denied');
@@ -150,7 +165,7 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"bbbbbbbb-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select throws_ok($$ select public.publish_revision('bbbbbbbb-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001',
-    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', '{}'::jsonb) $$,
+    'e1000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.3', '{}'::jsonb) $$,
   '42501', null, 'authenticated calling publish_revision is denied');
 select throws_ok($$ select private.slugify('x') $$, '42501', null, 'authenticated cannot call the private slug helper');
 select throws_ok($$ select private.knowledge_gate_failures('note', null, null) $$, '42501', null,

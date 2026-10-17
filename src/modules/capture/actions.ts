@@ -1,27 +1,39 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { errorShape } from "@/lib/errors";
+import { featureOn } from "@/lib/features";
 import { doneTo, failTo } from "@/lib/redirects";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
+import { startSourceRead } from "@/modules/ops/jobs";
 import { isItemId } from "@/modules/research";
 import { createSupabaseVideosRepo, createVideoFiling } from "@/modules/distribution";
+import { createSourceFiling, createSupabaseSourcesRepo } from "@/modules/sources";
 import { createCaptureDeps } from "./deps";
 import { submitErrorCode, submitErrorText, type FilingErrorCode, type SubmitErrorCode } from "./messages";
 import { CaptureNotRefilableError, refileCapture } from "./refile";
 import { saveCapture, saveCaptureInput, type SaveCaptureDeps } from "./service";
 import type { CaptureSource } from "./types";
 
-/** The capture deps on the admin's session, plus the video filing a `v:` capture needs (distribution is imported here, never by the service). */
+/**
+ * The capture deps on the admin's session, plus the two filings this action hands the service (distribution and sources are imported here,
+ * never by the service): the source filing for `s:`, and the video filing for `v:` only while the own-channel videos are on. With it off a
+ * `v:` capture is saved as a source (Phase 5d, spec s8).
+ */
 async function depsOf(): Promise<SaveCaptureDeps> {
   const db = await createSupabaseServerClient();
-  return { ...createCaptureDeps(db), videos: createVideoFiling(createSupabaseVideosRepo(db)) };
+  return {
+    ...createCaptureDeps(db),
+    sources: createSourceFiling(createSupabaseSourcesRepo(db)),
+    ...(featureOn("ownVideos") ? { videos: createVideoFiling(createSupabaseVideosRepo(db)) } : {}),
+  };
 }
 
 export type SubmitCaptureInput = { clientId: string; rawText: string; source: CaptureSource };
 export type SubmitCaptureResult =
-  | { ok: true; captureId: string; itemId: string | null; duplicate: boolean; parseError: FilingErrorCode | null }
+  | { ok: true; captureId: string; itemId: string | null; duplicate: boolean; parseError: FilingErrorCode | null; sourceAnswer?: string }
   | { ok: false; retry: boolean; code: SubmitErrorCode; message: string };
 
 const failure = (code: SubmitErrorCode, retry: boolean): SubmitCaptureResult => ({
@@ -42,6 +54,9 @@ export async function submitCapture(input: SubmitCaptureInput): Promise<SubmitCa
   if (!parsed.success) return failure(submitErrorCode(parsed.error), false);
   try {
     const result = await saveCapture(await depsOf(), parsed.data);
+    // A source saved for the first time is read right after the answer is sent (spec s6.4); the pump covers a read that fails.
+    const readId = result.sourceReadId;
+    if (readId) after(() => startSourceRead(readId));
     revalidatePath("/desk");
     return {
       ok: true,
@@ -49,6 +64,7 @@ export async function submitCapture(input: SubmitCaptureInput): Promise<SubmitCa
       itemId: result.itemId,
       duplicate: result.duplicate,
       parseError: result.parseError,
+      ...(result.sourceAnswer === undefined ? {} : { sourceAnswer: result.sourceAnswer }),
     };
   } catch (error) {
     // Name, operation and SQLSTATE only: a database message can carry row data.

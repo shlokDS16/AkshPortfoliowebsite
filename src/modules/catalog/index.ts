@@ -7,3 +7,4 @@ export { getCompanyBrief, setCompanyPublic, type CompanyBrief } from "./companie
 export { decideName, listNamesToScreen, planDecision, SECTORS, suggestMatch, type NameDecision, type NameOp, type NameStub, type NameToScreen, type Sector } from "./names";
 export { ConceptDescriptionTooLongError, NameNotScreenedError, NameOnPublicItemError } from "./errors";
 export { CONCEPT_DESCRIPTION_MAX, getConceptBySlug, getConceptsByIds, listConcepts, setThemePublic, updateConceptDescription, type Concept } from "./concepts";
+export { listAttachables, type AttachableCompany, type AttachableConcept } from "./attachables";

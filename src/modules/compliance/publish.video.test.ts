@@ -19,7 +19,7 @@ function video(transcript: string | null, allowances: string[] = []): PublishCon
       structured: { schema: "video/1", youtubeId: "dQw4w9WgXcQ", transcriptId: "t-1", transcriptSha: "x", chapters: [] },
       changeReason: null,
     },
-    companyName: null, companyOneLiner: null, themeName: null, conceptNames: [], conceptSlugs: [], transcript, allowances,
+    companyName: null, companyOneLiner: null, themeName: null, conceptNames: [], conceptSlugs: [], transcript, outside: [], allowances,
   };
 }
 const deps = (repo: ReturnType<typeof createFakeComplianceRepo>) => ({ repo, gate: repo, actorId: ADMIN, today: () => "2026-10-16" });

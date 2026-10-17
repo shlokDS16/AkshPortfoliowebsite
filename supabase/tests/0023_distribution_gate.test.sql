@@ -56,7 +56,7 @@ begin
   perform pg_temp.rev(n, pg_temp.st(n, pg_temp.tr(n), p_chapters));
 end $$;
 -- The real door, as the owner. p_lint_sha 'auto' sends the revision's own transcriptSha in the lint result; null sends none.
-create function pg_temp.pub(n int, r int, p_lint_sha text default 'auto', p_policy text default 'sebi-unreg-2026-07-v1.2')
+create function pg_temp.pub(n int, r int, p_lint_sha text default 'auto', p_policy text default 'sebi-unreg-2026-07-v1.3')
 returns text language sql as $$
   select (public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', pg_temp.it(n), pg_temp.rv(n, r), p_policy,
     jsonb_build_object('passed', true, 'revisionId', pg_temp.rv(n, r)::text, 'policyVersion', p_policy)
@@ -195,7 +195,7 @@ select pg_temp.rev(50, '{"schema":"video/1"}');
 select is(pg_temp.pub(50, 1, null), 'pass', 'a learning note is untouched by rule 12');
 select pg_temp.good(51);
 select is(pg_temp.pub(51, 1, 'auto', 'sebi-unreg-2026-07-v1.1'), 'fail', 'the v1.1 policy is refused');
-select is(pg_temp.f(51, 1, 'message'), 'This database accepts only policy version sebi-unreg-2026-07-v1.2.', 'saying which it accepts');
+select is(pg_temp.f(51, 1, 'message'), 'This database accepts only policy version sebi-unreg-2026-07-v1.3.', 'saying which it accepts');
 
 -- 7. The views: the current public revision's transcript only; never a failed, pending, lagged or private item.
 select pg_temp.good(60);
@@ -236,13 +236,13 @@ reset role;
 select set_config('request.jwt.claims', '', true);
 
 -- 9. Structure and privileges.
-select ok(pg_get_functiondef('public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure) ~ 'sebi-unreg-2026-07-v1\.2'
+select ok(pg_get_functiondef('public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure) ~ 'sebi-unreg-2026-07-v1\.3'
       and pg_get_functiondef('public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure) ~ 'private\.distribution_gate_failures'
       and pg_get_functiondef('public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure) ~ 'private\.knowledge_gate_failures'
       and pg_get_functiondef('public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure) ~ 'private\.case_gate_failures'
       and pg_get_functiondef('public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure) ~ 'private\.ledger_gate_item_failures'
       and pg_get_functiondef('public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure) ~ 'from public\.themes t\s+where t\.id = any[^;]*for share',
-  'publish_revision pins v1.2, calls rule 12 and keeps the ledger, case and knowledge checks and the for share lock');
+  'publish_revision pins v1.3, calls rule 12 and keeps the ledger, case and knowledge checks and the for share lock');
 select ok(pg_get_functiondef('private.distribution_gate_failures(uuid, text, uuid, date, uuid, jsonb, jsonb)'::regprocedure)
             ~ 'from public\.video_sources[^;]*for share',
   'the helper holds the source row until the decision commits (a concurrent fetch waits)');

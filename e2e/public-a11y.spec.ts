@@ -85,3 +85,17 @@ test("tables keep table, row and cell roles in the browser's accessibility tree 
     expect(count(["cell", "gridcell"]), path).toBeGreaterThan(0);
   }
 });
+
+// Phase 5d: the outside-sources block and its picture route. In the deploy state no file lists an outside source, so the route serves nothing
+// (a name that is not a hash is refused before storage is asked; a hash nothing shows is a 404 from storage) and no file has the block. The block
+// itself, with a source listed, is scanned at both sizes and in both themes by e2e/sources-screens.spec.ts.
+test("the picture route serves nothing that no public file shows, and a file page holds no outside-sources block until one lists a source", async ({ page, request }) => {
+  expect((await request.get("/media/studied/evil.jpg")).status()).toBe(404);
+  expect((await request.get(`/media/studied/${"a".repeat(64)}.jpg`)).status()).toBe(404);
+  expect((await request.get(`/media/studied/${"a".repeat(64)}.png`)).status()).toBe(404);
+  await page.goto("/companies/kavpump");
+  const block = page.getByRole("region", { name: "Other people's work I studied" });
+  if ((await block.count()) === 0) return;
+  const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
+});

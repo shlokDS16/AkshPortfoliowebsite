@@ -10,7 +10,7 @@ export { finishUpload, startUpload, startUploadInputSchema, titleFromFileName, t
 export { storeDocument, type StoreInput } from "./store";
 export { safeFetch, type FetchedLink, type SafeFetchDeps } from "./safe-fetch";
 export { createLinkFetchDeps, type LinkFetchEnv } from "./fixture-link";
-export { htmlToText } from "./html-text";
+export { decodeEntities, htmlToText } from "./html-text";
 export { closePdf, openPdf, pageText, PdfOpenError, type PdfDoc } from "./pages";
 export { PdfSplitError, splitPdfPage } from "./split";
 export { classifyPages, doubtfulPages, modelVerdict, selectPages, selectTextPages, type PageVerdict } from "./selector";

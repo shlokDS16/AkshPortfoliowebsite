@@ -72,3 +72,32 @@ describe("leaveAction", () => {
     await expect(leaveAction(idle, form({ email: "a@b.example" }))).rejects.toThrow();
   });
 });
+
+// Phase 5d (spec s8): the letters are off. The three doors answer as they always do (one sentence per door, whatever happened), and call nothing:
+// no database call, no ticket check, so an address typed into a form that is no longer shown is not kept anywhere.
+describe("the reader's doors while the letters are off", () => {
+  beforeEach(() => vi.stubEnv("FEATURES_ON", ""));
+
+  it("askToSubscribeAction answers 'asked' and records nothing", async () => {
+    expect(await askToSubscribeAction(idle, form({ email: "a@b.example", adult: "on", ticket: "t", website: "" }))).toEqual({ status: "asked" });
+    expect(state.calls).toEqual([]);
+  });
+
+  it("confirmAction answers 'expired' and confirms nothing", async () => {
+    state.answers.letters_confirm = { data: true };
+    expect(await confirmAction(idle, form({ token: "abc" }))).toEqual({ status: "expired" });
+    expect(state.calls).toEqual([]);
+  });
+
+  it("leaveAction answers 'left' and calls nothing", async () => {
+    expect(await leaveAction(idle, form({ email: "a@b.example" }))).toEqual({ status: "left" });
+    expect(state.calls).toEqual([]);
+  });
+
+  it("is refused on a production deployment even when the override is set", async () => {
+    vi.stubEnv("FEATURES_ON", "letters");
+    vi.stubEnv("VERCEL_ENV", "production");
+    expect(await askToSubscribeAction(idle, form({ email: "a@b.example", adult: "on", ticket: "t", website: "" }))).toEqual({ status: "asked" });
+    expect(state.calls).toEqual([]);
+  });
+});

@@ -37,3 +37,12 @@ describe("videoListingOn", () => {
     expect(videoListingOn()).toBe(false);
   });
 });
+
+describe("videoListingOn while the own-channel videos are off (Phase 5d)", () => {
+  it("is false even with both settings set", () => {
+    vi.stubEnv("FEATURES_ON", "");
+    env.throws = false;
+    env.value = { YOUTUBE_API_KEY: KEY, YOUTUBE_CHANNEL_ID: CHANNEL };
+    expect(videoListingOn()).toBe(false);
+  });
+});

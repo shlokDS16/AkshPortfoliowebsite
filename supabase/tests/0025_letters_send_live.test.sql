@@ -13,7 +13,7 @@ insert into public.item_revisions (id, item_id, body_md, structured)
 values ('e8000000-0000-4000-8000-000000000001', 'd8000000-0000-4000-8000-000000000001', 'A note.', '{"schema":"letter/1","entries":[]}');
 -- The decision every send relies on (the insert trigger of 0024 wants a pass of this letter's revision).
 insert into public.gate_decisions (id, item_id, revision_id, policy_version, verdict)
-values ('c8000000-0000-4000-8000-000000000001', 'd8000000-0000-4000-8000-000000000001', 'e8000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.2', 'pass');
+values ('c8000000-0000-4000-8000-000000000001', 'd8000000-0000-4000-8000-000000000001', 'e8000000-0000-4000-8000-000000000001', 'sebi-unreg-2026-07-v1.3', 'pass');
 -- s1 subscribers, approved; s2 subscribers, sending with no broadcast; s3 subscribers, sending with a broadcast; s4 self test,
 -- sending; s5 subscribers, sending, lease run out; s6 self test, sent.
 insert into public.letter_sends (id, item_id, revision_id, gate_decision_id, kind, approved_by, recipients_at_approval, status, claimed_at, broadcast_id)

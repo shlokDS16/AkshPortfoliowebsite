@@ -17,7 +17,7 @@ const base: LintInput = {
   themeName: null,
   conceptNames: [],
   conceptSlugs: [],
-  transcript: null,
+  transcript: null, outside: [],
   companyId: null,
   holdsPosition: null,
   dataAsOf: null,

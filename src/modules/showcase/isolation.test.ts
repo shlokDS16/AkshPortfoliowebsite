@@ -1,44 +1,13 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-
-// Anchored to this file (src/modules/showcase), not the working directory.
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-// import/export ... from "x", bare import "x", dynamic import("x") and require("x").
-const FROM = /(?:import|export)\s[^"';]*?from\s*["']([^"']+)["']|import\s*["']([^"']+)["']|(?:import|require)\s*\(\s*["']([^"']+)["']\s*\)/g;
+import { closure, FROM, GENERATED, ROOT, walkFiles } from "./isolation-walk";
 
 /** The table, the panel and the reader of the private digest (Plan 2b Task 7). */
 const DIGESTS = /document_digests|DigestPanel|readDigest|digest-panel|digest-read|digest-view/;
 
 /** The machine's test readings, their review list and their filing (Plan 2b Task 8): private, admin-read only, never a public line. */
 const READINGS = /reading_proposals|ReadingRows|reading-rows|readings-filing|recordFiledReadings|listStagedReadingsForItem|machineReadingSchema/;
-
-/** The generated database types name every table; they hold no query, so they are not read for this rule. */
-const GENERATED = /database\.types\.ts$/;
-
-function resolveSpec(spec: string, from: string): string | null {
-  const base = spec.startsWith("@/") ? join(ROOT, spec.slice(2)) : spec.startsWith(".") ? resolve(dirname(from), spec) : null;
-  if (!base) return null;
-  return [`${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx")].find(existsSync) ?? null;
-}
-
-/** Every first-party file reachable from `entry` through import and re-export statements. */
-function closure(entry: string): Map<string, string> {
-  const seen = new Map<string, string>();
-  const queue = [entry];
-  while (queue.length) {
-    const file = queue.pop()!;
-    if (seen.has(file)) continue;
-    const text = readFileSync(file, "utf8");
-    seen.set(file, text);
-    for (const m of text.matchAll(FROM)) {
-      const next = resolveSpec(m[1] ?? m[2] ?? m[3], file);
-      if (next) queue.push(next);
-    }
-  }
-  return seen;
-}
 
 describe("rule 10: public code paths use only the cookie-less public client", () => {
   const files = closure(join(ROOT, "modules/showcase/index.ts"));
@@ -73,18 +42,10 @@ describe("rule 10: public code paths use only the cookie-less public client", ()
   });
 });
 
-function walkFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) walkFiles(full, out);
-    else if (/\.tsx?$/.test(entry.name)) out.push(full);
-  }
-  return out;
-}
-
 describe("rule 10 (Plan 1B): the public routes reach no secret, whatever they import", () => {
   const entries = [
     ...walkFiles(join(ROOT, "app/(public)")),
+    ...walkFiles(join(ROOT, "app/media")),
     join(ROOT, "app/layout.tsx"),
     join(ROOT, "app/not-found.tsx"),
     join(ROOT, "app/opengraph-image.tsx"),
@@ -218,7 +179,9 @@ describe("Plan 4: public concept code never reaches the private learning graph",
 // does not exist yet, and when it does only its `public` entry (pure renderers) may be reached from here.
 describe("Phase 5a: derived public surfaces stay inside the public boundary", () => {
   // compliance and catalog are reached through shared barrels today (the existing walkers above accept it and pin that no public file names the catalog).
-  const DESK_ONLY = /^(?:modules\/(?:ledger|cases|valuation|knowledge|distribution|ops|identity|ingestion|documents)|components\/desk\/private)(?:\/|$)/;
+  const DESK_ONLY = /^(?:modules\/(?:ledger|cases|valuation|knowledge|distribution|ops|identity|ingestion|documents|sources)|components\/desk\/private)(?:\/|$)/;
+  // Phase 5d: the sources module's pure public entry (the card builder), the fixed words it prints and the shapes both name. Nothing else of it.
+  const SOURCES_PUBLIC = /^modules\/sources\/(?:public|copy|problem-codes)\.ts$/;
   // Plan 5c: the pure renderers and words (public.ts), the reader's three doors (public-actions.ts) and the two files of the letters folder that file reaches.
   const DISTRIBUTION_PUBLIC = /^modules\/distribution\/(?:public(?:-actions)?\.ts|public\/|letters\/(?:signup|copy)\.ts)$/;
   const relative = (f: string) => f.slice(ROOT.length + 1).replaceAll("\\", "/");
@@ -227,7 +190,7 @@ describe("Phase 5a: derived public surfaces stay inside the public boundary", ()
     "components/desk/json-ld.tsx",
   ].map((e) => join(ROOT, e));
   // The public pages and the print components are on the same boundary: a page that imported ops for a date, or the private banner, would leak.
-  const pages = [...walkFiles(join(ROOT, "app/(public)")), ...["print-masthead", "print-disclosure", "print-button"].map((n) => join(ROOT, `components/desk/${n}.tsx`))].filter((f) => !/\.test\.tsx?$/.test(f));
+  const pages = [...walkFiles(join(ROOT, "app/(public)")), ...walkFiles(join(ROOT, "app/media")), ...["print-masthead", "print-disclosure", "print-button"].map((n) => join(ROOT, `components/desk/${n}.tsx`))].filter((f) => !/\.test\.tsx?$/.test(f));
   const ogCards = walkFiles(join(ROOT, "app")).filter((f) => /opengraph-image\.tsx$/.test(f));
   const all = [...builders, ...pages, ...ogCards];
   const reach = new Map<string, string>();
@@ -245,7 +208,7 @@ describe("Phase 5a: derived public surfaces stay inside the public boundary", ()
   it("reach no service client, no cookie client, no desk module and no private desk component", () => {
     expect(names).not.toContain("lib/supabase/service.ts");
     expect(names).not.toContain("lib/supabase/server.ts");
-    expect(names.filter((n) => DESK_ONLY.test(n) && !DISTRIBUTION_PUBLIC.test(n))).toEqual([]);
+    expect(names.filter((n) => DESK_ONLY.test(n) && !DISTRIBUTION_PUBLIC.test(n) && !SOURCES_PUBLIC.test(n))).toEqual([]);
     // env.server.ts declares the secrets robots.ts never asks for (checked in the next test), so its own text is the one exception.
     for (const [file, text] of reach) if (relative(file) !== "lib/env.server.ts") expect(text, relative(file)).not.toMatch(/supabase\/service|supabase\/server["']|SERVICE_ROLE|sb_secret/);
   });

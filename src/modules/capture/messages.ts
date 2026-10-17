@@ -38,8 +38,10 @@ export function submitErrorCode(error: ZodError): Exclude<SubmitErrorCode, "save
  * item exists. `link-failed`: the item exists but the capture row was not linked to it. `thesis-full`: the
  * thesis is at its length limit, so the text was not added (filing it again would fail the same way). `not-youtube-link`: a v: capture with no
  * YouTube video address in it; nothing was filed.
+ * `no-source-link`: an s: capture (or a v: while own videos are off) with no link a source can be; nothing was filed. `source-note-full`: the note
+ * would pass the 4,000 characters a source holds; nothing was filed.
  */
-export const FILING_ERRORS = ["filing-failed", "link-failed", "thesis-full", "not-youtube-link"] as const;
+export const FILING_ERRORS = ["filing-failed", "link-failed", "thesis-full", "not-youtube-link", "no-source-link", "source-note-full"] as const;
 export type FilingErrorCode = (typeof FILING_ERRORS)[number];
 
 export function asFilingError(value: unknown): FilingErrorCode | null {
@@ -53,6 +55,9 @@ const FILING_TEXT: Record<FilingErrorCode, string> = {
     "Saved, but the thesis is at its length limit (200,000 characters), so this was not added. Start a new item or shorten the thesis.",
   // Phase 5b (spec s7.1): a v: capture whose text holds no YouTube video link. The words are stored; no item is made. Pending Shlok's approval.
   "not-youtube-link": "That is not a YouTube link.",
+  // Phase 5d (spec s6.1). Pending Shlok's approval. The first is the sentence of SOURCE_ERROR_TEXT["source-no-link"] (a test keeps them equal).
+  "no-source-link": "A source needs a link.",
+  "source-note-full": "Saved, but a source note holds at most 4,000 characters, so nothing was filed. Shorten the note.",
 };
 
 export function filingErrorText(code: FilingErrorCode): string {

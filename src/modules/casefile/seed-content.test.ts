@@ -17,7 +17,7 @@ const ctxFor = (o: {
     companyId: o.companyId, holdsPosition: o.holdsPosition, dataAsOf: o.dataAsOf, visibility: "private",
   },
   revision: { id: "00000000-0000-4000-8000-0000000000bb", bodyMd: o.bodyMd, structured: o.structured, changeReason: o.changeReason },
-  companyName: o.companyName, companyOneLiner: null, themeName: null, conceptNames: [], conceptSlugs: [], transcript: null, allowances: [],
+  companyName: o.companyName, companyOneLiner: null, themeName: null, conceptNames: [], conceptSlugs: [], transcript: null, outside: [], allowances: [],
 });
 
 describe("seed content passes the gate before the UI ever sees it", () => {

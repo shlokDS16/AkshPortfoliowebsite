@@ -7,7 +7,13 @@ import { firstLink } from "./first-link";
 import { toKnownTokens } from "./known-tokens";
 import { ReadLinkButton } from "./read-link-button";
 
-const KIND_WORD = { note: "private note", thesis: "thesis", learning: "learning note", process: "process note", reading_note: "reading log", video: "video" } as const;
+const KIND_WORD = { note: "private note", thesis: "thesis", learning: "learning note", process: "process note", reading_note: "reading log", video: "video", source: "source" } as const;
+
+/**
+ * A source capture (Phase 5d): an s: line, or a v: line filed as a source while own videos are off. The inbox's "Read this link" would read the page into
+ * facts for the AI, which is the wrong tool for somebody else's video (D112 keeps that route as it is), so a source offers a way to Sources instead.
+ */
+const sourceCapture = (e: { isSource: boolean; rawText: string }) => e.isSource || parseCapture(e.rawText).kind === "source";
 
 /** Today's captures grouped by company (spec s5), newest first; kind and time per row (segment 4 C). */
 export function TodayList({ groups, known }: { groups: TodayGroup[]; known: KnownTokenLists }) {
@@ -32,10 +38,16 @@ export function TodayList({ groups, known }: { groups: TodayGroup[]; known: Know
                     )}
                   </p>
                   <p className="text-small text-ink-muted">
-                    {KIND_WORD[parseCapture(e.rawText).kind]}
+                    {sourceCapture(e) ? "source" : KIND_WORD[parseCapture(e.rawText).kind]}
                     {e.parseError ? <span className="text-warn"> · {filingErrorText(e.parseError)}</span> : null}
                   </p>
-                  <LinkAction raw={e.rawText} companyId={group.key === "none" ? null : group.key} />
+                  {sourceCapture(e) ? (
+                    <Link href="/desk/sources" className="mt-1 inline-flex min-h-11 items-center text-small text-ink underline decoration-1 underline-offset-3 desk:min-h-8">
+                      See it in Sources
+                    </Link>
+                  ) : (
+                    <LinkAction raw={e.rawText} companyId={group.key === "none" ? null : group.key} />
+                  )}
                 </div>
                 <span className="text-small tabular-nums text-ink-muted">{formatTime(e.createdAt)}</span>
               </li>

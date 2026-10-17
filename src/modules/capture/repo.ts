@@ -55,6 +55,7 @@ export function toListEntry(r: ListRow): CaptureListEntry {
     companyName: r.companies?.name ?? null,
     parseError: asFilingError(asRecord(r.parsed)?.error),
     parsedMissing: asRecord(r.parsed) === null,
+    isSource: asRecord(r.parsed)?.kind === "source",
   };
 }
 

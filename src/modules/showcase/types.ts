@@ -5,8 +5,9 @@ import type {
 } from "@/lib/view-types";
 import type { CaseEventKind, CasePoint } from "@/modules/casefile";
 import type { ItemKind } from "@/modules/research";
+import type { PublicStudiedRow, StudiedCard } from "@/modules/sources/public";
 
-export type { ItemKind };
+export type { ItemKind, PublicStudiedRow, StudiedCard };
 
 export type PublicItemRow = {
   id: string; kind: ItemKind; slug: string; title: string; companyId: string | null; themeId: string | null;
@@ -30,13 +31,14 @@ export type PublicVideoRow = { itemId: string; youtubeId: string; durationSecond
 export type VideoSegment = { s: number; t: string };
 /**
  * `concepts` and `conceptLinks` are optional loads (D60): a failed read, or a snapshot cached by an earlier deployment, has none, and every
- * reader treats a missing field as empty. `videos` is the same (Plan 5b): a video item with no row in it is not listed anywhere.
+ * reader treats a missing field as empty. `videos` is the same (Plan 5b): a video item with no row in it is not listed anywhere. `studied` (Phase 5d,
+ * public_studied) is optional the same way: a snapshot cached before it existed, or a failed read, has no outside sources and the block is absent.
  * Transcripts are NOT in the snapshot: the cache holds an entry up to 2 MB, a transcript is up to 60 KB for an hour of speech, and only
  * the video's own page needs one (see `getVideoTranscript`).
  */
 export type PublicSnapshot = {
   items: PublicItemRow[]; revisions: PublicRevisionRow[]; companies: PublicCompanyRow[]; captureDays: ISODate[]; factChecks: PublicFactCheck[];
-  concepts: PublicConceptRow[]; conceptLinks: PublicConceptLink[]; videos?: PublicVideoRow[]; today: ISODate;
+  concepts: PublicConceptRow[]; conceptLinks: PublicConceptLink[]; videos?: PublicVideoRow[]; studied?: PublicStudiedRow[]; today: ISODate;
 };
 
 export interface ShowcaseRepo {
@@ -48,6 +50,8 @@ export interface ShowcaseRepo {
   listConcepts(): Promise<PublicConceptRow[]>;
   listConceptLinks(): Promise<PublicConceptLink[]>;
   listVideos(): Promise<PublicVideoRow[]>;
+  /** Phase 5d: the outside sources the CURRENT public revision of each company file lists (public_studied). Optional: a failed read gives none. */
+  listStudied(): Promise<PublicStudiedRow[]>;
   /** The transcript of the CURRENT public revision of one video item, or null when there is none. A failed read throws. */
   videoTranscript(itemId: string): Promise<VideoSegment[] | null>;
 }
@@ -56,7 +60,7 @@ export type FileView = {
   fileNo: FileNo; companySlug: string; company: string; symbol: string | null; sector: string | null; oneLiner: string | null;
   title: string; learningObjective: string; holdsPosition: HoldsPosition; dataAsOf: ISODate; reviewedOn: ISODate; revNo: number;
   dateline: DatelineData; readFirst: ReadFirstNote[]; view: ViewBlockData[]; tests: KillTest[]; factGroups: FactGroup[];
-  factCount: number; sources: SourceListItem[]; exhibits: ExhibitData[]; scenario: ScenarioData | null;
+  factCount: number; sources: SourceListItem[]; studied: StudiedCard[]; exhibits: ExhibitData[]; scenario: ScenarioData | null;
   diff: RevisionDiffData | null; log: RevisionLogEntry[]; sections: RailSection[]; concepts: ItemConcept[];
 };
 /**

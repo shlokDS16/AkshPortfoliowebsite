@@ -5,7 +5,7 @@ import { RULE_TITLES } from "./policy";
 // Task 6 records rule 12 failures as {rule: '12', code: '12.1'..'12.4', message} with the plain sentence in `message`. A code that
 // maps to several sentences (12.1 has five) is shown by its stored sentence, never collapsed to one.
 const row = (failures: unknown[], findings: unknown[] = []) => ({
-  id: "d1", revision_id: "r1", verdict: "fail", policy_version: "sebi-unreg-2026-07-v1.2", decided_at: "2026-10-16T00:00:00Z",
+  id: "d1", revision_id: "r1", verdict: "fail", policy_version: "sebi-unreg-2026-07-v1.3", decided_at: "2026-10-16T00:00:00Z",
   reasons: { failures, lint: { findings, allowedBy: [] } },
 });
 

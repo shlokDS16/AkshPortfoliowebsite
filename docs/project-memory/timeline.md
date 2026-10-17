@@ -186,3 +186,8 @@ in `claude/`. End-of-session routine runs before any session finishes.
 ## 2026-10-16 (night) - Phase 5 released; every roadmap phase except client logins is live
 - #11 (5a) merged; #13 folded into #12; migrations 0022-0025 pushed by the controller; #12 merged. Videos stay off until the YouTube key is set; letters and sign-ups stay off until a domain is verified.
 - Shlok approved all pending copy and the decisions taken on his behalf; Q41, Q44 and Q45 decided. Next: a friend of Shlok's checks the whole site and desk; changes become a plan.
+
+## 2026-10-17 - Sources: other people's videos, sites and newsletters on file pages
+- Shlok: Aksh has no channel and does not want to email a newsletter; he wants to save links he is analysing, with YouTube thumbnails. Built as "sources" (migrations 0026-0027, rule 14), shown on a file page once the gate passes. Letters and own-channel videos hidden, reversibly.
+- The review caught link queries reaching the public page unchecked, a re-check queue that failing links could starve, and read loops that could run the cron past Vercel's 300 s limit; all fixed.
+- The laptop restarted twice from memory pressure; the rest of the build ran without Docker and CI carried the browser tests.

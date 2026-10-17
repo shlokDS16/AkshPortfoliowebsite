@@ -37,8 +37,8 @@ $$;
 -- The real door, as the owner: the verdict for revision r of item n.
 create function pg_temp.pub(n int, r int) returns text language sql as $$
   select (public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', pg_temp.it(n), pg_temp.rv(n, r),
-    'sebi-unreg-2026-07-v1.2',
-    jsonb_build_object('passed', true, 'revisionId', pg_temp.rv(n, r)::text, 'policyVersion', 'sebi-unreg-2026-07-v1.2'))).verdict
+    'sebi-unreg-2026-07-v1.3',
+    jsonb_build_object('passed', true, 'revisionId', pg_temp.rv(n, r)::text, 'policyVersion', 'sebi-unreg-2026-07-v1.3'))).verdict
 $$;
 -- The rule codes recorded for the decision on revision r of item n, sorted, comma separated ('' when none).
 create function pg_temp.rules(n int, r int) returns text language sql as $$
@@ -349,7 +349,7 @@ select ok((select p.prosecdef and exists (select 1 from unnest(p.proconfig) c wh
       and (select p.prosecdef and exists (select 1 from unnest(p.proconfig) c where c = 'search_path=""')
              from pg_proc p where p.oid = 'private.knowledge_gate_failures(text, uuid, uuid[])'::regprocedure),
   'both are security definer with an empty search_path');
-select ok(position('sebi-unreg-2026-07-v1.2' in (select pg_get_functiondef(p.oid) from pg_proc p
+select ok(position('sebi-unreg-2026-07-v1.3' in (select pg_get_functiondef(p.oid) from pg_proc p
             where p.oid = 'public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure)) > 0
       and position('knowledge_gate_failures' in (select pg_get_functiondef(p.oid) from pg_proc p
             where p.oid = 'public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure)) > 0
@@ -357,7 +357,7 @@ select ok(position('sebi-unreg-2026-07-v1.2' in (select pg_get_functiondef(p.oid
             where p.oid = 'public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure)) > 0
       and position('ledger_gate_item_failures' in (select pg_get_functiondef(p.oid) from pg_proc p
             where p.oid = 'public.publish_revision(uuid, uuid, uuid, text, jsonb)'::regprocedure)) > 0,
-  'publish_revision still pins policy v1.2, and carries the ledger, case and knowledge checks');
+  'publish_revision still pins policy v1.3, and carries the ledger, case and knowledge checks');
 select ok(has_column_privilege('anon', 'public.item_revisions', 'concept_ids', 'select')
       and not has_column_privilege('authenticated', 'public.item_revisions', 'concept_ids', 'update')
       and not has_column_privilege('service_role', 'public.item_revisions', 'concept_ids', 'select'),

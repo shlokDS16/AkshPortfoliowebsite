@@ -24,8 +24,8 @@ create function pg_temp.lt(n int) returns uuid language sql as $$ select ('d7000
 create function pg_temp.rv(p_item uuid, r int) returns uuid language sql as $$
   select id from public.item_revisions where item_id = p_item and rev_no = r $$;
 create function pg_temp.pub(p_item uuid, r int, p_pass boolean default true) returns text language sql as $$
-  select (public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', p_item, pg_temp.rv(p_item, r), 'sebi-unreg-2026-07-v1.2',
-    jsonb_build_object('passed', p_pass, 'revisionId', pg_temp.rv(p_item, r)::text, 'policyVersion', 'sebi-unreg-2026-07-v1.2'))).verdict $$;
+  select (public.publish_revision('aaaaaaaa-0000-4000-8000-000000000001', p_item, pg_temp.rv(p_item, r), 'sebi-unreg-2026-07-v1.3',
+    jsonb_build_object('passed', p_pass, 'revisionId', pg_temp.rv(p_item, r)::text, 'policyVersion', 'sebi-unreg-2026-07-v1.3'))).verdict $$;
 create function pg_temp.f(p_item uuid, r int, p_key text) returns text language sql as $$
   select coalesce(string_agg(f ->> p_key, ',' order by f ->> 'code', f ->> 'message'), '')
     from (select g.reasons from public.gate_decisions g where g.revision_id = pg_temp.rv(p_item, r)
@@ -308,7 +308,7 @@ select lives_ok($$ insert into public.letter_sends (item_id, revision_id, gate_d
           'aaaaaaaa-0000-4000-8000-000000000001', 1) $$, 'a send naming this revision''s pass is accepted');
 
 -- 8. Structure and privileges.
-select is(private.gate_policy(), 'sebi-unreg-2026-07-v1.2', 'gate_policy reads the policy publish_revision pins');
+select is(private.gate_policy(), 'sebi-unreg-2026-07-v1.3', 'gate_policy reads the policy publish_revision pins');
 select is(private.distribution_gate_failures(pg_temp.lt(1), 'thesis', null, null, pg_temp.rv(pg_temp.lt(1), 1), '{"schema":"letter/1"}', '{}'),
   '[]'::jsonb, 'the helper returns nothing for another kind');
 select ok(pg_get_functiondef('private.distribution_gate_failures(uuid, text, uuid, date, uuid, jsonb, jsonb)'::regprocedure)

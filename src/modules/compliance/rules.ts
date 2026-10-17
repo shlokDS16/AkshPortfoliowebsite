@@ -19,9 +19,20 @@ export const LINT_FIELDS = [
   "conceptSlug",
   /** A video's transcript: the machine's record of what was said, linted word for word (rule 12.2). */
   "transcript",
+  /** Rule 14: the title and the site or channel name the machine read from another site (only when the entry shows them), and the link, the whole address (always). */
+  "outsideTitle",
+  "outsideSite",
+  "outsideLink",
 ] as const;
 export type LintField = (typeof LINT_FIELDS)[number];
 export type LintRule = "1" | "2" | "3" | "5" | "6" | "10" | "structure";
+
+/**
+ * One outside source a company file lists (rule 14), as the lint reads it, loaded by the server from the source table and never supplied by
+ * a client. `url` is the link as saved. `title` and `siteName` (the site, or a YouTube channel) are present only when the entry shows them AND
+ * `metaSha` equals the table's current hash (`read`): then they are exactly the words a reader will see, and the lint reports the hash in `studied`.
+ */
+export type OutsideSource = { url: string; show: boolean; metaSha: string | null; read: boolean; title: string | null; siteName: string | null };
 
 /**
  * The optional public fields are required-but-nullable on purpose: a caller must decide what to pass
@@ -49,6 +60,8 @@ export type LintInput = {
    * every other kind and for a video revision whose transcript could not be loaded. Never edited: it is linted as it was said.
    */
   transcript: string | null;
+  /** The outside sources `structured.studied` lists, in its order; an empty list for every file without any. */
+  outside: OutsideSource[];
   companyId: string | null;
   holdsPosition: HoldsPosition | null;
   dataAsOf: string | null;
@@ -81,4 +94,6 @@ export type LintResult = {
   allowedBy: LintAllowed[];
   /** Present only when the input carried a transcript: sha256 hex of exactly that text. The database gate (12.2) compares it with the stored one. */
   transcriptSha?: string;
+  /** Present only when an entry showed its title: the `metaSha` of each entry whose texts the lint read. The database gate (14.3) requires every shown entry's hash here. */
+  studied?: string[];
 };

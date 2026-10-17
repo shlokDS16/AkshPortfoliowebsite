@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/format";
 import { ITEM_GROUP_LABELS, type ConceptRef, type ConceptStatus } from "@/modules/knowledge/client";
 import type { ConceptPageView } from "@/modules/knowledge";
 import { PendingButton } from "../pending-button";
+import { ConceptSources, type ConceptSourceLine } from "./concept-sources";
 import { RelatedConcepts } from "./related-concepts";
 import { SeenTogether } from "./seen-together";
 
@@ -23,10 +24,12 @@ type Props = {
   saveDescription: (formData: FormData) => Promise<void>;
   link: (conceptA: string, conceptB: string, slug: string) => Promise<void>;
   unlink: (conceptA: string, conceptB: string, slug: string) => Promise<void>;
+  /** The saved sources attached to this concept (Phase 5d), read only. */
+  sources?: { lines: readonly ConceptSourceLine[]; total: number };
 };
 
 /** One concept: where it stands, what he means by it (his words, private), the notes that use it, his links and the desk's suggestions. */
-export function ConceptPage({ view, screened, makePublic, saveDescription, link, unlink }: Props) {
+export function ConceptPage({ view, screened, makePublic, saveDescription, link, unlink, sources }: Props) {
   const { concept, groups, related, suggestions } = view;
   return (
     <article className="space-y-(--block-gap)">
@@ -75,6 +78,7 @@ export function ConceptPage({ view, screened, makePublic, saveDescription, link,
           </ul>
         </section>
       ))}
+      {sources ? <ConceptSources slug={concept.slug} lines={sources.lines} total={sources.total} /> : null}
       <RelatedConcepts conceptId={concept.id} slug={concept.slug} related={related} screened={screened} link={link} unlink={unlink} />
       <SeenTogether conceptId={concept.id} slug={concept.slug} suggestions={suggestions} link={link} />
     </article>

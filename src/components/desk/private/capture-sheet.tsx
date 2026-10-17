@@ -23,10 +23,10 @@ const noSubscribe = () => () => {};
 // Base UI leaves [aria-live] regions out of its aria-hidden pass, so the toast stays announced while the sheet is open.
 const useBody = () => useSyncExternalStore(noSubscribe, () => document.body, () => null);
 
-type Props = { open: boolean; onOpenChange(open: boolean): void; known: KnownTokens };
+type Props = { open: boolean; onOpenChange(open: boolean): void; known: KnownTokens; videoKey?: boolean };
 
 /** Bottom sheet (phone) / top dialog (desktop): Base UI for focus trap and Esc, Motion for the slide (Base UI handbook). */
-export function CaptureSheet({ open, onOpenChange, known }: Props) {
+export function CaptureSheet({ open, onOpenChange, known, videoKey = false }: Props) {
   const [value, setValue] = useState("");
   const field = useRef<HTMLTextAreaElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -71,7 +71,7 @@ export function CaptureSheet({ open, onOpenChange, known }: Props) {
                   <CaptureStatus dirty={value !== ""} />
                   <NeedsAttention />
                   <div className="flex items-center gap-2 pt-1">
-                    <GrammarKeyRow onInsert={insert} />
+                    <GrammarKeyRow onInsert={insert} videoKey={videoKey} />
                     <div className="flex-1" />
                     <Button onClick={submit} disabled={!value.trim()}>
                       Save

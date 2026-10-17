@@ -71,3 +71,8 @@ This is an appended update. The text above is unchanged; where it differs, this 
 Appended pointer only. Case studies drawn from the track-record ledger are governed by `publishing-rules-v1.1-addendum.md`
 (new publishing rule 10, owner switches `ledger_reveal` and `ledger_chart`, both off by default). It takes effect with the policy
 version `sebi-unreg-2026-07-v1.1`, set by Plan 3b Task 1; the text above is unchanged.
+
+## Update 2026-10-16 (Phase 5d sources): v1.3 addendum
+Appended pointer only. Links to other people's videos, pages and newsletter issues shown on a public company file are governed by
+`publishing-rules-v1.3-addendum.md` (new publishing rule 14). It takes effect with the policy version `sebi-unreg-2026-07-v1.3`,
+set by migration 0027 (Plan 5d Task 2); the text above is unchanged. (Distribution rules 11-13 are in the v1.2 addendum.)

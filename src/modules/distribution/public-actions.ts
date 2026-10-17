@@ -1,5 +1,6 @@
 "use server";
 
+import { featureOn } from "@/lib/features";
 import { checkFormTicket } from "@/lib/letters-form";
 import { jobDbError } from "@/lib/supabase/errors";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
@@ -14,7 +15,10 @@ import { askToSubscribe, confirmSubscription, leaveLetters, type AskState, type 
 // so letters_request and letters_leave can be called without the form. The SQL caps (migration 0024) are the control, and the desk shows the
 // typed leaves of the day (readers page). Review findings 2 and 12.
 
+// Phase 5d (spec s8): while the letters are off each door answers the same sentence it always gives and calls nothing (no database, no ticket), so a
+// post that still reaches it (a stale form, a script) is kept nowhere and learns nothing.
 export async function askToSubscribeAction(_previous: AskState, formData: FormData): Promise<AskState> {
+  if (!featureOn("letters")) return { status: "asked" };
   const db = createSupabasePublicClient();
   return askToSubscribe(
     {
@@ -30,6 +34,7 @@ export async function askToSubscribeAction(_previous: AskState, formData: FormDa
 
 /** The confirm page's button: a POST from a person. A GET of the link confirms nothing. */
 export async function confirmAction(_previous: ConfirmState, formData: FormData): Promise<ConfirmState> {
+  if (!featureOn("letters")) return { status: "expired" };
   const db = createSupabasePublicClient();
   return confirmSubscription(
     {
@@ -44,6 +49,7 @@ export async function confirmAction(_previous: ConfirmState, formData: FormData)
 }
 
 export async function leaveAction(_previous: LeaveState, formData: FormData): Promise<LeaveState> {
+  if (!featureOn("letters")) return { status: "left" };
   const db = createSupabasePublicClient();
   return leaveLetters(
     {

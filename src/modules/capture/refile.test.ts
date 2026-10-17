@@ -47,7 +47,7 @@ describe("refileCapture", () => {
     expect(saved).toMatchObject({ itemId: null, parseError: "filing-failed" });
 
     const { itemId } = await refileCapture(deps, saved.captureId, new Date());
-    expect(research.items.get(itemId)).toMatchObject({ kind: "process", visibility: "private" });
+    expect(research.items.get(itemId ?? "")).toMatchObject({ kind: "process", visibility: "private" });
     expect(captures.records[0]).toMatchObject({ itemId, parsed: expect.not.objectContaining({ error: expect.anything() }) });
     expect(research.items.size).toBe(1);
   });
@@ -58,7 +58,7 @@ describe("refileCapture", () => {
     await expect(refileCapture(deps, record.id, after(record.createdAt, REFILE_AFTER_MS - 1000))).rejects.toBeInstanceOf(CaptureNotRefilableError);
     expect(research.items.size).toBe(0);
     const { itemId } = await refileCapture(deps, record.id, after(record.createdAt, REFILE_AFTER_MS));
-    expect(research.items.get(itemId)?.title).toBe("a stranded thought");
+    expect(research.items.get(itemId ?? "")?.title).toBe("a stranded thought");
     expect(captures.records[0].itemId).toBe(itemId);
   });
 
@@ -99,7 +99,7 @@ describe("refileCapture", () => {
     const { itemId } = await refileCapture(deps, record.id, after(record.createdAt, REFILE_AFTER_MS));
     expect(itemId).not.toBe(other.itemId);
     expect(research.items.size).toBe(2);
-    expect(research.items.get(itemId)?.title).toBe("buy");
+    expect(research.items.get(itemId ?? "")?.title).toBe("buy");
   });
 
   it("records thesis-full when the thesis is at its limit, so the row stops being offered for refiling", async () => {

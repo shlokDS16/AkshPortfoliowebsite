@@ -35,13 +35,17 @@
   /* The part of a closed disclosure widget a reader cannot see on screen is not printed. */
   details:not([open]) > :not(summary) { display: none; }
 
-  /* Where a source goes: the address in full after the text, so a PDF still names it. */
+  /* Where a source goes: the address in full after the text, so a PDF still names it. An outside source's link is a source too (Phase 5d). */
+  [aria-labelledby="studied"] a[href^="http"]::after,
   [aria-labelledby="sources"] a[href^="http"]::after {
     content: " (" attr(href) ")";
     font-size: 0.85em;
     color: var(--ink-muted);
     overflow-wrap: anywhere;
   }
+
+  /* A third party's picture is not printed (Phase 5d, spec s7): the title, the name, his note and the address are. */
+  [data-studied-picture] { display: none !important; }
 
   /* Colour that carries meaning (a chart's lines, the file tag, the VIEW label's fill, a hatch for a withheld figure) is printed even with
      "background graphics" off; without it the label's light text would sit on nothing. The page itself stays white (body, above). */

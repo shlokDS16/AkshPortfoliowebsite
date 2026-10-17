@@ -13,6 +13,9 @@ import { httpsTransport, systemResolver } from "./safe-fetch-transport";
 //  - at most 2 redirects, each one checked again from scratch;
 //  - 50 MB at most, counted while the body streams (a Content-Length is only an early exit); 30 s for everything;
 //  - the request carries no cookie and no authorization header (the transport sets its own three headers).
+//  - Phase 5d, two options for the sources module, nothing else relaxed: `prefixOnly` reads the first `maxBytes` and stops instead of refusing a longer
+//    body (a page's title is in its first 512 KB), and `passStatuses` hands back an empty answer carrying the status for a few listed non-success
+//    statuses (oEmbed's 401 and 404 mean "not shared" and "not found"). A redirect is never passed through; the guard runs on every hop.
 
 export type Address = { address: string; family: 4 | 6 };
 export type Resolver = (hostname: string) => Promise<Address[]>;
@@ -30,9 +33,18 @@ export type TransportResponse = {
 };
 export type Transport = (request: TransportRequest) => Promise<TransportResponse>;
 
-export type SafeFetchDeps = { resolve?: Resolver; transport?: Transport; timeoutMs?: number; maxBytes?: number };
-/** `contentType` is the bare type, lower case; `finalUrl` is the address that answered after any redirects. */
-export type FetchedLink = { contentType: string; bytes: Uint8Array; finalUrl: string };
+export type SafeFetchDeps = {
+  resolve?: Resolver;
+  transport?: Transport;
+  timeoutMs?: number;
+  maxBytes?: number;
+  /** Phase 5d: read the first `maxBytes` and stop, instead of refusing a longer body (the page-title read). Nothing else is relaxed. */
+  prefixOnly?: boolean;
+  /** Phase 5d: non-success statuses (never a redirect) handed back as an empty answer carrying their `status`, not refused (oEmbed's 401 and 404). */
+  passStatuses?: readonly number[];
+};
+/** `contentType` is the bare type, lower case; `finalUrl` is the address that answered after any redirects; `status` is the final HTTP status. */
+export type FetchedLink = { contentType: string; bytes: Uint8Array; finalUrl: string; status: number };
 
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 const MAX_LINK_CHARS = 2000;
@@ -86,9 +98,9 @@ function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
 }
 
 /** The body, counted as it arrives: past the cap the read stops and the connection is closed. */
-async function readCapped(res: TransportResponse, signal: AbortSignal, maxBytes: number): Promise<Uint8Array> {
+async function readCapped(res: TransportResponse, signal: AbortSignal, maxBytes: number, prefixOnly: boolean): Promise<Uint8Array> {
   const declared = Number(res.headers["content-length"]);
-  if (Number.isFinite(declared) && declared > maxBytes) {
+  if (!prefixOnly && Number.isFinite(declared) && declared > maxBytes) {
     res.close();
     throw new DocumentError("link-too-large");
   }
@@ -99,6 +111,11 @@ async function readCapped(res: TransportResponse, signal: AbortSignal, maxBytes:
     for (;;) {
       const next = await raceAbort(iterator.next(), signal);
       if (next.done) break;
+      if (prefixOnly && total + next.value.byteLength >= maxBytes) {
+        chunks.push(next.value.subarray(0, maxBytes - total));
+        total = maxBytes;
+        break;
+      }
       total += next.value.byteLength;
       if (total > maxBytes) throw new DocumentError("link-too-large");
       chunks.push(next.value);
@@ -150,9 +167,11 @@ export async function safeFetch(link: string, deps: SafeFetchDeps = {}): Promise
       }
       if (res.status < 200 || res.status >= 300) {
         res.close();
+        if (deps.passStatuses?.includes(res.status)) return { contentType: "", bytes: new Uint8Array(0), finalUrl: url.href, status: res.status };
         throw new DocumentError("link-failed");
       }
-      return { contentType: bareMime(res.headers["content-type"] ?? ""), bytes: await readCapped(res, signal, maxBytes), finalUrl: url.href };
+      const bytes = await readCapped(res, signal, maxBytes, deps.prefixOnly === true);
+      return { contentType: bareMime(res.headers["content-type"] ?? ""), bytes, finalUrl: url.href, status: res.status };
     }
   } catch (error) {
     if (error instanceof DocumentError) throw error;

@@ -57,3 +57,12 @@ export function publicEnv(): PublicEnv {
 export function isBuildPhase(): boolean {
   return process.env.NEXT_PHASE === "phase-production-build";
 }
+
+/**
+ * The two plain settings behind `featureOn` (src/lib/features.ts, Phase 5d): `FEATURES_ON` and `VERCEL_ENV`. Neither is a secret, so they are read here and
+ * not in env.server.ts, which the public pages must never reach (isolation.test.ts). Read on every call and apart from the rest of the settings, so a
+ * feature check needs none of them to be valid. Not NEXT_PUBLIC, so a browser bundle sees nothing; features.ts is server-only.
+ */
+export function featureEnv(): { featuresOn: string | undefined; vercelEnv: string | undefined } {
+  return { featuresOn: process.env.FEATURES_ON, vercelEnv: process.env.VERCEL_ENV };
+}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CaptureDock } from "@/components/desk/private/capture-dock";
 import { DeskShell } from "@/components/desk/private/desk-shell";
+import { featureOn } from "@/lib/features";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/modules/identity";
 import { signOut } from "@/modules/identity/actions";
@@ -18,7 +19,15 @@ export default async function DeskLayout({ children }: LayoutProps<"/desk">) {
     knownTokens(),
   ]);
   return (
-    <DeskShell names={names} inbox={inbox} liveness={liveness} signOut={signOut} capture={<CaptureDock known={known} />}>
+    <DeskShell
+      names={names}
+      inbox={inbox}
+      liveness={liveness}
+      signOut={signOut}
+      capture={<CaptureDock known={known} videoKey={featureOn("ownVideos")} />}
+      ownVideos={featureOn("ownVideos")}
+      letters={featureOn("letters")}
+    >
       {children}
     </DeskShell>
   );

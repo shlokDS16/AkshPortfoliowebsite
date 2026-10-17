@@ -153,3 +153,37 @@ describe("the desk's 'send now' and the setup check", () => {
     expect(touched.rpc).toBe(0);
   });
 });
+
+// Phase 5d (spec s8): the letters are off in production. With every letters setting present (here the local fixture), the send and the reader-list
+// steps still say "letters off" and ask the database for nothing; only the retention purge runs (a duty the readers' data is owed, not a send).
+describe("the letters steps while the feature is off (Phase 5d)", () => {
+  const FIXTURE = { ADMIN_EMAIL: "a@desk.test", DISTRIBUTION_ADAPTER: "fixture", NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" } as const;
+
+  it("letters:send and letters:reconcile say 'letters off' and touch no database, although the settings would turn letters on", async () => {
+    vi.stubEnv("FEATURES_ON", "");
+    env.value = { ...FIXTURE };
+    expect(lettersOn()).toBe(false);
+    expect(await LETTER_SEND_STEP.run()).toBe("letters off");
+    expect(await LETTER_RECONCILE_STEP.run()).toBe("letters off");
+    expect(touched.rpc).toBe(0);
+    expect(peekFixtureLetters().emails).toEqual([]);
+  });
+
+  it("sending the readers' confirmation emails is refused with the fixed 'not set up' answer", async () => {
+    vi.stubEnv("FEATURES_ON", "");
+    env.value = { ...FIXTURE };
+    await expect(sendConfirmationsNow("a@desk.test", [ITEM])).rejects.toThrow();
+    expect(touched.rpc).toBe(0);
+  });
+
+  it("is the control: the same settings turn letters on under the override the suite runs with", () => {
+    env.value = { ...FIXTURE };
+    expect(lettersOn()).toBe(true);
+  });
+
+  it("a production deployment never takes the override", () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    env.value = { ...FIXTURE };
+    expect(lettersOn()).toBe(false);
+  });
+});

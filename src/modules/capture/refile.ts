@@ -38,7 +38,8 @@ async function fileCaptureOrMark(deps: SaveCaptureDeps, captureId: string, parse
 }
 
 /** Files a stored capture again. If an item already holds its text (the link was lost), links that item instead. */
-export async function refileCapture(deps: SaveCaptureDeps, captureId: string, now: Date): Promise<{ itemId: string }> {
+/** `itemId` is null for a source: a saved link is not an item. */
+export async function refileCapture(deps: SaveCaptureDeps, captureId: string, now: Date): Promise<{ itemId: string | null }> {
   const record = await deps.captures.findById(captureId);
   if (!record) throw new CaptureNotRefilableError();
   const error = record.parsed?.error;
@@ -53,7 +54,7 @@ export async function refileCapture(deps: SaveCaptureDeps, captureId: string, no
   const parsed = parseCapture(record.rawText);
   const until = new Date(new Date(record.createdAt).getTime() + LINK_WINDOW_MS).toISOString();
   // An empty body matches every revision, so it never counts as "already filed".
-  const existing = parsed.body.trim() === "" ? null : await deps.research.findRevisionContaining(parsed.body, record.createdAt, until);
+  const existing = parsed.body.trim() === "" || parsed.kind === "source" ? null : await deps.research.findRevisionContaining(parsed.body, record.createdAt, until);
   const filed = existing
     ? {
         itemId: existing.itemId,
@@ -62,7 +63,7 @@ export async function refileCapture(deps: SaveCaptureDeps, captureId: string, no
       }
     : await fileCaptureOrMark(deps, record.id, parsed);
   await deps.captures.attach(record.id, {
-    parsed: { ...parsed },
+    parsed: "sourceAnswer" in filed && filed.sourceAnswer !== undefined ? { ...parsed, kind: "source" } : { ...parsed },
     itemId: filed.itemId,
     companyId: filed.company?.id ?? null,
     themeId: filed.theme?.id ?? null,

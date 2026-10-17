@@ -25,10 +25,10 @@ vi.mock("@/lib/supabase/service", () => ({
       const result = { data: [], error: null };
       return Object.assign(Promise.resolve(result), { abortSignal: () => Promise.resolve(result) });
     },
-    // the anchor step reads its sealed days: an empty ledger here
+    // the anchor step reads its sealed days: an empty ledger here; the source steps read their links (none here)
     from: () => {
       const chain: Record<string, unknown> = {};
-      for (const op of ["select", "order", "limit", "gte", "lte", "is", "not", "abortSignal"]) chain[op] = () => chain;
+      for (const op of ["select", "order", "limit", "gte", "lte", "lt", "eq", "or", "is", "not", "abortSignal"]) chain[op] = () => chain;
       chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], count: 0, error: null });
       return chain;
     },
@@ -93,6 +93,7 @@ describe("GET /api/cron/daily", () => {
       { job: "videos:check", ok: true, detail: "videos off" },
       { job: "letters:reconcile", ok: true, detail: "letters off" },
       { job: "letters:purge", ok: true, detail: "nothing to purge" },
+      { job: "sources:recheck", ok: true, detail: "nothing to check" },
       { job: "alerts:email", ok: true, detail: "email off: RESEND_API_KEY or ALERT_EMAIL is not set" },
     ]);
     expect(fake.claims).toBe(1);
@@ -119,11 +120,12 @@ describe("POST /api/jobs/run", () => {
         { job: "ingestion:drain", ok: true },
         { job: "videos:fetch", ok: true },
         { job: "letters:send", ok: true },
+        { job: "sources:fetch", ok: true },
         { job: "alerts:email", ok: true },
       ],
     });
     await call();
-    expect(fake.beats.map((b) => b.job)).toEqual(["clock:register", "heartbeat:pump", "ingestion:drain", "videos:fetch", "letters:send", "alerts:email", "clock:register", "heartbeat:pump", "ingestion:drain", "videos:fetch", "letters:send", "alerts:email"]);
+    expect(fake.beats.map((b) => b.job)).toEqual(["clock:register", "heartbeat:pump", "ingestion:drain", "videos:fetch", "letters:send", "sources:fetch", "alerts:email", "clock:register", "heartbeat:pump", "ingestion:drain", "videos:fetch", "letters:send", "sources:fetch", "alerts:email"]);
   });
 });
 

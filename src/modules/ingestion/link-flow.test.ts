@@ -35,7 +35,7 @@ function setup(fetchLink: LinkFlowDeps["fetchLink"] = (link) => safeFetch(link, 
   return { docs, jobs, deps };
 }
 
-const fetched = (contentType: string, body: string | Uint8Array): FetchedLink => ({ contentType, bytes: typeof body === "string" ? enc(body) : body, finalUrl: "https://example.test/files/Q1-results.pdf" });
+const fetched = (contentType: string, body: string | Uint8Array): FetchedLink => ({ contentType, bytes: typeof body === "string" ? enc(body) : body, finalUrl: "https://example.test/files/Q1-results.pdf", status: 200 });
 const TABLE = "Quarterly results table RUN1\nRevenue from operations 412.60 371.20\nFinance costs 12.40 13.10\nProfit for the quarter 38.90 31.50";
 
 describe("runStartLink: a BSE-style PDF link becomes a pdf document", () => {
