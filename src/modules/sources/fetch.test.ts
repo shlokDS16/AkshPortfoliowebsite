@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { dns, enc, PUBLIC, reply } from "../documents/safe-fetch-fakes";
 import type { Transport, TransportRequest } from "../documents/safe-fetch";
-import { fetchPendingSources, isPending, readSourceNow, recheckSources, type FetchDeps, type FetchStore, type RecordFetch, type SourceRef } from "./fetch";
+import { fetchPendingSources, isPending, PUMP_BUDGET_MS, READ_WORST_MS, readSourceNow, RECHECK_BUDGET_MS, recheckSources, type FetchDeps, type FetchStore, type RecordFetch, type SourceRef } from "./fetch";
 
 // No network: DNS is a table, the transport a function, the store and the clock fakes.
 
@@ -118,11 +118,13 @@ describe("sources:fetch (the pump)", () => {
     expect(w.recorded).toHaveLength(5);
   });
 
-  it("stops starting new reads after 40 seconds, counted on the clock", async () => {
-    const w = world({ tookMs: 10_000 }); // a link takes two requests: 20 s
+  it.each([[10_000, "20 s a link"], [9_500, "19 s a link: a third read at 38 s could run to 58"]])("starts a read only if it can finish inside the 40 seconds, counted on the clock (%s ms a request, %s)", async (tookMs) => {
+    const w = world({ tookMs });
+    const start = w.now();
     for (let i = 0; i < 5; i += 1) w.add(`link${i}`, { youtubeId: ID(i) });
     expect(await fetchPendingSources(w.deps)).toBe("read 2, stopped early: out of time");
     expect(w.recorded).toHaveLength(2);
+    expect(w.now() - start).toBeLessThanOrEqual(PUMP_BUDGET_MS);
   });
 
   it("says so when there is nothing to read", async () => {
@@ -206,13 +208,21 @@ describe("sources:recheck (daily)", () => {
     expect(await recheckSources(w.deps)).toBe("purged 1, nothing to check");
   });
 
-  it("checks at most 40, and stops after 60 seconds", async () => {
+  it("checks at most 40, and starts a read only if it can finish inside the 35 seconds", async () => {
     const w = world();
     for (let i = 0; i < 50; i += 1) w.add(`link${i}`, { youtubeId: ID(i), fetchedAt: "2026-09-01T00:00:00Z" });
     expect(await recheckSources(w.deps)).toBe("checked 40");
-    const slow = world({ tookMs: 15_000 }); // two requests: 30 s a link
-    for (let i = 0; i < 5; i += 1) slow.add(`link${i}`, { youtubeId: ID(i), fetchedAt: "2026-09-01T00:00:00Z" });
-    expect(await recheckSources(slow.deps)).toBe("checked 2, stopped early: out of time");
+    const slow = world({ tookMs: 10_000 }); // two requests: 20 s a link
+    const start = slow.now();
+    for (let i = 0; i < 40; i += 1) slow.add(`link${i}`, { youtubeId: ID(i), fetchedAt: "2026-09-01T00:00:00Z" });
+    expect(await recheckSources(slow.deps)).toBe("checked 1, stopped early: out of time");
+    expect(slow.now() - start).toBeLessThanOrEqual(RECHECK_BUDGET_MS);
+  });
+
+  it("keeps the budgets inside the function's 300 seconds (spec s6.4 amendment, D106)", () => {
+    expect([PUMP_BUDGET_MS, RECHECK_BUDGET_MS, READ_WORST_MS]).toEqual([40_000, 35_000, 20_000]);
+    expect(240_000 + PUMP_BUDGET_MS + 15_000).toBeLessThanOrEqual(300_000); // the pump: drain, source read, alert email
+    expect(45_000 + 200_000 + RECHECK_BUDGET_MS + 15_000).toBeLessThanOrEqual(300_000); // the daily: ledger, sweep, re-check, alert email
   });
 
   it("marks a video that YouTube no longer has as gone, clears its data, deletes its picture and counts it", async () => {

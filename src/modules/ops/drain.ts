@@ -92,7 +92,7 @@ async function sweep(): Promise<string> {
   return sweepText(summary, await pruneUsage(createSupabaseServiceClient()));
 }
 
-/** The clock registration first, then Phase 1's clocks (each its own heartbeat), then the ingestion drain, then the video fetch (one API call, about 10 s at most; "videos off" until the YouTube settings are set), then the letter send (claims one approved send, at most three, within 150 s; "letters off" until the letters settings are set), then the source read (up to 5 saved links, 40 s at most), then the alert email (about 15 s at most). */
+/** The clock registration first, then Phase 1's clocks (each its own heartbeat), then the ingestion drain, then the video fetch (one API call, about 10 s at most; "videos off" until the YouTube settings are set), then the letter send (claims one approved send, at most three, within 150 s; "letters off" until the letters settings are set), then the source read (up to 5 saved links; no read is started that could run past 40 s), then the alert email (about 15 s at most). With the video and letter steps off, the worst case is 240 + 40 + 15 = 295 s of the function's 300. */
 export const SERVER_PUMP_STEPS: readonly Step[] = [
   CLOCK_REGISTER_STEP,
   ...PUMP_STEPS,
@@ -102,7 +102,7 @@ export const SERVER_PUMP_STEPS: readonly Step[] = [
   SOURCE_FETCH_STEP,
   ALERT_STEP,
 ];
-/** The heartbeat, then the ledger (closes, scores; about 45 s at most), then the ingestion sweep (200 s), then the video check (a few API calls and writes, a minute at most; "videos off" until the YouTube settings are set), then the letters: the reader list made equal to Resend's (120 s at most; "letters off" until set) and the retention purge (one call), then the source re-check (the 30-day purge, then YouTube links not checked in 25 days: 40 at most, 60 s), then the alert email (about 15 s). A step that fails does not stop the next. */
+/** The heartbeat, then the ledger (closes, scores; about 45 s at most), then the ingestion sweep (200 s), then the video check (a few API calls and writes, a minute at most; "videos off" until the YouTube settings are set), then the letters: the reader list made equal to Resend's (120 s at most; "letters off" until set) and the retention purge (one call), then the source re-check (the 30-day purge, then YouTube links not checked in 25 days: 40 at most; no read is started that could run past 35 s), then the alert email (about 15 s). With the video and letter steps off, the worst case is 45 + 200 + 35 + 15 = 295 s of the function's 300. A step that fails does not stop the next. */
 export const SERVER_DAILY_STEPS: readonly Step[] = [
   CLOCK_REGISTER_STEP,
   ...DAILY_STEPS,

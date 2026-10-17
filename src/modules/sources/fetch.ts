@@ -1,5 +1,5 @@
 import type { SafeFetchDeps } from "@/modules/documents";
-import { readPage, readThumbnail, readYoutube, type ReadFailure } from "./outbound";
+import { READ_TIMEOUT_MS, readPage, readThumbnail, readYoutube, type ReadFailure } from "./outbound";
 import { MAX_READ_ATTEMPTS, type ProblemCode, type SourceKind } from "./types";
 
 // The logic of the two source steps and of "Read again" (spec s6.4, D106), with the store, the link-fetch dependencies and the clock
@@ -9,7 +9,9 @@ import { MAX_READ_ATTEMPTS, type ProblemCode, type SourceKind } from "./types";
 export const PUMP_BATCH = 5;
 export const PUMP_BUDGET_MS = 40_000;
 export const RECHECK_BATCH = 40;
-export const RECHECK_BUDGET_MS = 60_000;
+export const RECHECK_BUDGET_MS = 35_000;
+/** The longest one read can take: the title (10 s) and then the picture (10 s). A read is started only if it can finish inside the budget. */
+export const READ_WORST_MS = 2 * READ_TIMEOUT_MS;
 /** "Read again" waits this long after the last read or try of the same link (D106). */
 export const COOLDOWN_MS = 60_000;
 
@@ -47,7 +49,7 @@ export type RecordFetch = {
 export interface FetchStore {
   /** Links never read, oldest first, at most `limit` (the rule of `isPending` is applied again on the result). */
   pending(limit: number): Promise<SourceRef[]>;
-  /** YouTube links read before, not gone, not checked in the last 25 days, longest unchecked first, at most `limit`. */
+  /** YouTube links read before, not gone, not checked in the last 25 days, fewest failed tries first (a link that keeps failing goes to the back), then longest unchecked first, at most `limit`. */
   stale(limit: number): Promise<SourceRef[]>;
   byId(id: string): Promise<SourceRef | null>;
   /** Writes one result; returns the path of a picture the write left unused, for the caller to delete. */
@@ -105,7 +107,7 @@ async function readAll(deps: FetchDeps, refs: readonly SourceRef[], budgetMs: nu
   const t: Tally = { read: 0, problems: 0, gone: 0, errors: 0, cleanup: 0, early: false };
   const started = deps.clock();
   for (const ref of refs) {
-    if (deps.clock() - started >= budgetMs) {
+    if (deps.clock() - started + READ_WORST_MS > budgetMs) {
       t.early = true;
       break;
     }
@@ -136,7 +138,7 @@ function report(t: Tally, prefix: string | null, label: "read" | "checked", show
   ]);
 }
 
-/** `sources:fetch` (the pump): links never read, at most 5 a run, none started after 40 s. */
+/** `sources:fetch` (the pump): links never read, at most 5 a run, no read started that could run past 40 s. */
 export async function fetchPendingSources(deps: FetchDeps): Promise<string> {
   const refs = (await deps.store.pending(PUMP_BATCH)).filter(isPending).slice(0, PUMP_BATCH);
   if (refs.length === 0) return "nothing to read";
@@ -145,7 +147,7 @@ export async function fetchPendingSources(deps: FetchDeps): Promise<string> {
 
 /**
  * `sources:recheck` (daily): first the 30-day purge (YouTube details not checked in 30 days are cleared and their pictures deleted, whatever
- * else happens), then the YouTube links not checked in 25 days, at most 40, none started after 60 s. Pages are never read again by the machine.
+ * else happens), then the YouTube links not checked in 25 days, at most 40, no read started that could run past 35 s. Pages are never read again by the machine.
  */
 export async function recheckSources(deps: FetchDeps): Promise<string> {
   const cleared = await deps.store.purgeStale();
