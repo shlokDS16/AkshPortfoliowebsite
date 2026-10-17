@@ -26,6 +26,15 @@ test.beforeAll(async () => {
   world = await seedSourceForCompany(await adminDb(), KAVERI.symbol);
 });
 
+test("'Read again' inside the first minute after a read says so in the fixed words, never the server's", async ({ page }) => {
+  await page.goto("/desk/sources");
+  await hydrated(page);
+  // The seeded read was just now, so the one-minute cooldown holds. This test runs first on purpose: a minute later the press would really ask the
+  // fixture site and replace the seeded title, which every later step relies on.
+  await page.getByRole("listitem").filter({ hasText: WORLD_TITLE }).getByRole("button", { name: "Read again" }).click();
+  await expect(page.locator("p[role=alert]")).toHaveText("The desk read this link less than a minute ago. Try again in a minute.");
+});
+
 async function expectClean(page: Page): Promise<void> {
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
@@ -72,14 +81,6 @@ test("the filters narrow the list and the add form shows its refusal and keeps w
   await page.getByRole("button", { name: "Save source" }).click();
   await expect(page.locator("p[role=alert]")).toHaveText("A source needs a link.");
   await expect(page.getByRole("textbox", { name: "Link" })).toHaveValue("not a link");
-});
-
-test("'Read again' on a link the server cannot ask says so in the fixed words, never the server's", async ({ page }) => {
-  await page.goto("/desk/sources");
-  await hydrated(page);
-  // The seeded read was just now, so the one-minute cooldown holds.
-  await page.getByRole("listitem").filter({ hasText: WORLD_TITLE }).getByRole("button", { name: "Read again" }).click();
-  await expect(page.locator("p[role=alert]")).toHaveText("The desk read this link less than a minute ago. Try again in a minute.");
 });
 
 for (const [width, size] of Object.entries(SIZES)) {
