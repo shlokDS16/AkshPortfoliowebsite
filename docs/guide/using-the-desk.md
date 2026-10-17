@@ -2,7 +2,7 @@
 
 A guide for Aksh (daily use) and for Shlok (the short section near the end on running the site).
 
-Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026, section 4.11 (PDFs, links and the feed) and section 4.12 (videos) and section 4.13 (letters) on 16 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
+Written 14 October 2026, from the code and the design documents as they stand on that day. Section 4.9 (case studies) and section 4.10 (concepts, reads and your month) were added on 15 October 2026, section 4.11 (PDFs, links and the feed) and section 4.12 (videos) and section 4.13 (letters) on 16 October 2026, and section 4.14 (sources) on 17 October 2026. Where a label or message is quoted, it is the text in the code. Anything that could not be confirmed is listed at the very end, under "To verify before sharing".
 
 ## Contents
 
@@ -23,6 +23,7 @@ Written 14 October 2026, from the code and the design documents as they stand on
    - [4.11 Sharing your work: PDFs, links and the feed](#411-sharing-your-work-pdfs-links-and-the-feed)
    - [4.12 Videos](#412-videos)
    - [4.13 Letters](#413-letters)
+   - [4.14 Sources](#414-sources)
 5. [The publishing rules in plain words](#5-the-publishing-rules-in-plain-words)
 6. [When something looks wrong](#6-when-something-looks-wrong)
 7. [For Shlok: running the site](#7-for-shlok-running-the-site)
@@ -127,7 +128,8 @@ At the very top, a **red strip** appears only when something is late or broken. 
 | `l:` at the very start | A learning note. The receipt says "Learning note, private". |
 | `p:` at the very start | A process note (how you work). The receipt says "Process note, private". |
 | `r:` at the very start | Something you read, for the reading log. The receipt says "Reading log, private". A read always stays private. |
-| `v:` at the very start, then a YouTube link | A video (section 4.12). The receipt says "Video, private". Nothing is read from YouTube until Shlok has set a key. |
+| `s:` at the very start, then a link | A source: someone else's video, article or newsletter that you studied (section 4.14). The receipt says "Source, private". The same link again adds your new note to the one card. |
+| `v:` at the very start, then a YouTube link | While your own videos are switched off (they are, section 4.12) this files a source, like `s:`. |
 | A web address (https://...) anywhere | Kept with the capture. The desk does not open it by itself. See "Read this link" below. |
 | None of the above | A private note, listed under Today. |
 
@@ -588,6 +590,7 @@ Anyone can open these pages without signing in. The bar along the top (or bottom
 - **Mistakes.** Closed cases in which you judged your own process flawed, or named a kind of mistake, with your review words and a link to the case (section 4.9). Until one is public the page shows its placeholder: "Nothing here yet. Closed cases in which Aksh judged his own process flawed, or named a kind of mistake, are listed here with his own words and a link to the case."
 - **Closed cases** (`/cases`, no tab; linked from Process and Mistakes) and the **How this record is kept** section on Process. Both appear only while a case study from the ledger is public (section 4.9).
 - **Videos** (`/videos`, no tab; linked from What changed on the home page, the feed and shared links). Each public video has its own page with a click-to-play box (no picture), your chapters and the transcript (section 4.12). The page does not exist until a video is listed.
+- **Other people's work I studied.** On a company file, between its sources and its revisions, only when you put a source on that file (section 4.14). Each card has the link, your note and, if you allowed it, the title and picture.
 - **About and disclosures.** Who you are, how a page gets published (the rules in section 5), and the standard disclosure.
 - **On every page,** a disclosure line: "For learning · Aksh is not SEBI-registered · Figures 30+ days old."
 - **On a file, a note, a process note and a closed case,** a **Save as PDF** button under the dates (section 4.11).
@@ -727,6 +730,8 @@ The result differs a little between browsers. A PDF is a copy. If you change or 
 
 ### 4.12 Videos
 
+**Switched off for now.** Videos and letters are turned off in the code (the `FEATURES` constants in `src/lib/features.ts`) until you and Shlok decide otherwise. The Videos and Letters links, the `/videos` and `/letters` pages and the `v:` key are gone, and nothing is read from YouTube or sent by email. Turning one back on is a one-line change that Shlok makes. What follows describes how it works once it is on.
+
 **What it is for.** A video of yours on YouTube can have a page on the site: the video itself (it loads only when a visitor presses play), your chapters, and a transcript of what you say, so a reader can search and skim. The desk only reads YouTube. It never uploads, edits or deletes anything there.
 
 **Switched off until Shlok sets a key.** Until Shlok adds a YouTube key (section 7), the desk says "Video listing is not set up yet (Shlok adds a YouTube key)." and nothing is read from YouTube. A `v:` capture still saves; it waits.
@@ -774,6 +779,8 @@ The result differs a little between browsers. A PDF is a copy. If you change or 
 
 ### 4.13 Letters
 
+**Switched off for now.** Videos and letters are turned off in the code (the `FEATURES` constants in `src/lib/features.ts`) until you and Shlok decide otherwise. The Videos and Letters links, the `/videos` and `/letters` pages and the `v:` key are gone, and nothing is read from YouTube or sent by email. Turning one back on is a one-line change that Shlok makes. What follows describes how it works once it is on.
+
 **What it is for.** A letter is an email that lists what changed on the site since your last one: the files, closed cases, notes and videos that went public. Readers ask for it on a public page, and each letter also sits on a public archive. The letter is your words (the subject, one sentence, an optional short note). The list of changes is copied from the site by the desk, with your own titles and reasons exactly as they are there. Nothing is written for you, and nothing is sent until you press.
 
 **Switched off until Shlok sets up the email service.** Until then the desk says "Email is not set up yet. Letters still publish to the archive." You can make and publish letters, but the sign-up form stays shut and no email goes out. Real sending needs three things from Shlok (section 7; open questions Q9, Q36 and Q42): a domain that Resend has checked as his, a sender address on it, and a separate Resend key for letters. Until the domain is checked, Resend delivers only to its owner's own address, so a letter could not reach a reader anyway. Nothing is sent from a test or from a preview copy of the site.
@@ -815,6 +822,44 @@ The result differs a little between browsers. A PDF is a copy. If you change or 
 | "Not sent: the approval ran out after 24 hours." | An approval lasts a day. Press **Approve again**. |
 
 **Taking it down.** **Unpublish** removes the letter from the archive, its page, its card, the feed and the page list within the hour. It does not call back an email that was already sent.
+
+### 4.14 Sources
+
+**What it is for.** The videos, articles and newsletters by other people that you studied, kept in one list with your note on each. A saved source is private. You can put some of them on a company file, and then a reader sees "Other people's work I studied": the link, your note and, if you allow it, the title and the picture. It says "Linked, not endorsed." The desk never writes the note for you.
+
+**Saving a source**
+
+1. **From the Capture box.** Type `s:` at the very start, paste the link, and add `$SYMBOL` and `#concepts` if you like, then your own words. For example: `s: https://youtu.be/AbCdEfGhIjK $KAVPUMP #moats why the bull case is thin`. The receipt says "Source, private". A source is not a note: it does not appear as an item, and it does not count towards the days-you-captured tile.
+2. **From the Sources page.** Open **Items**, then **Sources**. Under **Add a source** paste the **Link**, write **My note**, choose companies and concepts (at most 5 and 8), and press **Save source**. The answer is "Source saved. Reading its title."
+3. **The desk reads the link once.** Usually within seconds (the desk tries again within about 15 minutes if the first try fails) the card shows what the site or YouTube said: the title, the channel or site name and the picture, in the machine's type under "From YouTube, read {date}" or "From the page, read {date}". That is not your words. Your note sits apart from it under **My note**. If the read fails the card says why in plain words, for example "YouTube says this video does not exist or is private." or "The site did not answer. The desk tries again (3 tries), or press Read again." A failed link stays saved. **Read again** asks at most once a minute.
+4. **`v:` while videos are off.** Your own-channel videos are switched off (see the note in section 4.12), so a `v:` line is saved as a source instead.
+
+**The same link twice.** The desk keeps one card per link. Save it again, from the Capture box or the form, and your new note is added under a dated line ("— 17 Oct 2026") and the new companies and concepts are added. The answer says, for example, "You saved this link on 16 Oct 2026. Your note was added to it." Nothing is read a second time. A link that you archived comes back onto your list. `youtu.be/ID` and `youtube.com/watch?v=ID` are the same video and are joined; two web addresses that differ in other ways are not.
+
+**The list.** **Saved sources** shows the newest first. Filter by company, by concept, by the ones on a public file, or by archived. Each card says whether it is **Private**, **On the public file** (with the file named) or **Archived**. **Archive** is refused while a public file lists the source: "It is on the public file. Save a revision without it first."
+
+**Putting a source on a company file**
+
+1. Open the company's file (Items, then the file). Under **Outside sources** every source attached to that company is listed. Attach a source on the Sources page first if one is missing.
+2. Tick **Show on the public file**. Two things appear: **Show its title and picture** (ticked) and **What readers see from me**. Press **Use my private note** to copy your private note there, then edit it; nothing is copied unless you press. The note readers see holds at most 500 characters. A file lists at most 12 sources.
+3. Write a reason in **Change reason (optional)** if you want one; it is your sentence. Press **Save as a new revision**. This makes a new revision from the newest saved one and carries your view, tests and facts over unchanged.
+4. Run the publishing gate as usual (section 4.4). The checklist has two lines for this: "Outside sources match what you chose (rule 14)." and "Outside titles and links pass the wording check."
+5. The source is **on the public file as soon as the gate passes**. There is no 30-day wait for these, because they are other people's work and not your figures. Nothing is shown from a source you left unticked.
+
+**The picture tick.** The desk reads words, not pictures. A thumbnail can carry a line of its own, and the desk cannot tell. So beside every picture the desk says: "The desk does not read pictures. Untick if this one tells people to buy or sell." If you untick **Show its title and picture**, the public card shows only "A video on YouTube" (or the site's name) and the link, with no title and no picture. The picture itself is a copy kept by the desk and served from the site's own address, so a reader's browser does not contact YouTube until they press the link.
+
+**Why a title with a price has to be unticked.** The wording rules read the title and the channel or site name as well as your words. A title with an instruction to buy or sell in it is refused under rule 1 (no actionable language). A title with a price, a return or a valuation figure in it ("trading at Rs 450", "up 8%") is refused under rule 3, and no allowance can clear it, because the title is someone else's sentence and you cannot edit it. The gate says "In: Title of an outside source" and the panel lists what the last run refused. The way out is the same each time: untick **Show its title and picture** for that source, save a new revision and run the gate again. The link alone passes. (The rule over-matches on purpose: a title such as "profit up 8%" needs the untick too.) If it is the link's address that holds the figure, the message says "Take the source off the file." instead.
+
+**Taking one off.** Untick **Show on the public file**, save a new revision and run the gate. The block and the picture go once it passes. **Unpublish** on the file removes the whole file, the block with it.
+
+**What is kept, and what changes by itself.** YouTube details older than 30 days are deleted and read again at the next monthly check, as YouTube's rules ask. If a video is found gone, the card says so ("This video is no longer on YouTube. It is hidden on the public file; save the sources again to drop it.") and the public card stops showing it. If the title changes on YouTube, the public card falls back to the link alone until you save a revision and tick it again.
+
+| Message | What it means |
+|---|---|
+| "A source needs a link." | The line or the form had no usable web address. Nothing was saved. |
+| "A source note holds at most 4,000 characters. Shorten the note." | Cut the note and save again. |
+| "The desk read this link less than a minute ago. Try again in a minute." | **Read again** was pressed twice in a minute. |
+| "A source can be attached to at most 5 companies." | Attach it to fewer companies. (A limit of 8 concepts applies the same way.) |
 
 ---
 
@@ -989,6 +1034,7 @@ Set on Vercel (Production and Preview). The template with notes is `.env.example
 
 ### What is switched off on purpose
 
+- **Own-channel videos and letters.** Both are off in every deployment by two constants in `src/lib/features.ts` (`ownVideos`, `letters`), after the Phase 5d decision. Their pages answer 404, their desk links are gone, and the daily steps do nothing outbound for them. `FEATURES_ON` (a comma list) turns them on for the local test server only and is ignored on Vercel preview and production; never set it on Vercel. Turning one back on for real is a one-line pull request. The paragraphs below describe the setup that would then be needed.
 - **Voice notes.** `VOICE_NOTES` is unset. The drop bar hides voice notes and nothing is sent to Groq. To switch on you need Aksh's agreement (ADR-004 s8), and the open item about discarded transcript text staying in the database (Q22, debt M-4) needs its migration first. Its planned number, 0010, has since been taken by the ledger, so it will have a later number. Then set `VOICE_NOTES=on`.
 - **The public copy of the ledger's daily fingerprints.** `GITHUB_GIST_TOKEN` and `LEDGER_ANCHOR_GIST_ID` are unset. Days are still sealed in the database and wait. To switch on you need the owner decision (Q26: which GitHub account owns the gist), a public gist created by hand, and a fine-grained token with only the "Gists: write" permission. The file is public and shows the number of entries per day and their fingerprints (no names, words or prices). Do not put either value on Vercel until the owner has agreed. **Once any line is published, switching it off again turns the `ledger:anchor` step red** ("the public copy is switched off, but lines were published before"). The file is dated by GitHub. Its owner can still edit or delete it. The run compares the whole public file with every sealed line each day.
 - **Case studies from the ledger, and their chart.** Two rows in `private.settings`, `ledger_reveal` and `ledger_chart`, both absent (off). You turn them on in the Supabase SQL editor; the runbook `docs/runbooks/case-study-switches.md` has the exact SQL, what turning off does not do (it does not take a page down), and the checks to run before the first switch-on on the hosted project. Until Q27 is answered they stay off. Migrations 0017, 0018 and 0019 and the merge must land together, because every publish is refused in between.

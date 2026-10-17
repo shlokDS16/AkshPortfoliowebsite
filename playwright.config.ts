@@ -156,9 +156,20 @@ export default defineConfig({
       dependencies: ["anon", ...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop", "cases", "concepts", "videos", "letters", "cases-public-375", "cases-public-1280", "concepts-public-375", "concepts-public-1280", "videos-public-375", "videos-public-1280", "letters-public-375", "letters-public-1280"],
       use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
     },
+    // Phase 5d Task 5: the sources loop end to end (an `s:` capture of a made-up YouTube link, the card, a repeat that adds his note, the gate's refusal
+    // of an outside title with "buy" (rule 1) and of one with a rupee price (rule 3), the untick that passes, a clean title shown at once with its picture
+    // from /media/studied, Unpublish, and a last revision that takes every source off). YouTube and its picture server are faked at the link reader
+    // (LLM_ADAPTER=fixture in the web server's env, e2e/support/stack.ts), so nothing leaves the machine. It edits the seeded Kaveri file, so it runs after
+    // sources-screens (which uses the same file and leaves it with no outside source) and every other project, and before the sign-out.
+    {
+      name: "sources",
+      testMatch: spec("sources"),
+      dependencies: ["anon", ...PUBLIC_PROJECTS, "reduced-motion", "desk-mobile", "desk-desktop", "cases", "concepts", "videos", "letters", "sources-screens", "cases-public-375", "cases-public-1280", "concepts-public-375", "concepts-public-1280", "videos-public-375", "videos-public-1280", "letters-public-375", "letters-public-1280"],
+      use: { storageState: ADMIN_STATE, viewport: { width: 1280, height: 800 } },
+    },
     // Signing out revokes every session of the admin (GoTrue's default scope), including the stored
-    // one the desk projects share, so this runs last and only after the desk, case, concept, video and letters projects have finished.
-    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts", "videos", "letters", "sources-screens"] },
+    // one the desk projects share, so this runs last and only after the desk, case, concept, video, letters and sources projects have finished.
+    { name: "signout", testMatch: spec("signout"), dependencies: ["desk-mobile", "desk-desktop", "cases", "concepts", "videos", "letters", "sources-screens", "sources"] },
   ],
   webServer: {
     command: stack ? `pnpm build && pnpm start -p ${E2E_PORT}` : `pnpm start -p ${E2E_PORT}`,
