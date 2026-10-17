@@ -43,3 +43,25 @@ Run the whole chain once from a fresh `supabase db reset`; the new project's dep
 
 ## Earlier reports' "Needs Docker" lists (T4 items 1 to 7) are all still open
 `sources-screens` project, `desk-a11y` and `public-a11y` additions, the full chain, the integration tests that skip without the stack, the visual review with `SOURCES_SHOTS=<folder>` and the `v:`/`s:` key row under `FEATURES_ON=ownVideos,letters` (unit-tested only) have not been run by anyone yet; CI on this push is the first run of all of them.
+
+## Fix wave (2026-10-17, after the whole-branch review)
+Source: `.superpowers/sdd/2026-10-17-sources-ledger/review.md`. No migration, no SQL, no public route changed.
+
+| Finding | Fix | Commit |
+|---|---|---|
+| 1 MEDIUM | `linkText` in `compliance/lint.ts` lints the whole address (host, path, query, fragment, decoded; punctuation read as spaces). Tests: rule 1 and rule 3 hits in query and fragment, `?id=42` still passes. | 0d85d27 |
+| 2 MEDIUM | `stale()` orders by `fetch_attempts` first, then `checked_at`. Unit test pins the order of the two `order` calls; integration test added (CI). | e6e74d1 |
+| 3 MEDIUM | `READ_WORST_MS` (20 s); a read starts only if `elapsed + 20 s <= budget`; `RECHECK_BUDGET_MS` 60 s to 35 s. Comments in `daily/route.ts`, `drain.ts` and `source-steps.ts` corrected; tests prove the clock never passes the budget (the 19 s per link case fails on the old rule). Spec s6.4 and s9 amendment appended. | 83fc15b |
+| 4 LOW | `cleanSourceUrl` stores `url.href` (lower-case scheme and host, percent-encoded spaces, `https`), null over 2,000 characters once encoded. | f6d5e14 |
+| Controller addition | The same function drops `utm_*`, `fbclid`, `gclid` on any link and `si`, `feature`, `pp` on a YouTube link only; everything else is kept in its order and encoding. Dedupe is unchanged in kind (the key already ignored these) and is tested at `urlKey` and `saveSource` level. | f6d5e14 |
+| Docs | Spec amendment (s5, s6.2, s6.4, s9, D106), addendum 14.3 line, and debt lines 5-15 (finding 10 marked partly done) under "Sources" in `docs/specs/technical-debt.md`. | this commit |
+
+Behaviour pending Shlok's approval: when a link is saved, tracking parameters are removed (YouTube `si`, `feature`, `pp`; any `utm_*`, `fbclid`, `gclid`). He sees the saved address without them on the list, the public card and the print. A YouTube link is not rewritten to the watch form (debt line, #10).
+
+New strings: none (no wording changed anywhere a person reads it).
+
+Local evidence: touched-file tests green at each step; the full unit suite `pnpm vitest run --testTimeout=60000 --maxWorkers=2`: 517 files passed, 4 skipped; 6,973 tests passed, 19 skipped. `pnpm typecheck` and `rtk pnpm lint` clean. `pnpm build` (CI placeholder env) and `pnpm check:bundles` passed. Two existing tests changed because the stored address is now normalised and cleaned (`sources/service.test.ts`, `capture/service.source.test.ts`).
+
+e2e and pgTAP verified on CI only. The new integration test (`ops/source-steps.integration.test.ts`, re-check order) also runs only on CI with the stack.
+
+Concerns: (1) the daily and pump worst cases are 295 s only while the video and letter steps are off; turning either on needs a new budget. (2) `source-steps.integration.test.ts` needs the local stack, never run here. (3) Rule 1 on a query string can now refuse a link whose query merely contains a banned word; the remedy is the existing rule 1 allowance or untick-and-edit the link.

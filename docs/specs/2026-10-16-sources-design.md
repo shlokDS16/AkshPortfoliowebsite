@@ -267,3 +267,8 @@ third-party titles, names, links and his note; the YouTube re-check every 25 day
 delay). Added to keep rule 3 without the hold: the rule 3 figure patterns run on third-party titles, names and links and refuse
 any price, return or valuation figure in them, not allowanceable (s5). `meta_since` stays (it records when the shown data was
 first read; the desk prints it as "read {date}").
+
+## Amendments from the whole-branch review (2026-10-17, append-only)
+- s5 and the lint: `outsideLink` is the whole address a reader can see (host, path, query string and fragment, decoded, with hyphens, underscores, slashes and the query's punctuation read as spaces), not "host and path". The page prints and links the whole address (s7), so the lint reads all of it. (Review #1.)
+- s6.4 and s9, D106 (budgets): the pump budget stays 40 s; the daily re-check budget drops from 60 s to 35 s. A read is started only if it can finish inside the budget: never started past the budget less 20 s (a read is two requests of 10 s). Worst case: the pump 240 + 40 + 15 = 295 s, the daily 45 + 200 + 35 + 15 = 295 s, of the function's 300 s (video and letter steps off). The re-check queue orders by `fetch_attempts` first (a link that keeps failing goes to the back), then by `checked_at`. (Review #2 and #3.)
+- s6.2: the saved link is the address as the browser normalises it, `http` upgraded to `https`, without tracking parameters: `utm_*`, `fbclid` and `gclid` on any link; `si`, `feature` and `pp` on a YouTube link. Everything else is kept as typed. The identity of a source is unchanged (the key already ignored these). Pending Shlok's approval. (Review #4 and the controller's addition.)
