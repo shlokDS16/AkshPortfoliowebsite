@@ -74,7 +74,8 @@ test("an s: capture with a company and a concept is read by the made-up YouTube;
   await expect(card).toHaveCount(1);
   await expect(card.getByText("From YouTube, read", { exact: false })).toBeVisible();
   await expect(card.getByText(CHANNEL)).toBeVisible();
-  await expect(card.getByText(FIRST_NOTE)).toBeVisible();
+  // The shown note, not the edit box under it that holds the same words.
+  await expect(card.getByRole("paragraph").filter({ hasText: FIRST_NOTE })).toBeVisible();
   await expect(card.getByText("Private", { exact: true })).toBeVisible();
   await expect(card.getByRole("img", { name: PICTURE })).toBeVisible();
   await expect(card.getByRole("link", { name: new RegExp(`${KAVERI.symbol}|Kaveri`) })).toBeVisible();
