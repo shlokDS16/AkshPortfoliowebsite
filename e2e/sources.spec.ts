@@ -182,7 +182,8 @@ test("a clean title, ticked and with his note for readers, passes and is on the 
   // No hold: the very next signed-out read of the file already has it.
   await visitor(browser, 1280, async (p) => {
     await p.goto(COMPANY_PATH);
-    await expect(p.getByRole("region", { name: "Other people's work I studied" }).getByText(CLEAN.title)).toBeVisible();
+    // Exact: the link's screen-reader label repeats the title after "Watch on YouTube".
+    await expect(p.getByRole("region", { name: "Other people's work I studied" }).getByText(CLEAN.title, { exact: true })).toBeVisible();
   });
 });
 
