@@ -35,3 +35,6 @@ party by opening a page. The desk cannot read words inside a picture: showing it
 ## Retraction
 A new revision without the entry, or `unpublish_item()` on the file, removes it at the next refresh (at most one hour, rule 11.5);
 pictures are cached at our edge for at most one hour. Copies taken by others cannot be recalled (v1 "Retraction").
+
+## Amendment 2026-10-17 (whole-branch review of the sources work, append-only)
+14.3 and the lint of an outside link: the link is read as the whole address, host, path, query string and fragment, because the page prints and links all of it. A figure or a rule 1 word in the query string or the fragment is refused as it would be in the path. Policy version unchanged (v1.3); this is a TypeScript lint change only.

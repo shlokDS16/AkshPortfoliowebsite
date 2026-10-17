@@ -56,19 +56,23 @@ function walkStudied(studied: unknown, units: TextUnit[]): void {
   }
 }
 
-/** A link as a reader's eye reads it: the host and the path, hyphens, underscores and slashes read as spaces; the query and the fragment are not part of what is shown. */
+/** A link as a reader's eye reads it: the whole address the page prints and links (host, path, query string and fragment), decoded, with hyphens, underscores, slashes and the query's punctuation read as spaces. */
 function linkText(url: string): string {
-  let host = url;
-  let path = "";
+  const decode = (s: string): string => {
+    try {
+      return decodeURIComponent(s.replace(/\+/g, " "));
+    } catch {
+      return s;
+    }
+  };
+  const spaced = (s: string): string => s.replace(/[-_/?#&=+]+/g, " ");
   try {
     const u = new URL(url);
-    host = u.hostname.replace(/^www\./, "");
-    path = u.pathname;
-    path = decodeURIComponent(path);
+    return spaced(`${u.hostname.replace(/^www\./, "")} ${decode(u.pathname)} ${decode(u.search)} ${decode(u.hash)}`);
   } catch {
     // an address that cannot be read is linted as it stands
+    return spaced(url);
   }
-  return `${host} ${path}`.replace(/[-_/]+/g, " ");
 }
 
 /** The words of the outside sources a reader would see (rule 14): the link always, the title and the site name only when the entry shows them and the hash matches. */

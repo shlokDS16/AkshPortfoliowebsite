@@ -3,7 +3,7 @@ import { sentenceHash } from "./hash";
 import { lintText } from "./lint";
 import type { LintInput, OutsideSource } from "./rules";
 
-// Phase 5d, rule 14 and spec s5: an outside source on a company file. What a reader sees is linted: the link always (host and path), the
+// Phase 5d, rule 14 and spec s5: an outside source on a company file. What a reader sees is linted: the link always (the whole address), the
 // title and the site or channel name only when the entry shows them, and his note on the entry like the rest of his words. The machine's keys in
 // an entry (link, show, metaSha) are not prose. Rules 1 and 2 apply as usual (a rule 1 allowance too); a price, return or valuation figure in
 // somebody else's title, name or link is refused whatever the file's "Figures to" date and is never allowanceable (rule 3, 14.4).
@@ -82,8 +82,19 @@ describe("rules 1 and 2 on a third party's title, site name and link", () => {
     expect(lint({ outside: [outside({ url: "https://example.com/how-to-read-a-balance-sheet" })] }).passed).toBe(true);
   });
 
-  it("reads only the host and the path of a link, not the query string or the fragment", () => {
-    expect(lint({ outside: [outside({ url: "https://example.com/post?utm_campaign=buy-now#sell" })] }).passed).toBe(true);
+  it("reads the whole address a reader can see: the query string and the fragment as well as the host and the path", () => {
+    const hit = (url: string, rule: string) => lint({ outside: [outside({ url })] }).findings.some((f) => f.rule === rule && f.field === "outsideLink");
+    expect(hit("https://example.com/p?title=five-stocks-to-buy-now", "1")).toBe(true);
+    expect(hit("https://www.google.com/search?q=five+stocks+to+buy+now", "1")).toBe(true);
+    expect(hit("https://example.com/post?utm_campaign=buy-now#sell", "1")).toBe(true);
+    expect(hit("https://example.com/p#trading-at-rs-450-per-share", "3")).toBe(true);
+    expect(hit("https://blog.example/p?title=target-rs-450-per-share", "3")).toBe(true);
+    expect(hit("https://example.com/p?q=%62uy%20now", "1")).toBe(true);
+  });
+
+  it("still passes a plain link with a harmless query string", () => {
+    expect(lint({ outside: [outside({ url: "https://example.com/plain?id=42" })] }).passed).toBe(true);
+    expect(lint({ outside: [outside({ url: "https://example.com/p?id=42&page=3#intro" })] }).passed).toBe(true);
   });
 });
 

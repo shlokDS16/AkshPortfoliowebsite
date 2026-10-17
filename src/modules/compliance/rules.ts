@@ -19,7 +19,7 @@ export const LINT_FIELDS = [
   "conceptSlug",
   /** A video's transcript: the machine's record of what was said, linted word for word (rule 12.2). */
   "transcript",
-  /** Rule 14: the title and the site or channel name the machine read from another site (only when the entry shows them), and the link's host and path (always). */
+  /** Rule 14: the title and the site or channel name the machine read from another site (only when the entry shows them), and the link, the whole address (always). */
   "outsideTitle",
   "outsideSite",
   "outsideLink",
