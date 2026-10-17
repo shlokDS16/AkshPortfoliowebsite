@@ -116,3 +116,39 @@ describe.skipIf(!stack)("the source steps against the real SQL and storage on th
     expect(await objects()).not.toContain(path);
   }, 60_000);
 });
+
+// Review 2026-10-17 #2: a link that keeps failing keeps its old checked_at; it must go to the back, not stay first for ever.
+const FAILING = ID(5); // two failed re-checks, the older checked_at
+const HEALTHY = ID(6); // no failed re-check, a younger checked_at
+const IDS_ORDER = `('${FAILING}','${HEALTHY}')`;
+const SEED_ORDER = [
+  "do $$ begin",
+  `delete from public.source_links where id in ${IDS_ORDER};`,
+  "insert into public.source_links (id, url, url_key, kind, youtube_id, note) values",
+  `('${FAILING}','https://youtu.be/fxFailing01','yt:fxFailing01','youtube','fxFailing01','n'),`,
+  `('${HEALTHY}','https://youtu.be/fxHealthy01','yt:fxHealthy01','youtube','fxHealthy01','n');`,
+  `perform public.record_source_fetch('${FAILING}', true, 'Old', 'Old channel', null, null, null, null, false);`,
+  `perform public.record_source_fetch('${HEALTHY}', true, 'Old', 'Old channel', null, null, null, null, false);`,
+  `perform public.record_source_fetch('${FAILING}', false, null, null, null, null, null, 'timeout', false);`,
+  `perform public.record_source_fetch('${FAILING}', false, null, null, null, null, null, 'timeout', false);`,
+  "perform set_config('app.source_fetch', 'on', true);",
+  `update public.source_links set checked_at = now() - interval '28 days', fetched_at = now() - interval '28 days' where id = '${FAILING}';`,
+  `update public.source_links set checked_at = now() - interval '26 days', fetched_at = now() - interval '26 days' where id = '${HEALTHY}';`,
+  "end $$",
+].join(" ");
+
+describe.skipIf(!stack)("the re-check queue puts a link that keeps failing behind the healthy ones", () => {
+  const db = createClient<Database>(stack?.url ?? "http://127.0.0.1:1", stack?.secretKey ?? "sb_secret_unused", { auth: { persistSession: false } }) as unknown as Db;
+  const store = createSourceFetchStore(db);
+
+  beforeAll(() => runSql(SEED_ORDER), 60_000);
+  afterAll(() => runSql(`delete from public.source_links where id in ${IDS_ORDER}`), 60_000);
+
+  it("a healthy link read 26 days ago comes before a link with two failed re-checks and an older check", async () => {
+    const ids = (await store.stale(1000)).map((r) => r.id);
+    expect(ids).toContain(FAILING);
+    expect(ids).toContain(HEALTHY);
+    expect(ids.indexOf(HEALTHY)).toBeLessThan(ids.indexOf(FAILING));
+    expect((await store.byId(FAILING))?.fetchAttempts).toBe(2);
+  }, 60_000);
+});

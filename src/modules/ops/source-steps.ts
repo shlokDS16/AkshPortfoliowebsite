@@ -12,8 +12,8 @@ import type { Step } from "./steps";
 // a fake store and the fixture transport. The secret-key client READS source_links and WRITES only through public.record_source_fetch and
 // public.purge_stale_source_data (migration 0026) and the private bucket source-thumbs. Neither step is in HEALTH_RULES: an optional
 // feature must not raise the alert email. Heartbeat details are counts and fixed words, never a title, a link or a database message.
-//   sources:fetch   (the pump)  reads up to 5 links never read, in 40 s at most; 3 tries each.
-//   sources:recheck (the daily) purges YouTube details older than 30 days first, then re-reads YouTube links not checked in 25 days (40, 60 s).
+//   sources:fetch   (the pump)  reads up to 5 links never read, starting none that could run past 40 s; 3 tries each.
+//   sources:recheck (the daily) purges YouTube details older than 30 days first, then re-reads YouTube links not checked in 25 days (40, none started that could run past 35 s).
 
 const BUCKET = "source-thumbs";
 const COLUMNS = "id, kind, youtube_id, url, fetched_at, checked_at, fetch_attempts, fetch_problem, gone";
@@ -59,6 +59,9 @@ export function createSourceFetchStore(db: Db, now: () => number = Date.now): Fe
         .is("archived_at", null)
         .not("fetched_at", "is", null)
         .or(`checked_at.is.null,checked_at.lt.${before}`)
+        // Fewest failed tries first (record_source_fetch counts a failure and resets the count on success): a link that keeps failing keeps its old
+        // checked_at, and without this it would sit at the head of the queue for ever and starve every healthy link.
+        .order("fetch_attempts", { ascending: true })
         .order("checked_at", { ascending: true, nullsFirst: true })
         .limit(limit);
       if (error) throw jobDbError("sources.stale", error);

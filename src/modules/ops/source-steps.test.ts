@@ -105,6 +105,13 @@ describe("the store's reads (service client)", () => {
     expect(text).toContain("source_links.limit(40)");
   });
 
+  it("stale: the links that failed fewest times first, so a link that keeps failing cannot starve the healthy ones", async () => {
+    const { db, log } = recordingDb({ select: { data: [], error: null } });
+    await createSourceFetchStore(db, () => Date.parse("2026-10-16T00:00:00Z")).stale(40);
+    const orders = log.filter((line) => line.startsWith("source_links.order("));
+    expect(orders).toEqual(['source_links.order(fetch_attempts,{"ascending":true})', 'source_links.order(checked_at,{"ascending":true,"nullsFirst":true})']);
+  });
+
   it("a database failure is named by operation and code, never by its message", async () => {
     const { db } = recordingDb({ select: { data: null, error: { message: "row with secret text", code: "XX000" } } });
     const error = (await createSourceFetchStore(db).pending(5).catch((e: unknown) => e)) as Error;
